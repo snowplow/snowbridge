@@ -23,8 +23,8 @@ const (
 	appName    = "stream-replicator"
 )
 
-// HandleRequest processes the S3 event and tracks the associated details we want to send to Snowplow
-func HandleRequest(ctx context.Context, s3Event events.S3Event) {
+// HandleRequest processes the Kinesis event and forwards it onto another stream
+func HandleRequest(ctx context.Context, kinesisEvent events.KinesisEvent) {
 	logLevels := map[string]log.Level{
 		"debug":   log.DebugLevel,
 		"info":    log.InfoLevel,
@@ -70,7 +70,7 @@ func HandleRequest(ctx context.Context, s3Event events.S3Event) {
 			strings.Join(logLevelKeys, ","), cfg.LogLevel)
 	}
 
-	for _, record := range s3Event.Records {
+	for _, record := range kinesisEvent.Records {
 		log.Debugf("Record: %+v\n", record)
 	}
 }
