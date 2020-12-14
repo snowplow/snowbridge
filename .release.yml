@@ -1,0 +1,68 @@
+---
+local:
+  root_dir : <%= ENV['GITHUB_WORKSPACE'] %>
+
+targets:
+  - type     : "awss3"
+    access_key_id: <%= ENV['AWS_DEPLOY_ACCESS_KEY_ID'] %>
+    secret_access_key: <%= ENV['AWS_DEPLOY_SECRET_ACCESS_KEY'] %>
+
+packages:
+  - name     : "stream-replicator-assets"
+    locations:
+    - bucket   : "snowplow-hosted-assets-proprietary"
+      path     : "stream-replicator"
+      region   : "us-east-1"
+    - bucket   : "snowplow-hosted-assets-proprietary-ap-northeast-1"
+      path     : "stream-replicator"
+      region   : ap-northeast-1
+    - bucket   : "snowplow-hosted-assets-proprietary-ap-northeast-2"
+      path     : "stream-replicator"
+      region   : ap-northeast-2
+    - bucket   : "snowplow-hosted-assets-proprietary-ap-south-1"
+      path     : "stream-replicator"
+      region   : ap-south-1
+    - bucket   : "snowplow-hosted-assets-proprietary-ap-southeast-1"
+      path     : "stream-replicator"
+      region   : ap-southeast-1
+    - bucket   : "snowplow-hosted-assets-proprietary-ap-southeast-2"
+      path     : "stream-replicator"
+      region   : ap-southeast-2
+    - bucket   : "snowplow-hosted-assets-proprietary-ca-central-1"
+      path     : "stream-replicator"
+      region   : ca-central-1
+    - bucket   : "snowplow-hosted-assets-proprietary-eu-central-1"
+      path     : "stream-replicator"
+      region   : eu-central-1
+    - bucket   : "snowplow-hosted-assets-proprietary-eu-west-1"
+      path     : "stream-replicator"
+      region   : eu-west-1
+    - bucket   : "snowplow-hosted-assets-proprietary-eu-west-2"
+      path     : "stream-replicator"
+      region   : eu-west-2
+    - bucket   : "snowplow-hosted-assets-proprietary-sa-east-1"
+      path     : "stream-replicator"
+      region   : sa-east-1
+    - bucket   : "snowplow-hosted-assets-proprietary-us-east-1"
+      path     : "stream-replicator"
+      region   : us-east-1
+    - bucket   : "snowplow-hosted-assets-proprietary-us-east-2"
+      path     : "stream-replicator"
+      region   : us-east-2
+    - bucket   : "snowplow-hosted-assets-proprietary-us-west-1"
+      path     : "stream-replicator"
+      region   : us-west-1
+    - bucket   : "snowplow-hosted-assets-proprietary-us-west-2"
+      path     : "stream-replicator"
+      region   : us-west-2
+
+    override : false
+    continue_on_conflict : false
+    version  : <%= CMD['cat VERSION'] %>
+    build_version : <%= ENV['GITHUB_TAG'] %>
+    artifacts:
+      - prefix : "stream_replicator_"
+        suffix : "_linux_amd64"
+        type   : "zip"
+        binary_paths:
+          - build/output/linux/main

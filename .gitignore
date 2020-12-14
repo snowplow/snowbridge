@@ -1,0 +1,14 @@
+# Golang
+vendor/
+
+# IntelliJ
+.idea
+
+# macOS
+.DS_Store
+*.log
+
+# Project
+build/
+dist/
+.release.yml.tmp
