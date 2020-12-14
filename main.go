@@ -24,7 +24,7 @@ const (
 )
 
 // HandleRequest processes the Kinesis event and forwards it onto another stream
-func HandleRequest(ctx context.Context, kinesisEvent events.KinesisEvent) {
+func HandleRequest(ctx context.Context, event events.KinesisEvent) {
 	logLevels := map[string]log.Level{
 		"debug":   log.DebugLevel,
 		"info":    log.InfoLevel,
@@ -70,9 +70,10 @@ func HandleRequest(ctx context.Context, kinesisEvent events.KinesisEvent) {
 			strings.Join(logLevelKeys, ","), cfg.LogLevel)
 	}
 
-	for _, record := range kinesisEvent.Records {
-		log.Debugf("Record: %+v\n", record)
-	}
+	// Build target client
+	// TODO: Make this configurable
+	t := NewStdoutTarget()
+	t.Write(event)
 }
 
 func main() {
