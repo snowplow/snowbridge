@@ -12,7 +12,7 @@ import (
 )
 
 // StdoutTarget holds a new client for writing events to stdout
-type StdoutTarget struct {}
+type StdoutTarget struct{}
 
 // NewStdoutTarget creates a new client for writing events to stdout
 func NewStdoutTarget() *StdoutTarget {
