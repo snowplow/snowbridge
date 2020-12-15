@@ -78,7 +78,7 @@ func (c *Config) GetTarget() (Target, error) {
 	} else if c.Target == "kinesis" {
 		return NewKinesisTarget(c.Kinesis.Region, c.Kinesis.StreamName), nil
 	} else {
-		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout' and got '%s'", c.Target)
+		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis' and got '%s'", c.Target)
 	}
 }
 
