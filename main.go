@@ -71,8 +71,10 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) {
 	}
 
 	// Build target client
-	// TODO: Make this configurable
-	t := NewStdoutTarget()
+	t, err := cfg.GetTarget()
+	if err != nil {
+		log.Panicf("FATAL: config.GetTarget: %s", err.Error())
+	}
 	t.Write(event)
 }
 

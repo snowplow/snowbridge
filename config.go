@@ -71,6 +71,15 @@ func configFromEnv(c *Config) *Config {
 	}
 }
 
+// GetTarget builds and returns the target that is configured
+func (c *Config) GetTarget() (Target, error) {
+	if c.Target == "stdout" {
+		return NewStdoutTarget(), nil
+	} else {
+		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout' and got '%s'", c.Target)
+	}
+}
+
 // --- HELPERS
 
 // getEnvOrElse returns an environment variable value or a default
