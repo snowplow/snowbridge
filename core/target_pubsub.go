@@ -41,7 +41,7 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 
 	topic := ps.Client.Topic(ps.TopicName)
 	defer topic.Stop()
-	
+
 	var results []*pubsub.PublishResult
 
 	log.Infof("Writing %d records to target topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
@@ -57,6 +57,8 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 
 	for _, r := range results {
 		id, err := r.Get(ctx)
+
+		// TODO: Accumulate failures instead of eagerly returning
 		if err != nil {
 			return err
 		}
@@ -64,6 +66,7 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 		log.Debugf("Published a message with message ID '%s' to topic '%s' in project %s", id, ps.TopicName, ps.ProjectID)
 	}
 
+	// TODO: Calculate successes and failures from above loop
 	log.Infof("Successfully wrote %d records to target stream '%s' in project %s", len(events), ps.TopicName, ps.ProjectID)
 
 	return nil
