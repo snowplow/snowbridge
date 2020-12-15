@@ -48,7 +48,10 @@ func main() {
 				PartitionKey: uuid.NewV4().String(),
 			}
 
-			t.Write(events)
+			err := t.Write(events)
+			if err != nil {
+				log.Error(err)
+			}
 		}
 
 		if scanner.Err() != nil {
