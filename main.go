@@ -66,7 +66,7 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) {
 	if level, ok := logLevels[cfg.LogLevel]; ok {
 		log.SetLevel(level)
 	} else {
-		log.Panicf("Supported log levels are %s, provided %s",
+		log.Panicf("FATAL: Supported log levels are %s, provided %s",
 			strings.Join(logLevelKeys, ","), cfg.LogLevel)
 	}
 
