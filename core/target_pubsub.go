@@ -7,8 +7,8 @@
 package core
 
 import (
-	"context"
 	"cloud.google.com/go/pubsub"
+	"context"
 	log "github.com/sirupsen/logrus"
 )
 
