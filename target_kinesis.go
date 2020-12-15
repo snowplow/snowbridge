@@ -39,6 +39,8 @@ func NewKinesisTarget(region string, streamName string) *KinesisTarget {
 
 // Write pushes all events to the required target
 func (kt *KinesisTarget) Write(event events.KinesisEvent) error {
+	log.Infof("Writing %d records to target stream '%s' ...", len(event.Records), kt.StreamName)
+
 	entries := make([]*kinesis.PutRecordsRequestEntry, len(event.Records))
 	for i := 0; i < len(entries); i++ {
 		record := event.Records[i]
@@ -47,7 +49,8 @@ func (kt *KinesisTarget) Write(event events.KinesisEvent) error {
 			PartitionKey: aws.String(record.Kinesis.PartitionKey),
 		}
 	}
-	log.Debugf("Entries to write to target stream '%s': %v\n", kt.StreamName, entries)
+
+	log.Debugf("Entries (%d) to write to target stream '%s': %v\n", len(entries), kt.StreamName, entries)
 
 	res, err := kt.Client.PutRecords(&kinesis.PutRecordsInput{
 		Records:    entries,
@@ -60,6 +63,8 @@ func (kt *KinesisTarget) Write(event events.KinesisEvent) error {
 	if *res.FailedRecordCount > int64(0) {
 		return fmt.Errorf("Failed to write %d out of %d records to target stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
 	}
+
+	log.Infof("Successfully wrote %d records to target stream '%s'", len(entries), kt.StreamName)
 
 	return nil
 }
