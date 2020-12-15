@@ -21,7 +21,8 @@ func NewStdoutTarget() *StdoutTarget {
 // Write pushes all events to the required target
 func (st *StdoutTarget) Write(events []*Event) error {
 	for _, event := range events {
-		log.Infof("%+v\n", event)
+		data := string(event.Data)
+		log.Infof("PartitionKey: %s, Data: %s\n", event.PartitionKey, data)
 	}
 	return nil
 }

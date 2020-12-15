@@ -1,4 +1,4 @@
-.PHONY: all format lint tidy test release release-dry clean
+.PHONY: all gox lambda stdin format lint tidy test release release-dry clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -13,18 +13,29 @@ coverage_out  = $(coverage_dir)/coverage.out
 coverage_html = $(coverage_dir)/coverage.html
 
 output_dir = $(build_dir)/output
-linux_dir  = $(output_dir)/linux
 
-lambda_dir       = $(linux_dir)/lambda
-bin_linux_lambda = $(lambda_dir)/main
+linux_dir  = $(output_dir)/linux
+darwin_dir = $(output_dir)/darwin
+
+bin_linux_stdin  = $(linux_dir)/stdin/stream-replicator
+bin_darwin_stdin = $(darwin_dir)/stdin/stream-replicator
+bin_linux_lambda = $(linux_dir)/lambda/main
 
 # -----------------------------------------------------------------------------
 #  BUILDING
 # -----------------------------------------------------------------------------
 
-all:
+all: lambda stdin
+
+gox:
 	GO111MODULE=on go get -u github.com/mitchellh/gox
+
+lambda: gox
 	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(bin_linux_lambda) ./cmd/lambda/
+
+stdin: gox
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(bin_linux_stdin) ./cmd/stdin/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(bin_darwin_stdin) ./cmd/stdin/
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
