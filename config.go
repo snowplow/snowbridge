@@ -75,6 +75,8 @@ func configFromEnv(c *Config) *Config {
 func (c *Config) GetTarget() (Target, error) {
 	if c.Target == "stdout" {
 		return NewStdoutTarget(), nil
+	} else if c.Target == "kinesis" {
+		return NewKinesisTarget(c.Kinesis.Region, c.Kinesis.StreamName), nil
 	} else {
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout' and got '%s'", c.Target)
 	}
