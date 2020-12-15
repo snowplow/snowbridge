@@ -4,10 +4,9 @@
 //
 // Copyright (c) 2020 Snowplow Analytics Ltd. All rights reserved.
 
-package main
+package core
 
 import (
-	"github.com/aws/aws-lambda-go/events"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,9 +19,9 @@ func NewStdoutTarget() *StdoutTarget {
 }
 
 // Write pushes all events to the required target
-func (st *StdoutTarget) Write(event events.KinesisEvent) error {
-	for _, record := range event.Records {
-		log.Infof("Record: %+v\n", record)
+func (st *StdoutTarget) Write(events []*Event) error {
+	for _, event := range events {
+		log.Infof("%+v\n", event)
 	}
 	return nil
 }

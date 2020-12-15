@@ -4,11 +4,10 @@
 //
 // Copyright (c) 2020 Snowplow Analytics Ltd. All rights reserved.
 
-package main
+package core
 
 import (
 	"fmt"
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -38,15 +37,15 @@ func NewKinesisTarget(region string, streamName string) *KinesisTarget {
 }
 
 // Write pushes all events to the required target
-func (kt *KinesisTarget) Write(event events.KinesisEvent) error {
-	log.Infof("Writing %d records to target stream '%s' ...", len(event.Records), kt.StreamName)
+func (kt *KinesisTarget) Write(events []*Event) error {
+	log.Infof("Writing %d records to target stream '%s' ...", len(events), kt.StreamName)
 
-	entries := make([]*kinesis.PutRecordsRequestEntry, len(event.Records))
+	entries := make([]*kinesis.PutRecordsRequestEntry, len(events))
 	for i := 0; i < len(entries); i++ {
-		record := event.Records[i]
+		event := events[i]
 		entries[i] = &kinesis.PutRecordsRequestEntry{
-			Data:         record.Kinesis.Data,
-			PartitionKey: aws.String(record.Kinesis.PartitionKey),
+			Data:         event.Data,
+			PartitionKey: aws.String(event.PartitionKey),
 		}
 	}
 

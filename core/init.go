@@ -4,13 +4,10 @@
 //
 // Copyright (c) 2020 Snowplow Analytics Ltd. All rights reserved.
 
-package main
+package core
 
 import (
-	"context"
 	"encoding/json"
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/getsentry/sentry-go"
 	"github.com/makasim/sentryhook"
 	log "github.com/sirupsen/logrus"
@@ -18,13 +15,8 @@ import (
 	"time"
 )
 
-const (
-	appVersion = "0.1.0-rc1"
-	appName    = "stream-replicator"
-)
-
-// HandleRequest processes the Kinesis event and forwards it onto another stream
-func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
+// Init contains the core initialization code for each implementation
+func Init() *Config {
 	logLevels := map[string]log.Level{
 		"debug":   log.DebugLevel,
 		"info":    log.InfoLevel,
@@ -70,24 +62,8 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 			strings.Join(logLevelKeys, ","), cfg.LogLevel)
 	}
 
-	// Build target client
-	t, err := cfg.GetTarget()
-	if err != nil {
-		log.Panicf("FATAL: config.GetTarget: %s", err.Error())
-	}
-
-	err = t.Write(event)
-	if err != nil {
-		log.Error(err)
-	}
-	return err
+	return cfg
 }
-
-func main() {
-	lambda.Start(HandleRequest)
-}
-
-// --- HELPERS
 
 func getLogLevelKeys(logLevels map[string]log.Level) []string {
 	keys := make([]string, 0, len(logLevels))
