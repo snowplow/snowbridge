@@ -16,7 +16,6 @@ import (
 type PubSubTarget struct {
 	ProjectID string
 	Client    *pubsub.Client
-	Topic     *pubsub.Topic
 	TopicName string
 }
 
@@ -28,12 +27,10 @@ func NewPubSubTarget(projectID string, topicName string) *PubSubTarget {
 	if err != nil {
 		log.Panicf("FATAL: pubsub.NewClient: %s", err.Error())
 	}
-	topic := client.Topic(topicName)
 
 	return &PubSubTarget{
 		ProjectID: projectID,
 		Client:    client,
-		Topic:     topic,
 		TopicName: topicName,
 	}
 }
@@ -41,7 +38,12 @@ func NewPubSubTarget(projectID string, topicName string) *PubSubTarget {
 // Write pushes all events to the required target
 func (ps *PubSubTarget) Write(events []*Event) error {
 	ctx := context.Background()
+
+	topic := ps.Client.Topic(ps.TopicName)
+	defer topic.Stop()
 	
+	var results []*pubsub.PublishResult
+
 	log.Infof("Writing %d records to target topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
 
 	for _, event := range events {
@@ -49,10 +51,17 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 			Data: event.Data,
 		}
 
-		_, err := ps.Topic.Publish(ctx, msg).Get(ctx)
+		r := topic.Publish(ctx, msg)
+		results = append(results, r)
+	}
+
+	for _, r := range results {
+		id, err := r.Get(ctx)
 		if err != nil {
 			return err
 		}
+
+		log.Debugf("Published a message with message ID '%s' to topic '%s' in project %s", id, ps.TopicName, ps.ProjectID)
 	}
 
 	log.Infof("Successfully wrote %d records to target stream '%s' in project %s", len(events), ps.TopicName, ps.ProjectID)
