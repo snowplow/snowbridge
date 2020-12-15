@@ -15,6 +15,10 @@ import (
 	core "github.com/snowplow-devops/stream-replicator/core"
 )
 
+func main() {
+	lambda.Start(HandleRequest)
+}
+
 // HandleRequest processes the Kinesis event and forwards it onto another stream
 func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 	cfg := core.Init()
@@ -42,8 +46,4 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 	}
 
 	return err
-}
-
-func main() {
-	lambda.Start(HandleRequest)
 }
