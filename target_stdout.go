@@ -20,7 +20,7 @@ func NewStdoutTarget() *StdoutTarget {
 }
 
 // Write pushes all events to the required target
-func (st *StdoutTarget) Write(event events.KinesisEvent) (error) {
+func (st *StdoutTarget) Write(event events.KinesisEvent) error {
 	for _, record := range event.Records {
 		log.Infof("Record: %+v\n", record)
 	}

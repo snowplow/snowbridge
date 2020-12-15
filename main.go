@@ -24,7 +24,7 @@ const (
 )
 
 // HandleRequest processes the Kinesis event and forwards it onto another stream
-func HandleRequest(ctx context.Context, event events.KinesisEvent) {
+func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 	logLevels := map[string]log.Level{
 		"debug":   log.DebugLevel,
 		"info":    log.InfoLevel,
@@ -75,7 +75,8 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) {
 	if err != nil {
 		log.Panicf("FATAL: config.GetTarget: %s", err.Error())
 	}
-	t.Write(event)
+	
+	return t.Write(event)
 }
 
 func main() {

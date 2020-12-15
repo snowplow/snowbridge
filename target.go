@@ -12,5 +12,5 @@ import (
 
 // Target describes the interface for how to push the data pulled from Kinesis
 type Target interface {
-	Write(event events.KinesisEvent) (error)
+	Write(event events.KinesisEvent) error
 }
