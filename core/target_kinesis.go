@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,7 +23,7 @@ type KinesisTarget struct {
 }
 
 // NewKinesisTarget creates a new client for writing events to kinesis
-func NewKinesisTarget(region string, streamName string) *KinesisTarget {
+func NewKinesisTarget(region string, streamName string, roleARN string) *KinesisTarget {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 		Config: aws.Config{
@@ -30,8 +31,19 @@ func NewKinesisTarget(region string, streamName string) *KinesisTarget {
 		},
 	}))
 
+	var kinesisClient kinesisiface.KinesisAPI
+	if roleARN != "" {
+		creds := stscreds.NewCredentials(sess, roleARN)
+		kinesisClient = kinesis.New(sess, &aws.Config{
+			Credentials: creds,
+			Region: aws.String(region),
+		})
+	} else {
+		kinesisClient = kinesis.New(sess)
+	}
+
 	return &KinesisTarget{
-		Client:     kinesis.New(sess),
+		Client:     kinesisClient,
 		StreamName: streamName,
 	}
 }

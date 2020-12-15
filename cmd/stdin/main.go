@@ -7,12 +7,12 @@
 package main
 
 import (
-	"github.com/urfave/cli"
-	"os"
-	"time"
 	"bufio"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
+	"github.com/urfave/cli"
+	"os"
+	"time"
 
 	core "github.com/snowplow-devops/stream-replicator/core"
 )

@@ -17,6 +17,7 @@ import (
 type KinesisConfig struct {
 	StreamName string
 	Region     string
+	RoleARN    string
 }
 
 // SentryConfig configures the Sentry error tracker
@@ -40,6 +41,7 @@ func NewConfig() *Config {
 		Kinesis: KinesisConfig{
 			StreamName: "",
 			Region:     "",
+			RoleARN:    "",
 		},
 		Sentry: SentryConfig{
 			Dsn:   "",
@@ -60,6 +62,7 @@ func configFromEnv(c *Config) *Config {
 		Kinesis: KinesisConfig{
 			StreamName: getEnvOrElse("KINESIS_STREAM_NAME", c.Kinesis.StreamName),
 			Region:     getEnvOrElse("KINESIS_REGION", c.Kinesis.Region),
+			RoleARN:    getEnvOrElse("KINESIS_ROLE_ARN", c.Kinesis.RoleARN),
 		},
 		Sentry: SentryConfig{
 			Dsn:   getEnvOrElse("SENTRY_DSN", c.Sentry.Dsn),
@@ -76,7 +79,7 @@ func (c *Config) GetTarget() (Target, error) {
 	if c.Target == "stdout" {
 		return NewStdoutTarget(), nil
 	} else if c.Target == "kinesis" {
-		return NewKinesisTarget(c.Kinesis.Region, c.Kinesis.StreamName), nil
+		return NewKinesisTarget(c.Kinesis.Region, c.Kinesis.StreamName, c.Kinesis.RoleARN), nil
 	} else {
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis' and got '%s'", c.Target)
 	}
