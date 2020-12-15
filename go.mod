@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/aws/aws-lambda-go v1.20.0
+	github.com/aws/aws-sdk-go v1.36.8
 	github.com/getsentry/sentry-go v0.9.0
 	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/makasim/sentryhook v0.3.0

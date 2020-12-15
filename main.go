@@ -76,7 +76,11 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 		log.Panicf("FATAL: config.GetTarget: %s", err.Error())
 	}
 
-	return t.Write(event)
+	err = t.Write(event)
+	if err != nil {
+		log.Error(err)
+	}
+	return err
 }
 
 func main() {
