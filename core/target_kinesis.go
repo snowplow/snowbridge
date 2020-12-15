@@ -9,10 +9,10 @@ package core
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,7 +36,7 @@ func NewKinesisTarget(region string, streamName string, roleARN string) *Kinesis
 		creds := stscreds.NewCredentials(sess, roleARN)
 		kinesisClient = kinesis.New(sess, &aws.Config{
 			Credentials: creds,
-			Region: aws.String(region),
+			Region:      aws.String(region),
 		})
 	} else {
 		kinesisClient = kinesis.New(sess)
