@@ -23,7 +23,7 @@ type KinesisTarget struct {
 }
 
 // NewKinesisTarget creates a new client for writing events to kinesis
-func NewKinesisTarget(region string, streamName string, roleARN string) *KinesisTarget {
+func NewKinesisTarget(region string, streamName string, roleARN string) (*KinesisTarget, error) {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 		Config: aws.Config{
@@ -45,7 +45,7 @@ func NewKinesisTarget(region string, streamName string, roleARN string) *Kinesis
 	return &KinesisTarget{
 		Client:     kinesisClient,
 		StreamName: streamName,
-	}
+	}, nil
 }
 
 // Write pushes all events to the required target

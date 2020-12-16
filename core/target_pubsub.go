@@ -9,8 +9,11 @@ package core
 import (
 	"cloud.google.com/go/pubsub"
 	"context"
+	"encoding/base64"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"github.com/twinj/uuid"
+	"os"
 	"strings"
 )
 
@@ -22,19 +25,41 @@ type PubSubTarget struct {
 }
 
 // NewPubSubTarget creates a new client for writing events to Google PubSub
-func NewPubSubTarget(projectID string, topicName string) *PubSubTarget {
+func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 string) (*PubSubTarget, error) {
+	if serviceAccountB64 != "" {
+		sDec, err := base64.StdEncoding.DecodeString(serviceAccountB64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not Base64 decode service account: %s", err.Error())
+		}
+
+		targetFile := fmt.Sprintf("/tmp/stream-replicator-service-account-%s.json", uuid.NewV4().String())
+
+		f, err := os.Create(targetFile)
+		if err != nil {
+			return nil, fmt.Errorf("Could not create target file '%s' for service account: %s", targetFile, err.Error())
+		}
+		defer f.Close()
+
+		_, err2 := f.WriteString(string(sDec))
+		if err2 != nil {
+			return nil, fmt.Errorf("Could not write decoded service account to target file '%s': %s", targetFile, err.Error())
+		}
+
+		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", targetFile)
+	}
+
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
-		log.Panicf("FATAL: pubsub.NewClient: %s", err.Error())
+		return nil, fmt.Errorf("pubsub.NewClient: %s", err.Error())
 	}
 
 	return &PubSubTarget{
 		ProjectID: projectID,
 		Client:    client,
 		TopicName: topicName,
-	}
+	}, nil
 }
 
 // Write pushes all events to the required target
@@ -66,9 +91,9 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 
 		if err != nil {
 			errstrings = append(errstrings, err.Error())
-			failures += 1
+			failures++
 		} else {
-			successes += 1
+			successes++
 		}
 	}
 

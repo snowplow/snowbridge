@@ -14,8 +14,8 @@ import (
 type StdoutTarget struct{}
 
 // NewStdoutTarget creates a new client for writing events to stdout
-func NewStdoutTarget() *StdoutTarget {
-	return &StdoutTarget{}
+func NewStdoutTarget() (*StdoutTarget, error) {
+	return &StdoutTarget{}, nil
 }
 
 // Write pushes all events to the required target
