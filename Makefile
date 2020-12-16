@@ -62,8 +62,8 @@ gcp-cloudfunctions:
 	mv $(staging_dir)/gcp/cloudfunctions/staging.zip $(zip_out_dir)/gcp/cloudfunctions/stream_replicator_$(version)_linux_amd64.zip
 
 stdin: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/stdin/stream-replicator ./cmd/stdin/
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/stdin/stream-replicator ./cmd/stdin/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/stdin/stream-replicator-$(version) ./cmd/stdin/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/stdin/stream-replicator-$(version) ./cmd/stdin/
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
