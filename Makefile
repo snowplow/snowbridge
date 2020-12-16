@@ -6,6 +6,8 @@
 
 version = `cat VERSION`
 
+go_dirs = `go list ./... | grep -v /build/ | grep -v /vendor/`
+
 build_dir  = build
 vendor_dir = vendor
 
@@ -68,12 +70,12 @@ stdin: gox
 # -----------------------------------------------------------------------------
 
 format:
-	GO111MODULE=on go fmt ./...
+	GO111MODULE=on go fmt $(go_dirs)
 	GO111MODULE=on gofmt -s -w .
 
 lint:
 	GO111MODULE=on go get -u golang.org/x/lint/golint
-	GO111MODULE=on golint ./...
+	GO111MODULE=on golint $(go_dirs)
 
 tidy:
 	GO111MODULE=on go mod tidy
@@ -85,7 +87,7 @@ tidy:
 test:
 	mkdir -p $(coverage_dir)
 	GO111MODULE=on go get -u golang.org/x/tools/cmd/cover
-	GO111MODULE=on go test ./... -tags test -v -covermode=count -coverprofile=$(coverage_out)
+	GO111MODULE=on go test $(go_dirs) -tags test -v -covermode=count -coverprofile=$(coverage_out)
 	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
 
 # -----------------------------------------------------------------------------
