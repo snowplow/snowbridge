@@ -26,13 +26,11 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 		log.Panicf(err.Error())
 	}
 
-	// Build target client
 	t, err := cfg.GetTarget()
 	if err != nil {
 		log.Panicf("FATAL: config.GetTarget: %s", err.Error())
 	}
 
-	// Parse events
 	events := make([]*core.Event, len(event.Records))
 	for i := 0; i < len(events); i++ {
 		record := event.Records[i]
@@ -42,7 +40,6 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 		}
 	}
 
-	// Write events
 	err = t.Write(events)
 	if err != nil {
 		log.Error(err)

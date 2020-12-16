@@ -37,7 +37,6 @@ func main() {
 			log.Panicf(err.Error())
 		}
 
-		// Build target client
 		t, err := cfg.GetTarget()
 		if err != nil {
 			log.Panicf("FATAL: config.GetTarget: %s", err.Error())
