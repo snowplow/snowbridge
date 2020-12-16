@@ -11,4 +11,3 @@ vendor/
 # Project
 build/
 dist/
-.release.yml.tmp

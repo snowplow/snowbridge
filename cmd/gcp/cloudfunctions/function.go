@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020 Snowplow Analytics Ltd. All rights reserved.
 
-package main
+package cloudfunctions
 
 import (
 	"context"
@@ -33,7 +33,7 @@ func HandleRequest(ctx context.Context, m PubSubMessage) error {
 
 	// TODO: Attempt to get PartitionKey from attributes
 	events := []*core.Event{
-		&core.Event{
+		{
 			Data:         m.Data,
 			PartitionKey: uuid.NewV4().String(),
 		},

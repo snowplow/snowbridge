@@ -1,4 +1,4 @@
-.PHONY: all gox lambda stdin format lint tidy test release release-dry clean
+.PHONY: all gox aws-lambda gcp-cloudfunctions stdin format lint tidy test release release-dry clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -6,37 +6,62 @@
 
 version = `cat VERSION`
 
-build_dir = build
+build_dir  = build
+vendor_dir = vendor
 
 coverage_dir  = $(build_dir)/coverage
 coverage_out  = $(coverage_dir)/coverage.out
 coverage_html = $(coverage_dir)/coverage.html
 
-output_dir = $(build_dir)/output
+output_dir  = $(build_dir)/output
+staging_dir = $(build_dir)/staging
 
-linux_dir  = $(output_dir)/linux
-darwin_dir = $(output_dir)/darwin
-
-bin_linux_stdin  = $(linux_dir)/stdin/stream-replicator
-bin_darwin_stdin = $(darwin_dir)/stdin/stream-replicator
-
-bin_linux_lambda = $(linux_dir)/lambda/main
+linux_out_dir  = $(output_dir)/linux
+darwin_out_dir = $(output_dir)/darwin
+zip_out_dir    = $(output_dir)/zip
 
 # -----------------------------------------------------------------------------
 #  BUILDING
 # -----------------------------------------------------------------------------
 
-all: lambda stdin
+all: aws-lambda gcp-cloudfunctions stdin
 
 gox:
 	GO111MODULE=on go get -u github.com/mitchellh/gox
 
-lambda: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(bin_linux_lambda) ./cmd/lambda/
+aws-lambda: gox
+	# WARNING: Binary must be called 'main' to work in Lambda
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/lambda/main ./cmd/aws/lambda/
+
+	# Create ZIP file for upload to Lambda
+	mkdir -p $(zip_out_dir)/aws/lambda
+	(cd $(linux_out_dir)/aws/lambda/ && zip -r staging.zip main)
+	mv $(linux_out_dir)/aws/lambda/staging.zip $(zip_out_dir)/aws/lambda/stream_replicator_$(version)_linux_amd64.zip
+
+gcp-cloudfunctions:
+	mkdir -p $(staging_dir)/gcp/cloudfunctions
+
+	# Copy dependencies into staging area
+	cp ./cmd/gcp/cloudfunctions/function.go $(staging_dir)/gcp/cloudfunctions/function.go
+
+	# Get module dependencies in a vendor directory
+	GO111MODULE=on go mod vendor
+	cp -R ./$(vendor_dir)/ $(staging_dir)/gcp/cloudfunctions/vendor/
+
+	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/core/
+	cp -R ./core/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/core/
+
+	echo "# github.com/snowplow-devops/stream-replicator v$(version)" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/core" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+
+	# Create ZIP file for upload to CloudFunctions
+	mkdir -p $(zip_out_dir)/gcp/cloudfunctions
+	(cd $(staging_dir)/gcp/cloudfunctions/ && zip -r staging.zip .)
+	mv $(staging_dir)/gcp/cloudfunctions/staging.zip $(zip_out_dir)/gcp/cloudfunctions/stream_replicator_$(version)_linux_amd64.zip
 
 stdin: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(bin_linux_stdin) ./cmd/stdin/
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(bin_darwin_stdin) ./cmd/stdin/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/stdin/stream-replicator ./cmd/stdin/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/stdin/stream-replicator ./cmd/stdin/
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
@@ -79,3 +104,4 @@ release-dry:
 
 clean:
 	rm -rf $(build_dir)
+	rm -rf $(vendor_dir)
