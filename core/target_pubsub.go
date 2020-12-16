@@ -76,6 +76,9 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 	for _, event := range events {
 		msg := &pubsub.Message{
 			Data: event.Data,
+			Attributes: map[string]string{
+				"PartitionKey": event.PartitionKey,
+			},
 		}
 
 		r := topic.Publish(ctx, msg)
