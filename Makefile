@@ -19,6 +19,7 @@ darwin_dir = $(output_dir)/darwin
 
 bin_linux_stdin  = $(linux_dir)/stdin/stream-replicator
 bin_darwin_stdin = $(darwin_dir)/stdin/stream-replicator
+
 bin_linux_lambda = $(linux_dir)/lambda/main
 
 # -----------------------------------------------------------------------------
