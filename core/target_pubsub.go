@@ -9,7 +9,9 @@ package core
 import (
 	"cloud.google.com/go/pubsub"
 	"context"
+	"fmt"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 // PubSubTarget holds a new client for writing events to Google PubSub
@@ -55,19 +57,26 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 		results = append(results, r)
 	}
 
+	successes := 0
+	failures := 0
+	var errstrings []string
+
 	for _, r := range results {
-		id, err := r.Get(ctx)
+		_, err := r.Get(ctx)
 
-		// TODO: Accumulate failures instead of eagerly returning
 		if err != nil {
-			return err
+			errstrings = append(errstrings, err.Error())
+			failures += 1
+		} else {
+			successes += 1
 		}
-
-		log.Debugf("Published a message with message ID '%s' to topic '%s' in project %s", id, ps.TopicName, ps.ProjectID)
 	}
 
-	// TODO: Calculate successes and failures from above loop
-	log.Infof("Successfully wrote %d records to target stream '%s' in project %s", len(events), ps.TopicName, ps.ProjectID)
+	if len(errstrings) > 0 {
+		return fmt.Errorf(strings.Join(errstrings, "\n"))
+	}
+
+	log.Infof("Successfully wrote %d / %d records to topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
 
 	return nil
 }

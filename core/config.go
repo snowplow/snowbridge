@@ -13,6 +13,12 @@ import (
 	"strconv"
 )
 
+// PubSubConfig configures the destination for records consumed
+type PubSubConfig struct {
+	ProjectID string
+	TopicName string
+}
+
 // KinesisConfig configures the destination for records consumed
 type KinesisConfig struct {
 	StreamName string
@@ -33,11 +39,16 @@ type Config struct {
 	LogLevel string
 	Sentry   SentryConfig
 	Kinesis  KinesisConfig
+	PubSub   PubSubConfig
 }
 
 // NewConfig resolves the config from the environment
 func NewConfig() *Config {
 	var defaultConfig = &Config{
+		PubSub: PubSubConfig{
+			ProjectID: "",
+			TopicName: "",
+		},
 		Kinesis: KinesisConfig{
 			StreamName: "",
 			Region:     "",
@@ -59,6 +70,10 @@ func NewConfig() *Config {
 // configFromEnv loads the config struct from environment variables
 func configFromEnv(c *Config) *Config {
 	return &Config{
+		PubSub: PubSubConfig{
+			ProjectID: getEnvOrElse("PUBSUB_PROJECT_ID", c.PubSub.ProjectID),
+			TopicName: getEnvOrElse("PUBSUB_TOPIC_NAME", c.PubSub.TopicName),
+		},
 		Kinesis: KinesisConfig{
 			StreamName: getEnvOrElse("KINESIS_STREAM_NAME", c.Kinesis.StreamName),
 			Region:     getEnvOrElse("KINESIS_REGION", c.Kinesis.Region),
@@ -80,6 +95,8 @@ func (c *Config) GetTarget() (Target, error) {
 		return NewStdoutTarget(), nil
 	} else if c.Target == "kinesis" {
 		return NewKinesisTarget(c.Kinesis.Region, c.Kinesis.StreamName, c.Kinesis.RoleARN), nil
+	} else if c.Target == "pubsub" {
+		return NewPubSubTarget(c.PubSub.ProjectID, c.PubSub.TopicName), nil
 	} else {
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis' and got '%s'", c.Target)
 	}
