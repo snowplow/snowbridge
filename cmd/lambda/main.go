@@ -21,7 +21,10 @@ func main() {
 
 // HandleRequest processes the Kinesis event and forwards it onto another stream
 func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
-	cfg := core.Init()
+	cfg, err := core.Init()
+	if err != nil {
+		log.Panicf(err.Error())
+	}
 
 	// Build target client
 	t, err := cfg.GetTarget()

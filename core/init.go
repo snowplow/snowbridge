@@ -8,6 +8,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/getsentry/sentry-go"
 	"github.com/makasim/sentryhook"
 	log "github.com/sirupsen/logrus"
@@ -16,7 +17,7 @@ import (
 )
 
 // Init contains the core initialization code for each implementation
-func Init() *Config {
+func Init() (*Config, error) {
 	logLevels := map[string]log.Level{
 		"debug":   log.DebugLevel,
 		"info":    log.InfoLevel,
@@ -36,14 +37,14 @@ func Init() *Config {
 			Debug: cfg.Sentry.Debug,
 		})
 		if err != nil {
-			log.Panicf("FATAL: sentry.Init: %s", err.Error())
+			return nil, fmt.Errorf("FATAL: sentry.Init: %s", err.Error())
 		}
 		defer sentry.Flush(2 * time.Second)
 
 		sentryTagsMap := map[string]string{}
 		err = json.Unmarshal([]byte(cfg.Sentry.Tags), &sentryTagsMap)
 		if err != nil {
-			log.Panicf("FATAL: Failed to unmarshall SENTRY_TAGS to map: %s", err.Error())
+			return nil, fmt.Errorf("FATAL: Failed to unmarshall SENTRY_TAGS to map: %s", err.Error())
 		}
 		sentry.ConfigureScope(func(scope *sentry.Scope) {
 			for key, value := range sentryTagsMap {
@@ -58,11 +59,11 @@ func Init() *Config {
 	if level, ok := logLevels[cfg.LogLevel]; ok {
 		log.SetLevel(level)
 	} else {
-		log.Panicf("FATAL: Supported log levels are %s, provided %s",
+		return nil, fmt.Errorf("FATAL: Supported log levels are %s, provided %s",
 			strings.Join(logLevelKeys, ","), cfg.LogLevel)
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 func getLogLevelKeys(logLevels map[string]log.Level) []string {

@@ -32,7 +32,10 @@ func main() {
 	app.Flags = []cli.Flag{}
 
 	app.Action = func(c *cli.Context) error {
-		cfg := core.Init()
+		cfg, err := core.Init()
+		if err != nil {
+			log.Panicf(err.Error())
+		}
 
 		// Build target client
 		t, err := cfg.GetTarget()
