@@ -18,19 +18,19 @@ Currently supported targets are:
 
 All configuration for this application is done via Environment variables.  There are no config files.  Depending on the `TARGET` you define you will need to populate the associated variables - for example to send to Kinesis you need to fill out the `KINESIS_` variables.
 
-| Variable                     | Possible Value(s)                           | Note                                                                  |
-|------------------------------|---------------------------------------------|-----------------------------------------------------------------------|
-| `TARGET`                     | `stdout, kinesis, pubsub`                   | Sets the target stream to emit data into `(def: "stdout")`            |
-| `LOG_LEVEL`                  | `debug, info, warning, error, fatal, panic` | Sets the logging level `(def: "info")`                                |
-| `SENTRY_DSN`                 | `https://acme.com/1`                        | The DSN to send Sentry alerts to `(def: "")`                          |
-| `SENTRY_TAGS`                | `{\"client_name\":\"com.acme\"}`            | Escaped JSON string with tags to send to sentry `(def: "{}")`         |
-| `SENTRY_DEBUG`               | `true, false`                               | Whether to put Sentry into debug mode `(def: "false")`                |
-| `KINESIS_STREAM_NAME`        | `some-acme-stream`                          | Name of the stream to send data into `(def: "")`                      |
-| `KINESIS_REGION`             | `us-east-1`                                 | The region the stream is in `(def: "")`                               |
-| `KINESIS_ROLE_ARN`           | `arn:aws:iam::111111111111:role/Kinesis`    | IAM role to assume; depends on sufficient perms to assume `(def: "")` |
-| `PUBSUB_PROJECT_ID`          | `acme-project`                              | ID of the GCP Project `(def: "")`                                     |
-| `PUBSUB_TOPIC_NAME`          | `some-acme-topic`                           | Name of the topic to send data into `(def: "")`                       |
-| `PUBSUB_SERVICE_ACCOUNT_B64` | `asdasdasdasdasd=`                          | GCP Service Account Base64 encoded `(def: "")`                        |
+| Variable                            | Possible Value(s)                           | Note                                                                  |
+|-------------------------------------|---------------------------------------------|-----------------------------------------------------------------------|
+| `TARGET`                            | `stdout, kinesis, pubsub`                   | Sets the target stream to emit data into `(def: "stdout")`            |
+| `LOG_LEVEL`                         | `debug, info, warning, error, fatal, panic` | Sets the logging level `(def: "info")`                                |
+| `SENTRY_DSN`                        | `https://acme.com/1`                        | The DSN to send Sentry alerts to `(def: "")`                          |
+| `SENTRY_TAGS`                       | `{\"client_name\":\"com.acme\"}`            | Escaped JSON string with tags to send to sentry `(def: "{}")`         |
+| `SENTRY_DEBUG`                      | `true, false`                               | Whether to put Sentry into debug mode `(def: "false")`                |
+| `TARGET_KINESIS_STREAM_NAME`        | `some-acme-stream`                          | Name of the stream to send data into `(def: "")`                      |
+| `TARGET_KINESIS_REGION`             | `us-east-1`                                 | The region the stream is in `(def: "")`                               |
+| `TARGET_KINESIS_ROLE_ARN`           | `arn:aws:iam::111111111111:role/Kinesis`    | IAM role to assume; depends on sufficient perms to assume `(def: "")` |
+| `TARGET_PUBSUB_PROJECT_ID`          | `acme-project`                              | ID of the GCP Project `(def: "")`                                     |
+| `TARGET_PUBSUB_TOPIC_NAME`          | `some-acme-topic`                           | Name of the topic to send data into `(def: "")`                       |
+| `TARGET_PUBSUB_SERVICE_ACCOUNT_B64` | `asdasdasdasdasd=`                          | GCP Service Account Base64 encoded `(def: "")`                        |
 
 ### AWS Lambda
 

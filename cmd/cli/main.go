@@ -7,9 +7,7 @@
 package main
 
 import (
-	"bufio"
 	log "github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	"github.com/urfave/cli"
 	"os"
 	"time"
@@ -17,10 +15,19 @@ import (
 	core "github.com/snowplow-devops/stream-replicator/core"
 )
 
+const (
+	appVersion   = "0.1.0"
+	appName      = "stream-replicator"
+	appUsage     = "Replicates data streams to supported targets"
+	appCopyright = "(c) 2020 Snowplow Analytics, LTD"
+)
+
 func main() {
 	app := cli.NewApp()
-	app.Name = "stream-replicator"
-	app.Copyright = "(c) 2020 Snowplow Analytics, LTD"
+	app.Name = appName
+	app.Usage = appUsage
+	app.Version = appVersion
+	app.Copyright = appCopyright
 	app.Compiled = time.Now()
 	app.Authors = []cli.Author{
 		{
@@ -29,7 +36,17 @@ func main() {
 		},
 	}
 
-	app.Flags = []cli.Flag{}
+	app.Flags = []cli.Flag{
+		cli.GenericFlag{
+			Name:  "source, s",
+			Usage: "Input data from stdin",
+			Value: &EnumValue{
+				Enum:    []string{"stdin"},
+				Default: "stdin",
+			},
+			EnvVar: "SOURCE",
+		},
+	}
 
 	app.Action = func(c *cli.Context) error {
 		cfg, err := core.Init()
@@ -37,28 +54,26 @@ func main() {
 			log.Panicf(err.Error())
 		}
 
-		t, err := cfg.GetTarget()
-		if err != nil {
-			log.Panicf("FATAL: config.GetTarget: %s", err.Error())
+		s, err1 := cfg.GetSource()
+		if err1 != nil {
+			log.Panicf("FATAL: config.GetSource: %s", err1.Error())
 		}
 
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			events := make([]*core.Event, 1)
-			events[0] = &core.Event{
-				Data:         []byte(scanner.Text()),
-				PartitionKey: uuid.NewV4().String(),
-			}
-
-			err := t.Write(events)
-			if err != nil {
-				log.Error(err)
-			}
+		t, err2 := cfg.GetTarget()
+		if err2 != nil {
+			log.Panicf("FATAL: config.GetTarget: %s", err2.Error())
 		}
 
-		if scanner.Err() != nil {
-			log.Error(scanner.Err())
-			return scanner.Err()
+		events, err3 := s.Read()
+		if err3 != nil {
+			log.Error(err3)
+			return err3
+		}
+
+		err4 := t.Write(events)
+		if err4 != nil {
+			log.Error(err4)
+			return err4
 		}
 
 		return nil

@@ -6,7 +6,7 @@
 
 package core
 
-// Target describes the interface for how to push the data pulled from the source
-type Target interface {
-	Write(events []*Event) error
+// Source describes the interface for how to read the data pulled from the source
+type Source interface {
+	Read() ([]*Event, error)
 }

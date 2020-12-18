@@ -15,6 +15,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/twinj/uuid v1.0.0
 	github.com/urfave/cli v1.22.5
-	golang.org/x/tools v0.0.0-20201215192005-fa10ef0b8743 // indirect
+	golang.org/x/tools v0.0.0-20201218024724-ae774e9781d2 // indirect
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
 )

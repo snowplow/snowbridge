@@ -7,7 +7,7 @@
 package core
 
 import (
-	log "github.com/sirupsen/logrus"
+	"fmt"
 )
 
 // StdoutTarget holds a new client for writing events to stdout
@@ -22,7 +22,7 @@ func NewStdoutTarget() (*StdoutTarget, error) {
 func (st *StdoutTarget) Write(events []*Event) error {
 	for _, event := range events {
 		data := string(event.Data)
-		log.Infof("PartitionKey: %s, Data: %s\n", event.PartitionKey, data)
+		fmt.Println(fmt.Sprintf("PartitionKey: %s, Data: %s", event.PartitionKey, data))
 	}
 	return nil
 }
