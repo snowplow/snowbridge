@@ -54,17 +54,16 @@ func main() {
 		}
 
 		for {
-			events, termSignal, err := s.Read()
+			events, err := s.Read()
 
 			if err != nil {
-				if termSignal {
-					return err
-				}
 				log.Error(err)
 				continue
 			}
 
-			if termSignal {
+			// Break if no events returned
+			if len(events) == 0 {
+				log.Info("Read returned 0 events; exiting...")
 				break
 			}
 

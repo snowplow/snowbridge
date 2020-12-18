@@ -8,5 +8,5 @@ package core
 
 // Source describes the interface for how to read the data pulled from the source
 type Source interface {
-	Read() ([]*Event, bool, error)
+	Read() ([]*Event, error)
 }

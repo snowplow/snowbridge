@@ -24,7 +24,7 @@ func NewStdinSource() (*StdinSource, error) {
 }
 
 // Read will buffer all inputs until CTRL+D is pressed
-func (ss *StdinSource) Read() ([]*Event, bool, error) {
+func (ss *StdinSource) Read() ([]*Event, error) {
 	var events []*Event
 
 	fi, _ := os.Stdin.Stat()
@@ -41,19 +41,13 @@ func (ss *StdinSource) Read() ([]*Event, bool, error) {
 		}
 
 		if scanner.Err() != nil {
-			return nil, true, scanner.Err()
-		}
-
-		// Signal to terminate reader if piped input is empty
-		if len(events) == 0 {
-			log.Info("Detected empty pipe, sending termination signal")
-			return events, true, nil
+			return nil, scanner.Err()
 		}
 	} else {
 		reader := bufio.NewReader(os.Stdin)
 		text, err := reader.ReadString('\n')
 		if err != nil {
-			return nil, true, fmt.Errorf("Failed to read string from stdin: %s", err.Error())
+			return nil, fmt.Errorf("Failed to read string from stdin: %s", err.Error())
 		}
 
 		trimmedText := strings.TrimSuffix(text, "\n")
@@ -64,5 +58,5 @@ func (ss *StdinSource) Read() ([]*Event, bool, error) {
 		})
 	}
 
-	return events, false, nil
+	return events, nil
 }
