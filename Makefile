@@ -1,4 +1,4 @@
-.PHONY: all gox aws-lambda gcp-cloudfunctions stdin format lint tidy test release release-dry clean
+.PHONY: all gox aws-lambda gcp-cloudfunctions cli format lint tidy test release release-dry clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -15,18 +15,18 @@ coverage_dir  = $(build_dir)/coverage
 coverage_out  = $(coverage_dir)/coverage.out
 coverage_html = $(coverage_dir)/coverage.html
 
-output_dir  = $(build_dir)/output
-staging_dir = $(build_dir)/staging
+output_dir   = $(build_dir)/output
+staging_dir  = $(build_dir)/staging
+compiled_dir = $(build_dir)/compiled
 
 linux_out_dir  = $(output_dir)/linux
 darwin_out_dir = $(output_dir)/darwin
-zip_out_dir    = $(output_dir)/zip
 
 # -----------------------------------------------------------------------------
 #  BUILDING
 # -----------------------------------------------------------------------------
 
-all: aws-lambda gcp-cloudfunctions stdin
+all: aws-lambda gcp-cloudfunctions cli
 
 gox:
 	GO111MODULE=on go get -u github.com/mitchellh/gox
@@ -36,9 +36,9 @@ aws-lambda: gox
 	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/lambda/main ./cmd/aws/lambda/
 
 	# Create ZIP file for upload to Lambda
-	mkdir -p $(zip_out_dir)/aws/lambda
+	mkdir -p $(compiled_dir)
 	(cd $(linux_out_dir)/aws/lambda/ && zip -r staging.zip main)
-	mv $(linux_out_dir)/aws/lambda/staging.zip $(zip_out_dir)/aws/lambda/stream_replicator_$(version)_linux_amd64.zip
+	mv $(linux_out_dir)/aws/lambda/staging.zip $(compiled_dir)/aws_lambda_stream_replicator_$(version)_linux_amd64.zip
 
 gcp-cloudfunctions:
 	mkdir -p $(staging_dir)/gcp/cloudfunctions
@@ -57,13 +57,19 @@ gcp-cloudfunctions:
 	echo "github.com/snowplow-devops/stream-replicator/core" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 
 	# Create ZIP file for upload to CloudFunctions
-	mkdir -p $(zip_out_dir)/gcp/cloudfunctions
+	mkdir -p $(compiled_dir)
 	(cd $(staging_dir)/gcp/cloudfunctions/ && zip -r staging.zip .)
-	mv $(staging_dir)/gcp/cloudfunctions/staging.zip $(zip_out_dir)/gcp/cloudfunctions/stream_replicator_$(version)_linux_amd64.zip
+	mv $(staging_dir)/gcp/cloudfunctions/staging.zip $(compiled_dir)/gcp_cloudfunctions_stream_replicator_$(version)_linux_amd64.zip
 
-stdin: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/stdin/stream-replicator-$(version) ./cmd/stdin/
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/stdin/stream-replicator-$(version) ./cmd/stdin/
+cli: gox
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/cli/stream-replicator ./cmd/cli/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/cli/stream-replicator ./cmd/cli/
+
+	mkdir -p $(compiled_dir)
+	(cd $(linux_out_dir)/cli/ && zip -r staging.zip stream-replicator)
+	mv $(linux_out_dir)/cli/staging.zip $(compiled_dir)/cli_stream_replicator_$(version)_linux_amd64.zip
+	(cd $(darwin_out_dir)/cli/ && zip -r staging.zip stream-replicator)
+	mv $(darwin_out_dir)/cli/staging.zip $(compiled_dir)/cli_stream_replicator_$(version)_darwin_amd64.zip
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
