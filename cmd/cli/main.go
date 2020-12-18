@@ -57,8 +57,7 @@ func main() {
 			events, err := s.Read()
 
 			if err != nil {
-				log.Error(err)
-				continue
+				return err
 			}
 
 			// Break if no events returned
@@ -69,8 +68,7 @@ func main() {
 
 			err = t.Write(events)
 			if err != nil {
-				log.Error(err)
-				continue
+				return err
 			}
 		}
 
