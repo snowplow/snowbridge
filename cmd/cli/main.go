@@ -36,17 +36,7 @@ func main() {
 		},
 	}
 
-	app.Flags = []cli.Flag{
-		cli.GenericFlag{
-			Name:  "source, s",
-			Usage: "Input data from stdin",
-			Value: &EnumValue{
-				Enum:    []string{"stdin"},
-				Default: "stdin",
-			},
-			EnvVar: "SOURCE",
-		},
-	}
+	app.Flags = []cli.Flag{}
 
 	app.Action = func(c *cli.Context) error {
 		cfg, err := core.Init()
