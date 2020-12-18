@@ -23,12 +23,12 @@ type PubSubMessage struct {
 func HandleRequest(ctx context.Context, m PubSubMessage) error {
 	cfg, err := core.Init()
 	if err != nil {
-		log.Panicf(err.Error())
+		return err
 	}
 
 	t, err := cfg.GetTarget()
 	if err != nil {
-		log.Panicf("FATAL: config.GetTarget: %s", err.Error())
+		return err
 	}
 
 	// TODO: Attempt to get PartitionKey from attributes

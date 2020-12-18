@@ -23,12 +23,12 @@ func main() {
 func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 	cfg, err := core.Init()
 	if err != nil {
-		log.Panicf(err.Error())
+		return err
 	}
 
 	t, err := cfg.GetTarget()
 	if err != nil {
-		log.Panicf("FATAL: config.GetTarget: %s", err.Error())
+		return err
 	}
 
 	events := make([]*core.Event, len(event.Records))
