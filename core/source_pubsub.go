@@ -81,6 +81,7 @@ func (ps *PubSubSource) Read() ([]*Event, error) {
 		}
 	})
 
+	// TODO: Handle errors here (possibly needs client reset)
 	if err != nil {
 		return nil, err
 	}
