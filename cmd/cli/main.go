@@ -64,6 +64,8 @@ func main() {
 			log.Panicf("FATAL: config.GetTarget: %s", err2.Error())
 		}
 
+		// TODO: Read + Write should be an infinite loop until SIGTERM is given
+
 		events, err3 := s.Read()
 		if err3 != nil {
 			log.Error(err3)
