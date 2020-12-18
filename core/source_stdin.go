@@ -8,39 +8,61 @@ package core
 
 import (
 	"bufio"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"os"
+	"strings"
 )
 
 // StdinSource holds a new client for reading events from stdin
 type StdinSource struct{}
 
-// StdinSource creates a new client for reading events from stdin
+// NewStdinSource creates a new client for reading events from stdin
 func NewStdinSource() (*StdinSource, error) {
 	return &StdinSource{}, nil
 }
 
 // Read will buffer all inputs until CTRL+D is pressed
-func (ss *StdinSource) Read() ([]*Event, error) {
-	log.Info("Reading input from 'stdin' ...")
-
+func (ss *StdinSource) Read() ([]*Event, bool, error) {
 	var events []*Event
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
+	fi, _ := os.Stdin.Stat()
+
+	if (fi.Mode() & os.ModeCharDevice) == 0 {
+		log.Info("Detected piped input, scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
+
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			events = append(events, &Event{
+				Data:         []byte(scanner.Text()),
+				PartitionKey: uuid.NewV4().String(),
+			})
+		}
+
+		if scanner.Err() != nil {
+			return nil, true, scanner.Err()
+		}
+
+		// Signal to terminate reader if piped input is empty
+		if len(events) == 0 {
+			log.Info("Detected empty pipe, sending termination signal")
+			return events, true, nil
+		}
+	} else {
+		reader := bufio.NewReader(os.Stdin)
+		text, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, true, fmt.Errorf("Failed to read string from stdin: %s", err.Error())
+		}
+
+		trimmedText := strings.TrimSuffix(text, "\n")
+
 		events = append(events, &Event{
-			Data:         []byte(scanner.Text()),
+			Data:         []byte(trimmedText),
 			PartitionKey: uuid.NewV4().String(),
 		})
 	}
 
-	log.Infof("CTRL+D pressed, returning buffer of '%d' rows", len(events))
-
-	if scanner.Err() != nil {
-		log.Error(scanner.Err())
-		return nil, scanner.Err()
-	}
-
-	return events, nil
+	return events, false, nil
 }

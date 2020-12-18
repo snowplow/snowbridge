@@ -95,9 +95,8 @@ func configFromEnv(c *Config) *Config {
 func (c *Config) GetSource() (Source, error) {
 	if c.Source == "stdin" {
 		return NewStdinSource()
-	} else {
-		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin' and got '%s'", c.Source)
 	}
+	return nil, fmt.Errorf("Invalid source found; expected one of 'stdin' and got '%s'", c.Source)
 }
 
 // GetTarget builds and returns the target that is configured

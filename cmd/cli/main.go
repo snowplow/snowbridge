@@ -41,35 +41,46 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		cfg, err := core.Init()
 		if err != nil {
-			log.Panicf(err.Error())
+			return err
 		}
 
-		s, err1 := cfg.GetSource()
-		if err1 != nil {
-			log.Panicf("FATAL: config.GetSource: %s", err1.Error())
+		s, err := cfg.GetSource()
+		if err != nil {
+			return err
+		}
+		t, err := cfg.GetTarget()
+		if err != nil {
+			return err
 		}
 
-		t, err2 := cfg.GetTarget()
-		if err2 != nil {
-			log.Panicf("FATAL: config.GetTarget: %s", err2.Error())
-		}
+		for {
+			events, termSignal, err := s.Read()
 
-		// TODO: Read + Write should be an infinite loop until SIGTERM is given
+			if err != nil {
+				if termSignal {
+					return err
+				}
+				log.Error(err)
+				continue
+			}
 
-		events, err3 := s.Read()
-		if err3 != nil {
-			log.Error(err3)
-			return err3
-		}
+			if termSignal {
+				break
+			}
 
-		err4 := t.Write(events)
-		if err4 != nil {
-			log.Error(err4)
-			return err4
+			err = t.Write(events)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
 		}
 
 		return nil
 	}
 
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Error(err)
+		os.Exit(1)
+	}
 }
