@@ -33,6 +33,18 @@ type TargetsConfig struct {
 	PubSub  PubSubTargetConfig
 }
 
+// PubSubSourceConfig configures the source for records pulled
+type PubSubSourceConfig struct {
+	ProjectID         string
+	SubscriptionID    string
+	ServiceAccountB64 string
+}
+
+// SourcesConfig holds configuration for the available sources
+type SourcesConfig struct {
+	PubSub PubSubSourceConfig
+}
+
 // SentryConfig configures the Sentry error tracker
 type SentryConfig struct {
 	Dsn   string
@@ -46,6 +58,7 @@ type Config struct {
 	Target   string
 	LogLevel string
 	Sentry   SentryConfig
+	Sources  SourcesConfig
 	Targets  TargetsConfig
 }
 
@@ -76,6 +89,13 @@ func configFromEnv(c *Config) *Config {
 			Tags:  getEnvOrElse("SENTRY_TAGS", c.Sentry.Tags),
 			Debug: getEnvBoolOrElse("SENTRY_DEBUG", c.Sentry.Debug),
 		},
+		Sources: SourcesConfig{
+			PubSub: PubSubSourceConfig{
+				ProjectID:         getEnvOrElse("SOURCE_PUBSUB_PROJECT_ID", c.Sources.PubSub.ProjectID),
+				SubscriptionID:    getEnvOrElse("SOURCE_PUBSUB_SUBSCRIPTION_ID", c.Sources.PubSub.SubscriptionID),
+				ServiceAccountB64: getEnvOrElse("SOURCE_PUBSUB_SERVICE_ACCOUNT_B64", c.Sources.PubSub.ServiceAccountB64),
+			},
+		},
 		Targets: TargetsConfig{
 			Kinesis: KinesisTargetConfig{
 				StreamName: getEnvOrElse("TARGET_KINESIS_STREAM_NAME", c.Targets.Kinesis.StreamName),
@@ -95,8 +115,11 @@ func configFromEnv(c *Config) *Config {
 func (c *Config) GetSource() (Source, error) {
 	if c.Source == "stdin" {
 		return NewStdinSource()
+	} else if c.Source == "pubsub" {
+		return NewPubSubSource(c.Sources.PubSub.ProjectID, c.Sources.PubSub.SubscriptionID, c.Sources.PubSub.ServiceAccountB64)
+	} else {
+		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin, pubsub' and got '%s'", c.Source)
 	}
-	return nil, fmt.Errorf("Invalid source found; expected one of 'stdin' and got '%s'", c.Source)
 }
 
 // GetTarget builds and returns the target that is configured

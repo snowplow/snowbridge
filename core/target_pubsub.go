@@ -9,10 +9,8 @@ package core
 import (
 	"cloud.google.com/go/pubsub"
 	"context"
-	"encoding/base64"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	"os"
 	"strings"
 )
@@ -27,24 +25,10 @@ type PubSubTarget struct {
 // NewPubSubTarget creates a new client for writing events to Google PubSub
 func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 string) (*PubSubTarget, error) {
 	if serviceAccountB64 != "" {
-		sDec, err := base64.StdEncoding.DecodeString(serviceAccountB64)
+		targetFile, err := storeGCPServiceAccountFromBase64(serviceAccountB64)
 		if err != nil {
-			return nil, fmt.Errorf("Could not Base64 decode service account: %s", err.Error())
+			return nil, err
 		}
-
-		targetFile := fmt.Sprintf("/tmp/stream-replicator-service-account-%s.json", uuid.NewV4().String())
-
-		f, err := os.Create(targetFile)
-		if err != nil {
-			return nil, fmt.Errorf("Could not create target file '%s' for service account: %s", targetFile, err.Error())
-		}
-		defer f.Close()
-
-		_, err2 := f.WriteString(string(sDec))
-		if err2 != nil {
-			return nil, fmt.Errorf("Could not write decoded service account to target file '%s': %s", targetFile, err.Error())
-		}
-
 		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", targetFile)
 	}
 
