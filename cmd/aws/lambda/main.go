@@ -44,6 +44,7 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 	if err != nil {
 		log.Error(err)
 	}
+	t.Close()
 
 	return err
 }
