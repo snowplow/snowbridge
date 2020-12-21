@@ -23,6 +23,10 @@ func (st *StdoutTarget) Write(events []*Event) error {
 	for _, event := range events {
 		data := string(event.Data)
 		fmt.Println(fmt.Sprintf("PartitionKey: %s, Data: %s", event.PartitionKey, data))
+		
+		if event.AckFunc != nil {
+			event.AckFunc()
+		}
 	}
 	return nil
 }

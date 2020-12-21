@@ -10,4 +10,5 @@ package core
 type Event struct {
 	PartitionKey string
 	Data         []byte
+	AckFunc      func()
 }

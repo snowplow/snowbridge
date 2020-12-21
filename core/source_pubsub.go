@@ -13,7 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 )
 
 // PubSubSource holds a new client for reading events from PubSub
@@ -50,30 +52,44 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 // Read will pull events from the noted PubSub topic up until the buffer limit
 func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	ctx := context.Background()
+
+	log.Infof("Reading messages from subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
+
 	var mu sync.Mutex
 
-	log.Infof("Reading records from subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
-
 	sub := ps.Client.Subscription(ps.SubscriptionID)
-	cctx, _ := context.WithCancel(ctx)
+	cctx, cancel := context.WithCancel(ctx)
+
+	sig := make(chan os.Signal)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
+	go func() {
+		<-sig
+		log.Info("SIGTERM called, cancelling PubSub receive ...")
+		cancel()
+	}()
 
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
 		// TODO: All targets need to be threadsafe to remove this lock
 		mu.Lock()
 		defer mu.Unlock()
 
+		log.Infof("Read message with ID '%s'", msg.ID)
+		ackFunc := func() {
+			log.Debugf("Ack'ing message with ID '%s'", msg.ID)
+			msg.Ack()
+		}
+
 		// TODO: Attempt to get PartitionKey from attributes
 		events := []*Event{
 			{
 				Data:         msg.Data,
 				PartitionKey: uuid.NewV4().String(),
+				AckFunc:      ackFunc,
 			},
 		}
 		err := sf.Write(events)
 		if err != nil {
 			log.Error(err)
-		} else {
-			msg.Ack()
 		}
 	})
 

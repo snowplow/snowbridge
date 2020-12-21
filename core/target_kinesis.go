@@ -75,6 +75,12 @@ func (kt *KinesisTarget) Write(events []*Event) error {
 		return fmt.Errorf("Failed to write %d out of %d records to target stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
 	}
 
+	for _, event := range events {
+		if event.AckFunc != nil {
+			event.AckFunc()
+		}
+	}
+
 	log.Infof("Successfully wrote %d records to target stream '%s'", len(entries), kt.StreamName)
 
 	return nil

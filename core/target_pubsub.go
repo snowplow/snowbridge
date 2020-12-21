@@ -22,6 +22,13 @@ type PubSubTarget struct {
 	TopicName string
 }
 
+// PubSubPublishResult contains the publish result and the function to execute
+// on success to ack the send
+type PubSubPublishResult struct {
+	Result  *pubsub.PublishResult
+	AckFunc func()
+}
+
 // NewPubSubTarget creates a new client for writing events to Google PubSub
 func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 string) (*PubSubTarget, error) {
 	if serviceAccountB64 != "" {
@@ -53,7 +60,7 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 	topic := ps.Client.Topic(ps.TopicName)
 	defer topic.Stop()
 
-	var results []*pubsub.PublishResult
+	var results []*PubSubPublishResult
 
 	log.Infof("Writing %d records to target topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
 
@@ -66,7 +73,10 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 		}
 
 		r := topic.Publish(ctx, msg)
-		results = append(results, r)
+		results = append(results, &PubSubPublishResult{
+			Result:  r,
+			AckFunc: event.AckFunc,
+		})
 	}
 
 	successes := 0
@@ -74,13 +84,17 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 	var errstrings []string
 
 	for _, r := range results {
-		_, err := r.Get(ctx)
+		_, err := r.Result.Get(ctx)
 
 		if err != nil {
 			errstrings = append(errstrings, err.Error())
 			failures++
 		} else {
 			successes++
+
+			if r.AckFunc != nil {
+				r.AckFunc()
+			}
 		}
 	}
 
