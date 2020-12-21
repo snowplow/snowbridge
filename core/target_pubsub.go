@@ -19,6 +19,7 @@ import (
 type PubSubTarget struct {
 	ProjectID string
 	Client    *pubsub.Client
+	Topic     *pubsub.Topic
 	TopicName string
 }
 
@@ -46,9 +47,12 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 		return nil, fmt.Errorf("pubsub.NewClient: %s", err.Error())
 	}
 
+	topic := client.Topic(topicName)
+
 	return &PubSubTarget{
 		ProjectID: projectID,
 		Client:    client,
+		Topic:     topic,
 		TopicName: topicName,
 	}, nil
 }
@@ -57,12 +61,9 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 func (ps *PubSubTarget) Write(events []*Event) error {
 	ctx := context.Background()
 
-	topic := ps.Client.Topic(ps.TopicName)
-	defer topic.Stop()
-
 	var results []*PubSubPublishResult
 
-	log.Infof("Writing %d records to target topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
+	log.Debugf("Writing %d records to target topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
 
 	for _, event := range events {
 		msg := &pubsub.Message{
@@ -72,7 +73,7 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 			},
 		}
 
-		r := topic.Publish(ctx, msg)
+		r := ps.Topic.Publish(ctx, msg)
 		results = append(results, &PubSubPublishResult{
 			Result:  r,
 			AckFunc: event.AckFunc,
@@ -102,7 +103,13 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 		return fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	log.Infof("Successfully wrote %d / %d records to topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
+	log.Infof("Successfully wrote %d/%d records to topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
 
 	return nil
+}
+
+// Close stops the topic
+func (ps *PubSubTarget) Close() {
+	log.Warnf("Closing PubSub target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
+	ps.Topic.Stop()
 }

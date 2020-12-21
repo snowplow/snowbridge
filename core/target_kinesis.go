@@ -50,7 +50,7 @@ func NewKinesisTarget(region string, streamName string, roleARN string) (*Kinesi
 
 // Write pushes all events to the required target
 func (kt *KinesisTarget) Write(events []*Event) error {
-	log.Infof("Writing %d records to target stream '%s' ...", len(events), kt.StreamName)
+	log.Debugf("Writing %d records to target stream '%s' ...", len(events), kt.StreamName)
 
 	entries := make([]*kinesis.PutRecordsRequestEntry, len(events))
 	for i := 0; i < len(entries); i++ {
@@ -85,3 +85,6 @@ func (kt *KinesisTarget) Write(events []*Event) error {
 
 	return nil
 }
+
+// Close does not do anything for this target
+func (kt *KinesisTarget) Close() {}

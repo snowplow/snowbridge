@@ -8,7 +8,8 @@ package core
 
 // SourceFunctions contain the callback functions required by each source
 type SourceFunctions struct {
-	Write func(events []*Event) error
+	WriteToTarget func(events []*Event) error
+	CloseTarget func()
 }
 
 // Source describes the interface for how to read the data pulled from the source

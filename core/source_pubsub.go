@@ -14,7 +14,7 @@ import (
 	"github.com/twinj/uuid"
 	"os"
 	"os/signal"
-	"sync"
+	//"sync"
 	"syscall"
 )
 
@@ -55,7 +55,7 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 
 	log.Infof("Reading messages from subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
 
-	var mu sync.Mutex
+	//var mu sync.Mutex
 
 	sub := ps.Client.Subscription(ps.SubscriptionID)
 	cctx, cancel := context.WithCancel(ctx)
@@ -64,16 +64,16 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
 		<-sig
-		log.Info("SIGTERM called, cancelling PubSub receive ...")
+		log.Warn("SIGTERM called, cancelling PubSub receive ...")
 		cancel()
 	}()
 
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
 		// TODO: All targets need to be threadsafe to remove this lock
-		mu.Lock()
-		defer mu.Unlock()
+		//mu.Lock()
+		//defer mu.Unlock()
 
-		log.Infof("Read message with ID '%s'", msg.ID)
+		log.Debugf("Read message with ID '%s'", msg.ID)
 		ackFunc := func() {
 			log.Debugf("Ack'ing message with ID '%s'", msg.ID)
 			msg.Ack()
@@ -87,16 +87,17 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 				AckFunc:      ackFunc,
 			},
 		}
-		err := sf.Write(events)
+		err := sf.WriteToTarget(events)
 		if err != nil {
 			log.Error(err)
 		}
 	})
 
+	sf.CloseTarget()
+
 	// TODO: Handle errors here (possibly needs client reset)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

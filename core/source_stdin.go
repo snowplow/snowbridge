@@ -33,11 +33,13 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 				PartitionKey: uuid.NewV4().String(),
 			},
 		}
-		err := sf.Write(events)
+		err := sf.WriteToTarget(events)
 		if err != nil {
 			log.Error(err)
 		}
 	}
+
+	sf.CloseTarget()
 
 	if scanner.Err() != nil {
 		return scanner.Err()

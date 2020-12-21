@@ -55,7 +55,8 @@ func main() {
 
 		// Callback functions for the source to leverage when writing data
 		sf := core.SourceFunctions{
-			Write: target.Write,
+			WriteToTarget: target.Write,
+			CloseTarget:   target.Close,
 		}
 
 		// Note: Read is a long running process and will only return when the source
