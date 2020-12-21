@@ -14,7 +14,6 @@ import (
 	"github.com/twinj/uuid"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 )
 
@@ -55,8 +54,6 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 
 	log.Infof("Reading messages from subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
 
-	var mu sync.Mutex
-
 	sub := ps.Client.Subscription(ps.SubscriptionID)
 	cctx, cancel := context.WithCancel(ctx)
 
@@ -69,9 +66,6 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	}()
 
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
-		mu.Lock()
-		defer mu.Unlock()
-
 		log.Debugf("Read message with ID: %s", msg.ID)
 		ackFunc := func() {
 			log.Debugf("Ack'ing message with ID: %s", msg.ID)
@@ -94,7 +88,6 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 
 	sf.CloseTarget()
 
-	// TODO: Handle errors here (possibly needs client reset)
 	if err != nil {
 		return err
 	}
