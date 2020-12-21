@@ -48,7 +48,7 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 	}, nil
 }
 
-// Read will pull events from the noted PubSub topic up until the buffer limit
+// Read will pull events from the noted PubSub topic forever
 func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	ctx := context.Background()
 
