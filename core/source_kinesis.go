@@ -1,0 +1,80 @@
+// PROPRIETARY AND CONFIDENTIAL
+//
+// Unauthorized copying of this file via any medium is strictly prohibited.
+//
+// Copyright (c) 2020 Snowplow Analytics Ltd. All rights reserved.
+
+package core
+
+import (
+	//log "github.com/sirupsen/logrus"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/twinj/uuid"
+	"github.com/twitchscience/kinsumer"
+)
+
+// KinesisSource holds a new client for reading events from kinesis
+type KinesisSource struct {
+	Client *kinsumer.Kinsumer
+}
+
+// NewKinesisSource creates a new client for reading events from kinesis
+func NewKinesisSource(region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
+	// TODO: Add custom logger
+	// TODO: Should we override other settings here?
+	config := kinsumer.NewConfig()
+
+	// TODO: Should this name map to a particular instance id?
+	name := uuid.NewV4().String()
+
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+		Config: aws.Config{
+			Region: aws.String(region),
+		},
+	}))
+
+	var kinesisClient kinesisiface.KinesisAPI
+	var dynamodbClient dynamodbiface.DynamoDBAPI
+
+	if roleARN != "" {
+		awsCreds := stscreds.NewCredentials(sess, roleARN)
+		awsConfig := aws.Config{
+			Credentials: awsCreds,
+			Region:      aws.String(region),
+		}
+
+		kinesisClient = kinesis.New(sess, &awsConfig)
+		dynamodbClient = dynamodb.New(sess, &awsConfig)
+	} else {
+		kinesisClient = kinesis.New(sess)
+		dynamodbClient = dynamodb.New(sess)
+	}
+
+	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, name, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &KinesisSource{
+		Client: k,
+	}, nil
+}
+
+// Read will pull events from the noted Kinesis stream forever
+func (ks *KinesisSource) Read(sf *SourceFunctions) error {
+	err := ks.Client.Run()
+	if err != nil {
+		return err
+	}
+
+	
+
+	return nil
+}
