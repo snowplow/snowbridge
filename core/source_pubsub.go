@@ -48,45 +48,39 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 }
 
 // Read will pull events from the noted PubSub topic up until the buffer limit
-func (ps *PubSubSource) Read() ([]*Event, error) {
+func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	ctx := context.Background()
-
 	var mu sync.Mutex
-	received := 0
-
-	var events []*Event
 
 	log.Infof("Reading records from subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
 
 	sub := ps.Client.Subscription(ps.SubscriptionID)
-	cctx, cancel := context.WithCancel(ctx)
+	cctx, _ := context.WithCancel(ctx)
 
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
+		// TODO: All targets need to be threadsafe to remove this lock
 		mu.Lock()
 		defer mu.Unlock()
 
-		// TODO: Move Ack to interface that triggers on successful write to avoid dropping data
-		msg.Ack()
-
 		// TODO: Attempt to get PartitionKey from attributes
-		events = append(events, &Event{
-			Data:         msg.Data,
-			PartitionKey: uuid.NewV4().String(),
-		})
-
-		// TODO: Make buffer limit configurable
-		received++
-		if received == 10 {
-			cancel()
+		events := []*Event{
+			{
+				Data:         msg.Data,
+				PartitionKey: uuid.NewV4().String(),
+			},
+		}
+		err := sf.Write(events)
+		if err != nil {
+			log.Error(err)
+		} else {
+			msg.Ack()
 		}
 	})
 
 	// TODO: Handle errors here (possibly needs client reset)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	log.Infof("Successfully read %d records from subscription '%s' in project %s", len(events), ps.SubscriptionID, ps.ProjectID)
-
-	return events, nil
+	return nil
 }

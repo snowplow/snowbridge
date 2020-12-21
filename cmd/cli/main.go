@@ -44,32 +44,25 @@ func main() {
 			return err
 		}
 
-		s, err := cfg.GetSource()
+		source, err := cfg.GetSource()
 		if err != nil {
 			return err
 		}
-		t, err := cfg.GetTarget()
+		target, err := cfg.GetTarget()
 		if err != nil {
 			return err
 		}
 
-		for {
-			events, err := s.Read()
+		// Callback functions for the source to leverage when writing data
+		sf := core.SourceFunctions{
+			Write: target.Write,
+		}
 
-			if err != nil {
-				return err
-			}
-
-			// Break if no events returned
-			if len(events) == 0 {
-				log.Info("Read returned 0 events; exiting...")
-				break
-			}
-
-			err = t.Write(events)
-			if err != nil {
-				return err
-			}
+		// Note: Read is a long running process and will only return when the source
+		//       is exhausted or if an error occurs
+		err = source.Read(&sf)
+		if err != nil {
+			return err
 		}
 
 		return nil
