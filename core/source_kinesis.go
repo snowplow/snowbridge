@@ -34,7 +34,9 @@ type KinesisSource struct {
 func NewKinesisSource(region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
 	// TODO: Add custom logger?
 	// TODO: Should we override other settings here?
-	config := kinsumer.NewConfig().WithShardCheckFrequency(10 * time.Second).WithLeaderActionFrequency(10 * time.Second)
+	config := kinsumer.NewConfig().
+		WithShardCheckFrequency(10 * time.Second).
+		WithLeaderActionFrequency(10 * time.Second)
 
 	// TODO: Should this name map to a particular instance id?
 	name := uuid.NewV4().String()
@@ -88,7 +90,6 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 	go func() {
 		<-sig
 		log.Warn("SIGTERM called, cancelling Kinesis receive ...")
-		// TODO: Can we wait for the buffer to flush?
 		ks.Client.Stop()
 	}()
 
