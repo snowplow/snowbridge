@@ -37,7 +37,7 @@ type KinsumerLogrus struct {}
 
 // Log will push all print all of these logs as Debug lines
 func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
-	log.Debugf(format, v)
+	log.Debugf(format, v...)
 }
 
 // NewKinesisSource creates a new client for reading events from kinesis
