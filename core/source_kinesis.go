@@ -36,7 +36,8 @@ func NewKinesisSource(region string, streamName string, roleARN string, appName 
 	// TODO: Should we override other settings here?
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(10 * time.Second).
-		WithLeaderActionFrequency(10 * time.Second)
+		WithLeaderActionFrequency(10 * time.Second).
+		WithManualCheckpointing(true)
 
 	// TODO: Should this name map to a particular instance id?
 	name := uuid.NewV4().String()
@@ -94,18 +95,22 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 	}()
 
 	for {
-		record, err := ks.Client.Next()
+		record, checkpointer, err := ks.Client.NextRecordWithCheckpointer()
 		if err != nil {
-			return fmt.Errorf("k.Next returned error: %s", err.Error())
+			return fmt.Errorf("k.NextRecordWithCheckpointer returned error: %s", err.Error())
+		}
+
+		ackFunc := func() {
+			log.Debugf("Ack'ing record with SequenceNumber: %s", *record.SequenceNumber)
+			checkpointer()
 		}
 
 		if record != nil {
-			// TODO: Can we get the partition key?
-			// TODO: What to do on error?
 			events := []*Event{
 				{
-					Data:         record,
-					PartitionKey: uuid.NewV4().String(),
+					Data:         record.Data,
+					PartitionKey: *record.PartitionKey,
+					AckFunc:      ackFunc,
 				},
 			}
 			err := sf.WriteToTarget(events)
