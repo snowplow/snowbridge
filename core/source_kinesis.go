@@ -30,16 +30,24 @@ type KinesisSource struct {
 	StreamName string
 }
 
+// --- Kinsumer overrides
+
+// KinsumerLogrus adds a Logrus logger for Kinsumer
+type KinsumerLogrus struct {}
+
+// Log will push all print all of these logs as Debug lines
+func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
+	log.Debugf(format, v)
+}
+
 // NewKinesisSource creates a new client for reading events from kinesis
 func NewKinesisSource(region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
-	// TODO: Add custom logger?
-	// TODO: Should we override other settings here?
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(10 * time.Second).
 		WithLeaderActionFrequency(10 * time.Second).
-		WithManualCheckpointing(true)
+		WithManualCheckpointing(true).
+		WithLogger(&KinsumerLogrus{})
 
-	// TODO: Should this name map to a particular instance id?
 	name := uuid.NewV4().String()
 
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
