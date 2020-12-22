@@ -31,7 +31,6 @@ func HandleRequest(ctx context.Context, m PubSubMessage) error {
 		return err
 	}
 
-	// TODO: Attempt to get PartitionKey from attributes
 	events := []*core.Event{
 		{
 			Data:         m.Data,

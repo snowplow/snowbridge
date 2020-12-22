@@ -72,7 +72,6 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 			msg.Ack()
 		}
 
-		// TODO: Attempt to get PartitionKey from attributes
 		events := []*Event{
 			{
 				Data:         msg.Data,
