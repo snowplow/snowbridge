@@ -35,7 +35,7 @@ type KinesisSource struct {
 // KinsumerLogrus adds a Logrus logger for Kinsumer
 type KinsumerLogrus struct {}
 
-// Log will push all print all of these logs as Debug lines
+// Log will print all Kinsumer logs as DEBUG lines
 func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
 	log.Debugf(format, v...)
 }
