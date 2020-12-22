@@ -33,6 +33,14 @@ type TargetsConfig struct {
 	PubSub  PubSubTargetConfig
 }
 
+// KinesisSourceConfig configures the source for records pulled
+type KinesisSourceConfig struct {
+	StreamName string
+	Region     string
+	RoleARN    string
+	AppName    string
+}
+
 // PubSubSourceConfig configures the source for records pulled
 type PubSubSourceConfig struct {
 	ProjectID         string
@@ -42,7 +50,8 @@ type PubSubSourceConfig struct {
 
 // SourcesConfig holds configuration for the available sources
 type SourcesConfig struct {
-	PubSub PubSubSourceConfig
+	Kinesis KinesisSourceConfig
+	PubSub  PubSubSourceConfig
 }
 
 // SentryConfig configures the Sentry error tracker
@@ -90,6 +99,12 @@ func configFromEnv(c *Config) *Config {
 			Debug: getEnvBoolOrElse("SENTRY_DEBUG", c.Sentry.Debug),
 		},
 		Sources: SourcesConfig{
+			Kinesis: KinesisSourceConfig{
+				StreamName: getEnvOrElse("SOURCE_KINESIS_STREAM_NAME", c.Sources.Kinesis.StreamName),
+				Region:     getEnvOrElse("SOURCE_KINESIS_REGION", c.Sources.Kinesis.Region),
+				RoleARN:    getEnvOrElse("SOURCE_KINESIS_ROLE_ARN", c.Sources.Kinesis.RoleARN),
+				AppName:    getEnvOrElse("SOURCE_KINESIS_APP_NAME", c.Sources.Kinesis.AppName),
+			},
 			PubSub: PubSubSourceConfig{
 				ProjectID:         getEnvOrElse("SOURCE_PUBSUB_PROJECT_ID", c.Sources.PubSub.ProjectID),
 				SubscriptionID:    getEnvOrElse("SOURCE_PUBSUB_SUBSCRIPTION_ID", c.Sources.PubSub.SubscriptionID),
@@ -115,10 +130,12 @@ func configFromEnv(c *Config) *Config {
 func (c *Config) GetSource() (Source, error) {
 	if c.Source == "stdin" {
 		return NewStdinSource()
+	} else if c.Source == "kinesis" {
+		return NewKinesisSource(c.Sources.Kinesis.Region, c.Sources.Kinesis.StreamName, c.Sources.Kinesis.RoleARN, c.Sources.Kinesis.AppName)
 	} else if c.Source == "pubsub" {
 		return NewPubSubSource(c.Sources.PubSub.ProjectID, c.Sources.PubSub.SubscriptionID, c.Sources.PubSub.ServiceAccountB64)
 	} else {
-		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin, pubsub' and got '%s'", c.Source)
+		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin, kinesis, pubsub' and got '%s'", c.Source)
 	}
 }
 

@@ -7,7 +7,7 @@
 package core
 
 import (
-	//log "github.com/sirupsen/logrus"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -15,20 +15,26 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 // KinesisSource holds a new client for reading events from kinesis
 type KinesisSource struct {
-	Client *kinsumer.Kinsumer
+	Client     *kinsumer.Kinsumer
+	StreamName string
 }
 
 // NewKinesisSource creates a new client for reading events from kinesis
 func NewKinesisSource(region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
-	// TODO: Add custom logger
+	// TODO: Add custom logger?
 	// TODO: Should we override other settings here?
-	config := kinsumer.NewConfig()
+	config := kinsumer.NewConfig().WithShardCheckFrequency(10 * time.Second).WithLeaderActionFrequency(10 * time.Second)
 
 	// TODO: Should this name map to a particular instance id?
 	name := uuid.NewV4().String()
@@ -63,18 +69,52 @@ func NewKinesisSource(region string, streamName string, roleARN string, appName 
 	}
 
 	return &KinesisSource{
-		Client: k,
+		Client:     k,
+		StreamName: streamName,
 	}, nil
 }
 
 // Read will pull events from the noted Kinesis stream forever
 func (ks *KinesisSource) Read(sf *SourceFunctions) error {
+	log.Infof("Reading messages from target stream '%s' ...", ks.StreamName)
+
 	err := ks.Client.Run()
 	if err != nil {
 		return err
 	}
 
-	
+	sig := make(chan os.Signal)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
+	go func() {
+		<-sig
+		log.Warn("SIGTERM called, cancelling Kinesis receive ...")
+		// TODO: Can we wait for the buffer to flush?
+		ks.Client.Stop()
+	}()
+
+	for {
+		record, err := ks.Client.Next()
+		if err != nil {
+			return fmt.Errorf("k.Next returned error: %s", err.Error())
+		}
+
+		if record != nil {
+			// TODO: Can we get the partition key?
+			// TODO: What to do on error?
+			events := []*Event{
+				{
+					Data:         record,
+					PartitionKey: uuid.NewV4().String(),
+				},
+			}
+			err := sf.WriteToTarget(events)
+			if err != nil {
+				log.Error(err)
+			}
+		} else {
+			return nil
+		}
+	}
 
 	return nil
 }
