@@ -130,6 +130,8 @@ To consume from Kinesis you will need to:
 1. Configure the above required `SOURCE_KINESIS_*` variables
 2. Create three DynamoDB tables which will be used for checkpointing the progress of the replicator on the stream (*Note*: details below)
 
+Under the hood we are using a fork of the [Twitch Kinsumer](https://github.com/snowplow-devops/kinsumer) library which has defined this DynamoDB table structure - these tables need to be made by hand before the application can launch.
+
 | TableName                                | DistKey        |
 |------------------------------------------|----------------|
 | `${SOURCE_KINESIS_APP_NAME}_clients`     | ID (String)    |
