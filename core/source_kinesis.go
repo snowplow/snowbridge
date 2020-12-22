@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"sync"
 	"time"
 )
 
@@ -102,6 +103,10 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 		ks.Client.Stop()
 	}()
 
+	// TODO: Make the goroutine count configurable
+	throttle := make(chan struct{}, 20)
+	wg := sync.WaitGroup{}
+
 	for {
 		record, checkpointer, err := ks.Client.NextRecordWithCheckpointer()
 		if err != nil {
@@ -121,10 +126,17 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 					AckFunc:      ackFunc,
 				},
 			}
-			err := sf.WriteToTarget(events)
-			if err != nil {
-				log.Error(err)
-			}
+
+			throttle <- struct{}{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err := sf.WriteToTarget(events)
+				if err != nil {
+					log.Error(err)
+				}
+				<-throttle
+			}()
 		} else {
 			return nil
 		}

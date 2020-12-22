@@ -26,7 +26,8 @@ func NewStdinSource() (*StdinSource, error) {
 func (ss *StdinSource) Read(sf *SourceFunctions) error {
 	log.Infof("Reading records from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
 
-	throttle := make(chan struct{}, 10)
+	// TODO: Make the goroutine count configurable
+	throttle := make(chan struct{}, 20)
 	wg := sync.WaitGroup{}
 
 	scanner := bufio.NewScanner(os.Stdin)
