@@ -6,7 +6,36 @@
 
 Easily replicate data streams wherever you need them to be!  This application is available in three different runtimes to facilitate different needs - AWS Lambda, GCP CloudFunctions and as a standalone application.
 
-### Targets & Configuration
+## Quick start
+
+Assuming git is installed:
+
+```bash
+ host> git clone https://github.com/snowplow-devops/stream-replicator
+ host> cd stream-replicator
+ host> make test
+ host> make
+```
+
+All compiled assets are available under `build/compiled`.
+
+To remove all build files:
+
+```bash
+ host> make clean
+```
+
+To format the golang code in the source directory:
+
+```bash
+ host> make format
+```
+
+**Note:** Always run `make format` before submitting any code.
+
+**Note:** The `make test` command also generates a code coverage file which can be found at `build/coverage/coverage.html`.
+
+## Targets & Configuration
 
 Currently supported targets are:
 
@@ -114,35 +143,6 @@ _WARNING_: This consumer always starts from `TRIM_HORIZON` - be mindful of this 
 ### GCP: PubSub
 
 To consume from PubSub you will need to create a subscription for the topic you wish to consume from first.  Once created you can define it and start consuming from PubSub.
-
-## Quick start
-
-Assuming git is installed:
-
-```bash
- host> git clone https://github.com/snowplow-devops/stream-replicator
- host> cd stream-replicator
- host> make test
- host> make
-```
-
-All compiled assets are available under `build/compiled`.
-
-To remove all build files:
-
-```bash
- host> make clean
-```
-
-To format the golang code in the source directory:
-
-```bash
- host> make format
-```
-
-**Note:** Always run `make format` before submitting any code.
-
-**Note:** The `make test` command also generates a code coverage file which can be found at `build/coverage/coverage.html`.
 
 ### Publishing
 
