@@ -43,6 +43,7 @@ func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
 
 // NewKinesisSource creates a new client for reading events from kinesis
 func NewKinesisSource(region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
+	// TODO: Add statistics monitoring to be able to report on consumer latency
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(10 * time.Second).
 		WithLeaderActionFrequency(10 * time.Second).
