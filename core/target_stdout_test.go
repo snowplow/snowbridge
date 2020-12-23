@@ -25,6 +25,8 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 		ackStr = "Hello World!"
 	}
 
+	assert.NotEqual(dataStr, ackStr)
+
 	events := []*Event{
 		{
 			Data:         []byte("Hello World!"),
