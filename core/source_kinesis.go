@@ -96,6 +96,10 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 		return err
 	}
 
+	// TODO: Make the goroutine count configurable
+	throttle := make(chan struct{}, 20)
+	wg := sync.WaitGroup{}
+
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
@@ -103,10 +107,6 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 		log.Warn("SIGTERM called, cancelling Kinesis receive ...")
 		ks.Client.Stop()
 	}()
-
-	// TODO: Make the goroutine count configurable
-	throttle := make(chan struct{}, 20)
-	wg := sync.WaitGroup{}
 
 	for {
 		record, checkpointer, err := ks.Client.NextRecordWithCheckpointer()
@@ -142,6 +142,8 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 			return nil
 		}
 	}
+	wg.Wait()
+	sf.CloseTarget()
 
 	return nil
 }

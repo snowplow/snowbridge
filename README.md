@@ -103,6 +103,7 @@ If running the replicator via Lambda / CloudFunctions is not possible or not fea
 1. `stdin`: Will allow you to stream arbitrary text in from your local system or even a whole file (e.g. `cat file.txt | ./stream-replicator`)
 2. `kinesis`: Allows you to consume a Kinesis stream across multiple replicator instances concurrently
 3. `pubsub`: Allows you to consume a PubSub topic across multiple replicator instances concurrently
+3. `sqs`: Allows you to consume an SQS queue across multiple replicator instances concurrently
 
 To configure these sources several extra configuration variables are required - as with the targets everything is done via the environment!
 
@@ -116,6 +117,9 @@ To configure these sources several extra configuration variables are required - 
 | `SOURCE_PUBSUB_PROJECT_ID`          | `acme-project`                              | ID of the GCP Project `(def: "")`                                     |
 | `SOURCE_PUBSUB_SUBSCRIPTION_ID`     | `some-acme-topic`                           | Name of the subscription to pull data from `(def: "")`                |
 | `SOURCE_PUBSUB_SERVICE_ACCOUNT_B64` | `asdasdasdasdasd=`                          | *Optional* GCP Service Account Base64 encoded `(def: "")`             |
+| `SOURCE_SQS_QUEUE_NAME`             | `some-acme-queue`                           | Name of the queue to pull data from `(def: "")`                       |
+| `SOURCE_SQS_REGION`                 | `us-east-1`                                 | The region the stream is in `(def: "")`                               |
+| `SOURCE_SQS_ROLE_ARN`               | `arn:aws:iam::111111111111:role/Kinesis`    | *Optional* IAM role to assume `(def: "")`                             |
 
 When ready the steps are as follows:
 
@@ -141,6 +145,10 @@ Under the hood we are using a fork of the [Twitch Kinsumer](https://github.com/s
 Assuming your AWS credentials have sufficient permission to Kinesis and DynamoDB your consumer should now be able to run by launching the executable.
 
 _WARNING_: This consumer always starts from `TRIM_HORIZON` - be mindful of this when launching.
+
+### AWS: SQS
+
+To consume from an SQS queue you will need to create a queue to consume from first.  Once created you can define it and start consuming directly.
 
 ### GCP: PubSub
 

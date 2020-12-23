@@ -48,10 +48,18 @@ type PubSubSourceConfig struct {
 	ServiceAccountB64 string
 }
 
+// SQSSourceConfig configures the source for records pulled
+type SQSSourceConfig struct {
+	QueueName string
+	Region     string
+	RoleARN    string
+}
+
 // SourcesConfig holds configuration for the available sources
 type SourcesConfig struct {
 	Kinesis KinesisSourceConfig
 	PubSub  PubSubSourceConfig
+	SQS     SQSSourceConfig
 }
 
 // SentryConfig configures the Sentry error tracker
@@ -110,6 +118,11 @@ func configFromEnv(c *Config) *Config {
 				SubscriptionID:    getEnvOrElse("SOURCE_PUBSUB_SUBSCRIPTION_ID", c.Sources.PubSub.SubscriptionID),
 				ServiceAccountB64: getEnvOrElse("SOURCE_PUBSUB_SERVICE_ACCOUNT_B64", c.Sources.PubSub.ServiceAccountB64),
 			},
+			SQS: SQSSourceConfig{
+				QueueName: getEnvOrElse("SOURCE_SQS_QUEUE_NAME", c.Sources.SQS.QueueName),
+				Region:    getEnvOrElse("SOURCE_SQS_REGION", c.Sources.SQS.Region),
+				RoleARN:   getEnvOrElse("SOURCE_SQS_ROLE_ARN", c.Sources.SQS.RoleARN),
+			},
 		},
 		Targets: TargetsConfig{
 			Kinesis: KinesisTargetConfig{
@@ -134,6 +147,8 @@ func (c *Config) GetSource() (Source, error) {
 		return NewKinesisSource(c.Sources.Kinesis.Region, c.Sources.Kinesis.StreamName, c.Sources.Kinesis.RoleARN, c.Sources.Kinesis.AppName)
 	} else if c.Source == "pubsub" {
 		return NewPubSubSource(c.Sources.PubSub.ProjectID, c.Sources.PubSub.SubscriptionID, c.Sources.PubSub.ServiceAccountB64)
+	} else if c.Source == "sqs" {
+		return NewSQSSource(c.Sources.SQS.Region, c.Sources.SQS.QueueName, c.Sources.SQS.RoleARN)
 	} else {
 		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin, kinesis, pubsub' and got '%s'", c.Source)
 	}

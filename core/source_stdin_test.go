@@ -8,9 +8,9 @@ package core
 
 import (
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"os"
 	"io/ioutil"
+	"os"
+	"testing"
 )
 
 func TestStdinSource_ReadSuccess(t *testing.T) {
