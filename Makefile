@@ -51,7 +51,7 @@ gcp-cloudfunctions: gox
 	GO111MODULE=on go mod vendor
 	cp -R ./$(vendor_dir)/ $(staging_dir)/gcp/cloudfunctions/vendor/
 
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/core/
+	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/
 	cp -R ./core/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/core/
 
 	echo "# github.com/snowplow-devops/stream-replicator v$(version)" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
