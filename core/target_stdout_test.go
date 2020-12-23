@@ -19,9 +19,10 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 	assert.Nil(err)
 
 	dataStr := "Hello World!"
+	var ackStr string
 
 	ackFunc := func() {
-		assert.Equal(dataStr, "Hello World!")
+		ackStr = "Hello World!"
 	}
 
 	events := []*Event{
@@ -35,4 +36,6 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 	err1 := target.Write(events)
 	assert.Nil(err1)
 	target.Close()
+
+	assert.Equal(dataStr, ackStr)
 }
