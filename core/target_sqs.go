@@ -44,9 +44,9 @@ func (st *SQSTarget) Write(events []*Event) error {
 
 	for _, event := range events {
 		_, err := st.Client.SendMessage(&sqs.SendMessageInput{
-		    DelaySeconds: aws.Int64(0),
-		    MessageBody: aws.String(string(event.Data)),
-		    QueueUrl:    queueURL,
+			DelaySeconds: aws.Int64(0),
+			MessageBody:  aws.String(string(event.Data)),
+			QueueUrl:     queueURL,
 		})
 		if err != nil {
 			return err

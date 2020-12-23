@@ -177,7 +177,7 @@ func (c *Config) GetTarget() (Target, error) {
 		return NewPubSubTarget(c.Targets.PubSub.ProjectID, c.Targets.PubSub.TopicName, c.Targets.PubSub.ServiceAccountB64)
 	} else if c.Target == "sqs" {
 		return NewSQSTarget(c.Targets.SQS.Region, c.Targets.SQS.QueueName, c.Targets.SQS.RoleARN)
-	}else {
+	} else {
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target)
 	}
 }
