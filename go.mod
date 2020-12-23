@@ -12,6 +12,7 @@ require (
 	github.com/mitchellh/gox v1.0.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
+	github.com/smira/go-statsd v1.3.2
 	github.com/stretchr/testify v1.6.1
 	github.com/twinj/uuid v1.0.0
 	github.com/twitchscience/kinsumer v0.0.0-00010101000000-000000000000

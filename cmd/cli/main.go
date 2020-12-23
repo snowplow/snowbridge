@@ -54,9 +54,30 @@ func main() {
 		}
 		defer target.Close()
 
+		statsdClient := cfg.GetStatsDClient()
+		if statsdClient != nil {
+			defer statsdClient.Close()
+		}
+
+		// Extend target.Write() to push metrics to statsd
+		writeFunc := func(events []*core.Event) error {
+			err := target.Write(events)
+
+			if statsdClient != nil {
+				if err != nil {
+					statsdClient.Gauge("messages.failed", int64(len(events)))
+				} else {
+					statsdClient.Gauge("messages.processed", int64(len(events)))
+				}
+				statsdClient.Incr("messages.total", int64(len(events)))
+			}
+			
+			return err
+		}
+
 		// Callback functions for the source to leverage when writing data
 		sf := core.SourceFunctions{
-			WriteToTarget: target.Write,
+			WriteToTarget: writeFunc,
 		}
 
 		// Note: Read is a long running process and will only return when the source

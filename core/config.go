@@ -9,6 +9,7 @@ package core
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	statsd "github.com/smira/go-statsd"
 	"os"
 	"strconv"
 )
@@ -77,12 +78,19 @@ type SentryConfig struct {
 	Debug bool
 }
 
+// StatsDConfig configures the StatsD server for metrics
+type StatsDConfig struct {
+	Endpoint string
+	Prefix   string
+}
+
 // Config for holding all configuration details
 type Config struct {
 	Source   string
 	Target   string
 	LogLevel string
 	Sentry   SentryConfig
+	StatsD   StatsDConfig
 	Sources  SourcesConfig
 	Targets  TargetsConfig
 }
@@ -96,6 +104,9 @@ func NewConfig() *Config {
 		Sentry: SentryConfig{
 			Tags:  "{}",
 			Debug: false,
+		},
+		StatsD: StatsDConfig{
+			Prefix: "stream-replicator.",
 		},
 	}
 
@@ -113,6 +124,10 @@ func configFromEnv(c *Config) *Config {
 			Dsn:   getEnvOrElse("SENTRY_DSN", c.Sentry.Dsn),
 			Tags:  getEnvOrElse("SENTRY_TAGS", c.Sentry.Tags),
 			Debug: getEnvBoolOrElse("SENTRY_DEBUG", c.Sentry.Debug),
+		},
+		StatsD: StatsDConfig{
+			Endpoint: getEnvOrElse("STATSD_ENDPOINT", c.StatsD.Endpoint),
+			Prefix:   getEnvOrElse("STATSD_PREFIX", c.StatsD.Prefix),
 		},
 		Sources: SourcesConfig{
 			Kinesis: KinesisSourceConfig{
@@ -180,6 +195,19 @@ func (c *Config) GetTarget() (Target, error) {
 	} else {
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target)
 	}
+}
+
+// GetStatsDClient builds and returns a StatsD client for emitting metrics
+func (c *Config) GetStatsDClient() *statsd.Client {
+	if c.StatsD.Endpoint != "" {
+		client := statsd.NewClient(
+			c.StatsD.Endpoint,
+			statsd.MaxPacketSize(1400),
+			statsd.MetricPrefix(c.StatsD.Prefix),
+		)
+		return client
+	}
+	return nil
 }
 
 // --- HELPERS
