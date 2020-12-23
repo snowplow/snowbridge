@@ -30,6 +30,7 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 	if err != nil {
 		return err
 	}
+	defer t.Close()
 
 	events := make([]*core.Event, len(event.Records))
 	for i := 0; i < len(events); i++ {
@@ -44,7 +45,6 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 	if err != nil {
 		log.Error(err)
 	}
-	t.Close()
 
 	return err
 }

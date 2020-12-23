@@ -30,6 +30,7 @@ func HandleRequest(ctx context.Context, m PubSubMessage) error {
 	if err != nil {
 		return err
 	}
+	defer t.Close()
 
 	events := []*core.Event{
 		{
@@ -42,7 +43,6 @@ func HandleRequest(ctx context.Context, m PubSubMessage) error {
 	if err != nil {
 		log.Error(err)
 	}
-	t.Close()
 
 	return err
 }

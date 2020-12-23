@@ -85,8 +85,6 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 		}
 	})
 
-	sf.CloseTarget()
-
 	if err != nil {
 		return err
 	}

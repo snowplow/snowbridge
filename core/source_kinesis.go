@@ -143,7 +143,6 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 		}
 	}
 	wg.Wait()
-	sf.CloseTarget()
 
 	return nil
 }

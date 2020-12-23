@@ -42,11 +42,9 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 		}
 		return nil
 	}
-	closeFunc := func() {}
 
 	sf := SourceFunctions{
 		WriteToTarget: writeFunc,
-		CloseTarget:   closeFunc,
 	}
 
 	err1 := source.Read(&sf)

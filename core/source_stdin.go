@@ -51,7 +51,6 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 		}()
 	}
 	wg.Wait()
-	sf.CloseTarget()
 
 	if scanner.Err() != nil {
 		return scanner.Err()

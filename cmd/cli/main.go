@@ -52,11 +52,11 @@ func main() {
 		if err != nil {
 			return err
 		}
+		defer target.Close()
 
 		// Callback functions for the source to leverage when writing data
 		sf := core.SourceFunctions{
 			WriteToTarget: target.Write,
-			CloseTarget:   target.Close,
 		}
 
 		// Note: Read is a long running process and will only return when the source

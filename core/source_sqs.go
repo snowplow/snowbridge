@@ -93,7 +93,6 @@ ProcessLoop:
 		}
 	}
 	wg.Wait()
-	sf.CloseTarget()
 
 	return nil
 }
