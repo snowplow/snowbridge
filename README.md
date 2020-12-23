@@ -1,6 +1,6 @@
 # Stream Replicator
 
-[![Release][release-image]](releases)
+[![Release][release-image]][releases]
 
 ## Overview
 
@@ -65,7 +65,7 @@ All configuration for this application is done via Environment variables.  There
 
 The Lambda deployment allows you to replicate a Kinesis stream to any of the available targets. To deploy the Lambda:
 
-1. Download the pre-compiled ZIP from the [releases](releases) or read the Quick start to compile from source (the ZIP is available locally at `build/compiled/aws_lambda_stream_replicator_${version}_linux_amd64.zip`).
+1. Download the pre-compiled ZIP from the [releases][releases] or read the Quick start to compile from source (the ZIP is available locally at `build/compiled/aws_lambda_stream_replicator_${version}_linux_amd64.zip`).
 2. Setup an IAM role with sufficient Kinesis + Logging permissions - the following default roles can be used for testing:
  - `arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole`
  - `arn:aws:iam::aws:policy/AmazonKinesisFullAccess`
@@ -83,7 +83,7 @@ You are now ready to `Add trigger` for the function!  Simply select Kinesis and 
 
 The CloudFunctions deployment allows you to replicate a PubSub topic to any of the available targets. To deploy the CloudFunction:
 
-1. Download the pre-compiled ZIP from the [releases](releases) or read the Quick start to compile from source (the ZIP is available locally at `build/compiled/gcp_cloudfunctions_stream_replicator_${version}_linux_amd64.zip`).
+1. Download the pre-compiled ZIP from the [releases][releases] or read the Quick start to compile from source (the ZIP is available locally at `build/compiled/gcp_cloudfunctions_stream_replicator_${version}_linux_amd64.zip`).
 2. Create a new function:
   - Give it a name (e.g. `stream-replicator`)
   - Select a region
@@ -119,7 +119,7 @@ To configure these sources several extra configuration variables are required - 
 
 When ready the steps are as follows:
 
-1. Download the pre-compiled ZIP from the [releases](releases) or read the Quick start to compile from source (the ZIP is available locally at `build/compiled/cli_stream_replicator_${version}_linux|darwin_amd64.zip`).
+1. Download the pre-compiled ZIP from the [releases][releases] or read the Quick start to compile from source (the ZIP is available locally at `build/compiled/cli_stream_replicator_${version}_linux|darwin_amd64.zip`).
 2. Set the appropriate env vars as noted above (see `SOURCE` specific settings below)
 3. Run by launching the binary `e.g. ./stream-replicator`; this is a long running operation and will only stop on a `ctrl + c` command or on an error
 
