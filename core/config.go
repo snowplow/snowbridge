@@ -150,7 +150,7 @@ func (c *Config) GetSource() (Source, error) {
 	} else if c.Source == "sqs" {
 		return NewSQSSource(c.Sources.SQS.Region, c.Sources.SQS.QueueName, c.Sources.SQS.RoleARN)
 	} else {
-		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin, kinesis, pubsub' and got '%s'", c.Source)
+		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got '%s'", c.Source)
 	}
 }
 

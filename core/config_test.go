@@ -81,7 +81,7 @@ func TestNewConfig_InvalidSource(t *testing.T) {
 	source, err := c.GetSource()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid source found; expected one of 'stdin, kinesis, pubsub' and got 'fake'", err.Error())
+	assert.Equal("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidTarget(t *testing.T) {

@@ -45,7 +45,7 @@ Currently supported targets are:
 
 All configuration for this application is done via Environment variables.  There are no config files.  Depending on the `TARGET` you define you will need to populate the associated variables - for example to send to Kinesis you need to fill out the `KINESIS_` variables.
 
-| Variable                            | Possible Value(s)                           | Note                                                                  |
+| Variable                            | Example Value(s)                            | Note                                                                  |
 |-------------------------------------|---------------------------------------------|-----------------------------------------------------------------------|
 | `TARGET`                            | `stdout, kinesis, pubsub`                   | Sets the target stream to emit data into `(def: "stdout")`            |
 | `LOG_LEVEL`                         | `debug, info, warning, error, fatal, panic` | Sets the logging level `(def: "info")`                                |
@@ -107,9 +107,9 @@ If running the replicator via Lambda / CloudFunctions is not possible or not fea
 
 To configure these sources several extra configuration variables are required - as with the targets everything is done via the environment!
 
-| Variable                            | Possible Value(s)                           | Note                                                                  |
+| Variable                            | Example Value(s)                            | Note                                                                  |
 |-------------------------------------|---------------------------------------------|-----------------------------------------------------------------------|
-| `SOURCE`                            | `stdin, kinesis, pubsub`                    | Sets the target stream to pull data from `(def: "stdin")`             |
+| `SOURCE`                            | `stdin, kinesis, pubsub, sqs`               | Sets the target stream to pull data from `(def: "stdin")`             |
 | `SOURCE_KINESIS_STREAM_NAME`        | `some-acme-stream`                          | Name of the stream to pull data from `(def: "")`                      |
 | `SOURCE_KINESIS_REGION`             | `us-east-1`                                 | The region the stream is in `(def: "")`                               |
 | `SOURCE_KINESIS_ROLE_ARN`           | `arn:aws:iam::111111111111:role/Kinesis`    | *Optional* IAM role to assume `(def: "")`                             |
