@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	appVersion   = "0.1.0"
+	appVersion   = "0.1.0-rc1"
 	appName      = "stream-replicator"
 	appUsage     = "Replicates data streams to supported targets"
 	appCopyright = "(c) 2020 Snowplow Analytics, LTD"
