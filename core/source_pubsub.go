@@ -52,7 +52,7 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	ctx := context.Background()
 
-	log.Infof("Reading messages from subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
+	log.Infof("Reading messages from PubSub subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
 
 	sub := ps.Client.Subscription(ps.SubscriptionID)
 	cctx, cancel := context.WithCancel(ctx)

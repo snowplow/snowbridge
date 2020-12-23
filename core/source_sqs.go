@@ -37,7 +37,7 @@ func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, 
 
 // Read will pull events from the noted SQS queue forever
 func (ss *SQSSource) Read(sf *SourceFunctions) error {
-	log.Infof("Reading records from SQS queue '%s' ...", ss.QueueName)
+	log.Infof("Reading messages from SQS queue '%s' ...", ss.QueueName)
 
 	urlResult, err := ss.Client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(ss.QueueName),

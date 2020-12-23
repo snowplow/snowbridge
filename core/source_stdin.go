@@ -24,7 +24,7 @@ func NewStdinSource() (*StdinSource, error) {
 
 // Read will execute until CTRL + D is pressed or until EOF is passed
 func (ss *StdinSource) Read(sf *SourceFunctions) error {
-	log.Infof("Reading records from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
+	log.Infof("Reading messages from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
 
 	// TODO: Make the goroutine count configurable
 	throttle := make(chan struct{}, 20)

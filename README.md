@@ -42,6 +42,7 @@ Currently supported targets are:
 1. `stdout`: Allows for easy debugging
 2. `kinesis`: Replicates to an Amazon Kinesis Stream
 3. `pubsub`: Replicates to a GCP PubSub Topic
+4. `sqs`: Replicates to an Amazon SQS Queue
 
 All configuration for this application is done via Environment variables.  There are no config files.  Depending on the `TARGET` you define you will need to populate the associated variables - for example to send to Kinesis you need to fill out the `KINESIS_` variables.
 
@@ -58,6 +59,9 @@ All configuration for this application is done via Environment variables.  There
 | `TARGET_PUBSUB_PROJECT_ID`          | `acme-project`                              | ID of the GCP Project `(def: "")`                                     |
 | `TARGET_PUBSUB_TOPIC_NAME`          | `some-acme-topic`                           | Name of the topic to send data into `(def: "")`                       |
 | `TARGET_PUBSUB_SERVICE_ACCOUNT_B64` | `asdasdasdasdasd=`                          | *Optional* GCP Service Account Base64 encoded `(def: "")`             |
+| `TARGET_SQS_QUEUE_NAME`             | `some-acme-queue`                           | Name of the queue to pull data from `(def: "")`                       |
+| `TARGET_SQS_REGION`                 | `us-east-1`                                 | The region the stream is in `(def: "")`                               |
+| `TARGET_SQS_ROLE_ARN`               | `arn:aws:iam::111111111111:role/Kinesis`    | *Optional* IAM role to assume `(def: "")`                             |
 
 ## Serverless runtimes
 

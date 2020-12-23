@@ -27,10 +27,18 @@ type PubSubTargetConfig struct {
 	ServiceAccountB64 string
 }
 
+// SQSTargetConfig configures the destination for records consumed
+type SQSTargetConfig struct {
+	QueueName string
+	Region    string
+	RoleARN   string
+}
+
 // TargetsConfig holds configuration for the available targets
 type TargetsConfig struct {
 	Kinesis KinesisTargetConfig
 	PubSub  PubSubTargetConfig
+	SQS     SQSTargetConfig
 }
 
 // KinesisSourceConfig configures the source for records pulled
@@ -135,6 +143,11 @@ func configFromEnv(c *Config) *Config {
 				TopicName:         getEnvOrElse("TARGET_PUBSUB_TOPIC_NAME", c.Targets.PubSub.TopicName),
 				ServiceAccountB64: getEnvOrElse("TARGET_PUBSUB_SERVICE_ACCOUNT_B64", c.Targets.PubSub.ServiceAccountB64),
 			},
+			SQS: SQSTargetConfig{
+				QueueName: getEnvOrElse("TARGET_SQS_QUEUE_NAME", c.Targets.SQS.QueueName),
+				Region:    getEnvOrElse("TARGET_SQS_REGION", c.Targets.SQS.Region),
+				RoleARN:   getEnvOrElse("TARGET_SQS_ROLE_ARN", c.Targets.SQS.RoleARN),
+			},
 		},
 	}
 }
@@ -162,8 +175,10 @@ func (c *Config) GetTarget() (Target, error) {
 		return NewKinesisTarget(c.Targets.Kinesis.Region, c.Targets.Kinesis.StreamName, c.Targets.Kinesis.RoleARN)
 	} else if c.Target == "pubsub" {
 		return NewPubSubTarget(c.Targets.PubSub.ProjectID, c.Targets.PubSub.TopicName, c.Targets.PubSub.ServiceAccountB64)
-	} else {
-		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis, pubsub' and got '%s'", c.Target)
+	} else if c.Target == "sqs" {
+		return NewSQSTarget(c.Targets.SQS.Region, c.Targets.SQS.QueueName, c.Targets.SQS.RoleARN)
+	}else {
+		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target)
 	}
 }
 

@@ -63,7 +63,7 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 
 	var results []*PubSubPublishResult
 
-	log.Debugf("Writing %d records to target topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
+	log.Debugf("Writing %d messages to PubSub topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
 
 	for _, event := range events {
 		msg := &pubsub.Message{
@@ -100,7 +100,7 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 		return fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	log.Infof("Successfully wrote %d/%d records to topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
+	log.Infof("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
 
 	return nil
 }

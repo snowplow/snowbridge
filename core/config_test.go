@@ -97,5 +97,5 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 	source, err := c.GetTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub' and got 'fake'", err.Error())
+	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got 'fake'", err.Error())
 }
