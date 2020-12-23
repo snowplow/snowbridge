@@ -31,6 +31,7 @@ func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 }
 
 // Write pushes all events to the required target
+// TODO: Add event batching (max: 10)
 func (st *SQSTarget) Write(events []*Event) error {
 	log.Debugf("Writing %d messages to target SQS queue '%s' ...", len(events), st.QueueName)
 

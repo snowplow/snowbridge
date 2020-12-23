@@ -32,6 +32,7 @@ func NewKinesisTarget(region string, streamName string, roleARN string) (*Kinesi
 }
 
 // Write pushes all events to the required target
+// TODO: Add event batching (max: 500)
 func (kt *KinesisTarget) Write(events []*Event) error {
 	log.Debugf("Writing %d messages to Kinesis stream '%s' ...", len(events), kt.StreamName)
 
