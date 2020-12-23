@@ -156,5 +156,5 @@ Unauthorized copying of this project via any medium is strictly prohibited.
 
 Copyright (c) 2020 Snowplow Analytics Ltd. All rights reserved.
 
-[release-image]: http://img.shields.io/badge/golang-0.1.0-6ad7e5.svg?style=flat
-[releases]: https://github.com/snowplow-devops/stream-replicator/releases
+[release-image]: http://img.shields.io/badge/golang-0.1.0-rc1-6ad7e5.svg?style=flat
+[releases]: https://github.com/snowplow-devops/stream-replicator/releases/tag/0.1.0-rc1
