@@ -8,8 +8,8 @@ package core
 
 import (
 	"github.com/stretchr/testify/assert"
-	"testing"
 	"strings"
+	"testing"
 )
 
 func TestStoreGCPServiceAccountFromBase64(t *testing.T) {

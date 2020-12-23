@@ -12,7 +12,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/makasim/sentryhook"
 	log "github.com/sirupsen/logrus"
-	"strings"
 	"time"
 )
 
@@ -26,7 +25,6 @@ func Init() (*Config, error) {
 		"fatal":   log.FatalLevel,
 		"panic":   log.PanicLevel,
 	}
-	logLevelKeys := getLogLevelKeys(logLevels)
 
 	cfg := NewConfig()
 
@@ -59,17 +57,8 @@ func Init() (*Config, error) {
 	if level, ok := logLevels[cfg.LogLevel]; ok {
 		log.SetLevel(level)
 	} else {
-		return nil, fmt.Errorf("FATAL: Supported log levels are %s, provided %s",
-			strings.Join(logLevelKeys, ","), cfg.LogLevel)
+		return nil, fmt.Errorf("FATAL: Supported log levels are 'debug, info, warning, error, fatal, panic' - provided: %s", cfg.LogLevel)
 	}
 
 	return cfg, nil
-}
-
-func getLogLevelKeys(logLevels map[string]log.Level) []string {
-	keys := make([]string, 0, len(logLevels))
-	for k := range logLevels {
-		keys = append(keys, k)
-	}
-	return keys
 }

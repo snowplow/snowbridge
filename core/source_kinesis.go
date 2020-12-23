@@ -20,8 +20,8 @@ import (
 	"github.com/twitchscience/kinsumer"
 	"os"
 	"os/signal"
-	"syscall"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -34,7 +34,7 @@ type KinesisSource struct {
 // --- Kinsumer overrides
 
 // KinsumerLogrus adds a Logrus logger for Kinsumer
-type KinsumerLogrus struct {}
+type KinsumerLogrus struct{}
 
 // Log will print all Kinsumer logs as DEBUG lines
 func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {

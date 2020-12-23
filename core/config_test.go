@@ -77,7 +77,7 @@ func TestNewConfig_InvalidSource(t *testing.T) {
 
 	c := NewConfig()
 	assert.NotNil(c)
-	
+
 	source, err := c.GetSource()
 	assert.Nil(source)
 	assert.NotNil(err)
@@ -93,7 +93,7 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 
 	c := NewConfig()
 	assert.NotNil(c)
-	
+
 	source, err := c.GetTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
