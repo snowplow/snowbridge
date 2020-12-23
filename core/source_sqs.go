@@ -14,7 +14,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 )
 
 // SQSSource holds a new client for reading events from SQS
@@ -59,61 +62,32 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	if err != nil {
 		return err
 	}
-
 	queueURL := urlResult.QueueUrl
+
+	sig := make(chan os.Signal)
+	exitSignal := make(chan struct{})
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
+	go func() {
+		<-sig
+		log.Warn("SIGTERM called, cancelling SQS receive ...")
+		exitSignal <- struct{}{}
+	}()
 
 	// TODO: Make the goroutine count configurable
 	throttle := make(chan struct{}, 20)
 	wg := sync.WaitGroup{}
 
-	// TODO: Need to make gets asynchronous to speed up processing / run multiple getters in parallel
+ProcessLoop:
 	for {
-		msgRes, err := ss.Client.ReceiveMessage(&sqs.ReceiveMessageInput{
-			AttributeNames: []*string{
-				aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
-			},
-			MessageAttributeNames: []*string{
-				aws.String(sqs.QueueAttributeNameAll),
-			},
-			QueueUrl:            queueURL,
-			MaxNumberOfMessages: aws.Int64(10),
-			VisibilityTimeout:   aws.Int64(10),
-			WaitTimeSeconds:     aws.Int64(1),
-		})
-		if err != nil {
-			return err
-		}
-
-		for _, msg := range msgRes.Messages {
-			receiptHandle := msg.ReceiptHandle
-
-			ackFunc := func() {
-				log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
-				_, err := ss.Client.DeleteMessage(&sqs.DeleteMessageInput{
-				    QueueUrl:      queueURL,
-				    ReceiptHandle: receiptHandle,
-				})
-				if err != nil {
-					log.Error(err)
-				}
-			}
-
-			events := []*Event{
-				{
-					Data:         []byte(*msg.Body),
-					PartitionKey: uuid.NewV4().String(),
-					AckFunc:      ackFunc,
-				},
-			}
-
+		select {
+		case <-exitSignal:
+			break ProcessLoop
+		default:
 			throttle <- struct{}{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := sf.WriteToTarget(events)
-				if err != nil {
-					log.Error(err)
-				}
+				ss.process(queueURL, sf)
 				<-throttle
 			}()
 		}
@@ -122,4 +96,51 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	sf.CloseTarget()
 
 	return nil
+}
+
+func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
+	msgRes, err := ss.Client.ReceiveMessage(&sqs.ReceiveMessageInput{
+		AttributeNames: []*string{
+			aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
+		},
+		MessageAttributeNames: []*string{
+			aws.String(sqs.QueueAttributeNameAll),
+		},
+		QueueUrl:            queueURL,
+		MaxNumberOfMessages: aws.Int64(1),
+		VisibilityTimeout:   aws.Int64(10),
+		WaitTimeSeconds:     aws.Int64(1),
+	})
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, msg := range msgRes.Messages {
+		receiptHandle := msg.ReceiptHandle
+
+		ackFunc := func() {
+			log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
+			_, err := ss.Client.DeleteMessage(&sqs.DeleteMessageInput{
+				QueueUrl:      queueURL,
+				ReceiptHandle: receiptHandle,
+			})
+			if err != nil {
+				log.Error(err)
+			}
+		}
+
+		events := []*Event{
+			{
+				Data:         []byte(*msg.Body),
+				PartitionKey: uuid.NewV4().String(),
+				AckFunc:      ackFunc,
+			},
+		}
+
+		err := sf.WriteToTarget(events)
+		if err != nil {
+			log.Error(err)
+		}
+	}
 }

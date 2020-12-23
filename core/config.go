@@ -51,8 +51,8 @@ type PubSubSourceConfig struct {
 // SQSSourceConfig configures the source for records pulled
 type SQSSourceConfig struct {
 	QueueName string
-	Region     string
-	RoleARN    string
+	Region    string
+	RoleARN   string
 }
 
 // SourcesConfig holds configuration for the available sources
