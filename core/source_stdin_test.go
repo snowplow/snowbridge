@@ -17,7 +17,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	assert := assert.New(t)
 
 	// Setup test input
-	content := []byte("Hello")
+	content := []byte("Hello World!")
 	tmpfile, err := ioutil.TempFile("", "example")
 	assert.Nil(err)
 	defer os.Remove(tmpfile.Name())
@@ -38,7 +38,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 
 	writeFunc := func(events []*Event) error {
 		for _, event := range events {
-			assert.Equal("Hello", string(event.Data))
+			assert.Equal("Hello World!", string(event.Data))
 		}
 		return nil
 	}
