@@ -8,13 +8,8 @@ package core
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
@@ -50,31 +45,12 @@ func NewKinesisSource(region string, streamName string, roleARN string, appName 
 		WithManualCheckpointing(true).
 		WithLogger(&KinsumerLogrus{})
 
+	// TODO: See if the client name can be reused to survive same node reboots
 	name := uuid.NewV4().String()
 
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		Config: aws.Config{
-			Region: aws.String(region),
-		},
-	}))
-
-	var kinesisClient kinesisiface.KinesisAPI
-	var dynamodbClient dynamodbiface.DynamoDBAPI
-
-	if roleARN != "" {
-		awsCreds := stscreds.NewCredentials(sess, roleARN)
-		awsConfig := aws.Config{
-			Credentials: awsCreds,
-			Region:      aws.String(region),
-		}
-
-		kinesisClient = kinesis.New(sess, &awsConfig)
-		dynamodbClient = dynamodb.New(sess, &awsConfig)
-	} else {
-		kinesisClient = kinesis.New(sess)
-		dynamodbClient = dynamodb.New(sess)
-	}
+	awsSession, awsConfig := getAWSSession(region, roleARN)
+	kinesisClient := kinesis.New(awsSession, awsConfig)
+	dynamodbClient := dynamodb.New(awsSession, awsConfig)
 
 	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, name, config)
 	if err != nil {

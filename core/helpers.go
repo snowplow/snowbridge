@@ -9,6 +9,9 @@ package core
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/twinj/uuid"
 	"os"
 )
@@ -33,4 +36,24 @@ func storeGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) 
 	}
 
 	return targetFile, nil
+}
+
+func getAWSSession(region string, roleARN string) (*session.Session, *aws.Config) {
+	session := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+		Config: aws.Config{
+			Region: aws.String(region),
+		},
+	}))
+
+	if roleARN != "" {
+		creds := stscreds.NewCredentials(session, roleARN)
+		config := aws.Config{
+			Credentials: creds,
+			Region:      aws.String(region),
+		}
+
+		return session, &config
+	}
+	return session, nil
 }

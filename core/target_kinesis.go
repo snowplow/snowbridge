@@ -9,8 +9,6 @@ package core
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	log "github.com/sirupsen/logrus"
@@ -24,23 +22,8 @@ type KinesisTarget struct {
 
 // NewKinesisTarget creates a new client for writing events to kinesis
 func NewKinesisTarget(region string, streamName string, roleARN string) (*KinesisTarget, error) {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		Config: aws.Config{
-			Region: aws.String(region),
-		},
-	}))
-
-	var kinesisClient kinesisiface.KinesisAPI
-	if roleARN != "" {
-		creds := stscreds.NewCredentials(sess, roleARN)
-		kinesisClient = kinesis.New(sess, &aws.Config{
-			Credentials: creds,
-			Region:      aws.String(region),
-		})
-	} else {
-		kinesisClient = kinesis.New(sess)
-	}
+	awsSession, awsConfig := getAWSSession(region, roleARN)
+	kinesisClient := kinesis.New(awsSession, awsConfig)
 
 	return &KinesisTarget{
 		Client:     kinesisClient,

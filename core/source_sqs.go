@@ -8,8 +8,6 @@ package core
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	log "github.com/sirupsen/logrus"
@@ -28,23 +26,8 @@ type SQSSource struct {
 
 // NewSQSSource creates a new client for reading events from SQS
 func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, error) {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		Config: aws.Config{
-			Region: aws.String(region),
-		},
-	}))
-
-	var sqsClient sqsiface.SQSAPI
-	if roleARN != "" {
-		creds := stscreds.NewCredentials(sess, roleARN)
-		sqsClient = sqs.New(sess, &aws.Config{
-			Credentials: creds,
-			Region:      aws.String(region),
-		})
-	} else {
-		sqsClient = sqs.New(sess)
-	}
+	awsSession, awsConfig := getAWSSession(region, roleARN)
+	sqsClient := sqs.New(awsSession, awsConfig)
 
 	return &SQSSource{
 		Client:    sqsClient,
