@@ -64,7 +64,7 @@ func (kt *KinesisTarget) Write(events []*Event) error {
 		}
 	}
 
-	log.Infof("Successfully wrote %d messages to Kinesis stream '%s'", len(entries), kt.StreamName)
+	log.Debugf("Successfully wrote %d messages to Kinesis stream '%s'", len(entries), kt.StreamName)
 
 	return nil
 }

@@ -100,7 +100,7 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 		return fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	log.Infof("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
+	log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
 
 	return nil
 }

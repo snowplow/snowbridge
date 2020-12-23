@@ -57,7 +57,7 @@ func (st *SQSTarget) Write(events []*Event) error {
 		}
 	}
 
-	log.Infof("Successfully wrote %d messages to SQS queue '%s'", len(events), st.QueueName)
+	log.Debugf("Successfully wrote %d messages to SQS queue '%s'", len(events), st.QueueName)
 
 	return nil
 }
