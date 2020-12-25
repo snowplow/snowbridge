@@ -29,7 +29,7 @@ func (st *StdoutTarget) Write(events []*Event) (*WriteResult, error) {
 		}
 	}
 	return &WriteResult{
-		Sent: int64(len(events)),
+		Sent:   int64(len(events)),
 		Failed: int64(0),
 	}, nil
 }

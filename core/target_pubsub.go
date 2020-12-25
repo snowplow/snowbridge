@@ -104,7 +104,7 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
 
 	return &WriteResult{
-		Sent: int64(successes),
+		Sent:   int64(successes),
 		Failed: int64(failures),
 	}, err
 }

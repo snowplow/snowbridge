@@ -7,9 +7,14 @@
 package core
 
 // WriteResult contains the results from a target write operation
-type WriteResult struct  {
+type WriteResult struct {
 	Sent   int64
 	Failed int64
+}
+
+// Total returns the sum of Sent + Failed messages
+func (wr *WriteResult) Total() int64 {
+	return wr.Sent + wr.Failed
 }
 
 // Target describes the interface for how to push the data pulled from the source

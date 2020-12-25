@@ -57,7 +57,7 @@ func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 
 	if *res.FailedRecordCount > int64(0) {
 		return &WriteResult{
-			Sent: int64(len(events)) - *res.FailedRecordCount,
+			Sent:   int64(len(events)) - *res.FailedRecordCount,
 			Failed: *res.FailedRecordCount,
 		}, fmt.Errorf("Failed to write %d out of %d messages to Kinesis stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
 	}
@@ -71,7 +71,7 @@ func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Successfully wrote %d messages to Kinesis stream '%s'", len(entries), kt.StreamName)
 
 	return &WriteResult{
-		Sent: int64(len(events)),
+		Sent:   int64(len(events)),
 		Failed: int64(0),
 	}, nil
 }

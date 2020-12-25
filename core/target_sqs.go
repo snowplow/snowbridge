@@ -7,11 +7,11 @@
 package core
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	log "github.com/sirupsen/logrus"
-	"fmt"
 	"strings"
 )
 
@@ -33,7 +33,6 @@ func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 }
 
 // Write pushes all events to the required target
-// TODO: Add event batching (max: 10)
 func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Writing %d messages to target SQS queue '%s' ...", len(events), st.QueueName)
 
@@ -49,7 +48,7 @@ func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	failures := 0
 	var errstrings []string
 
-	// TODO: Send as batch + asynchronously
+	// TODO: Send asynchronously
 	for _, event := range events {
 		_, err := st.Client.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
@@ -77,7 +76,7 @@ func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Successfully wrote %d/%d messages to SQS queue '%s'", successes, len(events), st.QueueName)
 
 	return &WriteResult{
-		Sent: int64(successes),
+		Sent:   int64(successes),
 		Failed: int64(failures),
 	}, err
 }

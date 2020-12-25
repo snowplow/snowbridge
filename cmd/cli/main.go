@@ -67,7 +67,7 @@ func main() {
 				if res != nil {
 					statsdClient.Gauge("messages.failed", res.Failed)
 					statsdClient.Gauge("messages.processed", res.Sent)
-					statsdClient.Incr("messages.total", res.Sent + res.Failed)
+					statsdClient.Incr("messages.total", res.Total())
 				}
 			}
 
