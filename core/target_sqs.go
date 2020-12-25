@@ -48,7 +48,6 @@ func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	failures := 0
 	var errstrings []string
 
-	// TODO: Send asynchronously
 	for _, event := range events {
 		_, err := st.Client.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
