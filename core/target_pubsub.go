@@ -58,7 +58,7 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 }
 
 // Write pushes all events to the required target
-func (ps *PubSubTarget) Write(events []*Event) error {
+func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 	ctx := context.Background()
 
 	var results []*PubSubPublishResult
@@ -96,13 +96,17 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 		}
 	}
 
+	var err error
 	if len(errstrings) > 0 {
-		return fmt.Errorf(strings.Join(errstrings, "\n"))
+		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
 	log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
 
-	return nil
+	return &WriteResult{
+		Sent: int64(successes),
+		Failed: int64(failures),
+	}, err
 }
 
 // Close stops the topic

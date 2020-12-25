@@ -61,17 +61,16 @@ func main() {
 
 		// Extend target.Write() to push metrics to statsd
 		writeFunc := func(events []*core.Event) error {
-			err := target.Write(events)
+			res, err := target.Write(events)
 
 			if statsdClient != nil {
-				if err != nil {
-					statsdClient.Gauge("messages.failed", int64(len(events)))
-				} else {
-					statsdClient.Gauge("messages.processed", int64(len(events)))
+				if res != nil {
+					statsdClient.Gauge("messages.failed", res.Failed)
+					statsdClient.Gauge("messages.processed", res.Sent)
+					statsdClient.Incr("messages.total", res.Sent + res.Failed)
 				}
-				statsdClient.Incr("messages.total", int64(len(events)))
 			}
-			
+
 			return err
 		}
 

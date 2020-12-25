@@ -33,7 +33,7 @@ func NewKinesisTarget(region string, streamName string, roleARN string) (*Kinesi
 
 // Write pushes all events to the required target
 // TODO: Add event batching (max: 500)
-func (kt *KinesisTarget) Write(events []*Event) error {
+func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Writing %d messages to Kinesis stream '%s' ...", len(events), kt.StreamName)
 
 	entries := make([]*kinesis.PutRecordsRequestEntry, len(events))
@@ -52,11 +52,14 @@ func (kt *KinesisTarget) Write(events []*Event) error {
 		StreamName: aws.String(kt.StreamName),
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if *res.FailedRecordCount > int64(0) {
-		return fmt.Errorf("Failed to write %d out of %d messages to Kinesis stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
+		return &WriteResult{
+			Sent: int64(len(events)) - *res.FailedRecordCount,
+			Failed: *res.FailedRecordCount,
+		}, fmt.Errorf("Failed to write %d out of %d messages to Kinesis stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
 	}
 
 	for _, event := range events {
@@ -67,7 +70,10 @@ func (kt *KinesisTarget) Write(events []*Event) error {
 
 	log.Debugf("Successfully wrote %d messages to Kinesis stream '%s'", len(entries), kt.StreamName)
 
-	return nil
+	return &WriteResult{
+		Sent: int64(len(events)),
+		Failed: int64(0),
+	}, nil
 }
 
 // Close does not do anything for this target

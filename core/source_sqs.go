@@ -89,7 +89,7 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 			aws.String(sqs.QueueAttributeNameAll),
 		},
 		QueueUrl:            queueURL,
-		MaxNumberOfMessages: aws.Int64(1),
+		MaxNumberOfMessages: aws.Int64(10),
 		VisibilityTimeout:   aws.Int64(10),
 		WaitTimeSeconds:     aws.Int64(1),
 	})
@@ -98,6 +98,7 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 		return
 	}
 
+	var events []*Event
 	for _, msg := range msgRes.Messages {
 		receiptHandle := msg.ReceiptHandle
 
@@ -112,17 +113,15 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 			}
 		}
 
-		events := []*Event{
-			{
-				Data:         []byte(*msg.Body),
-				PartitionKey: uuid.NewV4().String(),
-				AckFunc:      ackFunc,
-			},
-		}
+		events = append(events, &Event{
+			Data:         []byte(*msg.Body),
+			PartitionKey: uuid.NewV4().String(),
+			AckFunc:      ackFunc,
+		})
+	}
 
-		err := sf.WriteToTarget(events)
-		if err != nil {
-			log.Error(err)
-		}
+	err = sf.WriteToTarget(events)
+	if err != nil {
+		log.Error(err)
 	}
 }

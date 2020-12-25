@@ -11,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	log "github.com/sirupsen/logrus"
+	"fmt"
+	"strings"
 )
 
 // SQSTarget holds a new client for writing events to sqs
@@ -32,35 +34,52 @@ func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 
 // Write pushes all events to the required target
 // TODO: Add event batching (max: 10)
-func (st *SQSTarget) Write(events []*Event) error {
+func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Writing %d messages to target SQS queue '%s' ...", len(events), st.QueueName)
 
 	urlResult, err := st.Client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(st.QueueName),
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	queueURL := urlResult.QueueUrl
 
+	successes := 0
+	failures := 0
+	var errstrings []string
+
+	// TODO: Send as batch + asynchronously
 	for _, event := range events {
 		_, err := st.Client.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
 			MessageBody:  aws.String(string(event.Data)),
 			QueueUrl:     queueURL,
 		})
-		if err != nil {
-			return err
-		}
 
-		if event.AckFunc != nil {
-			event.AckFunc()
+		if err != nil {
+			errstrings = append(errstrings, err.Error())
+			failures++
+		} else {
+			successes++
+
+			if event.AckFunc != nil {
+				event.AckFunc()
+			}
 		}
 	}
 
-	log.Debugf("Successfully wrote %d messages to SQS queue '%s'", len(events), st.QueueName)
+	err = nil
+	if len(errstrings) > 0 {
+		err = fmt.Errorf(strings.Join(errstrings, "\n"))
+	}
 
-	return nil
+	log.Debugf("Successfully wrote %d/%d messages to SQS queue '%s'", successes, len(events), st.QueueName)
+
+	return &WriteResult{
+		Sent: int64(successes),
+		Failed: int64(failures),
+	}, err
 }
 
 // Close does not do anything for this target

@@ -41,7 +41,7 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 		}
 	}
 
-	err = t.Write(events)
+	_, err = t.Write(events)
 	if err != nil {
 		log.Error(err)
 	}

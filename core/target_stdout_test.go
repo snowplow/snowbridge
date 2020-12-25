@@ -35,7 +35,7 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 		},
 	}
 
-	err1 := target.Write(events)
+	_, err1 := target.Write(events)
 	assert.Nil(err1)
 	target.Close()
 

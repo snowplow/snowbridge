@@ -19,7 +19,7 @@ func NewStdoutTarget() (*StdoutTarget, error) {
 }
 
 // Write pushes all events to the required target
-func (st *StdoutTarget) Write(events []*Event) error {
+func (st *StdoutTarget) Write(events []*Event) (*WriteResult, error) {
 	for _, event := range events {
 		data := string(event.Data)
 		fmt.Println(fmt.Sprintf("PartitionKey: %s, Data: %s", event.PartitionKey, data))
@@ -28,7 +28,10 @@ func (st *StdoutTarget) Write(events []*Event) error {
 			event.AckFunc()
 		}
 	}
-	return nil
+	return &WriteResult{
+		Sent: int64(len(events)),
+		Failed: int64(0),
+	}, nil
 }
 
 // Close does not do anything for this target
