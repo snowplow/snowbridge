@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 // KinesisTarget holds a new client for writing events to kinesis
@@ -32,9 +33,42 @@ func NewKinesisTarget(region string, streamName string, roleARN string) (*Kinesi
 }
 
 // Write pushes all events to the required target
-// TODO: Add event batching (max: 500)
+// TODO: Should each put be in its own goroutine?
 func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Writing %d messages to Kinesis stream '%s' ...", len(events), kt.StreamName)
+
+	sent := int64(0)
+	failed := int64(0)
+	var errstrings []string
+
+	eventsChunked := toChunkedEvents(events, 500)
+	for _, eventsChunk := range eventsChunked {
+		res, err := kt.process(eventsChunk)
+
+		if res != nil {
+			sent += res.Sent
+			failed += res.Failed
+		}
+		if err != nil {
+			errstrings = append(errstrings, err.Error())
+		}
+	}
+
+	var err error
+	if len(errstrings) > 0 {
+		err = fmt.Errorf(strings.Join(errstrings, "\n"))
+	}
+
+	log.Debugf("Successfully wrote %d/%d messages to Kinesis stream '%s'", sent, len(events), kt.StreamName)
+
+	return &WriteResult{
+		Sent:   sent,
+		Failed: failed,
+	}, err
+}
+
+func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
+	log.Debugf("Writing chunk of %d messages to Kinesis stream '%s' ...", len(events), kt.StreamName)
 
 	entries := make([]*kinesis.PutRecordsRequestEntry, len(events))
 	for i := 0; i < len(entries); i++ {
@@ -59,7 +93,7 @@ func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 		return &WriteResult{
 			Sent:   int64(len(events)) - *res.FailedRecordCount,
 			Failed: *res.FailedRecordCount,
-		}, fmt.Errorf("Failed to write %d out of %d messages to Kinesis stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
+		}, fmt.Errorf("Failed to write %d/%d messages to Kinesis stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
 	}
 
 	for _, event := range events {

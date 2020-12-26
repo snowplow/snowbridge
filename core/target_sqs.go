@@ -33,6 +33,8 @@ func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 }
 
 // Write pushes all events to the required target
+// TODO: Should we use event batching?
+// TODO: Should each put be in its own goroutine?
 func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Writing %d messages to target SQS queue '%s' ...", len(events), st.QueueName)
 
@@ -44,8 +46,8 @@ func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	}
 	queueURL := urlResult.QueueUrl
 
-	successes := 0
-	failures := 0
+	sent := 0
+	failed := 0
 	var errstrings []string
 
 	for _, event := range events {
@@ -57,9 +59,9 @@ func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 
 		if err != nil {
 			errstrings = append(errstrings, err.Error())
-			failures++
+			failed++
 		} else {
-			successes++
+			sent++
 
 			if event.AckFunc != nil {
 				event.AckFunc()
@@ -72,11 +74,11 @@ func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	log.Debugf("Successfully wrote %d/%d messages to SQS queue '%s'", successes, len(events), st.QueueName)
+	log.Debugf("Successfully wrote %d/%d messages to SQS queue '%s'", sent, len(events), st.QueueName)
 
 	return &WriteResult{
-		Sent:   int64(successes),
-		Failed: int64(failures),
+		Sent:   int64(sent),
+		Failed: int64(failed),
 	}, err
 }
 

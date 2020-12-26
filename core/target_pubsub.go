@@ -77,8 +77,8 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 		})
 	}
 
-	successes := 0
-	failures := 0
+	sent := 0
+	failed := 0
 	var errstrings []string
 
 	for _, r := range results {
@@ -86,9 +86,9 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 
 		if err != nil {
 			errstrings = append(errstrings, err.Error())
-			failures++
+			failed++
 		} else {
-			successes++
+			sent++
 
 			if r.AckFunc != nil {
 				r.AckFunc()
@@ -101,11 +101,11 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
+	log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", sent, len(events), ps.TopicName, ps.ProjectID)
 
 	return &WriteResult{
-		Sent:   int64(successes),
-		Failed: int64(failures),
+		Sent:   int64(sent),
+		Failed: int64(failed),
 	}, err
 }
 
