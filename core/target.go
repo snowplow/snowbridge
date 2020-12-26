@@ -22,18 +22,3 @@ type Target interface {
 	Write(events []*Event) (*WriteResult, error)
 	Close()
 }
-
-// --- Helpers
-
-// toChunkedEvents can be used to make limited slices of events for batching output into smaller requests
-func toChunkedEvents(events []*Event, chunkSize int) [][]*Event {
-	var divided [][]*Event
-	for i := 0; i < len(events); i += chunkSize {
-		end := i + chunkSize
-		if end > len(events) {
-			end = len(events)
-		}
-		divided = append(divided, events[i:end])
-	}
-	return divided
-}

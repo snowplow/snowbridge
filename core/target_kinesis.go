@@ -15,6 +15,11 @@ import (
 	"strings"
 )
 
+const (
+	// PutRecords API is limited to 500 messages in a single request
+	kinesisPutRecordsChunkSize = 500
+)
+
 // KinesisTarget holds a new client for writing events to kinesis
 type KinesisTarget struct {
 	Client     kinesisiface.KinesisAPI
@@ -41,7 +46,7 @@ func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 	failed := int64(0)
 	var errstrings []string
 
-	eventsChunked := toChunkedEvents(events, 500)
+	eventsChunked := getChunkedEvents(events, kinesisPutRecordsChunkSize)
 	for _, eventsChunk := range eventsChunked {
 		res, err := kt.process(eventsChunk)
 
@@ -89,6 +94,7 @@ func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
 		return nil, err
 	}
 
+	// TODO: Can we ack successful events when some fail in the batch? This will cause duplicate processing on failure.
 	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
 		return &WriteResult{
 			Sent:   int64(len(events)) - *res.FailedRecordCount,

@@ -16,6 +16,8 @@ import (
 	"os"
 )
 
+// --- Cloud Helpers
+
 func storeGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
 	sDec, err := base64.StdEncoding.DecodeString(serviceAccountB64)
 	if err != nil {
@@ -56,4 +58,19 @@ func getAWSSession(region string, roleARN string) (*session.Session, *aws.Config
 		return session, &config
 	}
 	return session, nil
+}
+
+// --- Generic Helpers
+
+// getChunkedEvents returns an array of chunked arrays from the original slice
+func getChunkedEvents(events []*Event, chunkSize int) [][]*Event {
+	var divided [][]*Event
+	for i := 0; i < len(events); i += chunkSize {
+		end := i + chunkSize
+		if end > len(events) {
+			end = len(events)
+		}
+		divided = append(divided, events[i:end])
+	}
+	return divided
 }
