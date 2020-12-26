@@ -89,7 +89,7 @@ func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
 		return nil, err
 	}
 
-	if *res.FailedRecordCount > int64(0) {
+	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
 		return &WriteResult{
 			Sent:   int64(len(events)) - *res.FailedRecordCount,
 			Failed: *res.FailedRecordCount,

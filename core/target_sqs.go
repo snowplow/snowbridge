@@ -33,7 +33,6 @@ func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 }
 
 // Write pushes all events to the required target
-// TODO: Should we use event batching?
 // TODO: Should each put be in its own goroutine?
 func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	log.Debugf("Writing %d messages to target SQS queue '%s' ...", len(events), st.QueueName)
