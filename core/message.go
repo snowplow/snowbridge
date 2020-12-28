@@ -8,6 +8,7 @@ package core
 
 import (
 	"time"
+	"fmt"
 )
 
 // Message holds the structure of a generic message to be sent to a target
@@ -24,4 +25,14 @@ type Message struct {
 	// AckFunc must be called on a successful message emission to ensure
 	// any cleanup process for the source is actioned
 	AckFunc func()
+}
+
+func (m *Message) String() string {
+	return fmt.Sprintf(
+		"PartitionKey:%s,TimeCreated:%v,TimePulled:%v,Data:%s",
+		m.PartitionKey,
+		m.TimeCreated,
+		m.TimePulled,
+		string(m.Data),
+	)
 }

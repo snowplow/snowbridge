@@ -28,16 +28,7 @@ func (st *StdoutTarget) Write(messages []*Message) (*TargetWriteResult, error) {
 	st.log.Debugf("Writing %d messages to stdout ...", len(messages))
 
 	for _, msg := range messages {
-		data := string(msg.Data)
-		fmt.Println(
-			fmt.Sprintf(
-				"Data:%s,PartitionKey:%s,TimeCreated:%v,TimePulled:%v",
-				data,
-				msg.PartitionKey,
-				msg.TimeCreated,
-				msg.TimePulled,
-			),
-		)
+		fmt.Println(msg.String())
 
 		if msg.AckFunc != nil {
 			msg.AckFunc()
