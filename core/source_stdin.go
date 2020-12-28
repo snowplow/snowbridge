@@ -15,16 +15,20 @@ import (
 )
 
 // StdinSource holds a new client for reading events from stdin
-type StdinSource struct{}
+type StdinSource struct {
+	log *log.Entry
+}
 
 // NewStdinSource creates a new client for reading events from stdin
 func NewStdinSource() (*StdinSource, error) {
-	return &StdinSource{}, nil
+	return &StdinSource{
+		log: log.WithFields(log.Fields{"name": "StdinSource"}),
+	}, nil
 }
 
 // Read will execute until CTRL + D is pressed or until EOF is passed
 func (ss *StdinSource) Read(sf *SourceFunctions) error {
-	log.Infof("Reading messages from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
+	ss.log.Infof("Reading messages from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
 
 	// TODO: Make the goroutine count configurable
 	throttle := make(chan struct{}, 20)
@@ -45,7 +49,7 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 			defer wg.Done()
 			err := sf.WriteToTarget(events)
 			if err != nil {
-				log.Error(err)
+				ss.log.Error(err)
 			}
 			<-throttle
 		}()

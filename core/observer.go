@@ -11,22 +11,29 @@ import (
 	"time"
 )
 
+// Observer holds the channels and settings for aggregating telemetry events
+// and emitting them to downstream destinations
 type Observer struct {
 	stopSignal      chan struct{}
 	targetWriteChan chan *WriteResult
 	timeout         time.Duration
 	reportInterval  time.Duration
+	log             *log.Entry
 }
 
+// NewObserver builds a new observer to be used to gather telemetry
+// about target writes
 func NewObserver(timeout time.Duration, reportInterval time.Duration) *Observer {
 	return &Observer{
 		stopSignal:      make(chan struct{}),
 		targetWriteChan: make(chan *WriteResult, 1000),
 		timeout:         timeout,
 		reportInterval:  reportInterval,
+		log:             log.WithFields(log.Fields{"name": "Observer"}),
 	}
 }
 
+// Start launches a goroutine which processes results from target writes
 func (o *Observer) Start() {
 	go func() {
 		reportTime := time.Now().Add(o.reportInterval)
@@ -38,7 +45,7 @@ func (o *Observer) Start() {
 		for {
 			select {
 			case <-o.stopSignal:
-				log.Debugf("Observer received stop signal, closing ...")
+				o.log.Debugf("Observer received stop signal, closing ...")
 				break
 			case res := <-o.targetWriteChan:
 				if res != nil {
@@ -47,11 +54,11 @@ func (o *Observer) Start() {
 					total += res.Total()
 				}
 			case <-time.After(o.timeout):
-				log.Debugf("Observer timed out waiting (%v) for result", o.timeout)
+				o.log.Debugf("Observer timed out waiting (%v) for result", o.timeout)
 			}
 
 			if time.Now().After(reportTime) {
-				log.Infof("Observer report - Sent: %d, Failed: %d, Total: %d", sent, failed, total)
+				o.log.Infof("Observer report - Sent: %d, Failed: %d, Total: %d", sent, failed, total)
 
 				sent = int64(0)
 				failed = int64(0)
@@ -63,6 +70,7 @@ func (o *Observer) Start() {
 	}()
 }
 
+// Stop issues a signal to halt observer processing
 func (o *Observer) Stop() {
 	o.stopSignal <- struct{}{}
 }

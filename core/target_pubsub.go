@@ -21,6 +21,7 @@ type PubSubTarget struct {
 	Client    *pubsub.Client
 	Topic     *pubsub.Topic
 	TopicName string
+	log       *log.Entry
 }
 
 // PubSubPublishResult contains the publish result and the function to execute
@@ -54,6 +55,7 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 		Client:    client,
 		Topic:     topic,
 		TopicName: topicName,
+		log:       log.WithFields(log.Fields{"name": "PubSubTarget"}),
 	}, nil
 }
 
@@ -63,7 +65,7 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 
 	var results []*PubSubPublishResult
 
-	log.Debugf("Writing %d messages to PubSub topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
+	ps.log.Debugf("Writing %d messages to PubSub topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
 
 	for _, event := range events {
 		msg := &pubsub.Message{
@@ -101,7 +103,7 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", sent, len(events), ps.TopicName, ps.ProjectID)
+	ps.log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", sent, len(events), ps.TopicName, ps.ProjectID)
 
 	return &WriteResult{
 		Sent:   int64(sent),
@@ -111,6 +113,6 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 
 // Close stops the topic
 func (ps *PubSubTarget) Close() {
-	log.Warnf("Closing PubSub target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
+	ps.log.Warnf("Closing PubSub target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
 	ps.Topic.Stop()
 }

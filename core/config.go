@@ -225,7 +225,7 @@ func getEnvBoolOrElse(key string, defaultVal bool) bool {
 	if value, exists := os.LookupEnv(key); exists {
 		mValue, err := strconv.ParseBool(value)
 		if err != nil {
-			log.Error(fmt.Sprintf("Error converting string to bool for key %s: %s; using default '%v'", key, err.Error(), defaultVal))
+			log.WithFields(log.Fields{"name": "Config"}).Error(fmt.Sprintf("Error converting string to bool for key %s: %s; using default '%v'", key, err.Error(), defaultVal))
 			return defaultVal
 		}
 		return mValue

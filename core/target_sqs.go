@@ -19,6 +19,7 @@ import (
 type SQSTarget struct {
 	Client    sqsiface.SQSAPI
 	QueueName string
+	log       *log.Entry
 }
 
 // NewSQSTarget creates a new client for writing events to sqs
@@ -29,13 +30,14 @@ func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 	return &SQSTarget{
 		Client:    sqsClient,
 		QueueName: queueName,
+		log:       log.WithFields(log.Fields{"name": "SQSTarget"}),
 	}, nil
 }
 
 // Write pushes all events to the required target
 // TODO: Should each put be in its own goroutine?
 func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
-	log.Debugf("Writing %d messages to target SQS queue '%s' ...", len(events), st.QueueName)
+	st.log.Debugf("Writing %d messages to target SQS queue '%s' ...", len(events), st.QueueName)
 
 	urlResult, err := st.Client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(st.QueueName),
@@ -73,7 +75,7 @@ func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	log.Debugf("Successfully wrote %d/%d messages to SQS queue '%s'", sent, len(events), st.QueueName)
+	st.log.Debugf("Successfully wrote %d/%d messages to SQS queue '%s'", sent, len(events), st.QueueName)
 
 	return &WriteResult{
 		Sent:   int64(sent),

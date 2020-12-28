@@ -22,6 +22,7 @@ import (
 type SQSSource struct {
 	Client    sqsiface.SQSAPI
 	QueueName string
+	log       *log.Entry
 }
 
 // NewSQSSource creates a new client for reading events from SQS
@@ -32,12 +33,13 @@ func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, 
 	return &SQSSource{
 		Client:    sqsClient,
 		QueueName: queueName,
+		log:       log.WithFields(log.Fields{"name": "SQSSource"}),
 	}, nil
 }
 
 // Read will pull events from the noted SQS queue forever
 func (ss *SQSSource) Read(sf *SourceFunctions) error {
-	log.Infof("Reading messages from SQS queue '%s' ...", ss.QueueName)
+	ss.log.Infof("Reading messages from SQS queue '%s' ...", ss.QueueName)
 
 	urlResult, err := ss.Client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(ss.QueueName),
@@ -52,7 +54,7 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
 		<-sig
-		log.Warn("SIGTERM called, cancelling SQS receive ...")
+		ss.log.Warn("SIGTERM called, cancelling SQS receive ...")
 		exitSignal <- struct{}{}
 	}()
 
@@ -94,7 +96,7 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 		WaitTimeSeconds:     aws.Int64(1),
 	})
 	if err != nil {
-		log.Error(err)
+		ss.log.Error(err)
 		return
 	}
 
@@ -103,13 +105,13 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 		receiptHandle := msg.ReceiptHandle
 
 		ackFunc := func() {
-			log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
+			ss.log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
 			_, err := ss.Client.DeleteMessage(&sqs.DeleteMessageInput{
 				QueueUrl:      queueURL,
 				ReceiptHandle: receiptHandle,
 			})
 			if err != nil {
-				log.Error(err)
+				ss.log.Error(err)
 			}
 		}
 
@@ -122,6 +124,6 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 
 	err = sf.WriteToTarget(events)
 	if err != nil {
-		log.Error(err)
+		ss.log.Error(err)
 	}
 }

@@ -24,6 +24,7 @@ import (
 type KinesisSource struct {
 	Client     *kinsumer.Kinsumer
 	StreamName string
+	log        *log.Entry
 }
 
 // --- Kinsumer overrides
@@ -33,7 +34,7 @@ type KinsumerLogrus struct{}
 
 // Log will print all Kinsumer logs as DEBUG lines
 func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
-	log.Debugf(format, v...)
+	log.WithFields(log.Fields{"name": "KinesisSource.Kinsumer"}).Debugf(format, v...)
 }
 
 // NewKinesisSource creates a new client for reading events from kinesis
@@ -60,12 +61,13 @@ func NewKinesisSource(region string, streamName string, roleARN string, appName 
 	return &KinesisSource{
 		Client:     k,
 		StreamName: streamName,
+		log:        log.WithFields(log.Fields{"name": "KinesisSource"}),
 	}, nil
 }
 
 // Read will pull events from the noted Kinesis stream forever
 func (ks *KinesisSource) Read(sf *SourceFunctions) error {
-	log.Infof("Reading messages from Kinesis stream '%s' ...", ks.StreamName)
+	ks.log.Infof("Reading messages from Kinesis stream '%s' ...", ks.StreamName)
 
 	err := ks.Client.Run()
 	if err != nil {
@@ -80,7 +82,7 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
 		<-sig
-		log.Warn("SIGTERM called, cancelling Kinesis receive ...")
+		ks.log.Warn("SIGTERM called, cancelling Kinesis receive ...")
 		ks.Client.Stop()
 	}()
 
@@ -91,7 +93,7 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 		}
 
 		ackFunc := func() {
-			log.Debugf("Ack'ing record with SequenceNumber: %s", *record.SequenceNumber)
+			ks.log.Debugf("Ack'ing record with SequenceNumber: %s", *record.SequenceNumber)
 			checkpointer()
 		}
 
@@ -110,7 +112,7 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 				defer wg.Done()
 				err := sf.WriteToTarget(events)
 				if err != nil {
-					log.Error(err)
+					ks.log.Error(err)
 				}
 				<-throttle
 			}()

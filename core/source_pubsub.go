@@ -22,6 +22,7 @@ type PubSubSource struct {
 	ProjectID      string
 	Client         *pubsub.Client
 	SubscriptionID string
+	log            *log.Entry
 }
 
 // NewPubSubSource creates a new client for reading events from PubSub
@@ -45,6 +46,7 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 		ProjectID:      projectID,
 		Client:         client,
 		SubscriptionID: subscriptionID,
+		log:            log.WithFields(log.Fields{"name": "PubSubSource"}),
 	}, nil
 }
 
@@ -52,7 +54,7 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	ctx := context.Background()
 
-	log.Infof("Reading messages from PubSub subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
+	ps.log.Infof("Reading messages from PubSub subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
 
 	sub := ps.Client.Subscription(ps.SubscriptionID)
 	cctx, cancel := context.WithCancel(ctx)
@@ -61,14 +63,14 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
 		<-sig
-		log.Warn("SIGTERM called, cancelling PubSub receive ...")
+		ps.log.Warn("SIGTERM called, cancelling PubSub receive ...")
 		cancel()
 	}()
 
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
-		log.Debugf("Read message with ID: %s", msg.ID)
+		ps.log.Debugf("Read message with ID: %s", msg.ID)
 		ackFunc := func() {
-			log.Debugf("Ack'ing message with ID: %s", msg.ID)
+			ps.log.Debugf("Ack'ing message with ID: %s", msg.ID)
 			msg.Ack()
 		}
 
@@ -81,7 +83,7 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 		}
 		err := sf.WriteToTarget(events)
 		if err != nil {
-			log.Error(err)
+			ps.log.Error(err)
 		}
 	})
 
