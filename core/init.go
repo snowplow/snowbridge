@@ -63,6 +63,11 @@ func Init() (*Config, error) {
 		return nil, fmt.Errorf("FATAL: Supported log levels are 'debug, info, warning, error, fatal, panic' - provided: %s", cfg.LogLevel)
 	}
 
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
+
 	log.Debugf("Config: %+v", cfg)
 	return cfg, nil
 }
