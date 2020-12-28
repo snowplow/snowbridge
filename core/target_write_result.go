@@ -29,14 +29,14 @@ type TargetWriteResult struct {
 }
 
 // NewWriteResult uses the current time as the WriteTime and then calls NewWriteResultWithTime
-func NewWriteResult(sent int64, failed int64, messages []*Event) *TargetWriteResult {
+func NewWriteResult(sent int64, failed int64, messages []*Message) *TargetWriteResult {
 	return NewWriteResultWithTime(sent, failed, time.Now().UTC(), messages)
 }
 
 // NewWriteResultWithTime builds a result structure to return from a target write
 // attempt which contains the sent and failed message counts as well as several
 // derived latency measures.
-func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, messages []*Event) *TargetWriteResult {
+func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, messages []*Message) *TargetWriteResult {
 	r := TargetWriteResult{
 		Sent:   sent,
 		Failed: failed,

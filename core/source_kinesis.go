@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// KinesisSource holds a new client for reading events from kinesis
+// KinesisSource holds a new client for reading messages from kinesis
 type KinesisSource struct {
 	Client     *kinsumer.Kinsumer
 	StreamName string
@@ -37,7 +37,7 @@ func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
 	log.WithFields(log.Fields{"name": "KinesisSource.Kinsumer"}).Debugf(format, v...)
 }
 
-// NewKinesisSource creates a new client for reading events from kinesis
+// NewKinesisSource creates a new client for reading messages from kinesis
 func NewKinesisSource(region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
 	// TODO: Add statistics monitoring to be able to report on consumer latency
 	config := kinsumer.NewConfig().
@@ -65,7 +65,7 @@ func NewKinesisSource(region string, streamName string, roleARN string, appName 
 	}, nil
 }
 
-// Read will pull events from the noted Kinesis stream forever
+// Read will pull messages from the noted Kinesis stream forever
 func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 	ks.log.Infof("Reading messages from stream '%s' ...", ks.StreamName)
 
@@ -101,7 +101,7 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 
 		if record != nil {
 			timeCreated := record.ApproximateArrivalTimestamp.UTC()
-			events := []*Event{
+			messages := []*Message{
 				{
 					Data:         record.Data,
 					PartitionKey: *record.PartitionKey,
@@ -115,7 +115,7 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := sf.WriteToTarget(events)
+				err := sf.WriteToTarget(messages)
 				if err != nil {
 					ks.log.Error(err)
 				}

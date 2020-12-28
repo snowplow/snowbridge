@@ -66,8 +66,8 @@ func main() {
 		observer.Start()
 
 		// Extend target.Write() to push metrics to statsd
-		writeFunc := func(events []*core.Event) error {
-			res, err := target.Write(events)
+		writeFunc := func(messages []*core.Message) error {
+			res, err := target.Write(messages)
 			observer.TargetWrite(res)
 
 			/**

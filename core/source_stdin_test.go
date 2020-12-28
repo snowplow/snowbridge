@@ -36,9 +36,9 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	assert.NotNil(source)
 	assert.Nil(err)
 
-	writeFunc := func(events []*Event) error {
-		for _, event := range events {
-			assert.Equal("Hello World!", string(event.Data))
+	writeFunc := func(messages []*Message) error {
+		for _, msg := range messages {
+			assert.Equal("Hello World!", string(msg.Data))
 		}
 		return nil
 	}

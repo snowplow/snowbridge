@@ -15,12 +15,12 @@ import (
 	"time"
 )
 
-// StdinSource holds a new client for reading events from stdin
+// StdinSource holds a new client for reading messages from stdin
 type StdinSource struct {
 	log *log.Entry
 }
 
-// NewStdinSource creates a new client for reading events from stdin
+// NewStdinSource creates a new client for reading messages from stdin
 func NewStdinSource() (*StdinSource, error) {
 	return &StdinSource{
 		log: log.WithFields(log.Fields{"name": "StdinSource"}),
@@ -38,7 +38,7 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		timeNow := time.Now().UTC()
-		events := []*Event{
+		messages := []*Message{
 			{
 				Data:         []byte(scanner.Text()),
 				PartitionKey: uuid.NewV4().String(),
@@ -51,7 +51,7 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := sf.WriteToTarget(events)
+			err := sf.WriteToTarget(messages)
 			if err != nil {
 				ss.log.Error(err)
 			}

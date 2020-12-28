@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-// PubSubTarget holds a new client for writing events to Google PubSub
+// PubSubTarget holds a new client for writing messages to Google PubSub
 type PubSubTarget struct {
 	ProjectID string
 	Client    *pubsub.Client
@@ -31,7 +31,7 @@ type PubSubPublishResult struct {
 	AckFunc func()
 }
 
-// NewPubSubTarget creates a new client for writing events to Google PubSub
+// NewPubSubTarget creates a new client for writing messages to Google PubSub
 func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 string) (*PubSubTarget, error) {
 	if serviceAccountB64 != "" {
 		targetFile, err := getGCPServiceAccountFromBase64(serviceAccountB64)
@@ -59,23 +59,23 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 	}, nil
 }
 
-// Write pushes all events to the required target
-func (ps *PubSubTarget) Write(events []*Event) (*TargetWriteResult, error) {
+// Write pushes all messages to the required target
+func (ps *PubSubTarget) Write(messages []*Message) (*TargetWriteResult, error) {
 	ctx := context.Background()
 
 	var results []*PubSubPublishResult
 
-	ps.log.Debugf("Writing %d messages to topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
+	ps.log.Debugf("Writing %d messages to topic '%s' in project %s ...", len(messages), ps.TopicName, ps.ProjectID)
 
-	for _, event := range events {
-		msg := &pubsub.Message{
-			Data: event.Data,
+	for _, msg := range messages {
+		pubSubMsg := &pubsub.Message{
+			Data: msg.Data,
 		}
 
-		r := ps.Topic.Publish(ctx, msg)
+		r := ps.Topic.Publish(ctx, pubSubMsg)
 		results = append(results, &PubSubPublishResult{
 			Result:  r,
-			AckFunc: event.AckFunc,
+			AckFunc: msg.AckFunc,
 		})
 	}
 
@@ -103,8 +103,8 @@ func (ps *PubSubTarget) Write(events []*Event) (*TargetWriteResult, error) {
 		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	ps.log.Debugf("Successfully wrote %d/%d messages to topic '%s' in project %s", sent, len(events), ps.TopicName, ps.ProjectID)
-	return NewWriteResult(int64(sent), int64(failed), events), err
+	ps.log.Debugf("Successfully wrote %d/%d messages to topic '%s' in project %s", sent, len(messages), ps.TopicName, ps.ProjectID)
+	return NewWriteResult(int64(sent), int64(failed), messages), err
 }
 
 // Close stops the topic

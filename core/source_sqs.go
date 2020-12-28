@@ -21,14 +21,14 @@ import (
 	"time"
 )
 
-// SQSSource holds a new client for reading events from SQS
+// SQSSource holds a new client for reading messages from SQS
 type SQSSource struct {
 	Client    sqsiface.SQSAPI
 	QueueName string
 	log       *log.Entry
 }
 
-// NewSQSSource creates a new client for reading events from SQS
+// NewSQSSource creates a new client for reading messages from SQS
 func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, error) {
 	awsSession, awsConfig := getAWSSession(region, roleARN)
 	sqsClient := sqs.New(awsSession, awsConfig)
@@ -40,7 +40,7 @@ func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, 
 	}, nil
 }
 
-// Read will pull events from the noted SQS queue forever
+// Read will pull messages from the noted SQS queue forever
 func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	ss.log.Infof("Reading messages from queue '%s' ...", ss.QueueName)
 
@@ -104,7 +104,7 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 	}
 	timePulled := time.Now().UTC()
 
-	var events []*Event
+	var messages []*Message
 	for _, msg := range msgRes.Messages {
 		receiptHandle := msg.ReceiptHandle
 
@@ -134,7 +134,7 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 			timeCreated = timePulled
 		}
 
-		events = append(events, &Event{
+		messages = append(messages, &Message{
 			Data:         []byte(*msg.Body),
 			PartitionKey: uuid.NewV4().String(),
 			AckFunc:      ackFunc,
@@ -143,7 +143,7 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 		})
 	}
 
-	err = sf.WriteToTarget(events)
+	err = sf.WriteToTarget(messages)
 	if err != nil {
 		ss.log.Error(err)
 	}

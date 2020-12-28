@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// PubSubSource holds a new client for reading events from PubSub
+// PubSubSource holds a new client for reading messages from PubSub
 type PubSubSource struct {
 	ProjectID      string
 	Client         *pubsub.Client
@@ -26,7 +26,7 @@ type PubSubSource struct {
 	log            *log.Entry
 }
 
-// NewPubSubSource creates a new client for reading events from PubSub
+// NewPubSubSource creates a new client for reading messages from PubSub
 func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 string) (*PubSubSource, error) {
 	if serviceAccountB64 != "" {
 		targetFile, err := getGCPServiceAccountFromBase64(serviceAccountB64)
@@ -51,7 +51,7 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 	}, nil
 }
 
-// Read will pull events from the noted PubSub topic forever
+// Read will pull messages from the noted PubSub topic forever
 func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	ctx := context.Background()
 
@@ -78,7 +78,7 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 		}
 
 		timeCreated := msg.PublishTime.UTC()
-		events := []*Event{
+		messages := []*Message{
 			{
 				Data:         msg.Data,
 				PartitionKey: uuid.NewV4().String(),
@@ -87,7 +87,7 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 				TimePulled:   timePulled,
 			},
 		}
-		err := sf.WriteToTarget(events)
+		err := sf.WriteToTarget(messages)
 		if err != nil {
 			ps.log.Error(err)
 		}

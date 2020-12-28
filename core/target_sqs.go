@@ -15,14 +15,14 @@ import (
 	"strings"
 )
 
-// SQSTarget holds a new client for writing events to sqs
+// SQSTarget holds a new client for writing messages to sqs
 type SQSTarget struct {
 	Client    sqsiface.SQSAPI
 	QueueName string
 	log       *log.Entry
 }
 
-// NewSQSTarget creates a new client for writing events to sqs
+// NewSQSTarget creates a new client for writing messages to sqs
 func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, error) {
 	awsSession, awsConfig := getAWSSession(region, roleARN)
 	sqsClient := sqs.New(awsSession, awsConfig)
@@ -34,10 +34,10 @@ func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 	}, nil
 }
 
-// Write pushes all events to the required target
+// Write pushes all messages to the required target
 // TODO: Should each put be in its own goroutine?
-func (st *SQSTarget) Write(events []*Event) (*TargetWriteResult, error) {
-	st.log.Debugf("Writing %d messages to target queue '%s' ...", len(events), st.QueueName)
+func (st *SQSTarget) Write(messages []*Message) (*TargetWriteResult, error) {
+	st.log.Debugf("Writing %d messages to target queue '%s' ...", len(messages), st.QueueName)
 
 	urlResult, err := st.Client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(st.QueueName),
@@ -51,10 +51,10 @@ func (st *SQSTarget) Write(events []*Event) (*TargetWriteResult, error) {
 	failed := 0
 	var errstrings []string
 
-	for _, event := range events {
+	for _, msg := range messages {
 		_, err := st.Client.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
-			MessageBody:  aws.String(string(event.Data)),
+			MessageBody:  aws.String(string(msg.Data)),
 			QueueUrl:     queueURL,
 		})
 
@@ -64,8 +64,8 @@ func (st *SQSTarget) Write(events []*Event) (*TargetWriteResult, error) {
 		} else {
 			sent++
 
-			if event.AckFunc != nil {
-				event.AckFunc()
+			if msg.AckFunc != nil {
+				msg.AckFunc()
 			}
 		}
 	}
@@ -75,8 +75,8 @@ func (st *SQSTarget) Write(events []*Event) (*TargetWriteResult, error) {
 		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	st.log.Debugf("Successfully wrote %d/%d messages to queue '%s'", sent, len(events), st.QueueName)
-	return NewWriteResult(int64(sent), int64(failed), events), err
+	st.log.Debugf("Successfully wrote %d/%d messages to queue '%s'", sent, len(messages), st.QueueName)
+	return NewWriteResult(int64(sent), int64(failed), messages), err
 }
 
 // Close does not do anything for this target

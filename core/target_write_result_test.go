@@ -36,7 +36,7 @@ func TestNewWriteResult_WithMessages(t *testing.T) {
 
 	timeNow := time.Now().UTC()
 
-	messages := []*Event{
+	messages := []*Message{
 		{
 			Data:         []byte("Baz"),
 			PartitionKey: "partition1",

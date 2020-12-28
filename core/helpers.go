@@ -63,15 +63,15 @@ func getAWSSession(region string, roleARN string) (*session.Session, *aws.Config
 
 // --- Generic Helpers
 
-// getChunkedEvents returns an array of chunked arrays from the original slice
-func getChunkedEvents(events []*Event, chunkSize int) [][]*Event {
-	var divided [][]*Event
-	for i := 0; i < len(events); i += chunkSize {
+// getChunkedMessages returns an array of chunked arrays from the original slice
+func getChunkedMessages(messages []*Message, chunkSize int) [][]*Message {
+	var divided [][]*Message
+	for i := 0; i < len(messages); i += chunkSize {
 		end := i + chunkSize
-		if end > len(events) {
-			end = len(events)
+		if end > len(messages) {
+			end = len(messages)
 		}
-		divided = append(divided, events[i:end])
+		divided = append(divided, messages[i:end])
 	}
 	return divided
 }

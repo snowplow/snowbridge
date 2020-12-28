@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Observer holds the channels and settings for aggregating telemetry events
+// Observer holds the channels and settings for aggregating telemetry from processed messages
 // and emitting them to downstream destinations
 type Observer struct {
 	stopSignal      chan struct{}
@@ -60,7 +60,7 @@ func (o *Observer) Start() {
 
 			if time.Now().After(reportTime) {
 				o.log.Infof(buffer.String())
-				
+
 				reportTime = time.Now().Add(o.reportInterval)
 				buffer = ObserverBuffer{}
 			}

@@ -10,18 +10,18 @@ import (
 	"time"
 )
 
-// Event holds the structure of a generic event to be sent to a target
-type Event struct {
+// Message holds the structure of a generic message to be sent to a target
+type Message struct {
 	PartitionKey string
 	Data         []byte
 
-	// TimeCreated is when the event was created originally
+	// TimeCreated is when the message was created originally
 	TimeCreated time.Time
 
-	// TimePulled is when the event was pulled from the source
+	// TimePulled is when the message was pulled from the source
 	TimePulled time.Time
 
-	// AckFunc must be called on a successful event emission to ensure
+	// AckFunc must be called on a successful message emission to ensure
 	// any cleanup process for the source is actioned
 	AckFunc func()
 }
