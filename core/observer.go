@@ -55,7 +55,7 @@ func (o *Observer) Start() {
 					total += res.Total()
 				}
 			case <-time.After(o.timeout):
-				o.log.Warnf("Timed out after (%v) waiting for result", o.timeout)
+				o.log.Debugf("Timed out after (%v) waiting for result", o.timeout)
 			}
 
 			if time.Now().After(reportTime) {
