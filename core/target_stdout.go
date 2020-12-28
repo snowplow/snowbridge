@@ -24,7 +24,7 @@ func NewStdoutTarget() (*StdoutTarget, error) {
 }
 
 // Write pushes all events to the required target
-func (st *StdoutTarget) Write(events []*Event) (*WriteResult, error) {
+func (st *StdoutTarget) Write(events []*Event) (*TargetWriteResult, error) {
 	st.log.Debugf("Writing %d messages to stdout ...", len(events))
 
 	for _, event := range events {
@@ -43,10 +43,8 @@ func (st *StdoutTarget) Write(events []*Event) (*WriteResult, error) {
 			event.AckFunc()
 		}
 	}
-	return &WriteResult{
-		Sent:   int64(len(events)),
-		Failed: int64(0),
-	}, nil
+
+	return NewWriteResult(int64(len(events)), int64(0), events), nil
 }
 
 // Close does not do anything for this target

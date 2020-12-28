@@ -41,7 +41,7 @@ func NewKinesisTarget(region string, streamName string, roleARN string) (*Kinesi
 
 // Write pushes all events to the required target
 // TODO: Should each put be in its own goroutine?
-func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
+func (kt *KinesisTarget) Write(events []*Event) (*TargetWriteResult, error) {
 	kt.log.Debugf("Writing %d messages to stream '%s' ...", len(events), kt.StreamName)
 
 	sent := int64(0)
@@ -67,14 +67,10 @@ func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 	}
 
 	kt.log.Debugf("Successfully wrote %d/%d messages to stream '%s'", sent, len(events), kt.StreamName)
-
-	return &WriteResult{
-		Sent:   sent,
-		Failed: failed,
-	}, err
+	return NewWriteResult(sent, failed, events), err
 }
 
-func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
+func (kt *KinesisTarget) process(events []*Event) (*TargetWriteResult, error) {
 	kt.log.Debugf("Writing chunk of %d messages to stream '%s' ...", len(events), kt.StreamName)
 
 	entries := make([]*kinesis.PutRecordsRequestEntry, len(events))
@@ -98,7 +94,7 @@ func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
 
 	// TODO: Can we ack successful events when some fail in the batch? This will cause duplicate processing on failure.
 	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
-		return &WriteResult{
+		return &TargetWriteResult{
 			Sent:   int64(len(events)) - *res.FailedRecordCount,
 			Failed: *res.FailedRecordCount,
 		}, fmt.Errorf("Failed to write %d/%d messages to stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
@@ -112,7 +108,7 @@ func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
 
 	kt.log.Debugf("Successfully wrote %d messages to stream '%s'", len(entries), kt.StreamName)
 
-	return &WriteResult{
+	return &TargetWriteResult{
 		Sent:   int64(len(events)),
 		Failed: int64(0),
 	}, nil

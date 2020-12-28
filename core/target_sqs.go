@@ -36,7 +36,7 @@ func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 
 // Write pushes all events to the required target
 // TODO: Should each put be in its own goroutine?
-func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
+func (st *SQSTarget) Write(events []*Event) (*TargetWriteResult, error) {
 	st.log.Debugf("Writing %d messages to target queue '%s' ...", len(events), st.QueueName)
 
 	urlResult, err := st.Client.GetQueueUrl(&sqs.GetQueueUrlInput{
@@ -76,11 +76,7 @@ func (st *SQSTarget) Write(events []*Event) (*WriteResult, error) {
 	}
 
 	st.log.Debugf("Successfully wrote %d/%d messages to queue '%s'", sent, len(events), st.QueueName)
-
-	return &WriteResult{
-		Sent:   int64(sent),
-		Failed: int64(failed),
-	}, err
+	return NewWriteResult(int64(sent), int64(failed), events), err
 }
 
 // Close does not do anything for this target

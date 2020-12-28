@@ -62,7 +62,7 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	}()
 
 	// TODO: Make the goroutine count configurable
-	throttle := make(chan struct{}, 20)
+	throttle := make(chan struct{}, 100)
 	wg := sync.WaitGroup{}
 
 ProcessLoop:

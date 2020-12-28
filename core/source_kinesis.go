@@ -107,7 +107,7 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 					PartitionKey: *record.PartitionKey,
 					AckFunc:      ackFunc,
 					TimeCreated:  timeCreated,
-				    TimePulled:   timePulled,
+					TimePulled:   timePulled,
 				},
 			}
 

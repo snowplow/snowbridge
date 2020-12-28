@@ -15,7 +15,7 @@ import (
 // and emitting them to downstream destinations
 type Observer struct {
 	stopSignal      chan struct{}
-	targetWriteChan chan *WriteResult
+	targetWriteChan chan *TargetWriteResult
 	timeout         time.Duration
 	reportInterval  time.Duration
 	log             *log.Entry
@@ -26,7 +26,7 @@ type Observer struct {
 func NewObserver(timeout time.Duration, reportInterval time.Duration) *Observer {
 	return &Observer{
 		stopSignal:      make(chan struct{}),
-		targetWriteChan: make(chan *WriteResult, 1000),
+		targetWriteChan: make(chan *TargetWriteResult, 1000),
 		timeout:         timeout,
 		reportInterval:  reportInterval,
 		log:             log.WithFields(log.Fields{"name": "Observer"}),
@@ -39,9 +39,17 @@ func (o *Observer) Start() {
 	go func() {
 		reportTime := time.Now().Add(o.reportInterval)
 
-		sent := int64(0)
-		failed := int64(0)
-		total := int64(0)
+		msgSent := int64(0)
+		msgFailed := int64(0)
+		msgTotal := int64(0)
+		maxProcLatency := time.Duration(0)
+		minProcLatency := time.Duration(0)
+		avgProcLatency := time.Duration(0)
+		sumProcLatency := time.Duration(0)
+		maxMessageLatency := time.Duration(0)
+		minMessageLatency := time.Duration(0)
+		avgMessageLatency := time.Duration(0)
+		sumMessageLatency := time.Duration(0)
 
 		for {
 			select {
@@ -50,20 +58,60 @@ func (o *Observer) Start() {
 				break
 			case res := <-o.targetWriteChan:
 				if res != nil {
-					sent += res.Sent
-					failed += res.Failed
-					total += res.Total()
+					msgSent += res.Sent
+					msgFailed += res.Failed
+					msgTotal += res.Total()
+
+					if maxProcLatency < res.MaxProcLatency {
+						maxProcLatency = res.MaxProcLatency
+					}
+					if minProcLatency > res.MinProcLatency {
+						minProcLatency = res.MinProcLatency
+					}
+					sumProcLatency += res.AvgProcLatency
+
+					if maxMessageLatency < res.MaxMessageLatency {
+						maxMessageLatency = res.MaxMessageLatency
+					}
+					if minMessageLatency > res.MinMessageLatency {
+						minMessageLatency = res.MinMessageLatency
+					}
+					sumMessageLatency += res.AvgMessageLatency
 				}
 			case <-time.After(o.timeout):
 				o.log.Debugf("Timed out after (%v) waiting for result", o.timeout)
 			}
 
 			if time.Now().After(reportTime) {
-				o.log.Infof("Sent:%d,Failed:%d,Total:%d", sent, failed, total)
+				if msgTotal > 0 {
+					avgProcLatency = time.Duration(int64(sumProcLatency)/msgTotal) * time.Nanosecond
+					avgMessageLatency = time.Duration(int64(sumMessageLatency)/msgTotal) * time.Nanosecond
+				}
 
-				sent = int64(0)
-				failed = int64(0)
-				total = int64(0)
+				o.log.Infof(
+					"Sent:%d,Failed:%d,Total:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMessageLatency:%s,MinMessageLatency:%s,AvgMessageLatency:%s", 
+					msgSent,
+					msgFailed,
+					msgTotal,
+					maxProcLatency,
+					minProcLatency,
+					avgProcLatency,
+					maxMessageLatency,
+					minMessageLatency,
+					avgMessageLatency,
+				)
+
+				msgSent = int64(0)
+				msgFailed = int64(0)
+				msgTotal = int64(0)
+				maxProcLatency = time.Duration(0)
+				minProcLatency = time.Duration(0)
+				avgProcLatency = time.Duration(0)
+				sumProcLatency = time.Duration(0)
+				maxMessageLatency = time.Duration(0)
+				minMessageLatency = time.Duration(0)
+				avgMessageLatency = time.Duration(0)
+				sumMessageLatency = time.Duration(0)
 
 				reportTime = time.Now().Add(o.reportInterval)
 			}
@@ -80,6 +128,6 @@ func (o *Observer) Stop() {
 
 // TargetWrite pushes a targets write result onto a channel for processing
 // by the observer
-func (o *Observer) TargetWrite(r *WriteResult) {
+func (o *Observer) TargetWrite(r *TargetWriteResult) {
 	o.targetWriteChan <- r
 }
