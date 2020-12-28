@@ -23,6 +23,7 @@ type MetricsBuffer struct {
 	SumMessageLatency time.Duration
 }
 
+// Append adds a TargetWriteResult onto the buffer and stores the result
 func (b *MetricsBuffer) Append(res *TargetWriteResult) {
 	if res == nil {
 		return
@@ -49,10 +50,12 @@ func (b *MetricsBuffer) Append(res *TargetWriteResult) {
 	b.SumMessageLatency += res.AvgMessageLatency
 }
 
+// GetAvgProcLatency calculates average processing latency
 func (b *MetricsBuffer) GetAvgProcLatency() time.Duration {
 	return b.getAvgLatency(b.SumProcLatency)
 }
 
+// GetAvgMessageLatency calculates average message latency
 func (b *MetricsBuffer) GetAvgMessageLatency() time.Duration {
 	return b.getAvgLatency(b.SumMessageLatency)
 }
