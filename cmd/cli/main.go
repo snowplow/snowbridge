@@ -54,15 +54,23 @@ func main() {
 		}
 		defer target.Close()
 
+		/**
 		statsdClient := cfg.GetStatsDClient()
 		if statsdClient != nil {
 			defer statsdClient.Close()
 		}
+		*/
+
+		observer := core.NewObserver(1*time.Second, 10*time.Second)
+		defer observer.Stop()
+		observer.Start()
 
 		// Extend target.Write() to push metrics to statsd
 		writeFunc := func(events []*core.Event) error {
 			res, err := target.Write(events)
+			observer.TargetWrite(res)
 
+			/**
 			if statsdClient != nil {
 				if res != nil {
 					statsdClient.Gauge("messages.failed", res.Failed)
@@ -70,6 +78,7 @@ func main() {
 					statsdClient.Incr("messages.total", res.Total())
 				}
 			}
+			*/
 
 			return err
 		}
