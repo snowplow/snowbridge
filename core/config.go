@@ -8,31 +8,28 @@ package core
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	statsd "github.com/smira/go-statsd"
-	"os"
-	"strconv"
+	"github.com/caarlos0/env/v6"
 )
 
 // KinesisTargetConfig configures the destination for records consumed
 type KinesisTargetConfig struct {
-	StreamName string
-	Region     string
-	RoleARN    string
+	StreamName string `env:"TARGET_KINESIS_STREAM_NAME"`
+	Region     string `env:"TARGET_KINESIS_REGION"`
+	RoleARN    string `env:"TARGET_KINESIS_ROLE_ARN"`
 }
 
 // PubSubTargetConfig configures the destination for records consumed
 type PubSubTargetConfig struct {
-	ProjectID         string
-	TopicName         string
-	ServiceAccountB64 string
+	ProjectID         string `env:"TARGET_PUBSUB_PROJECT_ID"`
+	TopicName         string `env:"TARGET_PUBSUB_TOPIC_NAME"`
+	ServiceAccountB64 string `env:"TARGET_PUBSUB_SERVICE_ACCOUNT_B64"`
 }
 
 // SQSTargetConfig configures the destination for records consumed
 type SQSTargetConfig struct {
-	QueueName string
-	Region    string
-	RoleARN   string
+	QueueName string `env:"TARGET_SQS_QUEUE_NAME"`
+	Region    string `env:"TARGET_SQS_REGION"`
+	RoleARN   string `env:"TARGET_SQS_ROLE_ARN"`
 }
 
 // TargetsConfig holds configuration for the available targets
@@ -44,24 +41,24 @@ type TargetsConfig struct {
 
 // KinesisSourceConfig configures the source for records pulled
 type KinesisSourceConfig struct {
-	StreamName string
-	Region     string
-	RoleARN    string
-	AppName    string
+	StreamName string `env:"SOURCE_KINESIS_STREAM_NAME"`
+	Region     string `env:"SOURCE_KINESIS_REGION"`
+	RoleARN    string `env:"SOURCE_KINESIS_ROLE_ARN"`
+	AppName    string `env:"SOURCE_KINESIS_APP_NAME"`
 }
 
 // PubSubSourceConfig configures the source for records pulled
 type PubSubSourceConfig struct {
-	ProjectID         string
-	SubscriptionID    string
-	ServiceAccountB64 string
+	ProjectID         string `env:"SOURCE_PUBSUB_PROJECT_ID"`
+	SubscriptionID    string `env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
+	ServiceAccountB64 string `env:"SOURCE_PUBSUB_SERVICE_ACCOUNT_B64"`
 }
 
 // SQSSourceConfig configures the source for records pulled
 type SQSSourceConfig struct {
-	QueueName string
-	Region    string
-	RoleARN   string
+	QueueName string `env:"SOURCE_SQS_QUEUE_NAME"`
+	Region    string `env:"SOURCE_SQS_REGION"`
+	RoleARN   string `env:"SOURCE_SQS_ROLE_ARN"`
 }
 
 // SourcesConfig holds configuration for the available sources
@@ -73,98 +70,29 @@ type SourcesConfig struct {
 
 // SentryConfig configures the Sentry error tracker
 type SentryConfig struct {
-	Dsn   string
-	Tags  string
-	Debug bool
-}
-
-// StatsDConfig configures the StatsD server for metrics
-type StatsDConfig struct {
-	Endpoint string
-	Prefix   string
+	Dsn   string `env:"SENTRY_DSN"`
+	Tags  string `env:"SENTRY_TAGS" envDefault:"{}"`
+	Debug bool   `env:"SENTRY_DEBUG" envDefault:"false"`
 }
 
 // Config for holding all configuration details
 type Config struct {
-	Source   string
-	Target   string
-	LogLevel string
+	Source   string `env:"SOURCE" envDefault:"stdin"`
+	Target   string `env:"TARGET" envDefault:"stdout"`
+	LogLevel string `env:"LOG_LEVEL" envDefault:"info"`
 	Sentry   SentryConfig
-	StatsD   StatsDConfig
 	Sources  SourcesConfig
 	Targets  TargetsConfig
 }
 
 // NewConfig resolves the config from the environment
-func NewConfig() *Config {
-	var defaultConfig = &Config{
-		Source:   "stdin",
-		Target:   "stdout",
-		LogLevel: "info",
-		Sentry: SentryConfig{
-			Tags:  "{}",
-			Debug: false,
-		},
-		StatsD: StatsDConfig{
-			Prefix: "stream-replicator.",
-		},
+func NewConfig() (*Config, error) {
+	cfg := Config{}
+	err := env.Parse(&cfg)
+	if err != nil {
+		return nil, err
 	}
-
-	// Override values from environment
-	return configFromEnv(defaultConfig)
-}
-
-// configFromEnv loads the config struct from environment variables
-func configFromEnv(c *Config) *Config {
-	return &Config{
-		Source:   getEnvOrElse("SOURCE", c.Source),
-		Target:   getEnvOrElse("TARGET", c.Target),
-		LogLevel: getEnvOrElse("LOG_LEVEL", c.LogLevel),
-		Sentry: SentryConfig{
-			Dsn:   getEnvOrElse("SENTRY_DSN", c.Sentry.Dsn),
-			Tags:  getEnvOrElse("SENTRY_TAGS", c.Sentry.Tags),
-			Debug: getEnvBoolOrElse("SENTRY_DEBUG", c.Sentry.Debug),
-		},
-		StatsD: StatsDConfig{
-			Endpoint: getEnvOrElse("STATSD_ENDPOINT", c.StatsD.Endpoint),
-			Prefix:   getEnvOrElse("STATSD_PREFIX", c.StatsD.Prefix),
-		},
-		Sources: SourcesConfig{
-			Kinesis: KinesisSourceConfig{
-				StreamName: getEnvOrElse("SOURCE_KINESIS_STREAM_NAME", c.Sources.Kinesis.StreamName),
-				Region:     getEnvOrElse("SOURCE_KINESIS_REGION", c.Sources.Kinesis.Region),
-				RoleARN:    getEnvOrElse("SOURCE_KINESIS_ROLE_ARN", c.Sources.Kinesis.RoleARN),
-				AppName:    getEnvOrElse("SOURCE_KINESIS_APP_NAME", c.Sources.Kinesis.AppName),
-			},
-			PubSub: PubSubSourceConfig{
-				ProjectID:         getEnvOrElse("SOURCE_PUBSUB_PROJECT_ID", c.Sources.PubSub.ProjectID),
-				SubscriptionID:    getEnvOrElse("SOURCE_PUBSUB_SUBSCRIPTION_ID", c.Sources.PubSub.SubscriptionID),
-				ServiceAccountB64: getEnvOrElse("SOURCE_PUBSUB_SERVICE_ACCOUNT_B64", c.Sources.PubSub.ServiceAccountB64),
-			},
-			SQS: SQSSourceConfig{
-				QueueName: getEnvOrElse("SOURCE_SQS_QUEUE_NAME", c.Sources.SQS.QueueName),
-				Region:    getEnvOrElse("SOURCE_SQS_REGION", c.Sources.SQS.Region),
-				RoleARN:   getEnvOrElse("SOURCE_SQS_ROLE_ARN", c.Sources.SQS.RoleARN),
-			},
-		},
-		Targets: TargetsConfig{
-			Kinesis: KinesisTargetConfig{
-				StreamName: getEnvOrElse("TARGET_KINESIS_STREAM_NAME", c.Targets.Kinesis.StreamName),
-				Region:     getEnvOrElse("TARGET_KINESIS_REGION", c.Targets.Kinesis.Region),
-				RoleARN:    getEnvOrElse("TARGET_KINESIS_ROLE_ARN", c.Targets.Kinesis.RoleARN),
-			},
-			PubSub: PubSubTargetConfig{
-				ProjectID:         getEnvOrElse("TARGET_PUBSUB_PROJECT_ID", c.Targets.PubSub.ProjectID),
-				TopicName:         getEnvOrElse("TARGET_PUBSUB_TOPIC_NAME", c.Targets.PubSub.TopicName),
-				ServiceAccountB64: getEnvOrElse("TARGET_PUBSUB_SERVICE_ACCOUNT_B64", c.Targets.PubSub.ServiceAccountB64),
-			},
-			SQS: SQSTargetConfig{
-				QueueName: getEnvOrElse("TARGET_SQS_QUEUE_NAME", c.Targets.SQS.QueueName),
-				Region:    getEnvOrElse("TARGET_SQS_REGION", c.Targets.SQS.Region),
-				RoleARN:   getEnvOrElse("TARGET_SQS_ROLE_ARN", c.Targets.SQS.RoleARN),
-			},
-		},
-	}
+	return &cfg, nil
 }
 
 // GetSource builds and returns the source that is configured
@@ -195,40 +123,4 @@ func (c *Config) GetTarget() (Target, error) {
 	} else {
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target)
 	}
-}
-
-// GetStatsDClient builds and returns a StatsD client for emitting metrics
-func (c *Config) GetStatsDClient() *statsd.Client {
-	if c.StatsD.Endpoint != "" {
-		client := statsd.NewClient(
-			c.StatsD.Endpoint,
-			statsd.MaxPacketSize(1400),
-			statsd.MetricPrefix(c.StatsD.Prefix),
-		)
-		return client
-	}
-	return nil
-}
-
-// --- HELPERS
-
-// getEnvOrElse returns an environment variable value or a default
-func getEnvOrElse(key string, defaultVal string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return defaultVal
-}
-
-// getEnvBoolOrElse returns an environment variable value and casts it to a boolean or passes a default
-func getEnvBoolOrElse(key string, defaultVal bool) bool {
-	if value, exists := os.LookupEnv(key); exists {
-		mValue, err := strconv.ParseBool(value)
-		if err != nil {
-			log.WithFields(log.Fields{"name": "Config"}).Error(fmt.Sprintf("Error converting string to bool for key %s: %s; using default '%v'", key, err.Error(), defaultVal))
-			return defaultVal
-		}
-		return mValue
-	}
-	return defaultVal
 }

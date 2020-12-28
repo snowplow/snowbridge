@@ -26,7 +26,10 @@ func Init() (*Config, error) {
 		"panic":   log.PanicLevel,
 	}
 
-	cfg := NewConfig()
+	cfg, err := NewConfig()
+	if err != nil {
+		return nil, fmt.Errorf("FATAL: NewConfig: %s", err.Error())
+	}
 
 	// Configure Sentry
 	if cfg.Sentry.Dsn != "" {
@@ -60,5 +63,6 @@ func Init() (*Config, error) {
 		return nil, fmt.Errorf("FATAL: Supported log levels are 'debug, info, warning, error, fatal, panic' - provided: %s", cfg.LogLevel)
 	}
 
+	log.Debugf("Config: %+v", cfg)
 	return cfg, nil
 }
