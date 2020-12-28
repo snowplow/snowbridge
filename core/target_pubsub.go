@@ -34,7 +34,7 @@ type PubSubPublishResult struct {
 // NewPubSubTarget creates a new client for writing events to Google PubSub
 func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 string) (*PubSubTarget, error) {
 	if serviceAccountB64 != "" {
-		targetFile, err := storeGCPServiceAccountFromBase64(serviceAccountB64)
+		targetFile, err := getGCPServiceAccountFromBase64(serviceAccountB64)
 		if err != nil {
 			return nil, err
 		}

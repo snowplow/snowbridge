@@ -68,8 +68,8 @@ func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, mes
 	}
 
 	if messagesLen > 0 {
-		r.AvgProcLatency = time.Duration(int64(sumProcLatency)/messagesLen) * time.Nanosecond
-		r.AvgMessageLatency = time.Duration(int64(sumMessageLatency)/messagesLen) * time.Nanosecond
+		r.AvgProcLatency = getAverageFromDuration(sumProcLatency, messagesLen)
+		r.AvgMessageLatency = getAverageFromDuration(sumMessageLatency, messagesLen)
 	}
 
 	return &r

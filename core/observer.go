@@ -44,7 +44,7 @@ func (o *Observer) Start() {
 
 	go func() {
 		reportTime := time.Now().Add(o.reportInterval)
-		buffer := MetricsBuffer{}
+		buffer := ObserverBuffer{}
 
 		for {
 			select {
@@ -59,24 +59,10 @@ func (o *Observer) Start() {
 			}
 
 			if time.Now().After(reportTime) {
-				avgProcLatency := buffer.GetAvgProcLatency()
-				avgMessageLatency := buffer.GetAvgMessageLatency()
-
-				o.log.Infof(
-					"Sent:%d,Failed:%d,Total:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMessageLatency:%s,MinMessageLatency:%s,AvgMessageLatency:%s",
-					buffer.MsgSent,
-					buffer.MsgFailed,
-					buffer.MsgTotal,
-					buffer.MaxProcLatency,
-					buffer.MinProcLatency,
-					avgProcLatency,
-					buffer.MaxMessageLatency,
-					buffer.MinMessageLatency,
-					avgMessageLatency,
-				)
-
+				o.log.Infof(buffer.String())
+				
 				reportTime = time.Now().Add(o.reportInterval)
-				buffer = MetricsBuffer{}
+				buffer = ObserverBuffer{}
 			}
 		}
 	}()

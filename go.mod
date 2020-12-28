@@ -8,7 +8,9 @@ require (
 	github.com/aws/aws-sdk-go v1.36.8
 	github.com/caarlos0/env/v6 v6.4.0
 	github.com/getsentry/sentry-go v0.9.0
+	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/makasim/sentryhook v0.3.0
+	github.com/mitchellh/gox v1.0.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.6.1

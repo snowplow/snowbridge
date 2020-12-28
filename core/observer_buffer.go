@@ -8,10 +8,11 @@ package core
 
 import (
 	"time"
+	"fmt"
 )
 
-// MetricsBuffer contains all the metrics we are processing
-type MetricsBuffer struct {
+// ObserverBuffer contains all the metrics we are processing
+type ObserverBuffer struct {
 	MsgSent           int64
 	MsgFailed         int64
 	MsgTotal          int64
@@ -24,7 +25,7 @@ type MetricsBuffer struct {
 }
 
 // Append adds a TargetWriteResult onto the buffer and stores the result
-func (b *MetricsBuffer) Append(res *TargetWriteResult) {
+func (b *ObserverBuffer) Append(res *TargetWriteResult) {
 	if res == nil {
 		return
 	}
@@ -51,18 +52,29 @@ func (b *MetricsBuffer) Append(res *TargetWriteResult) {
 }
 
 // GetAvgProcLatency calculates average processing latency
-func (b *MetricsBuffer) GetAvgProcLatency() time.Duration {
-	return b.getAvgLatency(b.SumProcLatency)
+func (b *ObserverBuffer) GetAvgProcLatency() time.Duration {
+	return getAverageFromDuration(b.SumProcLatency, b.MsgTotal)
 }
 
 // GetAvgMessageLatency calculates average message latency
-func (b *MetricsBuffer) GetAvgMessageLatency() time.Duration {
-	return b.getAvgLatency(b.SumMessageLatency)
+func (b *ObserverBuffer) GetAvgMessageLatency() time.Duration {
+	return getAverageFromDuration(b.SumMessageLatency, b.MsgTotal)
 }
 
-func (b *MetricsBuffer) getAvgLatency(sum time.Duration) time.Duration {
-	if b.MsgTotal > 0 {
-		return time.Duration(int64(sum)/b.MsgTotal) * time.Nanosecond
-	}
-	return time.Duration(0)
+func (b *ObserverBuffer) String() string {
+	avgProcLatency := b.GetAvgProcLatency()
+	avgMessageLatency := b.GetAvgMessageLatency()
+
+	return fmt.Sprintf(
+		"MsgSent:%d,MsgFailed:%d,MsgTotal:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMessageLatency:%s,MinMessageLatency:%s,AvgMessageLatency:%s",
+		b.MsgSent,
+		b.MsgFailed,
+		b.MsgTotal,
+		b.MaxProcLatency,
+		b.MinProcLatency,
+		avgProcLatency,
+		b.MaxMessageLatency,
+		b.MinMessageLatency,
+		avgMessageLatency,
+	)
 }

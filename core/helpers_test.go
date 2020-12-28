@@ -12,10 +12,10 @@ import (
 	"testing"
 )
 
-func TestStoreGCPServiceAccountFromBase64(t *testing.T) {
+func TestGetGCPServiceAccountFromBase64(t *testing.T) {
 	assert := assert.New(t)
 
-	path, err := storeGCPServiceAccountFromBase64("ewogICJoZWxsbyI6IndvcmxkIgp9")
+	path, err := getGCPServiceAccountFromBase64("ewogICJoZWxsbyI6IndvcmxkIgp9")
 
 	assert.NotEqual(path, "")
 	assert.Nil(err)
@@ -23,10 +23,10 @@ func TestStoreGCPServiceAccountFromBase64(t *testing.T) {
 	assert.True(strings.HasSuffix(path, ".json"))
 }
 
-func TestStoreGCPServiceAccountFromBase64_NotBase64(t *testing.T) {
+func TestGetGCPServiceAccountFromBase64_NotBase64(t *testing.T) {
 	assert := assert.New(t)
 
-	path, err := storeGCPServiceAccountFromBase64("helloworld")
+	path, err := getGCPServiceAccountFromBase64("helloworld")
 
 	assert.Equal(path, "")
 	assert.NotNil(err)

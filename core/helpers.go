@@ -14,11 +14,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/twinj/uuid"
 	"os"
+	"time"
 )
 
 // --- Cloud Helpers
 
-func storeGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
+func getGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
 	sDec, err := base64.StdEncoding.DecodeString(serviceAccountB64)
 	if err != nil {
 		return "", fmt.Errorf("Could not Base64 decode service account: %s", err.Error())
@@ -73,4 +74,13 @@ func getChunkedEvents(events []*Event, chunkSize int) [][]*Event {
 		divided = append(divided, events[i:end])
 	}
 	return divided
+}
+
+// getAverageFromDuration will divide a duration by a total number and then return
+// this value as another duration
+func getAverageFromDuration(sum time.Duration, total int64) time.Duration {
+	if total > 0 {
+		return time.Duration(int64(sum)/total) * time.Nanosecond
+	}
+	return time.Duration(0)
 }

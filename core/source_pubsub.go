@@ -29,7 +29,7 @@ type PubSubSource struct {
 // NewPubSubSource creates a new client for reading events from PubSub
 func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 string) (*PubSubSource, error) {
 	if serviceAccountB64 != "" {
-		targetFile, err := storeGCPServiceAccountFromBase64(serviceAccountB64)
+		targetFile, err := getGCPServiceAccountFromBase64(serviceAccountB64)
 		if err != nil {
 			return nil, err
 		}
