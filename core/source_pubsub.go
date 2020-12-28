@@ -83,8 +83,8 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 				Data:         msg.Data,
 				PartitionKey: uuid.NewV4().String(),
 				AckFunc:      ackFunc,
-				TimeCreated:  &timeCreated,
-				TimePulled:   &timePulled,
+				TimeCreated:  timeCreated,
+				TimePulled:   timePulled,
 			},
 		}
 		err := sf.WriteToTarget(events)

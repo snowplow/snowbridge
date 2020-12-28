@@ -16,10 +16,10 @@ type Event struct {
 	Data         []byte
 
 	// TimeCreated is when the event was created originally
-	TimeCreated *time.Time
+	TimeCreated time.Time
 
 	// TimePulled is when the event was pulled from the source
-	TimePulled *time.Time
+	TimePulled time.Time
 
 	// AckFunc must be called on a successful event emission to ensure
 	// any cleanup process for the source is actioned

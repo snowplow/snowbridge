@@ -138,8 +138,8 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 			Data:         []byte(*msg.Body),
 			PartitionKey: uuid.NewV4().String(),
 			AckFunc:      ackFunc,
-			TimeCreated:  &timeCreated,
-			TimePulled:   &timePulled,
+			TimeCreated:  timeCreated,
+			TimePulled:   timePulled,
 		})
 	}
 

@@ -42,8 +42,8 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 			{
 				Data:         []byte(scanner.Text()),
 				PartitionKey: uuid.NewV4().String(),
-				TimeCreated:  &timeNow,
-				TimePulled:   &timeNow,
+				TimeCreated:  timeNow,
+				TimePulled:   timeNow,
 			},
 		}
 
