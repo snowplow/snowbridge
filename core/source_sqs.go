@@ -7,6 +7,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
@@ -14,8 +15,10 @@ import (
 	"github.com/twinj/uuid"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // SQSSource holds a new client for reading events from SQS
@@ -100,6 +103,8 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 		return
 	}
 
+	timePulled := time.Now().UTC()
+
 	var events []*Event
 	for _, msg := range msgRes.Messages {
 		receiptHandle := msg.ReceiptHandle
@@ -115,10 +120,27 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 			}
 		}
 
+		var timeCreated time.Time
+		timeCreatedStr, ok := msg.Attributes[sqs.MessageSystemAttributeNameSentTimestamp]
+		if ok {
+			timeCreatedMillis, err := strconv.ParseInt(*timeCreatedStr, 10, 64)
+			if err != nil {
+				ss.log.Error(fmt.Sprintf("Error extracting SentTimestamp from message attributes, latency measurements will not be accurate!"))
+				timeCreated = timePulled
+			} else {
+				timeCreated = time.Unix(0, timeCreatedMillis*int64(time.Millisecond)).UTC()
+			}
+		} else {
+			ss.log.Warnf("Could not extract SentTimestamp from message attributes, latency measurements will not be accurate!")
+			timeCreated = timePulled
+		}
+
 		events = append(events, &Event{
 			Data:         []byte(*msg.Body),
 			PartitionKey: uuid.NewV4().String(),
 			AckFunc:      ackFunc,
+			TimeCreated:  &timeCreated,
+			TimePulled:   &timePulled,
 		})
 	}
 

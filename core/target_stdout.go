@@ -29,7 +29,15 @@ func (st *StdoutTarget) Write(events []*Event) (*WriteResult, error) {
 
 	for _, event := range events {
 		data := string(event.Data)
-		fmt.Println(fmt.Sprintf("Data:%s,PartitionKey:%s", data, event.PartitionKey))
+		fmt.Println(
+			fmt.Sprintf(
+				"Data:%s,PartitionKey:%s,TimeCreated:%v,TimePulled:%v",
+				data,
+				event.PartitionKey,
+				event.TimeCreated,
+				event.TimePulled,
+			),
+		)
 
 		if event.AckFunc != nil {
 			event.AckFunc()

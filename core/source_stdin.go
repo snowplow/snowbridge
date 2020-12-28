@@ -12,6 +12,7 @@ import (
 	"github.com/twinj/uuid"
 	"os"
 	"sync"
+	"time"
 )
 
 // StdinSource holds a new client for reading events from stdin
@@ -36,10 +37,13 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
+		timeNow := time.Now().UTC()
 		events := []*Event{
 			{
 				Data:         []byte(scanner.Text()),
 				PartitionKey: uuid.NewV4().String(),
+				TimeCreated:  &timeNow,
+				TimePulled:   &timeNow,
 			},
 		}
 
