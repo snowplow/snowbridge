@@ -53,25 +53,25 @@ func (o *Observer) Start() {
 				o.isRunning = false
 				break
 			case res := <-o.targetWriteChan:
-				buffer.appendTargetWriteResults(res)
+				buffer.Append(res)
 			case <-time.After(o.timeout):
 				o.log.Debugf("Timed out after (%v) waiting for result", o.timeout)
 			}
 
 			if time.Now().After(reportTime) {
-				avgProcLatency := buffer.getAvgProcLatency()
-				avgMessageLatency := buffer.getAvgMessageLatency()
+				avgProcLatency := buffer.GetAvgProcLatency()
+				avgMessageLatency := buffer.GetAvgMessageLatency()
 
 				o.log.Infof(
 					"Sent:%d,Failed:%d,Total:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMessageLatency:%s,MinMessageLatency:%s,AvgMessageLatency:%s",
-					buffer.msgSent,
-					buffer.msgFailed,
-					buffer.msgTotal,
-					buffer.maxProcLatency,
-					buffer.minProcLatency,
+					buffer.MsgSent,
+					buffer.MsgFailed,
+					buffer.MsgTotal,
+					buffer.MaxProcLatency,
+					buffer.MinProcLatency,
 					avgProcLatency,
-					buffer.maxMessageLatency,
-					buffer.minMessageLatency,
+					buffer.MaxMessageLatency,
+					buffer.MinMessageLatency,
 					avgMessageLatency,
 				)
 

@@ -37,53 +37,42 @@ func NewWriteResult(sent int64, failed int64, messages []*Event) *TargetWriteRes
 // attempt which contains the sent and failed message counts as well as several
 // derived latency measures.
 func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, messages []*Event) *TargetWriteResult {
+	r := TargetWriteResult{
+		Sent:   sent,
+		Failed: failed,
+	}
+
 	messagesLen := int64(len(messages))
 
-	var maxProcLatency time.Duration
-	var minProcLatency time.Duration
-	var avgProcLatency time.Duration
 	var sumProcLatency time.Duration
-
-	var maxMessageLatency time.Duration
-	var minMessageLatency time.Duration
-	var avgMessageLatency time.Duration
 	var sumMessageLatency time.Duration
 
 	for _, msg := range messages {
 		procLatency := timeOfWrite.Sub(msg.TimePulled)
-		if maxProcLatency < procLatency {
-			maxProcLatency = procLatency
+		if r.MaxProcLatency < procLatency {
+			r.MaxProcLatency = procLatency
 		}
-		if minProcLatency > procLatency || minProcLatency == time.Duration(0) {
-			minProcLatency = procLatency
+		if r.MinProcLatency > procLatency || r.MinProcLatency == time.Duration(0) {
+			r.MinProcLatency = procLatency
 		}
 		sumProcLatency += procLatency
 
 		messageLatency := timeOfWrite.Sub(msg.TimeCreated)
-		if maxMessageLatency < messageLatency {
-			maxMessageLatency = messageLatency
+		if r.MaxMessageLatency < messageLatency {
+			r.MaxMessageLatency = messageLatency
 		}
-		if minMessageLatency > messageLatency || minMessageLatency == time.Duration(0) {
-			minMessageLatency = messageLatency
+		if r.MinMessageLatency > messageLatency || r.MinMessageLatency == time.Duration(0) {
+			r.MinMessageLatency = messageLatency
 		}
 		sumMessageLatency += messageLatency
 	}
 
 	if messagesLen > 0 {
-		avgProcLatency = time.Duration(int64(sumProcLatency)/messagesLen) * time.Nanosecond
-		avgMessageLatency = time.Duration(int64(sumMessageLatency)/messagesLen) * time.Nanosecond
+		r.AvgProcLatency = time.Duration(int64(sumProcLatency)/messagesLen) * time.Nanosecond
+		r.AvgMessageLatency = time.Duration(int64(sumMessageLatency)/messagesLen) * time.Nanosecond
 	}
 
-	return &TargetWriteResult{
-		Sent:              sent,
-		Failed:            failed,
-		MaxProcLatency:    maxProcLatency,
-		MinProcLatency:    minProcLatency,
-		AvgProcLatency:    avgProcLatency,
-		MaxMessageLatency: maxMessageLatency,
-		MinMessageLatency: minMessageLatency,
-		AvgMessageLatency: avgMessageLatency,
-	}
+	return &r
 }
 
 // Total returns the sum of Sent + Failed messages

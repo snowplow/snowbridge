@@ -12,54 +12,54 @@ import (
 
 // MetricsBuffer contains all the metrics we are processing
 type MetricsBuffer struct {
-	msgSent           int64
-	msgFailed         int64
-	msgTotal          int64
-	maxProcLatency    time.Duration
-	minProcLatency    time.Duration
-	sumProcLatency    time.Duration
-	maxMessageLatency time.Duration
-	minMessageLatency time.Duration
-	sumMessageLatency time.Duration
+	MsgSent           int64
+	MsgFailed         int64
+	MsgTotal          int64
+	MaxProcLatency    time.Duration
+	MinProcLatency    time.Duration
+	SumProcLatency    time.Duration
+	MaxMessageLatency time.Duration
+	MinMessageLatency time.Duration
+	SumMessageLatency time.Duration
 }
 
-func (b *MetricsBuffer) appendTargetWriteResults(res *TargetWriteResult) {
+func (b *MetricsBuffer) Append(res *TargetWriteResult) {
 	if res == nil {
 		return
 	}
-	
-	b.msgSent += res.Sent
-	b.msgFailed += res.Failed
-	b.msgTotal += res.Total()
 
-	if b.maxProcLatency < res.MaxProcLatency {
-		b.maxProcLatency = res.MaxProcLatency
-	}
-	if b.minProcLatency > res.MinProcLatency {
-		b.minProcLatency = res.MinProcLatency
-	}
-	b.sumProcLatency += res.AvgProcLatency
+	b.MsgSent += res.Sent
+	b.MsgFailed += res.Failed
+	b.MsgTotal += res.Total()
 
-	if b.maxMessageLatency < res.MaxMessageLatency {
-		b.maxMessageLatency = res.MaxMessageLatency
+	if b.MaxProcLatency < res.MaxProcLatency {
+		b.MaxProcLatency = res.MaxProcLatency
 	}
-	if b.minMessageLatency > res.MinMessageLatency {
-		b.minMessageLatency = res.MinMessageLatency
+	if b.MinProcLatency > res.MinProcLatency {
+		b.MinProcLatency = res.MinProcLatency
 	}
-	b.sumMessageLatency += res.AvgMessageLatency
+	b.SumProcLatency += res.AvgProcLatency
+
+	if b.MaxMessageLatency < res.MaxMessageLatency {
+		b.MaxMessageLatency = res.MaxMessageLatency
+	}
+	if b.MinMessageLatency > res.MinMessageLatency {
+		b.MinMessageLatency = res.MinMessageLatency
+	}
+	b.SumMessageLatency += res.AvgMessageLatency
 }
 
-func (b *MetricsBuffer) getAvgProcLatency() time.Duration {
-	return b.getAvgLatency(b.sumProcLatency)
+func (b *MetricsBuffer) GetAvgProcLatency() time.Duration {
+	return b.getAvgLatency(b.SumProcLatency)
 }
 
-func (b *MetricsBuffer) getAvgMessageLatency() time.Duration {
-	return b.getAvgLatency(b.sumMessageLatency)
+func (b *MetricsBuffer) GetAvgMessageLatency() time.Duration {
+	return b.getAvgLatency(b.SumMessageLatency)
 }
 
 func (b *MetricsBuffer) getAvgLatency(sum time.Duration) time.Duration {
-	if b.msgTotal > 0 {
-		return time.Duration(int64(sum)/b.msgTotal) * time.Nanosecond
+	if b.MsgTotal > 0 {
+		return time.Duration(int64(sum)/b.MsgTotal) * time.Nanosecond
 	}
 	return time.Duration(0)
 }
