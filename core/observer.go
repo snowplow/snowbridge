@@ -14,6 +14,7 @@ import (
 // Observer holds the channels and settings for aggregating telemetry from processed messages
 // and emitting them to downstream destinations
 type Observer struct {
+	statsClient     StatsReceiver
 	stopSignal      chan struct{}
 	targetWriteChan chan *TargetWriteResult
 	timeout         time.Duration
@@ -24,8 +25,9 @@ type Observer struct {
 
 // NewObserver builds a new observer to be used to gather telemetry
 // about target writes
-func NewObserver(timeout time.Duration, reportInterval time.Duration) *Observer {
+func NewObserver(statsClient StatsReceiver, timeout time.Duration, reportInterval time.Duration) *Observer {
 	return &Observer{
+		statsClient:     statsClient,
 		stopSignal:      make(chan struct{}),
 		targetWriteChan: make(chan *TargetWriteResult, 1000),
 		timeout:         timeout,
@@ -61,6 +63,9 @@ func (o *Observer) Start() {
 
 			if time.Now().After(reportTime) {
 				o.log.Infof(buffer.String())
+				if o.statsClient != nil {
+					o.statsClient.Send(&buffer)
+				}
 
 				reportTime = time.Now().Add(o.reportInterval)
 				buffer = ObserverBuffer{}

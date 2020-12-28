@@ -44,6 +44,7 @@ func main() {
 			return err
 		}
 
+		// Build source & destination
 		source, err := cfg.GetSource()
 		if err != nil {
 			return err
@@ -54,32 +55,22 @@ func main() {
 		}
 		defer target.Close()
 
-		/**
-		statsdClient := cfg.GetStatsDClient()
-		if statsdClient != nil {
-			defer statsdClient.Close()
+		// Setup observability
+		stats, err := cfg.GetStatsReceiver()
+		if err != nil {
+			return err
 		}
-		*/
 
-		observer := core.NewObserver(1*time.Second, 10*time.Second)
+		// Embed the stats receiver into the observer which will allow
+		// exporting of the statistics that are gathered
+		observer := core.NewObserver(stats, 1*time.Second, 10*time.Second)
 		defer observer.Stop()
 		observer.Start()
 
-		// Extend target.Write() to push metrics to statsd
+		// Extend target.Write() to push metrics to the observer
 		writeFunc := func(messages []*core.Message) error {
 			res, err := target.Write(messages)
 			observer.TargetWrite(res)
-
-			/**
-			if statsdClient != nil {
-				if res != nil {
-					statsdClient.Gauge("messages.failed", res.Failed)
-					statsdClient.Gauge("messages.processed", res.Sent)
-					statsdClient.Incr("messages.total", res.Total())
-				}
-			}
-			*/
-
 			return err
 		}
 

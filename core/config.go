@@ -75,14 +75,27 @@ type SentryConfig struct {
 	Debug bool   `env:"SENTRY_DEBUG" envDefault:"false"`
 }
 
+// StatsDStatsReceiverConfig configures the stats metrics receiver
+type StatsDStatsReceiverConfig struct {
+	Address string `env:"STATS_RECEIVER_STATSD_ADDRESS"`
+	Prefix  string `env:"STATS_RECEIVER_STATSD_PREFIX" envDefault:"snowplow.stream-replicator"`
+}
+
+// StatsReceiversConfig holds configuration for different stats receivers
+type StatsReceiversConfig struct {
+	StatsD StatsDStatsReceiverConfig
+}
+
 // Config for holding all configuration details
 type Config struct {
-	Source   string `env:"SOURCE" envDefault:"stdin"`
-	Target   string `env:"TARGET" envDefault:"stdout"`
-	LogLevel string `env:"LOG_LEVEL" envDefault:"info"`
-	Sentry   SentryConfig
-	Sources  SourcesConfig
-	Targets  TargetsConfig
+	Source         string `env:"SOURCE" envDefault:"stdin"`
+	Sources        SourcesConfig
+	Target         string `env:"TARGET" envDefault:"stdout"`
+	Targets        TargetsConfig
+	LogLevel       string `env:"LOG_LEVEL" envDefault:"info"`
+	Sentry         SentryConfig
+	StatsReceiver  string `env:"STATS_RECEIVER"`
+	StatsReceivers StatsReceiversConfig
 }
 
 // NewConfig resolves the config from the environment
@@ -122,5 +135,16 @@ func (c *Config) GetTarget() (Target, error) {
 		return NewSQSTarget(c.Targets.SQS.Region, c.Targets.SQS.QueueName, c.Targets.SQS.RoleARN)
 	} else {
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target)
+	}
+}
+
+// GetStatsReceiver builds and returns the stats receiver
+func (c *Config) GetStatsReceiver() (StatsReceiver, error) {
+	if c.StatsReceiver == "statsd" {
+		return NewStatsDStatsReceiver(c.StatsReceivers.StatsD.Address, c.StatsReceivers.StatsD.Prefix)
+	} else if c.StatsReceiver == "" {
+		return nil, nil
+	} else {
+		return nil, fmt.Errorf("Invalid stats receiver found; expected one of 'statsd' and got '%s'", c.StatsReceiver)
 	}
 }
