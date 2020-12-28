@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 // PubSubSource holds a new client for reading events from PubSub
@@ -68,17 +69,22 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	}()
 
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
+		timePulled := time.Now().UTC()
+
 		ps.log.Debugf("Read message with ID: %s", msg.ID)
 		ackFunc := func() {
 			ps.log.Debugf("Ack'ing message with ID: %s", msg.ID)
 			msg.Ack()
 		}
 
+		timeCreated := msg.PublishTime.UTC()
 		events := []*Event{
 			{
 				Data:         msg.Data,
 				PartitionKey: uuid.NewV4().String(),
 				AckFunc:      ackFunc,
+				TimeCreated:  &timeCreated,
+				TimePulled:   &timePulled,
 			},
 		}
 		err := sf.WriteToTarget(events)

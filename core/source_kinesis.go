@@ -92,17 +92,22 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 			return fmt.Errorf("k.NextRecordWithCheckpointer returned error: %s", err.Error())
 		}
 
+		timePulled := time.Now().UTC()
+
 		ackFunc := func() {
 			ks.log.Debugf("Ack'ing record with SequenceNumber: %s", *record.SequenceNumber)
 			checkpointer()
 		}
 
 		if record != nil {
+			timeCreated := record.ApproximateArrivalTimestamp.UTC()
 			events := []*Event{
 				{
 					Data:         record.Data,
 					PartitionKey: *record.PartitionKey,
 					AckFunc:      ackFunc,
+					TimeCreated:  &timeCreated,
+				    TimePulled:   &timePulled,
 				},
 			}
 

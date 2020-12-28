@@ -102,7 +102,6 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 		ss.log.Error(err)
 		return
 	}
-
 	timePulled := time.Now().UTC()
 
 	var events []*Event
