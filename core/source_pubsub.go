@@ -54,7 +54,7 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	ctx := context.Background()
 
-	ps.log.Infof("Reading messages from PubSub subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
+	ps.log.Infof("Reading messages from subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
 
 	sub := ps.Client.Subscription(ps.SubscriptionID)
 	cctx, cancel := context.WithCancel(ctx)
@@ -63,7 +63,7 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
 		<-sig
-		ps.log.Warn("SIGTERM called, cancelling PubSub receive ...")
+		ps.log.Warn("SIGTERM called, cancelling receive ...")
 		cancel()
 	}()
 

@@ -67,7 +67,7 @@ func NewKinesisSource(region string, streamName string, roleARN string, appName 
 
 // Read will pull events from the noted Kinesis stream forever
 func (ks *KinesisSource) Read(sf *SourceFunctions) error {
-	ks.log.Infof("Reading messages from Kinesis stream '%s' ...", ks.StreamName)
+	ks.log.Infof("Reading messages from stream '%s' ...", ks.StreamName)
 
 	err := ks.Client.Run()
 	if err != nil {
@@ -82,7 +82,7 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
 		<-sig
-		ks.log.Warn("SIGTERM called, cancelling Kinesis receive ...")
+		ks.log.Warn("SIGTERM called, cancelling receive ...")
 		ks.Client.Stop()
 	}()
 

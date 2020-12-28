@@ -34,6 +34,7 @@ func NewObserver(timeout time.Duration, reportInterval time.Duration) *Observer 
 }
 
 // Start launches a goroutine which processes results from target writes
+// TODO: Prevent starting multiple background processors
 func (o *Observer) Start() {
 	go func() {
 		reportTime := time.Now().Add(o.reportInterval)
@@ -45,7 +46,7 @@ func (o *Observer) Start() {
 		for {
 			select {
 			case <-o.stopSignal:
-				o.log.Debugf("Observer received stop signal, closing ...")
+				o.log.Debugf("Received stop signal, closing ...")
 				break
 			case res := <-o.targetWriteChan:
 				if res != nil {
@@ -54,11 +55,11 @@ func (o *Observer) Start() {
 					total += res.Total()
 				}
 			case <-time.After(o.timeout):
-				o.log.Debugf("Observer timed out waiting (%v) for result", o.timeout)
+				o.log.Warnf("Timed out after (%v) waiting for result", o.timeout)
 			}
 
 			if time.Now().After(reportTime) {
-				o.log.Infof("Observer report - Sent: %d, Failed: %d, Total: %d", sent, failed, total)
+				o.log.Infof("Sent:%d,Failed:%d,Total:%d", sent, failed, total)
 
 				sent = int64(0)
 				failed = int64(0)

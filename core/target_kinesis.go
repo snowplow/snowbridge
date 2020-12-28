@@ -42,7 +42,7 @@ func NewKinesisTarget(region string, streamName string, roleARN string) (*Kinesi
 // Write pushes all events to the required target
 // TODO: Should each put be in its own goroutine?
 func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
-	kt.log.Debugf("Writing %d messages to Kinesis stream '%s' ...", len(events), kt.StreamName)
+	kt.log.Debugf("Writing %d messages to stream '%s' ...", len(events), kt.StreamName)
 
 	sent := int64(0)
 	failed := int64(0)
@@ -66,7 +66,7 @@ func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	kt.log.Debugf("Successfully wrote %d/%d messages to Kinesis stream '%s'", sent, len(events), kt.StreamName)
+	kt.log.Debugf("Successfully wrote %d/%d messages to stream '%s'", sent, len(events), kt.StreamName)
 
 	return &WriteResult{
 		Sent:   sent,
@@ -75,7 +75,7 @@ func (kt *KinesisTarget) Write(events []*Event) (*WriteResult, error) {
 }
 
 func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
-	kt.log.Debugf("Writing chunk of %d messages to Kinesis stream '%s' ...", len(events), kt.StreamName)
+	kt.log.Debugf("Writing chunk of %d messages to stream '%s' ...", len(events), kt.StreamName)
 
 	entries := make([]*kinesis.PutRecordsRequestEntry, len(events))
 	for i := 0; i < len(entries); i++ {
@@ -86,7 +86,7 @@ func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
 		}
 	}
 
-	kt.log.Debugf("Entries (%d) to write to Kinesis stream '%s': %v\n", len(entries), kt.StreamName, entries)
+	kt.log.Debugf("Entries (%d) to write to stream '%s': %v\n", len(entries), kt.StreamName, entries)
 
 	res, err := kt.Client.PutRecords(&kinesis.PutRecordsInput{
 		Records:    entries,
@@ -101,7 +101,7 @@ func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
 		return &WriteResult{
 			Sent:   int64(len(events)) - *res.FailedRecordCount,
 			Failed: *res.FailedRecordCount,
-		}, fmt.Errorf("Failed to write %d/%d messages to Kinesis stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
+		}, fmt.Errorf("Failed to write %d/%d messages to stream '%s'", res.FailedRecordCount, len(entries), kt.StreamName)
 	}
 
 	for _, event := range events {
@@ -110,7 +110,7 @@ func (kt *KinesisTarget) process(events []*Event) (*WriteResult, error) {
 		}
 	}
 
-	kt.log.Debugf("Successfully wrote %d messages to Kinesis stream '%s'", len(entries), kt.StreamName)
+	kt.log.Debugf("Successfully wrote %d messages to stream '%s'", len(entries), kt.StreamName)
 
 	return &WriteResult{
 		Sent:   int64(len(events)),

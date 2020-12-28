@@ -39,7 +39,7 @@ func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, 
 
 // Read will pull events from the noted SQS queue forever
 func (ss *SQSSource) Read(sf *SourceFunctions) error {
-	ss.log.Infof("Reading messages from SQS queue '%s' ...", ss.QueueName)
+	ss.log.Infof("Reading messages from queue '%s' ...", ss.QueueName)
 
 	urlResult, err := ss.Client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(ss.QueueName),
@@ -54,7 +54,7 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
 		<-sig
-		ss.log.Warn("SIGTERM called, cancelling SQS receive ...")
+		ss.log.Warn("SIGTERM called, cancelling receive ...")
 		exitSignal <- struct{}{}
 	}()
 

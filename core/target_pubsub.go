@@ -65,7 +65,7 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 
 	var results []*PubSubPublishResult
 
-	ps.log.Debugf("Writing %d messages to PubSub topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
+	ps.log.Debugf("Writing %d messages to topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
 
 	for _, event := range events {
 		msg := &pubsub.Message{
@@ -103,7 +103,7 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	ps.log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", sent, len(events), ps.TopicName, ps.ProjectID)
+	ps.log.Debugf("Successfully wrote %d/%d messages to topic '%s' in project %s", sent, len(events), ps.TopicName, ps.ProjectID)
 
 	return &WriteResult{
 		Sent:   int64(sent),
@@ -113,6 +113,6 @@ func (ps *PubSubTarget) Write(events []*Event) (*WriteResult, error) {
 
 // Close stops the topic
 func (ps *PubSubTarget) Close() {
-	ps.log.Warnf("Closing PubSub target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
+	ps.log.Warnf("Closing target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
 	ps.Topic.Stop()
 }
