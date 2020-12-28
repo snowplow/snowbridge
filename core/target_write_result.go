@@ -75,11 +75,11 @@ func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, mes
 	}
 
 	return &TargetWriteResult{
-		Sent:            sent,
-		Failed:          failed,
-		MaxProcLatency:  maxProcLatency,
-		MinProcLatency:  minProcLatency,
-		AvgProcLatency:  avgProcLatency,
+		Sent:              sent,
+		Failed:            failed,
+		MaxProcLatency:    maxProcLatency,
+		MinProcLatency:    minProcLatency,
+		AvgProcLatency:    avgProcLatency,
 		MaxMessageLatency: maxMessageLatency,
 		MinMessageLatency: minMessageLatency,
 		AvgMessageLatency: avgMessageLatency,

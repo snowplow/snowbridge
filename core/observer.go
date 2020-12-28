@@ -19,6 +19,7 @@ type Observer struct {
 	timeout         time.Duration
 	reportInterval  time.Duration
 	log             *log.Entry
+	isRunning       bool
 }
 
 // NewObserver builds a new observer to be used to gather telemetry
@@ -30,12 +31,17 @@ func NewObserver(timeout time.Duration, reportInterval time.Duration) *Observer 
 		timeout:         timeout,
 		reportInterval:  reportInterval,
 		log:             log.WithFields(log.Fields{"name": "Observer"}),
+		isRunning:       false,
 	}
 }
 
 // Start launches a goroutine which processes results from target writes
-// TODO: Prevent starting multiple background processors
 func (o *Observer) Start() {
+	if o.isRunning {
+		o.log.Warn("Observer is already running")
+	}
+	o.isRunning = true
+
 	go func() {
 		reportTime := time.Now().Add(o.reportInterval)
 
@@ -55,6 +61,7 @@ func (o *Observer) Start() {
 			select {
 			case <-o.stopSignal:
 				o.log.Debugf("Received stop signal, closing ...")
+				o.isRunning = false
 				break
 			case res := <-o.targetWriteChan:
 				if res != nil {
@@ -89,7 +96,7 @@ func (o *Observer) Start() {
 				}
 
 				o.log.Infof(
-					"Sent:%d,Failed:%d,Total:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMessageLatency:%s,MinMessageLatency:%s,AvgMessageLatency:%s", 
+					"Sent:%d,Failed:%d,Total:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMessageLatency:%s,MinMessageLatency:%s,AvgMessageLatency:%s",
 					msgSent,
 					msgFailed,
 					msgTotal,
