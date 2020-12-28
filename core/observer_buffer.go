@@ -7,8 +7,8 @@
 package core
 
 import (
-	"time"
 	"fmt"
+	"time"
 )
 
 // ObserverBuffer contains all the metrics we are processing

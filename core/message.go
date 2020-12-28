@@ -7,8 +7,8 @@
 package core
 
 import (
-	"time"
 	"fmt"
+	"time"
 )
 
 // Message holds the structure of a generic message to be sent to a target

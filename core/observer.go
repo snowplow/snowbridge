@@ -39,6 +39,7 @@ func NewObserver(timeout time.Duration, reportInterval time.Duration) *Observer 
 func (o *Observer) Start() {
 	if o.isRunning {
 		o.log.Warn("Observer is already running")
+		return
 	}
 	o.isRunning = true
 
