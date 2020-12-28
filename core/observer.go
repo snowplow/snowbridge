@@ -44,18 +44,7 @@ func (o *Observer) Start() {
 
 	go func() {
 		reportTime := time.Now().Add(o.reportInterval)
-
-		msgSent := int64(0)
-		msgFailed := int64(0)
-		msgTotal := int64(0)
-		maxProcLatency := time.Duration(0)
-		minProcLatency := time.Duration(0)
-		avgProcLatency := time.Duration(0)
-		sumProcLatency := time.Duration(0)
-		maxMessageLatency := time.Duration(0)
-		minMessageLatency := time.Duration(0)
-		avgMessageLatency := time.Duration(0)
-		sumMessageLatency := time.Duration(0)
+		buffer := MetricsBuffer{}
 
 		for {
 			select {
@@ -64,63 +53,30 @@ func (o *Observer) Start() {
 				o.isRunning = false
 				break
 			case res := <-o.targetWriteChan:
-				if res != nil {
-					msgSent += res.Sent
-					msgFailed += res.Failed
-					msgTotal += res.Total()
-
-					if maxProcLatency < res.MaxProcLatency {
-						maxProcLatency = res.MaxProcLatency
-					}
-					if minProcLatency > res.MinProcLatency {
-						minProcLatency = res.MinProcLatency
-					}
-					sumProcLatency += res.AvgProcLatency
-
-					if maxMessageLatency < res.MaxMessageLatency {
-						maxMessageLatency = res.MaxMessageLatency
-					}
-					if minMessageLatency > res.MinMessageLatency {
-						minMessageLatency = res.MinMessageLatency
-					}
-					sumMessageLatency += res.AvgMessageLatency
-				}
+				buffer.appendTargetWriteResults(res)
 			case <-time.After(o.timeout):
 				o.log.Debugf("Timed out after (%v) waiting for result", o.timeout)
 			}
 
 			if time.Now().After(reportTime) {
-				if msgTotal > 0 {
-					avgProcLatency = time.Duration(int64(sumProcLatency)/msgTotal) * time.Nanosecond
-					avgMessageLatency = time.Duration(int64(sumMessageLatency)/msgTotal) * time.Nanosecond
-				}
+				avgProcLatency := buffer.getAvgProcLatency()
+				avgMessageLatency := buffer.getAvgMessageLatency()
 
 				o.log.Infof(
 					"Sent:%d,Failed:%d,Total:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMessageLatency:%s,MinMessageLatency:%s,AvgMessageLatency:%s",
-					msgSent,
-					msgFailed,
-					msgTotal,
-					maxProcLatency,
-					minProcLatency,
+					buffer.msgSent,
+					buffer.msgFailed,
+					buffer.msgTotal,
+					buffer.maxProcLatency,
+					buffer.minProcLatency,
 					avgProcLatency,
-					maxMessageLatency,
-					minMessageLatency,
+					buffer.maxMessageLatency,
+					buffer.minMessageLatency,
 					avgMessageLatency,
 				)
 
-				msgSent = int64(0)
-				msgFailed = int64(0)
-				msgTotal = int64(0)
-				maxProcLatency = time.Duration(0)
-				minProcLatency = time.Duration(0)
-				avgProcLatency = time.Duration(0)
-				sumProcLatency = time.Duration(0)
-				maxMessageLatency = time.Duration(0)
-				minMessageLatency = time.Duration(0)
-				avgMessageLatency = time.Duration(0)
-				sumMessageLatency = time.Duration(0)
-
 				reportTime = time.Now().Add(o.reportInterval)
+				buffer = MetricsBuffer{}
 			}
 		}
 	}()
