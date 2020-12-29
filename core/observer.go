@@ -80,8 +80,10 @@ func (o *Observer) Start() {
 
 // Stop issues a signal to halt observer processing
 func (o *Observer) Stop() {
-	o.exitSignal <- struct{}{}
-	<-o.stopDone
+	if o.isRunning {
+		o.exitSignal <- struct{}{}
+		<-o.stopDone
+	}
 }
 
 // --- Functions called to push information to observer
