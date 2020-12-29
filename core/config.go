@@ -113,30 +113,32 @@ func NewConfig() (*Config, error) {
 
 // GetSource builds and returns the source that is configured
 func (c *Config) GetSource() (Source, error) {
-	if c.Source == "stdin" {
+	switch c.Source {
+	case "stdin":
 		return NewStdinSource()
-	} else if c.Source == "kinesis" {
+	case "kinesis":
 		return NewKinesisSource(c.Sources.Kinesis.Region, c.Sources.Kinesis.StreamName, c.Sources.Kinesis.RoleARN, c.Sources.Kinesis.AppName)
-	} else if c.Source == "pubsub" {
+	case "pubsub":
 		return NewPubSubSource(c.Sources.PubSub.ProjectID, c.Sources.PubSub.SubscriptionID, c.Sources.PubSub.ServiceAccountB64)
-	} else if c.Source == "sqs" {
+	case "sqs":
 		return NewSQSSource(c.Sources.SQS.Region, c.Sources.SQS.QueueName, c.Sources.SQS.RoleARN)
-	} else {
+	default:
 		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got '%s'", c.Source)
 	}
 }
 
 // GetTarget builds and returns the target that is configured
 func (c *Config) GetTarget() (Target, error) {
-	if c.Target == "stdout" {
+	switch c.Target {
+	case "stdout":
 		return NewStdoutTarget()
-	} else if c.Target == "kinesis" {
+	case "kinesis":
 		return NewKinesisTarget(c.Targets.Kinesis.Region, c.Targets.Kinesis.StreamName, c.Targets.Kinesis.RoleARN)
-	} else if c.Target == "pubsub" {
+	case "pubsub":
 		return NewPubSubTarget(c.Targets.PubSub.ProjectID, c.Targets.PubSub.TopicName, c.Targets.PubSub.ServiceAccountB64)
-	} else if c.Target == "sqs" {
+	case "sqs":
 		return NewSQSTarget(c.Targets.SQS.Region, c.Targets.SQS.QueueName, c.Targets.SQS.RoleARN)
-	} else {
+	default:
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target)
 	}
 }
@@ -153,11 +155,12 @@ func (c *Config) GetObserver() (*Observer, error) {
 
 // GetStatsReceiver builds and returns the stats receiver
 func (c *Config) GetStatsReceiver() (StatsReceiver, error) {
-	if c.StatsReceiver == "statsd" {
+	switch c.StatsReceiver {
+	case "statsd":
 		return NewStatsDStatsReceiver(c.StatsReceivers.StatsD.Address, c.StatsReceivers.StatsD.Prefix)
-	} else if c.StatsReceiver == "" {
+	case "":
 		return nil, nil
-	} else {
+	default:
 		return nil, fmt.Errorf("Invalid stats receiver found; expected one of 'statsd' and got '%s'", c.StatsReceiver)
 	}
 }
