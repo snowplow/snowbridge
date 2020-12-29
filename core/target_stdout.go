@@ -8,28 +8,38 @@ package core
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 )
 
-// StdoutTarget holds a new client for writing events to stdout
-type StdoutTarget struct{}
-
-// NewStdoutTarget creates a new client for writing events to stdout
-func NewStdoutTarget() (*StdoutTarget, error) {
-	return &StdoutTarget{}, nil
+// StdoutTarget holds a new client for writing messages to stdout
+type StdoutTarget struct {
+	log *log.Entry
 }
 
-// Write pushes all events to the required target
-func (st *StdoutTarget) Write(events []*Event) error {
-	for _, event := range events {
-		data := string(event.Data)
-		fmt.Println(fmt.Sprintf("PartitionKey: %s, Data: %s", event.PartitionKey, data))
+// NewStdoutTarget creates a new client for writing messages to stdout
+func NewStdoutTarget() (*StdoutTarget, error) {
+	return &StdoutTarget{
+		log: log.WithFields(log.Fields{"name": "StdoutTarget"}),
+	}, nil
+}
 
-		if event.AckFunc != nil {
-			event.AckFunc()
+// Write pushes all messages to the required target
+func (st *StdoutTarget) Write(messages []*Message) (*TargetWriteResult, error) {
+	st.log.Debugf("Writing %d messages to stdout ...", len(messages))
+
+	for _, msg := range messages {
+		fmt.Println(msg.String())
+
+		if msg.AckFunc != nil {
+			msg.AckFunc()
 		}
 	}
-	return nil
+
+	return NewWriteResult(int64(len(messages)), int64(0), messages), nil
 }
+
+// Open does not do anything for this target
+func (st *StdoutTarget) Open() {}
 
 // Close does not do anything for this target
 func (st *StdoutTarget) Close() {}

@@ -13,17 +13,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 )
 
-// KinesisSource holds a new client for reading events from kinesis
+// KinesisSource holds a new client for reading messages from kinesis
 type KinesisSource struct {
-	Client     *kinsumer.Kinsumer
-	StreamName string
+	Client           *kinsumer.Kinsumer
+	StreamName       string
+	concurrentWrites int
+	log              *log.Entry
 }
 
 // --- Kinsumer overrides
@@ -33,11 +32,11 @@ type KinsumerLogrus struct{}
 
 // Log will print all Kinsumer logs as DEBUG lines
 func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
-	log.Debugf(format, v...)
+	log.WithFields(log.Fields{"name": "KinesisSource.Kinsumer"}).Debugf(format, v...)
 }
 
-// NewKinesisSource creates a new client for reading events from kinesis
-func NewKinesisSource(region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
+// NewKinesisSource creates a new client for reading messages from kinesis
+func NewKinesisSource(concurrentWrites int, region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
 	// TODO: Add statistics monitoring to be able to report on consumer latency
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(10 * time.Second).
@@ -58,31 +57,24 @@ func NewKinesisSource(region string, streamName string, roleARN string, appName 
 	}
 
 	return &KinesisSource{
-		Client:     k,
-		StreamName: streamName,
+		Client:           k,
+		StreamName:       streamName,
+		concurrentWrites: concurrentWrites,
+		log:              log.WithFields(log.Fields{"name": "KinesisSource"}),
 	}, nil
 }
 
-// Read will pull events from the noted Kinesis stream forever
+// Read will pull messages from the noted Kinesis stream forever
 func (ks *KinesisSource) Read(sf *SourceFunctions) error {
-	log.Infof("Reading messages from Kinesis stream '%s' ...", ks.StreamName)
+	ks.log.Infof("Reading messages from stream '%s' ...", ks.StreamName)
 
 	err := ks.Client.Run()
 	if err != nil {
 		return err
 	}
 
-	// TODO: Make the goroutine count configurable
-	throttle := make(chan struct{}, 20)
+	throttle := make(chan struct{}, ks.concurrentWrites)
 	wg := sync.WaitGroup{}
-
-	sig := make(chan os.Signal)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
-	go func() {
-		<-sig
-		log.Warn("SIGTERM called, cancelling Kinesis receive ...")
-		ks.Client.Stop()
-	}()
 
 	for {
 		record, checkpointer, err := ks.Client.NextRecordWithCheckpointer()
@@ -90,17 +82,22 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 			return fmt.Errorf("k.NextRecordWithCheckpointer returned error: %s", err.Error())
 		}
 
+		timePulled := time.Now().UTC()
+
 		ackFunc := func() {
-			log.Debugf("Ack'ing record with SequenceNumber: %s", *record.SequenceNumber)
+			ks.log.Debugf("Ack'ing record with SequenceNumber: %s", *record.SequenceNumber)
 			checkpointer()
 		}
 
 		if record != nil {
-			events := []*Event{
+			timeCreated := record.ApproximateArrivalTimestamp.UTC()
+			messages := []*Message{
 				{
 					Data:         record.Data,
 					PartitionKey: *record.PartitionKey,
 					AckFunc:      ackFunc,
+					TimeCreated:  timeCreated,
+					TimePulled:   timePulled,
 				},
 			}
 
@@ -108,9 +105,9 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := sf.WriteToTarget(events)
+				err := sf.WriteToTarget(messages)
 				if err != nil {
-					log.Error(err)
+					ks.log.Error(err)
 				}
 				<-throttle
 			}()
@@ -121,4 +118,10 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 	wg.Wait()
 
 	return nil
+}
+
+// Stop will halt the reader processing more events
+func (ks *KinesisSource) Stop() {
+	ks.log.Warn("Cancelling Kinesis receive ...")
+	ks.Client.Stop()
 }

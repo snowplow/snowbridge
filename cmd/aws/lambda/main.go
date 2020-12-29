@@ -31,17 +31,18 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 		return err
 	}
 	defer t.Close()
+	t.Open()
 
-	events := make([]*core.Event, len(event.Records))
-	for i := 0; i < len(events); i++ {
+	messages := make([]*core.Message, len(event.Records))
+	for i := 0; i < len(messages); i++ {
 		record := event.Records[i]
-		events[i] = &core.Event{
+		messages[i] = &core.Message{
 			Data:         record.Kinesis.Data,
 			PartitionKey: record.Kinesis.PartitionKey,
 		}
 	}
 
-	err = t.Write(events)
+	_, err = t.Write(messages)
 	if err != nil {
 		log.Error(err)
 	}

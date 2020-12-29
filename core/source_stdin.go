@@ -12,30 +12,39 @@ import (
 	"github.com/twinj/uuid"
 	"os"
 	"sync"
+	"time"
 )
 
-// StdinSource holds a new client for reading events from stdin
-type StdinSource struct{}
+// StdinSource holds a new client for reading messages from stdin
+type StdinSource struct {
+	concurrentWrites int
+	log              *log.Entry
+}
 
-// NewStdinSource creates a new client for reading events from stdin
-func NewStdinSource() (*StdinSource, error) {
-	return &StdinSource{}, nil
+// NewStdinSource creates a new client for reading messages from stdin
+func NewStdinSource(concurrentWrites int) (*StdinSource, error) {
+	return &StdinSource{
+		concurrentWrites: concurrentWrites,
+		log:              log.WithFields(log.Fields{"name": "StdinSource"}),
+	}, nil
 }
 
 // Read will execute until CTRL + D is pressed or until EOF is passed
 func (ss *StdinSource) Read(sf *SourceFunctions) error {
-	log.Infof("Reading messages from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
+	ss.log.Infof("Reading messages from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
 
-	// TODO: Make the goroutine count configurable
-	throttle := make(chan struct{}, 20)
+	throttle := make(chan struct{}, ss.concurrentWrites)
 	wg := sync.WaitGroup{}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		events := []*Event{
+		timeNow := time.Now().UTC()
+		messages := []*Message{
 			{
 				Data:         []byte(scanner.Text()),
 				PartitionKey: uuid.NewV4().String(),
+				TimeCreated:  timeNow,
+				TimePulled:   timeNow,
 			},
 		}
 
@@ -43,9 +52,9 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := sf.WriteToTarget(events)
+			err := sf.WriteToTarget(messages)
 			if err != nil {
-				log.Error(err)
+				ss.log.Error(err)
 			}
 			<-throttle
 		}()
@@ -56,4 +65,9 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 		return scanner.Err()
 	}
 	return nil
+}
+
+// Stop will halt the reader processing more events
+func (ss *StdinSource) Stop() {
+	ss.log.Warn("Press CTRL + D to exit!")
 }

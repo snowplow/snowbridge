@@ -10,6 +10,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	core "github.com/snowplow-devops/stream-replicator/core"
@@ -44,6 +46,7 @@ func main() {
 			return err
 		}
 
+		// Build source & target
 		source, err := cfg.GetSource()
 		if err != nil {
 			return err
@@ -52,20 +55,46 @@ func main() {
 		if err != nil {
 			return err
 		}
-		defer target.Close()
+		target.Open()
+
+		// Build observer which will be used for telemetry
+		observer, err := cfg.GetObserver()
+		if err != nil {
+			return err
+		}
+		observer.Start()
+
+		// Handle SIGTERM
+		sig := make(chan os.Signal)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
+		go func() {
+			<-sig
+			log.Warn("SIGTERM called, cleaning up and closing application ...")
+
+			source.Stop()
+		}()
+
+		// Extend target.Write() to push metrics to the observer
+		writeFunc := func(messages []*core.Message) error {
+			res, err := target.Write(messages)
+			observer.TargetWrite(res)
+			return err
+		}
 
 		// Callback functions for the source to leverage when writing data
 		sf := core.SourceFunctions{
-			WriteToTarget: target.Write,
+			WriteToTarget: writeFunc,
 		}
 
-		// Note: Read is a long running process and will only return when the source
-		//       is exhausted or if an error occurs
+		// Read is a long running process and will only return when the source
+		// is exhausted or if an error occurs
 		err = source.Read(&sf)
 		if err != nil {
 			return err
 		}
 
+		target.Close()
+		observer.Stop()
 		return nil
 	}
 

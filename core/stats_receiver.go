@@ -6,9 +6,8 @@
 
 package core
 
-// Target describes the interface for how to push the data pulled from the source
-type Target interface {
-	Write(messages []*Message) (*TargetWriteResult, error)
-	Open()
-	Close()
+// StatsReceiver describes the interface for how to push observed statistics
+// to a downstream store
+type StatsReceiver interface {
+	Send(buffer *ObserverBuffer)
 }

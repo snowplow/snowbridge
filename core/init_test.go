@@ -45,7 +45,7 @@ func TestInit_Failure_LogLevel(t *testing.T) {
 	assert.Nil(cfg)
 	assert.NotNil(err)
 
-	assert.Equal("FATAL: Supported log levels are 'debug, info, warning, error, fatal, panic' - provided: DEBUG", err.Error())
+	assert.Equal("Supported log levels are 'debug, info, warning, error, fatal, panic' - provided: DEBUG", err.Error())
 }
 
 func TestInit_Failure_SentryDSN(t *testing.T) {
@@ -59,7 +59,7 @@ func TestInit_Failure_SentryDSN(t *testing.T) {
 	assert.Nil(cfg)
 	assert.NotNil(err)
 
-	assert.Equal("FATAL: sentry.Init: [Sentry] DsnParseError: invalid scheme", err.Error())
+	assert.Equal("Failed to intialize Sentry: [Sentry] DsnParseError: invalid scheme", err.Error())
 }
 
 func TestInit_Failure_SentryTags(t *testing.T) {
@@ -75,5 +75,5 @@ func TestInit_Failure_SentryTags(t *testing.T) {
 	assert.Nil(cfg)
 	assert.NotNil(err)
 
-	assert.Equal("FATAL: Failed to unmarshall SENTRY_TAGS to map: invalid character 'a' looking for beginning of value", err.Error())
+	assert.Equal("Failed to unmarshall SENTRY_TAGS to map: invalid character 'a' looking for beginning of value", err.Error())
 }

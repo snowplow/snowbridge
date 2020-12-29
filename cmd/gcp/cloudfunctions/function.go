@@ -14,12 +14,12 @@ import (
 	core "github.com/snowplow-devops/stream-replicator/core"
 )
 
-// PubSubMessage is the payload of a Pub/Sub event.
+// PubSubMessage is the payload of a Pub/Sub message
 type PubSubMessage struct {
 	Data []byte `json:"data"`
 }
 
-// HandleRequest consumes a Pub/Sub message.
+// HandleRequest consumes a Pub/Sub message
 func HandleRequest(ctx context.Context, m PubSubMessage) error {
 	cfg, err := core.Init()
 	if err != nil {
@@ -31,15 +31,16 @@ func HandleRequest(ctx context.Context, m PubSubMessage) error {
 		return err
 	}
 	defer t.Close()
+	t.Open()
 
-	events := []*core.Event{
+	messages := []*core.Message{
 		{
 			Data:         m.Data,
 			PartitionKey: uuid.NewV4().String(),
 		},
 	}
 
-	err = t.Write(events)
+	_, err = t.Write(messages)
 	if err != nil {
 		log.Error(err)
 	}

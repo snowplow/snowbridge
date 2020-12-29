@@ -32,13 +32,13 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	os.Stdin = tmpfile
 
 	// Read from test input
-	source, err := NewStdinSource()
+	source, err := NewStdinSource(1)
 	assert.NotNil(source)
 	assert.Nil(err)
 
-	writeFunc := func(events []*Event) error {
-		for _, event := range events {
-			assert.Equal("Hello World!", string(event.Data))
+	writeFunc := func(messages []*Message) error {
+		for _, msg := range messages {
+			assert.Equal("Hello World!", string(msg.Data))
 		}
 		return nil
 	}

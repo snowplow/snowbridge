@@ -14,9 +14,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/twinj/uuid"
 	"os"
+	"time"
 )
 
-func storeGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
+// --- Cloud Helpers
+
+func getGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
 	sDec, err := base64.StdEncoding.DecodeString(serviceAccountB64)
 	if err != nil {
 		return "", fmt.Errorf("Could not Base64 decode service account: %s", err.Error())
@@ -56,4 +59,28 @@ func getAWSSession(region string, roleARN string) (*session.Session, *aws.Config
 		return session, &config
 	}
 	return session, nil
+}
+
+// --- Generic Helpers
+
+// getChunkedMessages returns an array of chunked arrays from the original slice
+func getChunkedMessages(messages []*Message, chunkSize int) [][]*Message {
+	var divided [][]*Message
+	for i := 0; i < len(messages); i += chunkSize {
+		end := i + chunkSize
+		if end > len(messages) {
+			end = len(messages)
+		}
+		divided = append(divided, messages[i:end])
+	}
+	return divided
+}
+
+// getAverageFromDuration will divide a duration by a total number and then return
+// this value as another duration
+func getAverageFromDuration(sum time.Duration, total int64) time.Duration {
+	if total > 0 {
+		return time.Duration(int64(sum)/total) * time.Nanosecond
+	}
+	return time.Duration(0)
 }

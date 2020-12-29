@@ -13,21 +13,24 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"os"
-	"os/signal"
-	"syscall"
+	"time"
 )
 
-// PubSubSource holds a new client for reading events from PubSub
+// PubSubSource holds a new client for reading messages from PubSub
 type PubSubSource struct {
 	ProjectID      string
 	Client         *pubsub.Client
 	SubscriptionID string
+	log            *log.Entry
+
+	// cancel function to be used to halt reading
+	cancel context.CancelFunc
 }
 
-// NewPubSubSource creates a new client for reading events from PubSub
+// NewPubSubSource creates a new client for reading messages from PubSub
 func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 string) (*PubSubSource, error) {
 	if serviceAccountB64 != "" {
-		targetFile, err := storeGCPServiceAccountFromBase64(serviceAccountB64)
+		targetFile, err := getGCPServiceAccountFromBase64(serviceAccountB64)
 		if err != nil {
 			return nil, err
 		}
@@ -45,43 +48,44 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 		ProjectID:      projectID,
 		Client:         client,
 		SubscriptionID: subscriptionID,
+		log:            log.WithFields(log.Fields{"name": "PubSubSource"}),
 	}, nil
 }
 
-// Read will pull events from the noted PubSub topic forever
+// Read will pull messages from the noted PubSub topic forever
 func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	ctx := context.Background()
 
-	log.Infof("Reading messages from PubSub subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
+	ps.log.Infof("Reading messages from subscription '%s' in project %s ...", ps.SubscriptionID, ps.ProjectID)
 
 	sub := ps.Client.Subscription(ps.SubscriptionID)
 	cctx, cancel := context.WithCancel(ctx)
 
-	sig := make(chan os.Signal)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
-	go func() {
-		<-sig
-		log.Warn("SIGTERM called, cancelling PubSub receive ...")
-		cancel()
-	}()
+	// Store reference to cancel
+	ps.cancel = cancel
 
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
-		log.Debugf("Read message with ID: %s", msg.ID)
+		timePulled := time.Now().UTC()
+
+		ps.log.Debugf("Read message with ID: %s", msg.ID)
 		ackFunc := func() {
-			log.Debugf("Ack'ing message with ID: %s", msg.ID)
+			ps.log.Debugf("Ack'ing message with ID: %s", msg.ID)
 			msg.Ack()
 		}
 
-		events := []*Event{
+		timeCreated := msg.PublishTime.UTC()
+		messages := []*Message{
 			{
 				Data:         msg.Data,
 				PartitionKey: uuid.NewV4().String(),
 				AckFunc:      ackFunc,
+				TimeCreated:  timeCreated,
+				TimePulled:   timePulled,
 			},
 		}
-		err := sf.WriteToTarget(events)
+		err := sf.WriteToTarget(messages)
 		if err != nil {
-			log.Error(err)
+			ps.log.Error(err)
 		}
 	})
 
@@ -89,4 +93,13 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 		return err
 	}
 	return nil
+}
+
+// Stop will halt the reader processing more events
+func (ps *PubSubSource) Stop() {
+	if ps.cancel != nil {
+		ps.log.Warn("Cancelling PubSub receive ...")
+		ps.cancel()
+	}
+	ps.cancel = nil
 }

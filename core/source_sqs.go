@@ -7,37 +7,45 @@
 package core
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
-	"os"
-	"os/signal"
+	"strconv"
 	"sync"
-	"syscall"
+	"time"
 )
 
-// SQSSource holds a new client for reading events from SQS
+// SQSSource holds a new client for reading messages from SQS
 type SQSSource struct {
-	Client    sqsiface.SQSAPI
-	QueueName string
+	Client           sqsiface.SQSAPI
+	QueueName        string
+	concurrentWrites int
+	log              *log.Entry
+
+	// exitSignal holds a channel for signalling an end to the read loop
+	exitSignal chan struct{}
 }
 
-// NewSQSSource creates a new client for reading events from SQS
-func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, error) {
+// NewSQSSource creates a new client for reading messages from SQS
+func NewSQSSource(concurrentWrites int, region string, queueName string, roleARN string) (*SQSSource, error) {
 	awsSession, awsConfig := getAWSSession(region, roleARN)
 	sqsClient := sqs.New(awsSession, awsConfig)
 
 	return &SQSSource{
-		Client:    sqsClient,
-		QueueName: queueName,
+		Client:           sqsClient,
+		QueueName:        queueName,
+		concurrentWrites: concurrentWrites,
+		log:              log.WithFields(log.Fields{"name": "SQSSource"}),
+		exitSignal:       make(chan struct{}),
 	}, nil
 }
 
-// Read will pull events from the noted SQS queue forever
+// Read will pull messages from the noted SQS queue forever
 func (ss *SQSSource) Read(sf *SourceFunctions) error {
-	log.Infof("Reading messages from SQS queue '%s' ...", ss.QueueName)
+	ss.log.Infof("Reading messages from queue '%s' ...", ss.QueueName)
 
 	urlResult, err := ss.Client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(ss.QueueName),
@@ -47,23 +55,13 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	}
 	queueURL := urlResult.QueueUrl
 
-	sig := make(chan os.Signal)
-	exitSignal := make(chan struct{})
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
-	go func() {
-		<-sig
-		log.Warn("SIGTERM called, cancelling SQS receive ...")
-		exitSignal <- struct{}{}
-	}()
-
-	// TODO: Make the goroutine count configurable
-	throttle := make(chan struct{}, 20)
+	throttle := make(chan struct{}, ss.concurrentWrites)
 	wg := sync.WaitGroup{}
 
 ProcessLoop:
 	for {
 		select {
-		case <-exitSignal:
+		case <-ss.exitSignal:
 			break ProcessLoop
 		default:
 			throttle <- struct{}{}
@@ -89,40 +87,63 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 			aws.String(sqs.QueueAttributeNameAll),
 		},
 		QueueUrl:            queueURL,
-		MaxNumberOfMessages: aws.Int64(1),
+		MaxNumberOfMessages: aws.Int64(10),
 		VisibilityTimeout:   aws.Int64(10),
 		WaitTimeSeconds:     aws.Int64(1),
 	})
 	if err != nil {
-		log.Error(err)
+		ss.log.Error(err)
 		return
 	}
+	timePulled := time.Now().UTC()
 
+	var messages []*Message
 	for _, msg := range msgRes.Messages {
 		receiptHandle := msg.ReceiptHandle
 
 		ackFunc := func() {
-			log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
+			ss.log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
 			_, err := ss.Client.DeleteMessage(&sqs.DeleteMessageInput{
 				QueueUrl:      queueURL,
 				ReceiptHandle: receiptHandle,
 			})
 			if err != nil {
-				log.Error(err)
+				ss.log.Error(err)
 			}
 		}
 
-		events := []*Event{
-			{
-				Data:         []byte(*msg.Body),
-				PartitionKey: uuid.NewV4().String(),
-				AckFunc:      ackFunc,
-			},
+		var timeCreated time.Time
+		timeCreatedStr, ok := msg.Attributes[sqs.MessageSystemAttributeNameSentTimestamp]
+		if ok {
+			timeCreatedMillis, err := strconv.ParseInt(*timeCreatedStr, 10, 64)
+			if err != nil {
+				ss.log.Error(fmt.Sprintf("Error extracting SentTimestamp from message attributes, latency measurements will not be accurate!"))
+				timeCreated = timePulled
+			} else {
+				timeCreated = time.Unix(0, timeCreatedMillis*int64(time.Millisecond)).UTC()
+			}
+		} else {
+			ss.log.Warnf("Could not extract SentTimestamp from message attributes, latency measurements will not be accurate!")
+			timeCreated = timePulled
 		}
 
-		err := sf.WriteToTarget(events)
-		if err != nil {
-			log.Error(err)
-		}
+		messages = append(messages, &Message{
+			Data:         []byte(*msg.Body),
+			PartitionKey: uuid.NewV4().String(),
+			AckFunc:      ackFunc,
+			TimeCreated:  timeCreated,
+			TimePulled:   timePulled,
+		})
 	}
+
+	err = sf.WriteToTarget(messages)
+	if err != nil {
+		ss.log.Error(err)
+	}
+}
+
+// Stop will halt the reader processing more events
+func (ss *SQSSource) Stop() {
+	ss.log.Warn("Cancelling SQS receive ...")
+	ss.exitSignal <- struct{}{}
 }

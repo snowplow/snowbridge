@@ -27,7 +27,7 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 
 	assert.NotEqual(dataStr, ackStr)
 
-	events := []*Event{
+	messages := []*Message{
 		{
 			Data:         []byte("Hello World!"),
 			PartitionKey: "some-key",
@@ -35,7 +35,7 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 		},
 	}
 
-	err1 := target.Write(events)
+	_, err1 := target.Write(messages)
 	assert.Nil(err1)
 	target.Close()
 

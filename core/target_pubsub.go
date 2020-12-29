@@ -15,12 +15,13 @@ import (
 	"strings"
 )
 
-// PubSubTarget holds a new client for writing events to Google PubSub
+// PubSubTarget holds a new client for writing messages to Google PubSub
 type PubSubTarget struct {
 	ProjectID string
 	Client    *pubsub.Client
 	Topic     *pubsub.Topic
 	TopicName string
+	log       *log.Entry
 }
 
 // PubSubPublishResult contains the publish result and the function to execute
@@ -30,10 +31,10 @@ type PubSubPublishResult struct {
 	AckFunc func()
 }
 
-// NewPubSubTarget creates a new client for writing events to Google PubSub
+// NewPubSubTarget creates a new client for writing messages to Google PubSub
 func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 string) (*PubSubTarget, error) {
 	if serviceAccountB64 != "" {
-		targetFile, err := storeGCPServiceAccountFromBase64(serviceAccountB64)
+		targetFile, err := getGCPServiceAccountFromBase64(serviceAccountB64)
 		if err != nil {
 			return nil, err
 		}
@@ -47,38 +48,40 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 		return nil, fmt.Errorf("pubsub.NewClient: %s", err.Error())
 	}
 
-	topic := client.Topic(topicName)
-
 	return &PubSubTarget{
 		ProjectID: projectID,
 		Client:    client,
-		Topic:     topic,
 		TopicName: topicName,
+		log:       log.WithFields(log.Fields{"name": "PubSubTarget"}),
 	}, nil
 }
 
-// Write pushes all events to the required target
-func (ps *PubSubTarget) Write(events []*Event) error {
+// Write pushes all messages to the required target
+func (ps *PubSubTarget) Write(messages []*Message) (*TargetWriteResult, error) {
 	ctx := context.Background()
+
+	if ps.Topic == nil {
+		return nil, fmt.Errorf("Topic has not been opened, must call Open() before attempting to write!")
+	}
 
 	var results []*PubSubPublishResult
 
-	log.Debugf("Writing %d messages to PubSub topic '%s' in project %s ...", len(events), ps.TopicName, ps.ProjectID)
+	ps.log.Debugf("Writing %d messages to topic '%s' in project %s ...", len(messages), ps.TopicName, ps.ProjectID)
 
-	for _, event := range events {
-		msg := &pubsub.Message{
-			Data: event.Data,
+	for _, msg := range messages {
+		pubSubMsg := &pubsub.Message{
+			Data: msg.Data,
 		}
 
-		r := ps.Topic.Publish(ctx, msg)
+		r := ps.Topic.Publish(ctx, pubSubMsg)
 		results = append(results, &PubSubPublishResult{
 			Result:  r,
-			AckFunc: event.AckFunc,
+			AckFunc: msg.AckFunc,
 		})
 	}
 
-	successes := 0
-	failures := 0
+	sent := 0
+	failed := 0
 	var errstrings []string
 
 	for _, r := range results {
@@ -86,9 +89,9 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 
 		if err != nil {
 			errstrings = append(errstrings, err.Error())
-			failures++
+			failed++
 		} else {
-			successes++
+			sent++
 
 			if r.AckFunc != nil {
 				r.AckFunc()
@@ -96,17 +99,24 @@ func (ps *PubSubTarget) Write(events []*Event) error {
 		}
 	}
 
+	var err error
 	if len(errstrings) > 0 {
-		return fmt.Errorf(strings.Join(errstrings, "\n"))
+		err = fmt.Errorf(strings.Join(errstrings, "\n"))
 	}
 
-	log.Debugf("Successfully wrote %d/%d messages to PubSub topic '%s' in project %s", successes, len(events), ps.TopicName, ps.ProjectID)
+	ps.log.Debugf("Successfully wrote %d/%d messages to topic '%s' in project %s", sent, len(messages), ps.TopicName, ps.ProjectID)
+	return NewWriteResult(int64(sent), int64(failed), messages), err
+}
 
-	return nil
+// Open opens a pipe to the topic
+func (ps *PubSubTarget) Open() {
+	ps.log.Warnf("Opening target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
+	ps.Topic = ps.Client.Topic(ps.TopicName)
 }
 
 // Close stops the topic
 func (ps *PubSubTarget) Close() {
-	log.Warnf("Closing PubSub target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
+	ps.log.Warnf("Closing target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
 	ps.Topic.Stop()
+	ps.Topic = nil
 }
