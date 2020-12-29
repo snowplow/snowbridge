@@ -67,4 +67,6 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 }
 
 // Stop will halt the reader processing more events
-func (ss *StdinSource) Stop() {}
+func (ss *StdinSource) Stop() {
+	ss.log.Warn("Press CTRL + D to exit!")
+}

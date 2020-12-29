@@ -51,13 +51,10 @@ func main() {
 		if err != nil {
 			return err
 		}
-		defer source.Stop()
-
 		target, err := cfg.GetTarget()
 		if err != nil {
 			return err
 		}
-		defer target.Close()
 		target.Open()
 
 		// Build observer which will be used for telemetry
@@ -65,7 +62,6 @@ func main() {
 		if err != nil {
 			return err
 		}
-		defer observer.Stop()
 		observer.Start()
 
 		// Handle SIGTERM
@@ -76,8 +72,6 @@ func main() {
 			log.Warn("SIGTERM called, cleaning up and closing application ...")
 
 			source.Stop()
-			target.Close()
-			observer.Stop()
 		}()
 
 		// Extend target.Write() to push metrics to the observer
@@ -98,6 +92,9 @@ func main() {
 		if err != nil {
 			return err
 		}
+
+		target.Close()
+		observer.Stop()
 		return nil
 	}
 

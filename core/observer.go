@@ -82,7 +82,6 @@ ObserverLoop:
 func (o *Observer) Stop() {
 	o.exitSignal <- struct{}{}
 	<-o.stopDone
-	o.log.Info("Observer has been shutdown!")
 }
 
 // --- Functions called to push information to observer
