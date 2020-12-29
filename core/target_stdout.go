@@ -38,5 +38,8 @@ func (st *StdoutTarget) Write(messages []*Message) (*TargetWriteResult, error) {
 	return NewWriteResult(int64(len(messages)), int64(0), messages), nil
 }
 
+// Open does not do anything for this target
+func (st *StdoutTarget) Open() {}
+
 // Close does not do anything for this target
 func (st *StdoutTarget) Close() {}

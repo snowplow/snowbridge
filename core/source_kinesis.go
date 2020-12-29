@@ -13,10 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -78,14 +75,6 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 	throttle := make(chan struct{}, 20)
 	wg := sync.WaitGroup{}
 
-	sig := make(chan os.Signal)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
-	go func() {
-		<-sig
-		ks.log.Warn("SIGTERM called, cancelling receive ...")
-		ks.Client.Stop()
-	}()
-
 	for {
 		record, checkpointer, err := ks.Client.NextRecordWithCheckpointer()
 		if err != nil {
@@ -128,4 +117,10 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 	wg.Wait()
 
 	return nil
+}
+
+// Stop will halt the reader processing more events
+func (ks *KinesisSource) Stop() {
+	ks.log.Warn("Cancelling Kinesis receive ...")
+	ks.Client.Stop()
 }

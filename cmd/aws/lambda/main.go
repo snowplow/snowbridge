@@ -31,6 +31,7 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 		return err
 	}
 	defer t.Close()
+	t.Open()
 
 	messages := make([]*core.Message, len(event.Records))
 	for i := 0; i < len(messages); i++ {

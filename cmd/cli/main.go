@@ -10,6 +10,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	core "github.com/snowplow-devops/stream-replicator/core"
@@ -44,28 +46,39 @@ func main() {
 			return err
 		}
 
-		// Build source & destination
+		// Build source & target
 		source, err := cfg.GetSource()
 		if err != nil {
 			return err
 		}
+		defer source.Stop()
+
 		target, err := cfg.GetTarget()
 		if err != nil {
 			return err
 		}
 		defer target.Close()
+		target.Open()
 
-		// Setup observability
-		stats, err := cfg.GetStatsReceiver()
+		// Build observer which will be used for telemetry
+		observer, err := cfg.GetObserver()
 		if err != nil {
 			return err
 		}
-
-		// Embed the stats receiver into the observer which will allow
-		// exporting of the statistics that are gathered
-		observer := core.NewObserver(stats, 1*time.Second, 10*time.Second)
 		defer observer.Stop()
 		observer.Start()
+
+		// Handle SIGTERM
+		sig := make(chan os.Signal)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
+		go func() {
+			<-sig
+			log.Warn("SIGTERM called, cleaning up and closing application ...")
+
+			source.Stop()
+			target.Close()
+			observer.Stop()
+		}()
 
 		// Extend target.Write() to push metrics to the observer
 		writeFunc := func(messages []*core.Message) error {
@@ -79,13 +92,12 @@ func main() {
 			WriteToTarget: writeFunc,
 		}
 
-		// Note: Read is a long running process and will only return when the source
-		//       is exhausted or if an error occurs
+		// Read is a long running process and will only return when the source
+		// is exhausted or if an error occurs
 		err = source.Read(&sf)
 		if err != nil {
 			return err
 		}
-
 		return nil
 	}
 

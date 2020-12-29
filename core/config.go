@@ -9,6 +9,7 @@ package core
 import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	"time"
 )
 
 // KinesisTargetConfig configures the destination for records consumed
@@ -136,6 +137,18 @@ func (c *Config) GetTarget() (Target, error) {
 	} else {
 		return nil, fmt.Errorf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target)
 	}
+}
+
+// GetObserver builds and returns the observer with the embedded
+// optional stats receiver
+func (c *Config) GetObserver() (*Observer, error) {
+	sr, err := c.GetStatsReceiver()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Make this configurable
+	return NewObserver(sr, 1*time.Second, 10*time.Second), nil
 }
 
 // GetStatsReceiver builds and returns the stats receiver

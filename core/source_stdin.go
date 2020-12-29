@@ -65,3 +65,6 @@ func (ss *StdinSource) Read(sf *SourceFunctions) error {
 	}
 	return nil
 }
+
+// Stop will halt the reader processing more events
+func (ss *StdinSource) Stop() {}

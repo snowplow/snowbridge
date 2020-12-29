@@ -79,5 +79,8 @@ func (st *SQSTarget) Write(messages []*Message) (*TargetWriteResult, error) {
 	return NewWriteResult(int64(sent), int64(failed), messages), err
 }
 
+// Open does not do anything for this target
+func (st *SQSTarget) Open() {}
+
 // Close does not do anything for this target
 func (st *SQSTarget) Close() {}

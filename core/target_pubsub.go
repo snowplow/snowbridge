@@ -48,12 +48,9 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 		return nil, fmt.Errorf("pubsub.NewClient: %s", err.Error())
 	}
 
-	topic := client.Topic(topicName)
-
 	return &PubSubTarget{
 		ProjectID: projectID,
 		Client:    client,
-		Topic:     topic,
 		TopicName: topicName,
 		log:       log.WithFields(log.Fields{"name": "PubSubTarget"}),
 	}, nil
@@ -62,6 +59,10 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 // Write pushes all messages to the required target
 func (ps *PubSubTarget) Write(messages []*Message) (*TargetWriteResult, error) {
 	ctx := context.Background()
+
+	if ps.Topic == nil {
+		return nil, fmt.Errorf("Topic has not been opened, must call Open() before attempting to write!")
+	}
 
 	var results []*PubSubPublishResult
 
@@ -107,8 +108,15 @@ func (ps *PubSubTarget) Write(messages []*Message) (*TargetWriteResult, error) {
 	return NewWriteResult(int64(sent), int64(failed), messages), err
 }
 
+// Open opens a pipe to the topic
+func (ps *PubSubTarget) Open() {
+	ps.log.Warnf("Opening target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
+	ps.Topic = ps.Client.Topic(ps.TopicName)
+}
+
 // Close stops the topic
 func (ps *PubSubTarget) Close() {
 	ps.log.Warnf("Closing target for topic '%s' in project %s", ps.TopicName, ps.ProjectID)
 	ps.Topic.Stop()
+	ps.Topic = nil
 }

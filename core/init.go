@@ -28,7 +28,7 @@ func Init() (*Config, error) {
 
 	cfg, err := NewConfig()
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: NewConfig: %s", err.Error())
+		return nil, fmt.Errorf("Failed to build Config: %s", err.Error())
 	}
 
 	// Configure Sentry
@@ -38,14 +38,14 @@ func Init() (*Config, error) {
 			Debug: cfg.Sentry.Debug,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("FATAL: sentry.Init: %s", err.Error())
+			return nil, fmt.Errorf("Failed to intialize Sentry: %s", err.Error())
 		}
 		defer sentry.Flush(2 * time.Second)
 
 		sentryTagsMap := map[string]string{}
 		err = json.Unmarshal([]byte(cfg.Sentry.Tags), &sentryTagsMap)
 		if err != nil {
-			return nil, fmt.Errorf("FATAL: Failed to unmarshall SENTRY_TAGS to map: %s", err.Error())
+			return nil, fmt.Errorf("Failed to unmarshall SENTRY_TAGS to map: %s", err.Error())
 		}
 		sentry.ConfigureScope(func(scope *sentry.Scope) {
 			for key, value := range sentryTagsMap {
@@ -60,9 +60,10 @@ func Init() (*Config, error) {
 	if level, ok := logLevels[cfg.LogLevel]; ok {
 		log.SetLevel(level)
 	} else {
-		return nil, fmt.Errorf("FATAL: Supported log levels are 'debug, info, warning, error, fatal, panic' - provided: %s", cfg.LogLevel)
+		return nil, fmt.Errorf("Supported log levels are 'debug, info, warning, error, fatal, panic' - provided: %s", cfg.LogLevel)
 	}
 
+	// TODO: Should this be configurable?
 	log.SetFormatter(&log.TextFormatter{
 		DisableColors: true,
 		FullTimestamp: true,

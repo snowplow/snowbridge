@@ -13,11 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
-	"os"
-	"os/signal"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -26,6 +23,9 @@ type SQSSource struct {
 	Client    sqsiface.SQSAPI
 	QueueName string
 	log       *log.Entry
+
+	// exitSignal holds a channel for signalling an end to the read loop
+	exitSignal chan struct{}
 }
 
 // NewSQSSource creates a new client for reading messages from SQS
@@ -34,9 +34,10 @@ func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, 
 	sqsClient := sqs.New(awsSession, awsConfig)
 
 	return &SQSSource{
-		Client:    sqsClient,
-		QueueName: queueName,
-		log:       log.WithFields(log.Fields{"name": "SQSSource"}),
+		Client:     sqsClient,
+		QueueName:  queueName,
+		log:        log.WithFields(log.Fields{"name": "SQSSource"}),
+		exitSignal: make(chan struct{}),
 	}, nil
 }
 
@@ -52,15 +53,6 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	}
 	queueURL := urlResult.QueueUrl
 
-	sig := make(chan os.Signal)
-	exitSignal := make(chan struct{})
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
-	go func() {
-		<-sig
-		ss.log.Warn("SIGTERM called, cancelling receive ...")
-		exitSignal <- struct{}{}
-	}()
-
 	// TODO: Make the goroutine count configurable
 	throttle := make(chan struct{}, 20)
 	wg := sync.WaitGroup{}
@@ -68,7 +60,7 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 ProcessLoop:
 	for {
 		select {
-		case <-exitSignal:
+		case <-ss.exitSignal:
 			break ProcessLoop
 		default:
 			throttle <- struct{}{}
@@ -147,4 +139,10 @@ func (ss *SQSSource) process(queueURL *string, sf *SourceFunctions) {
 	if err != nil {
 		ss.log.Error(err)
 	}
+}
+
+// Stop will halt the reader processing more events
+func (ss *SQSSource) Stop() {
+	ss.log.Warn("Cancelling SQS receive ...")
+	ss.exitSignal <- struct{}{}
 }

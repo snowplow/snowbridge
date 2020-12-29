@@ -14,4 +14,5 @@ type SourceFunctions struct {
 // Source describes the interface for how to read the data pulled from the source
 type Source interface {
 	Read(sf *SourceFunctions) error
+	Stop()
 }

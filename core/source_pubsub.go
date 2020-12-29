@@ -12,10 +12,8 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
+	"os"
 )
 
 // PubSubSource holds a new client for reading messages from PubSub
@@ -24,6 +22,9 @@ type PubSubSource struct {
 	Client         *pubsub.Client
 	SubscriptionID string
 	log            *log.Entry
+
+	// cancel function to be used to halt reading
+	cancel context.CancelFunc
 }
 
 // NewPubSubSource creates a new client for reading messages from PubSub
@@ -60,13 +61,8 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 	sub := ps.Client.Subscription(ps.SubscriptionID)
 	cctx, cancel := context.WithCancel(ctx)
 
-	sig := make(chan os.Signal)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
-	go func() {
-		<-sig
-		ps.log.Warn("SIGTERM called, cancelling receive ...")
-		cancel()
-	}()
+	// Store reference to cancel
+	ps.cancel = cancel
 
 	err := sub.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
 		timePulled := time.Now().UTC()
@@ -97,4 +93,13 @@ func (ps *PubSubSource) Read(sf *SourceFunctions) error {
 		return err
 	}
 	return nil
+}
+
+// Stop will halt the reader processing more events
+func (ps *PubSubSource) Stop() {
+	if ps.cancel != nil {
+		ps.log.Warn("Cancelling PubSub receive ...")
+		ps.cancel()
+	}
+	ps.cancel = nil
 }

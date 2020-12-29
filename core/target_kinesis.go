@@ -114,5 +114,8 @@ func (kt *KinesisTarget) process(messages []*Message) (*TargetWriteResult, error
 	}, nil
 }
 
+// Open does not do anything for this target
+func (kt *KinesisTarget) Open() {}
+
 // Close does not do anything for this target
 func (kt *KinesisTarget) Close() {}

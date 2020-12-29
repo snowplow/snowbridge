@@ -15,7 +15,8 @@ import (
 // and emitting them to downstream destinations
 type Observer struct {
 	statsClient     StatsReceiver
-	stopSignal      chan struct{}
+	exitSignal      chan struct{}
+	stopDone        chan struct{}
 	targetWriteChan chan *TargetWriteResult
 	timeout         time.Duration
 	reportInterval  time.Duration
@@ -28,7 +29,8 @@ type Observer struct {
 func NewObserver(statsClient StatsReceiver, timeout time.Duration, reportInterval time.Duration) *Observer {
 	return &Observer{
 		statsClient:     statsClient,
-		stopSignal:      make(chan struct{}),
+		exitSignal:      make(chan struct{}),
+		stopDone:        make(chan struct{}),
 		targetWriteChan: make(chan *TargetWriteResult, 1000),
 		timeout:         timeout,
 		reportInterval:  reportInterval,
@@ -49,12 +51,13 @@ func (o *Observer) Start() {
 		reportTime := time.Now().Add(o.reportInterval)
 		buffer := ObserverBuffer{}
 
+ObserverLoop:
 		for {
 			select {
-			case <-o.stopSignal:
-				o.log.Debugf("Received stop signal, closing ...")
+			case <-o.exitSignal:
+				o.log.Warn("Received exit signal, shutting down Observer ...")
 				o.isRunning = false
-				break
+				break ObserverLoop
 			case res := <-o.targetWriteChan:
 				buffer.Append(res)
 			case <-time.After(o.timeout):
@@ -71,12 +74,15 @@ func (o *Observer) Start() {
 				buffer = ObserverBuffer{}
 			}
 		}
+		o.stopDone <- struct{}{}
 	}()
 }
 
 // Stop issues a signal to halt observer processing
 func (o *Observer) Stop() {
-	o.stopSignal <- struct{}{}
+	o.exitSignal <- struct{}{}
+	<-o.stopDone
+	o.log.Info("Observer has been shutdown!")
 }
 
 // --- Functions called to push information to observer

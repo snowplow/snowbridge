@@ -31,6 +31,7 @@ func HandleRequest(ctx context.Context, m PubSubMessage) error {
 		return err
 	}
 	defer t.Close()
+	t.Open()
 
 	messages := []*core.Message{
 		{
