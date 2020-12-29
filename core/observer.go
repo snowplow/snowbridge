@@ -56,6 +56,13 @@ func (o *Observer) Start() {
 			select {
 			case <-o.exitSignal:
 				o.log.Warn("Received exit signal, shutting down Observer ...")
+
+				// Attempt final flush
+				o.log.Infof(buffer.String())
+				if o.statsClient != nil {
+					o.statsClient.Send(&buffer)
+				}
+
 				o.isRunning = false
 				break ObserverLoop
 			case res := <-o.targetWriteChan:

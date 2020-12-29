@@ -32,7 +32,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	os.Stdin = tmpfile
 
 	// Read from test input
-	source, err := NewStdinSource()
+	source, err := NewStdinSource(1)
 	assert.NotNil(source)
 	assert.Nil(err)
 

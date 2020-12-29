@@ -67,6 +67,9 @@ type SourcesConfig struct {
 	Kinesis KinesisSourceConfig
 	PubSub  PubSubSourceConfig
 	SQS     SQSSourceConfig
+
+	// ConcurrentWrites is how many go-routines a source can leverage to parallelise processing
+	ConcurrentWrites int `env:"SOURCE_CONCURRENT_WRITES" envDefault:"50"`
 }
 
 // SentryConfig configures the Sentry error tracker
@@ -84,9 +87,13 @@ type StatsDStatsReceiverConfig struct {
 
 // StatsReceiversConfig holds configuration for different stats receivers
 type StatsReceiversConfig struct {
-	StatsD     StatsDStatsReceiverConfig
+	StatsD StatsDStatsReceiverConfig
+
+	// TimeoutSec is how long the observer will wait for a new result before looping
 	TimeoutSec int `env:"STATS_RECEIVER_TIMEOUT_SEC" envDefault:"1"`
-	BufferSec  int `env:"STATS_RECEIVER_BUFFER_SEC" envDefault:"15"`
+
+	// BufferSec is how long the observer buffers results before pushing results out and resetting
+	BufferSec int `env:"STATS_RECEIVER_BUFFER_SEC" envDefault:"15"`
 }
 
 // Config for holding all configuration details
@@ -115,13 +122,30 @@ func NewConfig() (*Config, error) {
 func (c *Config) GetSource() (Source, error) {
 	switch c.Source {
 	case "stdin":
-		return NewStdinSource()
+		return NewStdinSource(
+			c.Sources.ConcurrentWrites,
+		)
 	case "kinesis":
-		return NewKinesisSource(c.Sources.Kinesis.Region, c.Sources.Kinesis.StreamName, c.Sources.Kinesis.RoleARN, c.Sources.Kinesis.AppName)
+		return NewKinesisSource(
+			c.Sources.ConcurrentWrites,
+			c.Sources.Kinesis.Region,
+			c.Sources.Kinesis.StreamName,
+			c.Sources.Kinesis.RoleARN,
+			c.Sources.Kinesis.AppName,
+		)
 	case "pubsub":
-		return NewPubSubSource(c.Sources.PubSub.ProjectID, c.Sources.PubSub.SubscriptionID, c.Sources.PubSub.ServiceAccountB64)
+		return NewPubSubSource(
+			c.Sources.PubSub.ProjectID,
+			c.Sources.PubSub.SubscriptionID,
+			c.Sources.PubSub.ServiceAccountB64,
+		)
 	case "sqs":
-		return NewSQSSource(c.Sources.SQS.Region, c.Sources.SQS.QueueName, c.Sources.SQS.RoleARN)
+		return NewSQSSource(
+			c.Sources.ConcurrentWrites,
+			c.Sources.SQS.Region,
+			c.Sources.SQS.QueueName,
+			c.Sources.SQS.RoleARN,
+		)
 	default:
 		return nil, fmt.Errorf("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got '%s'", c.Source)
 	}

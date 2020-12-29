@@ -20,24 +20,26 @@ import (
 
 // SQSSource holds a new client for reading messages from SQS
 type SQSSource struct {
-	Client    sqsiface.SQSAPI
-	QueueName string
-	log       *log.Entry
+	Client           sqsiface.SQSAPI
+	QueueName        string
+	concurrentWrites int
+	log              *log.Entry
 
 	// exitSignal holds a channel for signalling an end to the read loop
 	exitSignal chan struct{}
 }
 
 // NewSQSSource creates a new client for reading messages from SQS
-func NewSQSSource(region string, queueName string, roleARN string) (*SQSSource, error) {
+func NewSQSSource(concurrentWrites int, region string, queueName string, roleARN string) (*SQSSource, error) {
 	awsSession, awsConfig := getAWSSession(region, roleARN)
 	sqsClient := sqs.New(awsSession, awsConfig)
 
 	return &SQSSource{
-		Client:     sqsClient,
-		QueueName:  queueName,
-		log:        log.WithFields(log.Fields{"name": "SQSSource"}),
-		exitSignal: make(chan struct{}),
+		Client:           sqsClient,
+		QueueName:        queueName,
+		concurrentWrites: concurrentWrites,
+		log:              log.WithFields(log.Fields{"name": "SQSSource"}),
+		exitSignal:       make(chan struct{}),
 	}, nil
 }
 
@@ -53,8 +55,7 @@ func (ss *SQSSource) Read(sf *SourceFunctions) error {
 	}
 	queueURL := urlResult.QueueUrl
 
-	// TODO: Make the goroutine count configurable
-	throttle := make(chan struct{}, 20)
+	throttle := make(chan struct{}, ss.concurrentWrites)
 	wg := sync.WaitGroup{}
 
 ProcessLoop:

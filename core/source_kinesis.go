@@ -19,9 +19,10 @@ import (
 
 // KinesisSource holds a new client for reading messages from kinesis
 type KinesisSource struct {
-	Client     *kinsumer.Kinsumer
-	StreamName string
-	log        *log.Entry
+	Client           *kinsumer.Kinsumer
+	StreamName       string
+	concurrentWrites int
+	log              *log.Entry
 }
 
 // --- Kinsumer overrides
@@ -35,7 +36,7 @@ func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
 }
 
 // NewKinesisSource creates a new client for reading messages from kinesis
-func NewKinesisSource(region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
+func NewKinesisSource(concurrentWrites int, region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
 	// TODO: Add statistics monitoring to be able to report on consumer latency
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(10 * time.Second).
@@ -56,9 +57,10 @@ func NewKinesisSource(region string, streamName string, roleARN string, appName 
 	}
 
 	return &KinesisSource{
-		Client:     k,
-		StreamName: streamName,
-		log:        log.WithFields(log.Fields{"name": "KinesisSource"}),
+		Client:           k,
+		StreamName:       streamName,
+		concurrentWrites: concurrentWrites,
+		log:              log.WithFields(log.Fields{"name": "KinesisSource"}),
 	}, nil
 }
 
@@ -71,8 +73,7 @@ func (ks *KinesisSource) Read(sf *SourceFunctions) error {
 		return err
 	}
 
-	// TODO: Make the goroutine count configurable
-	throttle := make(chan struct{}, 20)
+	throttle := make(chan struct{}, ks.concurrentWrites)
 	wg := sync.WaitGroup{}
 
 	for {

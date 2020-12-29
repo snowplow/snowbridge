@@ -17,13 +17,15 @@ import (
 
 // StdinSource holds a new client for reading messages from stdin
 type StdinSource struct {
-	log *log.Entry
+	concurrentWrites int
+	log              *log.Entry
 }
 
 // NewStdinSource creates a new client for reading messages from stdin
-func NewStdinSource() (*StdinSource, error) {
+func NewStdinSource(concurrentWrites int) (*StdinSource, error) {
 	return &StdinSource{
-		log: log.WithFields(log.Fields{"name": "StdinSource"}),
+		concurrentWrites: concurrentWrites,
+		log:              log.WithFields(log.Fields{"name": "StdinSource"}),
 	}, nil
 }
 
@@ -31,8 +33,7 @@ func NewStdinSource() (*StdinSource, error) {
 func (ss *StdinSource) Read(sf *SourceFunctions) error {
 	ss.log.Infof("Reading messages from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
 
-	// TODO: Make the goroutine count configurable
-	throttle := make(chan struct{}, 20)
+	throttle := make(chan struct{}, ss.concurrentWrites)
 	wg := sync.WaitGroup{}
 
 	scanner := bufio.NewScanner(os.Stdin)
