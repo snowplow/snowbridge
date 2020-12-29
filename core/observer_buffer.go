@@ -13,15 +13,16 @@ import (
 
 // ObserverBuffer contains all the metrics we are processing
 type ObserverBuffer struct {
-	MsgSent           int64
-	MsgFailed         int64
-	MsgTotal          int64
-	MaxProcLatency    time.Duration
-	MinProcLatency    time.Duration
-	SumProcLatency    time.Duration
-	MaxMessageLatency time.Duration
-	MinMessageLatency time.Duration
-	SumMessageLatency time.Duration
+	TargetResults  int64
+	MsgSent        int64
+	MsgFailed      int64
+	MsgTotal       int64
+	MaxProcLatency time.Duration
+	MinProcLatency time.Duration
+	SumProcLatency time.Duration
+	MaxMsgLatency  time.Duration
+	MinMsgLatency  time.Duration
+	SumMsgLatency  time.Duration
 }
 
 // Append adds a TargetWriteResult onto the buffer and stores the result
@@ -30,6 +31,8 @@ func (b *ObserverBuffer) Append(res *TargetWriteResult) {
 		return
 	}
 
+	b.TargetResults++
+
 	b.MsgSent += res.Sent
 	b.MsgFailed += res.Failed
 	b.MsgTotal += res.Total()
@@ -37,18 +40,18 @@ func (b *ObserverBuffer) Append(res *TargetWriteResult) {
 	if b.MaxProcLatency < res.MaxProcLatency {
 		b.MaxProcLatency = res.MaxProcLatency
 	}
-	if b.MinProcLatency > res.MinProcLatency {
+	if b.MinProcLatency > res.MinProcLatency || b.MinProcLatency == time.Duration(0) {
 		b.MinProcLatency = res.MinProcLatency
 	}
 	b.SumProcLatency += res.AvgProcLatency
 
-	if b.MaxMessageLatency < res.MaxMessageLatency {
-		b.MaxMessageLatency = res.MaxMessageLatency
+	if b.MaxMsgLatency < res.MaxMsgLatency {
+		b.MaxMsgLatency = res.MaxMsgLatency
 	}
-	if b.MinMessageLatency > res.MinMessageLatency {
-		b.MinMessageLatency = res.MinMessageLatency
+	if b.MinMsgLatency > res.MinMsgLatency || b.MinMsgLatency == time.Duration(0) {
+		b.MinMsgLatency = res.MinMsgLatency
 	}
-	b.SumMessageLatency += res.AvgMessageLatency
+	b.SumMsgLatency += res.AvgMsgLatency
 }
 
 // GetAvgProcLatency calculates average processing latency
@@ -56,25 +59,26 @@ func (b *ObserverBuffer) GetAvgProcLatency() time.Duration {
 	return getAverageFromDuration(b.SumProcLatency, b.MsgTotal)
 }
 
-// GetAvgMessageLatency calculates average message latency
-func (b *ObserverBuffer) GetAvgMessageLatency() time.Duration {
-	return getAverageFromDuration(b.SumMessageLatency, b.MsgTotal)
+// GetAvgMsgLatency calculates average message latency
+func (b *ObserverBuffer) GetAvgMsgLatency() time.Duration {
+	return getAverageFromDuration(b.SumMsgLatency, b.MsgTotal)
 }
 
 func (b *ObserverBuffer) String() string {
 	avgProcLatency := b.GetAvgProcLatency()
-	avgMessageLatency := b.GetAvgMessageLatency()
+	avgMsgLatency := b.GetAvgMsgLatency()
 
 	return fmt.Sprintf(
-		"MsgSent:%d,MsgFailed:%d,MsgTotal:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMessageLatency:%s,MinMessageLatency:%s,AvgMessageLatency:%s",
+		"TargetResults:%d,MsgSent:%d,MsgFailed:%d,MsgTotal:%d,MaxProcLatency:%s,MinProcLatency:%s,AvgProcLatency:%s,MaxMsgLatency:%s,MinMsgLatency:%s,AvgMsgLatency:%s",
+		b.TargetResults,
 		b.MsgSent,
 		b.MsgFailed,
 		b.MsgTotal,
 		b.MaxProcLatency,
 		b.MinProcLatency,
 		avgProcLatency,
-		b.MaxMessageLatency,
-		b.MinMessageLatency,
-		avgMessageLatency,
+		b.MaxMsgLatency,
+		b.MinMsgLatency,
+		avgMsgLatency,
 	)
 }

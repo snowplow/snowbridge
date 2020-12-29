@@ -26,9 +26,9 @@ func TestNewWriteResult_Empty(t *testing.T) {
 	assert.Equal(time.Duration(0), r.MinProcLatency)
 	assert.Equal(time.Duration(0), r.AvgProcLatency)
 
-	assert.Equal(time.Duration(0), r.MaxMessageLatency)
-	assert.Equal(time.Duration(0), r.MinMessageLatency)
-	assert.Equal(time.Duration(0), r.AvgMessageLatency)
+	assert.Equal(time.Duration(0), r.MaxMsgLatency)
+	assert.Equal(time.Duration(0), r.MinMsgLatency)
+	assert.Equal(time.Duration(0), r.AvgMsgLatency)
 }
 
 func TestNewWriteResult_WithMessages(t *testing.T) {
@@ -68,7 +68,7 @@ func TestNewWriteResult_WithMessages(t *testing.T) {
 	assert.Equal(time.Duration(4)*time.Minute, r.MinProcLatency)
 	assert.Equal(time.Duration(7)*time.Minute, r.AvgProcLatency)
 
-	assert.Equal(time.Duration(70)*time.Minute, r.MaxMessageLatency)
-	assert.Equal(time.Duration(30)*time.Minute, r.MinMessageLatency)
-	assert.Equal(time.Duration(50)*time.Minute, r.AvgMessageLatency)
+	assert.Equal(time.Duration(70)*time.Minute, r.MaxMsgLatency)
+	assert.Equal(time.Duration(30)*time.Minute, r.MinMsgLatency)
+	assert.Equal(time.Duration(50)*time.Minute, r.AvgMsgLatency)
 }

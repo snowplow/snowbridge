@@ -23,9 +23,9 @@ type TargetWriteResult struct {
 
 	// Delta between TimeCreated and TimeOfWrite tells us how far behind
 	// the application is on the stream it is consuming from
-	MaxMessageLatency time.Duration
-	MinMessageLatency time.Duration
-	AvgMessageLatency time.Duration
+	MaxMsgLatency time.Duration
+	MinMsgLatency time.Duration
+	AvgMsgLatency time.Duration
 }
 
 // NewWriteResult uses the current time as the WriteTime and then calls NewWriteResultWithTime
@@ -58,18 +58,18 @@ func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, mes
 		sumProcLatency += procLatency
 
 		messageLatency := timeOfWrite.Sub(msg.TimeCreated)
-		if r.MaxMessageLatency < messageLatency {
-			r.MaxMessageLatency = messageLatency
+		if r.MaxMsgLatency < messageLatency {
+			r.MaxMsgLatency = messageLatency
 		}
-		if r.MinMessageLatency > messageLatency || r.MinMessageLatency == time.Duration(0) {
-			r.MinMessageLatency = messageLatency
+		if r.MinMsgLatency > messageLatency || r.MinMsgLatency == time.Duration(0) {
+			r.MinMsgLatency = messageLatency
 		}
 		sumMessageLatency += messageLatency
 	}
 
 	if messagesLen > 0 {
 		r.AvgProcLatency = getAverageFromDuration(sumProcLatency, messagesLen)
-		r.AvgMessageLatency = getAverageFromDuration(sumMessageLatency, messagesLen)
+		r.AvgMsgLatency = getAverageFromDuration(sumMessageLatency, messagesLen)
 	}
 
 	return &r
