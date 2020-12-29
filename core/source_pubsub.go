@@ -12,8 +12,8 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
-	"time"
 	"os"
+	"time"
 )
 
 // PubSubSource holds a new client for reading messages from PubSub

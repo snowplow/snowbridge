@@ -84,7 +84,9 @@ type StatsDStatsReceiverConfig struct {
 
 // StatsReceiversConfig holds configuration for different stats receivers
 type StatsReceiversConfig struct {
-	StatsD StatsDStatsReceiverConfig
+	StatsD     StatsDStatsReceiverConfig
+	TimeoutSec int `env:"STATS_RECEIVER_TIMEOUT_SEC" envDefault:"1"`
+	BufferSec  int `env:"STATS_RECEIVER_BUFFER_SEC" envDefault:"15"`
 }
 
 // Config for holding all configuration details
@@ -146,9 +148,7 @@ func (c *Config) GetObserver() (*Observer, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: Make this configurable
-	return NewObserver(sr, 1*time.Second, 10*time.Second), nil
+	return NewObserver(sr, time.Duration(c.StatsReceivers.TimeoutSec)*time.Second, time.Duration(c.StatsReceivers.BufferSec)*time.Second), nil
 }
 
 // GetStatsReceiver builds and returns the stats receiver

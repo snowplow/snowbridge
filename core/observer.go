@@ -51,7 +51,7 @@ func (o *Observer) Start() {
 		reportTime := time.Now().Add(o.reportInterval)
 		buffer := ObserverBuffer{}
 
-ObserverLoop:
+	ObserverLoop:
 		for {
 			select {
 			case <-o.exitSignal:
