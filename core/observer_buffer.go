@@ -56,12 +56,12 @@ func (b *ObserverBuffer) Append(res *TargetWriteResult) {
 
 // GetAvgProcLatency calculates average processing latency
 func (b *ObserverBuffer) GetAvgProcLatency() time.Duration {
-	return getAverageFromDuration(b.SumProcLatency, b.MsgTotal)
+	return getAverageFromDuration(b.SumProcLatency, b.TargetResults)
 }
 
 // GetAvgMsgLatency calculates average message latency
 func (b *ObserverBuffer) GetAvgMsgLatency() time.Duration {
-	return getAverageFromDuration(b.SumMsgLatency, b.MsgTotal)
+	return getAverageFromDuration(b.SumMsgLatency, b.TargetResults)
 }
 
 func (b *ObserverBuffer) String() string {

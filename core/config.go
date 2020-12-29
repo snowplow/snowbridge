@@ -69,6 +69,7 @@ type SourcesConfig struct {
 	SQS     SQSSourceConfig
 
 	// ConcurrentWrites is how many go-routines a source can leverage to parallelise processing
+	// NOTE: PubSub does not use this setting as concurreny is managed internally
 	ConcurrentWrites int `env:"SOURCE_CONCURRENT_WRITES" envDefault:"50"`
 }
 
