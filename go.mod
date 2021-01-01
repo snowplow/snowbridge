@@ -9,8 +9,6 @@ require (
 	github.com/caarlos0/env/v6 v6.4.0
 	github.com/getsentry/sentry-go v0.9.0
 	github.com/hashicorp/go-multierror v1.1.0
-	github.com/hashicorp/go-version v1.2.1 // indirect
-	github.com/mitchellh/gox v1.0.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.7.0
