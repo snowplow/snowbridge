@@ -73,7 +73,24 @@ func main() {
 		go func() {
 			<-sig
 			log.Warn("SIGTERM called, cleaning up and closing application ...")
-			source.Stop()
+
+			stop := make(chan struct{}, 1)
+			go func() {
+				source.Stop()
+				stop <- struct{}{}
+			}()
+
+			select {
+			case <-stop:
+				log.Debug("source.Stop() finished successfully!")
+			case <-time.After(5 * time.Second):
+				log.Error("source.Stop() took more than 5 seconds, forcing shutdown ...")
+
+				target.Close()
+				observer.Stop()
+
+				os.Exit(1)
+			}
 		}()
 
 		// Extend target.Write() to push metrics to the observer
