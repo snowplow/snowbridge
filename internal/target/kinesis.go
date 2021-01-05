@@ -57,31 +57,28 @@ func NewKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, region strin
 
 // Write pushes all messages to the required target
 // TODO: Should each put be in its own goroutine?
-// TODO: How should oversized records be handled?
 func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	kt.log.Debugf("Writing %d messages to stream ...", len(messages))
 
-	sent := int64(0)
-	failed := int64(0)
+	chunks, oversized := models.GetChunkedMessages(
+		messages,
+		kinesisPutRecordsChunkSize,
+		kt.MaximumAllowedMessageSizeBytes(),
+		kinesisPutRecordsRequestByteLimit,
+	)
+
+	writeResult := &models.TargetWriteResult{
+		Oversized: oversized,
+	}
 
 	var errResult error
 
-	messagesChunked := models.GetChunkedMessages(messages,
-		kinesisPutRecordsChunkSize,
-		kinesisPutRecordsMessageByteLimit,
-		kinesisPutRecordsRequestByteLimit)
-
-	for _, messageChunk := range messagesChunked {
-		res, err := kt.process(messageChunk)
-
-		if res != nil {
-			sent += res.Sent
-			failed += res.Failed
-		}
+	for _, chunk := range chunks {
+		res, err := kt.process(chunk)
+		writeResult = writeResult.Append(res)
 
 		if err != nil {
 			errResult = multierror.Append(errResult, err)
-			failed += int64(len(messageChunk))
 		}
 	}
 
@@ -89,14 +86,15 @@ func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteR
 		errResult = errors.Wrap(errResult, "Error writing messages to Kinesis stream")
 	}
 
-	kt.log.Debugf("Successfully wrote %d/%d messages", sent, len(messages))
-	return models.NewWriteResult(sent, failed, messages), errResult
+	kt.log.Debugf("Successfully wrote %d/%d messages", writeResult.Sent, writeResult.Total())
+	return writeResult, errResult
 }
 
 func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWriteResult, error) {
-	kt.log.Debugf("Writing chunk of %d messages to stream ...", len(messages))
+	messageCount := int64(len(messages))
+	kt.log.Debugf("Writing chunk of %d messages to stream ...", messageCount)
 
-	entries := make([]*kinesis.PutRecordsRequestEntry, len(messages))
+	entries := make([]*kinesis.PutRecordsRequestEntry, messageCount)
 	for i := 0; i < len(entries); i++ {
 		msg := messages[i]
 		entries[i] = &kinesis.PutRecordsRequestEntry{
@@ -110,15 +108,28 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 		StreamName: aws.String(kt.streamName),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to send message batch to Kinesis stream")
+		sent := int64(0)
+		failed := messageCount
+
+		return models.NewTargetWriteResult(
+			sent,
+			failed,
+			messages,
+			nil,
+		), errors.Wrap(err, "Failed to send message batch to Kinesis stream")
 	}
 
 	// TODO: Can we ack successful messages when some fail in the batch? This will cause duplicate processing on failure.
 	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
-		return &models.TargetWriteResult{
-			Sent:   int64(len(messages)) - *res.FailedRecordCount,
-			Failed: *res.FailedRecordCount,
-		}, errors.New("Failed to write all messages in batch to Kinesis stream")
+		sent := messageCount - *res.FailedRecordCount
+		failed := *res.FailedRecordCount
+
+		return models.NewTargetWriteResult(
+			sent,
+			failed,
+			messages,
+			nil,
+		), errors.New("Failed to write all messages in batch to Kinesis stream")
 	}
 
 	for _, msg := range messages {
@@ -127,12 +138,16 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 		}
 	}
 
-	kt.log.Debugf("Successfully wrote %d messages", len(entries))
+	sent := messageCount
+	failed := int64(0)
 
-	return &models.TargetWriteResult{
-		Sent:   int64(len(messages)),
-		Failed: int64(0),
-	}, nil
+	kt.log.Debugf("Successfully wrote %d messages", len(entries))
+	return models.NewTargetWriteResult(
+		sent,
+		failed,
+		messages,
+		nil,
+	), nil
 }
 
 // Open does not do anything for this target
@@ -140,3 +155,9 @@ func (kt *KinesisTarget) Open() {}
 
 // Close does not do anything for this target
 func (kt *KinesisTarget) Close() {}
+
+// MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
+// per message for this target
+func (kt *KinesisTarget) MaximumAllowedMessageSizeBytes() int {
+	return kinesisPutRecordsMessageByteLimit
+}

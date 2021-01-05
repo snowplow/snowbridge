@@ -98,7 +98,7 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 	messages = append(messages, testutil.GetTestMessages(1, testutil.GenRandomString(1048577), ackFunc)...)
 
 	writeRes, err := target.Write(messages)
-	assert.NotNil(err)
+	assert.Nil(err)
 	assert.NotNil(writeRes)
 
 	// Check that Ack is called
@@ -106,5 +106,6 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 
 	// Check results
 	assert.Equal(int64(100), writeRes.Sent)
-	assert.Equal(int64(1), writeRes.Failed)
+	assert.Equal(int64(0), writeRes.Failed)
+	assert.Equal(1, len(writeRes.Oversized))
 }

@@ -18,6 +18,13 @@ import (
 	"github.com/snowplow-devops/stream-replicator/internal/models"
 )
 
+const (
+	// API Documentation: https://cloud.google.com/pubsub/quotas
+
+	// Each record can only be up to 10 MiB in size
+	pubSubPublishMessageByteLimit = 10485760
+)
+
 // PubSubTarget holds a new client for writing messages to Google PubSub
 type PubSubTarget struct {
 	projectID string
@@ -62,18 +69,33 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 
 // Write pushes all messages to the required target
 func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+	messageCount := int64(len(messages))
+	ps.log.Debugf("Writing %d messages to topic ...", messageCount)
+
 	ctx := context.Background()
 
 	if ps.topic == nil {
 		err := errors.New("Topic has not been opened, must call Open() before attempting to write")
-		return models.NewWriteResult(int64(0), int64(len(messages)), messages), err
+
+		sent := int64(0)
+		failed := messageCount
+
+		return models.NewTargetWriteResult(
+			sent,
+			failed,
+			messages,
+			nil,
+		), err
 	}
 
 	var results []*PubSubPublishResult
 
-	ps.log.Debugf("Writing %d messages to topic ...", len(messages))
+	safeMessages, oversized := models.FilterOversizedMessages(
+		messages,
+		ps.MaximumAllowedMessageSizeBytes(),
+	)
 
-	for _, msg := range messages {
+	for _, msg := range safeMessages {
 		pubSubMsg := &pubsub.Message{
 			Data: msg.Data,
 		}
@@ -85,8 +107,8 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		})
 	}
 
-	sent := 0
-	failed := 0
+	sent := int64(0)
+	failed := int64(0)
 
 	var errResult error
 
@@ -108,8 +130,13 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		errResult = errors.Wrap(errResult, "Error writing messages to PubSub topic")
 	}
 
-	ps.log.Debugf("Successfully wrote %d/%d messages", sent, len(messages))
-	return models.NewWriteResult(int64(sent), int64(failed), messages), errResult
+	ps.log.Debugf("Successfully wrote %d/%d messages", sent, len(safeMessages))
+	return models.NewTargetWriteResult(
+		sent,
+		failed,
+		safeMessages,
+		oversized,
+	), errResult
 }
 
 // Open opens a pipe to the topic
@@ -123,4 +150,10 @@ func (ps *PubSubTarget) Close() {
 	ps.log.Warnf("Closing target for topic '%s' in project %s", ps.topicName, ps.projectID)
 	ps.topic.Stop()
 	ps.topic = nil
+}
+
+// MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
+// per message for this target
+func (ps *PubSubTarget) MaximumAllowedMessageSizeBytes() int {
+	return pubSubPublishMessageByteLimit
 }

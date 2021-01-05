@@ -27,17 +27,32 @@ func NewStdoutTarget() (*StdoutTarget, error) {
 
 // Write pushes all messages to the required target
 func (st *StdoutTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	st.log.Debugf("Writing %d messages to stdout ...", len(messages))
+	messageCount := int64(len(messages))
+	st.log.Debugf("Writing %d messages to stdout ...", messageCount)
 
-	for _, msg := range messages {
+	safeMessages, oversized := models.FilterOversizedMessages(
+		messages,
+		st.MaximumAllowedMessageSizeBytes(),
+	)
+
+	sent := int64(0)
+	failed := int64(0)
+
+	for _, msg := range safeMessages {
 		fmt.Println(msg.String())
+		sent++
 
 		if msg.AckFunc != nil {
 			msg.AckFunc()
 		}
 	}
 
-	return models.NewWriteResult(int64(len(messages)), int64(0), messages), nil
+	return models.NewTargetWriteResult(
+		sent,
+		failed,
+		safeMessages,
+		oversized,
+	), nil
 }
 
 // Open does not do anything for this target
@@ -45,3 +60,12 @@ func (st *StdoutTarget) Open() {}
 
 // Close does not do anything for this target
 func (st *StdoutTarget) Close() {}
+
+// MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
+// per message for this target
+//
+// Note: Technically no limit but we are putting in a limit of 10 MiB here
+//       to avoid trying to print out huge payloads
+func (st *StdoutTarget) MaximumAllowedMessageSizeBytes() int {
+	return 10485760
+}

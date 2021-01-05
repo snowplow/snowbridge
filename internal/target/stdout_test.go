@@ -41,4 +41,5 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 	// Check results
 	assert.Equal(int64(1), writeRes.Sent)
 	assert.Equal(int64(0), writeRes.Failed)
+	assert.Equal(0, len(writeRes.Oversized))
 }

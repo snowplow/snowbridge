@@ -12,6 +12,8 @@ import (
 	"github.com/pkg/errors"
 	"time"
 
+	"github.com/snowplow-devops/stream-replicator/internal/failure"
+	"github.com/snowplow-devops/stream-replicator/internal/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/internal/observer"
 	"github.com/snowplow-devops/stream-replicator/internal/source"
 	"github.com/snowplow-devops/stream-replicator/internal/source/sourceiface"
@@ -20,6 +22,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/internal/target"
 	"github.com/snowplow-devops/stream-replicator/internal/target/targetiface"
 )
+
+// ---------- [ TARGETS ] ----------
 
 // KinesisTargetConfig configures the destination for records consumed
 type KinesisTargetConfig struct {
@@ -48,6 +52,42 @@ type TargetsConfig struct {
 	PubSub  PubSubTargetConfig
 	SQS     SQSTargetConfig
 }
+
+// ---------- [ FAILURE MESSAGE TARGETS ] ----------
+
+// FailureKinesisTargetConfig configures the destination for records consumed
+type FailureKinesisTargetConfig struct {
+	StreamName string `env:"FAILURE_TARGET_KINESIS_STREAM_NAME"`
+	Region     string `env:"FAILURE_TARGET_KINESIS_REGION"`
+	RoleARN    string `env:"FAILURE_TARGET_KINESIS_ROLE_ARN"`
+}
+
+// FailurePubSubTargetConfig configures the destination for records consumed
+type FailurePubSubTargetConfig struct {
+	ProjectID         string `env:"FAILURE_TARGET_PUBSUB_PROJECT_ID"`
+	TopicName         string `env:"FAILURE_TARGET_PUBSUB_TOPIC_NAME"`
+	ServiceAccountB64 string `env:"FAILURE_TARGET_PUBSUB_SERVICE_ACCOUNT_B64"`
+}
+
+// FailureSQSTargetConfig configures the destination for records consumed
+type FailureSQSTargetConfig struct {
+	QueueName string `env:"FAILURE_TARGET_SQS_QUEUE_NAME"`
+	Region    string `env:"FAILURE_TARGET_SQS_REGION"`
+	RoleARN   string `env:"FAILURE_TARGET_SQS_ROLE_ARN"`
+}
+
+// FailureTargetsConfig holds configuration for the available targets
+type FailureTargetsConfig struct {
+	Kinesis FailureKinesisTargetConfig
+	PubSub  FailurePubSubTargetConfig
+	SQS     FailureSQSTargetConfig
+
+	// Format defines how the message will be transformed before
+	// being sent to the target
+	Format string `env:"FAILURE_TARGETS_FORMAT" envDefault:"snowplow"`
+}
+
+// ---------- [ SOURCES ] ----------
 
 // KinesisSourceConfig configures the source for records pulled
 type KinesisSourceConfig struct {
@@ -82,6 +122,8 @@ type SourcesConfig struct {
 	ConcurrentWrites int `env:"SOURCE_CONCURRENT_WRITES" envDefault:"50"`
 }
 
+// ---------- [ OBSERVABILITY ] ----------
+
 // SentryConfig configures the Sentry error tracker
 type SentryConfig struct {
 	Dsn   string `env:"SENTRY_DSN"`
@@ -113,6 +155,8 @@ type Config struct {
 	Sources        SourcesConfig
 	Target         string `env:"TARGET" envDefault:"stdout"`
 	Targets        TargetsConfig
+	FailureTarget  string `env:"FAILURE_TARGET" envDefault:"stdout"`
+	FailureTargets FailureTargetsConfig
 	LogLevel       string `env:"LOG_LEVEL" envDefault:"info"`
 	Sentry         SentryConfig
 	StatsReceiver  string `env:"STATS_RECEIVER"`
@@ -187,6 +231,47 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		)
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target))
+	}
+}
+
+// GetFailureTarget builds and returns the target that is configured
+func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
+	var t targetiface.Target
+	var err error
+
+	switch c.FailureTarget {
+	case "stdout":
+		t, err = target.NewStdoutTarget()
+	case "kinesis":
+		t, err = target.NewKinesisTarget(
+			c.FailureTargets.Kinesis.Region,
+			c.FailureTargets.Kinesis.StreamName,
+			c.FailureTargets.Kinesis.RoleARN,
+		)
+	case "pubsub":
+		t, err = target.NewPubSubTarget(
+			c.FailureTargets.PubSub.ProjectID,
+			c.FailureTargets.PubSub.TopicName,
+			c.FailureTargets.PubSub.ServiceAccountB64,
+		)
+	case "sqs":
+		t, err = target.NewSQSTarget(
+			c.FailureTargets.SQS.Region,
+			c.FailureTargets.SQS.QueueName,
+			c.FailureTargets.SQS.RoleARN,
+		)
+	default:
+		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.FailureTarget))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	switch c.FailureTargets.Format {
+	case "snowplow":
+		return failure.NewSnowplowFailure(t)
+	default:
+		return nil, errors.New(fmt.Sprintf("Invalid failure format found; expected one of 'snowplow' and got '%s'", c.FailureTargets.Format))
 	}
 }
 

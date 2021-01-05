@@ -18,6 +18,13 @@ import (
 	"github.com/snowplow-devops/stream-replicator/internal/models"
 )
 
+const (
+	// API Documentation: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
+
+	// Each message can only be up to 256 KB in size
+	sqsSendMessageByteLimit = 262144
+)
+
 // SQSTarget holds a new client for writing messages to sqs
 type SQSTarget struct {
 	client    sqsiface.SQSAPI
@@ -46,24 +53,37 @@ func NewSQSTargetWithInterfaces(client sqsiface.SQSAPI, region string, queueName
 
 // Write pushes all messages to the required target
 // TODO: Should each put be in its own goroutine?
-// TODO: How should oversized records be handled?
 func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	st.log.Debugf("Writing %d messages to target queue ...", len(messages))
+	messageCount := int64(len(messages))
+	st.log.Debugf("Writing %d messages to target queue ...", messageCount)
 
 	urlResult, err := st.client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(st.queueName),
 	})
 	if err != nil {
-		return models.NewWriteResult(int64(0), int64(len(messages)), messages), errors.Wrap(err, "Failed to get SQS queue URL")
+		sent := int64(0)
+		failed := messageCount
+
+		return models.NewTargetWriteResult(
+			sent,
+			failed,
+			messages,
+			nil,
+		), errors.Wrap(err, "Failed to get SQS queue URL")
 	}
 	queueURL := urlResult.QueueUrl
 
-	sent := 0
-	failed := 0
+	safeMessages, oversized := models.FilterOversizedMessages(
+		messages,
+		st.MaximumAllowedMessageSizeBytes(),
+	)
+
+	sent := int64(0)
+	failed := int64(0)
 
 	var errResult error
 
-	for _, msg := range messages {
+	for _, msg := range safeMessages {
 		_, err := st.client.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
 			MessageBody:  aws.String(string(msg.Data)),
@@ -85,8 +105,13 @@ func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResul
 		errResult = errors.Wrap(errResult, "Error writing messages to SQS queue")
 	}
 
-	st.log.Debugf("Successfully wrote %d/%d messages", sent, len(messages))
-	return models.NewWriteResult(int64(sent), int64(failed), messages), errResult
+	st.log.Debugf("Successfully wrote %d/%d messages", sent, len(safeMessages))
+	return models.NewTargetWriteResult(
+		sent,
+		failed,
+		safeMessages,
+		oversized,
+	), errResult
 }
 
 // Open does not do anything for this target
@@ -94,3 +119,9 @@ func (st *SQSTarget) Open() {}
 
 // Close does not do anything for this target
 func (st *SQSTarget) Close() {}
+
+// MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
+// per message for this target
+func (st *SQSTarget) MaximumAllowedMessageSizeBytes() int {
+	return sqsSendMessageByteLimit
+}

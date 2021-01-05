@@ -15,4 +15,5 @@ type Target interface {
 	Write(messages []*models.Message) (*models.TargetWriteResult, error)
 	Open()
 	Close()
+	MaximumAllowedMessageSizeBytes() int
 }

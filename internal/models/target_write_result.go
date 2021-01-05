@@ -17,6 +17,10 @@ type TargetWriteResult struct {
 	Sent   int64
 	Failed int64
 
+	// Oversized holds all the messages that were too big to be sent to
+	// the downstream target
+	Oversized []*Message
+
 	// Delta between TimePulled and TimeOfWrite tells us how well the
 	// application is at processing data internally
 	MaxProcLatency time.Duration
@@ -30,26 +34,27 @@ type TargetWriteResult struct {
 	AvgMsgLatency time.Duration
 }
 
-// NewWriteResult uses the current time as the WriteTime and then calls NewWriteResultWithTime
-func NewWriteResult(sent int64, failed int64, messages []*Message) *TargetWriteResult {
-	return NewWriteResultWithTime(sent, failed, time.Now().UTC(), messages)
+// NewTargetWriteResult uses the current time as the WriteTime and then calls NewTargetWriteResultWithTime
+func NewTargetWriteResult(sent int64, failed int64, processed []*Message, oversized []*Message) *TargetWriteResult {
+	return NewTargetWriteResultWithTime(sent, failed, time.Now().UTC(), processed, oversized)
 }
 
-// NewWriteResultWithTime builds a result structure to return from a target write
+// NewTargetWriteResultWithTime builds a result structure to return from a target write
 // attempt which contains the sent and failed message counts as well as several
 // derived latency measures.
-func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, messages []*Message) *TargetWriteResult {
+func NewTargetWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, processed []*Message, oversized []*Message) *TargetWriteResult {
 	r := TargetWriteResult{
-		Sent:   sent,
-		Failed: failed,
+		Sent:      sent,
+		Failed:    failed,
+		Oversized: oversized,
 	}
 
-	messagesLen := int64(len(messages))
+	processedLen := int64(len(processed))
 
 	var sumProcLatency time.Duration
 	var sumMessageLatency time.Duration
 
-	for _, msg := range messages {
+	for _, msg := range processed {
 		procLatency := timeOfWrite.Sub(msg.TimePulled)
 		if r.MaxProcLatency < procLatency {
 			r.MaxProcLatency = procLatency
@@ -69,9 +74,9 @@ func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, mes
 		sumMessageLatency += messageLatency
 	}
 
-	if messagesLen > 0 {
-		r.AvgProcLatency = common.GetAverageFromDuration(sumProcLatency, messagesLen)
-		r.AvgMsgLatency = common.GetAverageFromDuration(sumMessageLatency, messagesLen)
+	if processedLen > 0 {
+		r.AvgProcLatency = common.GetAverageFromDuration(sumProcLatency, processedLen)
+		r.AvgMsgLatency = common.GetAverageFromDuration(sumMessageLatency, processedLen)
 	}
 
 	return &r
@@ -80,4 +85,34 @@ func NewWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, mes
 // Total returns the sum of Sent + Failed messages
 func (wr *TargetWriteResult) Total() int64 {
 	return wr.Sent + wr.Failed
+}
+
+// Append will add another write result to the source one to allow for
+// result concatenation and then return the resultant struct
+func (wr *TargetWriteResult) Append(nwr *TargetWriteResult) *TargetWriteResult {
+	wrC := *wr
+
+	if nwr != nil {
+		wrC.Sent += nwr.Sent
+		wrC.Failed += nwr.Failed
+		wrC.Oversized = append(wrC.Oversized, nwr.Oversized...)
+
+		if wrC.MaxProcLatency < nwr.MaxProcLatency {
+			wrC.MaxProcLatency = nwr.MaxProcLatency
+		}
+		if wrC.MinProcLatency > nwr.MinProcLatency || wrC.MinProcLatency == time.Duration(0) {
+			wrC.MinProcLatency = nwr.MinProcLatency
+		}
+		wrC.AvgProcLatency = common.GetAverageFromDuration(wrC.AvgProcLatency+nwr.AvgProcLatency, 2)
+
+		if wrC.MaxMsgLatency < nwr.MaxMsgLatency {
+			wrC.MaxMsgLatency = nwr.MaxMsgLatency
+		}
+		if wrC.MinMsgLatency > nwr.MinMsgLatency || wrC.MinMsgLatency == time.Duration(0) {
+			wrC.MinMsgLatency = nwr.MinMsgLatency
+		}
+		wrC.AvgMsgLatency = common.GetAverageFromDuration(wrC.AvgMsgLatency+nwr.AvgMsgLatency, 2)
+	}
+
+	return &wrC
 }

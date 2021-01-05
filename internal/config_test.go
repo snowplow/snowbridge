@@ -31,6 +31,10 @@ func TestNewConfig(t *testing.T) {
 	assert.NotNil(target)
 	assert.Nil(err)
 
+	failureTarget, err := c.GetFailureTarget()
+	assert.NotNil(failureTarget)
+	assert.Nil(err)
+
 	observer, err := c.GetObserver()
 	assert.NotNil(observer)
 	assert.Nil(err)
@@ -100,6 +104,40 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 	assert.Nil(source)
 	assert.NotNil(err)
 	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got 'fake'", err.Error())
+}
+
+func TestNewConfig_InvalidFailureTarget(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("FAILURE_TARGET")
+
+	os.Setenv("FAILURE_TARGET", "fake")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	source, err := c.GetFailureTarget()
+	assert.Nil(source)
+	assert.NotNil(err)
+	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs' and got 'fake'", err.Error())
+}
+
+func TestNewConfig_InvalidFailureFormat(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("FAILURE_TARGETS_FORMAT")
+
+	os.Setenv("FAILURE_TARGETS_FORMAT", "fake")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	source, err := c.GetFailureTarget()
+	assert.Nil(source)
+	assert.NotNil(err)
+	assert.Equal("Invalid failure format found; expected one of 'snowplow' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidStatsReceiver(t *testing.T) {
