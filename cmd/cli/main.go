@@ -16,14 +16,18 @@ import (
 	"time"
 
 	"github.com/snowplow-devops/stream-replicator/internal"
+	"github.com/snowplow-devops/stream-replicator/internal/app"
+	"github.com/snowplow-devops/stream-replicator/internal/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/internal/models"
+	"github.com/snowplow-devops/stream-replicator/internal/observer"
 	"github.com/snowplow-devops/stream-replicator/internal/source/sourceiface"
+	"github.com/snowplow-devops/stream-replicator/internal/target/targetiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/retry"
 )
 
 const (
-	appVersion   = "0.2.0"
-	appName      = "stream-replicator"
+	appVersion   = app.Version
+	appName      = app.Name
 	appUsage     = "Replicates data streams to supported targets"
 	appCopyright = "(c) 2020 Snowplow Analytics, LTD"
 )
@@ -55,17 +59,23 @@ func main() {
 			return err
 		}
 
-		target, err := cfg.GetTarget()
+		t, err := cfg.GetTarget()
 		if err != nil {
 			return err
 		}
-		target.Open()
+		t.Open()
 
-		observer, err := cfg.GetObserver()
+		ft, err := cfg.GetFailureTarget()
 		if err != nil {
 			return err
 		}
-		observer.Start()
+		ft.Open()
+
+		o, err := cfg.GetObserver()
+		if err != nil {
+			return err
+		}
+		o.Start()
 
 		// Handle SIGTERM
 		sig := make(chan os.Signal)
@@ -86,25 +96,17 @@ func main() {
 			case <-time.After(5 * time.Second):
 				log.Error("source.Stop() took more than 5 seconds, forcing shutdown ...")
 
-				target.Close()
-				observer.Stop()
+				t.Close()
+				ft.Close()
+				o.Stop()
 
 				os.Exit(1)
 			}
 		}()
 
-		// Extend target.Write() to push metrics to the observer
-		writeFunc := func(messages []*models.Message) error {
-			return retry.Retry(5, time.Second, "target.Write", func() error {
-				res, err := target.Write(messages)
-				observer.TargetWrite(res)
-				return err
-			})
-		}
-
 		// Callback functions for the source to leverage when writing data
 		sf := sourceiface.SourceFunctions{
-			WriteToTarget: writeFunc,
+			WriteToTarget: sourceWriteFunc(t, ft, o),
 		}
 
 		// Read is a long running process and will only return when the source
@@ -114,8 +116,9 @@ func main() {
 			return err
 		}
 
-		target.Close()
-		observer.Stop()
+		t.Close()
+		ft.Close()
+		o.Stop()
 		return nil
 	}
 
@@ -125,6 +128,45 @@ func main() {
 	}
 }
 
+// sourceWriteFunc builds the function which wraps the different objects together to handle:
+//
+// 1. Sending messages to the target
+// 2. Observing results
+// 3. Sending oversized messages to the failure target
+// 4. Observing these results
+//
+// All with retry logic baked in to remove any of this handling from the implementations
+func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, o *observer.Observer) func(messages []*models.Message) error {
+	return func(messages []*models.Message) error {
+		res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {
+			res, err := t.Write(messages)
+			o.TargetWrite(res)
+			return res, err
+		})
+		if err != nil {
+			return err
+		}
+		resCast := res.(*models.TargetWriteResult)
+
+		return retry.Exponential(5, time.Second, "failureTarget.Write", func() error {
+			if len(resCast.Oversized) > 0 {
+				res, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), resCast.Oversized)
+
+				// NOTE: This should never happen but we check for it anyway to avoid
+				//       unack'able messages ever occurring
+				if len(res.Oversized) != 0 {
+					log.Fatal("Oversized message transformation resulted in new oversized messages")
+				}
+
+				o.TargetWriteOversized(res)
+				return err
+			}
+			return nil
+		})
+	}
+}
+
+// exitWithError will ensure we log the error and leave time for Sentry to flush
 func exitWithError(err error, flushSentry bool) {
 	log.WithFields(log.Fields{"error": err}).Error(err)
 	if flushSentry {
