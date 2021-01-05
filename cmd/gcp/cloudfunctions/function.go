@@ -8,12 +8,9 @@ package cloudfunctions
 
 import (
 	"context"
-	"github.com/getsentry/sentry-go"
-	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
-	"time"
 
-	"github.com/snowplow-devops/stream-replicator/internal"
+	"github.com/snowplow-devops/stream-replicator/cmd"
 	"github.com/snowplow-devops/stream-replicator/internal/models"
 )
 
@@ -24,20 +21,6 @@ type PubSubMessage struct {
 
 // HandleRequest consumes a Pub/Sub message
 func HandleRequest(ctx context.Context, m PubSubMessage) error {
-	cfg, sentryEnabled, err := internal.Init()
-	if err != nil {
-		return err
-	}
-	if sentryEnabled {
-		defer sentry.Flush(2 * time.Second)
-	}
-
-	t, err := cfg.GetTarget()
-	if err != nil {
-		return err
-	}
-	t.Open()
-
 	messages := []*models.Message{
 		{
 			Data:         m.Data,
@@ -45,11 +28,5 @@ func HandleRequest(ctx context.Context, m PubSubMessage) error {
 		},
 	}
 
-	_, err = t.Write(messages)
-	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Error(err)
-	}
-
-	t.Close()
-	return err
+	return cmd.ServerlessRequestHandler(messages)
 }
