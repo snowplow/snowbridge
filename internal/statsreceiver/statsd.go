@@ -51,6 +51,12 @@ func (s *StatsDStatsReceiver) Send(b *models.ObserverBuffer) {
 	s.client.Incr("message_sent", b.MsgSent)
 	s.client.Incr("message_failed", b.MsgFailed)
 	s.client.Incr("message_total", b.MsgTotal)
+
+	s.client.Gauge("oversized_target_results", b.OversizedTargetResults)
+	s.client.Incr("oversized_message_sent", b.OversizedMsgSent)
+	s.client.Incr("oversized_message_failed", b.OversizedMsgFailed)
+	s.client.Incr("oversized_message_total", b.OversizedMsgTotal)
+
 	s.client.PrecisionTiming("latency_proccesing_max", b.MaxProcLatency)
 	s.client.PrecisionTiming("latency_message_max", b.MaxMsgLatency)
 }

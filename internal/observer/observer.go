@@ -17,13 +17,14 @@ import (
 // Observer holds the channels and settings for aggregating telemetry from processed messages
 // and emitting them to downstream destinations
 type Observer struct {
-	statsClient     statsreceiveriface.StatsReceiver
-	exitSignal      chan struct{}
-	stopDone        chan struct{}
-	targetWriteChan chan *models.TargetWriteResult
-	timeout         time.Duration
-	reportInterval  time.Duration
-	isRunning       bool
+	statsClient              statsreceiveriface.StatsReceiver
+	exitSignal               chan struct{}
+	stopDone                 chan struct{}
+	targetWriteChan          chan *models.TargetWriteResult
+	targetWriteOversizedChan chan *models.TargetWriteResult
+	timeout                  time.Duration
+	reportInterval           time.Duration
+	isRunning                bool
 
 	log *log.Entry
 }
@@ -32,14 +33,15 @@ type Observer struct {
 // about target writes
 func New(statsClient statsreceiveriface.StatsReceiver, timeout time.Duration, reportInterval time.Duration) *Observer {
 	return &Observer{
-		statsClient:     statsClient,
-		exitSignal:      make(chan struct{}),
-		stopDone:        make(chan struct{}),
-		targetWriteChan: make(chan *models.TargetWriteResult, 1000),
-		timeout:         timeout,
-		reportInterval:  reportInterval,
-		log:             log.WithFields(log.Fields{"name": "Observer"}),
-		isRunning:       false,
+		statsClient:              statsClient,
+		exitSignal:               make(chan struct{}),
+		stopDone:                 make(chan struct{}),
+		targetWriteChan:          make(chan *models.TargetWriteResult, 1000),
+		targetWriteOversizedChan: make(chan *models.TargetWriteResult, 1000),
+		timeout:                  timeout,
+		reportInterval:           reportInterval,
+		log:                      log.WithFields(log.Fields{"name": "Observer"}),
+		isRunning:                false,
 	}
 }
 
@@ -70,7 +72,9 @@ func (o *Observer) Start() {
 				o.isRunning = false
 				break ObserverLoop
 			case res := <-o.targetWriteChan:
-				buffer.Append(res)
+				buffer.Append(res, false)
+			case res := <-o.targetWriteOversizedChan:
+				buffer.Append(res, true)
 			case <-time.After(o.timeout):
 				o.log.Debugf("Observer timed out after (%v) waiting for result", o.timeout)
 			}
@@ -103,4 +107,10 @@ func (o *Observer) Stop() {
 // by the observer
 func (o *Observer) TargetWrite(r *models.TargetWriteResult) {
 	o.targetWriteChan <- r
+}
+
+// TargetWriteOversized pushes a failure targets write result onto a channel for processing
+// by the observer
+func (o *Observer) TargetWriteOversized(r *models.TargetWriteResult) {
+	o.targetWriteOversizedChan <- r
 }

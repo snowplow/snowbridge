@@ -71,7 +71,7 @@ func TestObserver_TestStatsReceiver(t *testing.T) {
 			TimePulled:   timeNow.Add(time.Duration(-10) * time.Minute),
 		},
 	}
-	r := models.NewWriteResultWithTime(2, 1, timeNow, messages)
+	r := models.NewTargetWriteResultWithTime(2, 1, timeNow, messages, nil)
 	for i := 0; i < 5; i++ {
 		observer.TargetWrite(r)
 	}

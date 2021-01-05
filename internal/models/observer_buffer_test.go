@@ -41,11 +41,11 @@ func TestObserverBuffer(t *testing.T) {
 		},
 	}
 
-	r := NewWriteResultWithTime(2, 1, timeNow, messages)
+	r := NewTargetWriteResultWithTime(2, 1, timeNow, messages, nil)
 
-	b.Append(r)
-	b.Append(r)
-	b.Append(nil)
+	b.Append(r, false)
+	b.Append(r, false)
+	b.Append(nil, false)
 
 	assert.Equal(int64(2), b.TargetResults)
 	assert.Equal(int64(4), b.MsgSent)
@@ -57,5 +57,5 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(70)*time.Minute, b.MaxMsgLatency)
 	assert.Equal(time.Duration(30)*time.Minute, b.MinMsgLatency)
 	assert.Equal(time.Duration(50)*time.Minute, b.GetAvgMsgLatency())
-	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,MsgTotal:6,MaxProcLatency:10m0s,MinProcLatency:4m0s,AvgProcLatency:7m0s,MaxMsgLatency:1h10m0s,MinMsgLatency:30m0s,AvgMsgLatency:50m0s", b.String())
+	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,MaxProcLatency:10m0s,MaxMsgLatency:1h10m0s", b.String())
 }
