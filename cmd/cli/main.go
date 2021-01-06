@@ -9,25 +9,24 @@ package main
 import (
 	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
+	retry "github.com/snowplow-devops/go-retry"
 	"github.com/urfave/cli"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/internal"
-	"github.com/snowplow-devops/stream-replicator/internal/app"
-	"github.com/snowplow-devops/stream-replicator/internal/failure/failureiface"
-	"github.com/snowplow-devops/stream-replicator/internal/models"
-	"github.com/snowplow-devops/stream-replicator/internal/observer"
-	"github.com/snowplow-devops/stream-replicator/internal/source/sourceiface"
-	"github.com/snowplow-devops/stream-replicator/internal/target/targetiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/retry"
+	"github.com/snowplow-devops/stream-replicator/cmd"
+	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/observer"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
 )
 
 const (
-	appVersion   = app.Version
-	appName      = app.Name
+	appVersion   = cmd.AppVersion
+	appName      = cmd.AppName
 	appUsage     = "Replicates data streams to supported targets"
 	appCopyright = "(c) 2020 Snowplow Analytics, LTD"
 )
@@ -35,7 +34,7 @@ const (
 func main() {
 	// Init must be run at the top of the stack so that its context is available
 	// after app.Action() returns
-	cfg, sentryEnabled, err := internal.Init()
+	cfg, sentryEnabled, err := cmd.Init()
 	if err != nil {
 		exitWithError(err, sentryEnabled)
 	}

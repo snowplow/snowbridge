@@ -11,7 +11,7 @@ import (
 	"github.com/twinj/uuid"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"
-	"github.com/snowplow-devops/stream-replicator/internal/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
 // PubSubMessage is the payload of a Pub/Sub message

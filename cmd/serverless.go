@@ -11,14 +11,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/internal"
-	"github.com/snowplow-devops/stream-replicator/internal/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
 // ServerlessRequestHandler is a common function for all
 // serverless implementations to leverage
 func ServerlessRequestHandler(messages []*models.Message) error {
-	cfg, sentryEnabled, err := internal.Init()
+	cfg, sentryEnabled, err := Init()
 	if err != nil {
 		return err
 	}

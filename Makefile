@@ -54,24 +54,23 @@ gcp-cloudfunctions: gox
 
 	# Copy local packages into staging area
 	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/
+	cp ./cmd/config.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/config.go
+	cp ./cmd/constants.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/constants.go
+	cp ./cmd/init.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/init.go
 	cp ./cmd/serverless.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/serverless.go
+
 	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/
-	cp -R ./internal/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/internal/
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/
-	cp -R ./pkg/retry/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/retry/
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/snowplow/
-	cp -R ./pkg/snowplow/badrows/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/snowplow/badrows
-	cp -R ./pkg/snowplow/iglu/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/snowplow/iglu
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/
-	cp -R ./third_party/sentryhook/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/sentryhook/
+	cp -R ./pkg/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/
+
+	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/
+	cp -R ./third_party/snowplow/badrows/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows
+	cp -R ./third_party/snowplow/iglu/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu
 
 	echo "# github.com/snowplow-devops/stream-replicator v$(version)" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 	echo "github.com/snowplow-devops/stream-replicator/cmd" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/internal" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/pkg/retry" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/pkg/snowplow/badrows" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/pkg/snowplow/iglu" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/third_party/sentryhook" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/pkg" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 
 	# Create ZIP file for upload to CloudFunctions
 	(cd $(staging_dir)/gcp/cloudfunctions/ && zip -r staging.zip .)

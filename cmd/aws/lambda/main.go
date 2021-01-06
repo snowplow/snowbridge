@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"
-	"github.com/snowplow-devops/stream-replicator/internal/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
 func main() {
