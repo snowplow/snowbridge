@@ -1,4 +1,4 @@
-.PHONY: all gox aws-lambda gcp-cloudfunctions cli cli-linux cli-darwin cli-windows format lint tidy test-setup test integration-reset integration-up integration-down integration-test clean
+.PHONY: all gox aws-lambda gcp-cloudfunctions cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test integration-reset integration-up integration-down integration-test container-release clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -24,11 +24,13 @@ linux_out_dir   = $(output_dir)/linux
 darwin_out_dir  = $(output_dir)/darwin
 windows_out_dir = $(output_dir)/windows
 
+container_name = snowplow/stream-replicator
+
 # -----------------------------------------------------------------------------
 #  BUILDING
 # -----------------------------------------------------------------------------
 
-all: aws-lambda gcp-cloudfunctions cli
+all: aws-lambda gcp-cloudfunctions cli container
 
 gox:
 	GO111MODULE=on go get -u github.com/mitchellh/gox
@@ -93,6 +95,9 @@ cli-darwin: gox
 cli-windows: gox
 	GO111MODULE=on CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/cli/stream-replicator ./cmd/cli/
 
+container: cli-linux
+	docker build -t $(container_name):$(version) .
+
 # -----------------------------------------------------------------------------
 #  FORMATTING
 # -----------------------------------------------------------------------------
@@ -135,6 +140,16 @@ integration-up:
 integration-down:
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml down)
 	rm -rf $(integration_dir)/.localstack
+
+# -----------------------------------------------------------------------------
+#  RELEASE
+# -----------------------------------------------------------------------------
+
+container-release:
+	@-docker login --username $(DOCKER_USERNAME) --password $(DOCKER_PASSWORD)
+	docker push $(container_name):$(version)
+	docker tag ${container_name}:${version} ${container_name}:latest
+	docker push $(container_name):latest
 
 # -----------------------------------------------------------------------------
 #  CLEANUP
