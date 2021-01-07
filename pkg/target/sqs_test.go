@@ -1,5 +1,3 @@
-// +build integration
-
 // PROPRIETARY AND CONFIDENTIAL
 //
 // Unauthorized copying of this file via any medium is strictly prohibited.
@@ -17,6 +15,10 @@ import (
 )
 
 func TestSQSTarget_WriteFailure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
@@ -31,6 +33,10 @@ func TestSQSTarget_WriteFailure(t *testing.T) {
 }
 
 func TestSQSTarget_WriteSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
@@ -40,8 +46,8 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	queueUrl := queueRes.QueueUrl
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueUrl)
+	queueURL := queueRes.QueueUrl
+	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 
 	target, err := NewSQSTargetWithInterfaces(client, testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
@@ -65,11 +71,15 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 	assert.Equal(int64(100), ackOps)
 
 	// Check results
-	assert.Equal(int64(100), writeRes.Sent)
-	assert.Equal(int64(0), writeRes.Failed)
+	assert.Equal(int64(100), writeRes.SentCount)
+	assert.Equal(int64(0), writeRes.FailedCount)
 }
 
 func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
@@ -79,8 +89,8 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	queueUrl := queueRes.QueueUrl
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueUrl)
+	queueURL := queueRes.QueueUrl
+	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 
 	target, err := NewSQSTargetWithInterfaces(client, testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
@@ -105,7 +115,7 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 	assert.Equal(int64(100), ackOps)
 
 	// Check results
-	assert.Equal(int64(100), writeRes.Sent)
-	assert.Equal(int64(0), writeRes.Failed)
+	assert.Equal(int64(100), writeRes.SentCount)
+	assert.Equal(int64(0), writeRes.FailedCount)
 	assert.Equal(1, len(writeRes.Oversized))
 }

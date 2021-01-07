@@ -1,5 +1,3 @@
-// +build integration
-
 // PROPRIETARY AND CONFIDENTIAL
 //
 // Unauthorized copying of this file via any medium is strictly prohibited.
@@ -19,6 +17,10 @@ import (
 )
 
 func TestSQSSource_ReadFailure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
@@ -32,13 +34,17 @@ func TestSQSSource_ReadFailure(t *testing.T) {
 }
 
 func TestSQSSource_ReadSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
 	queueName := "sqs-queue-source"
-	queueUrl := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueUrl)
+	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
+	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 
 	source, err := NewSQSSourceWithInterfaces(client, 10, testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)

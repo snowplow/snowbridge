@@ -8,6 +8,7 @@ package target
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/hashicorp/go-multierror"
@@ -54,20 +55,18 @@ func NewSQSTargetWithInterfaces(client sqsiface.SQSAPI, region string, queueName
 // Write pushes all messages to the required target
 // TODO: Should each put be in its own goroutine?
 func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	messageCount := int64(len(messages))
-	st.log.Debugf("Writing %d messages to target queue ...", messageCount)
+	st.log.Debugf("Writing %d messages to target queue ...", len(messages))
 
 	urlResult, err := st.client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(st.queueName),
 	})
 	if err != nil {
-		sent := int64(0)
-		failed := messageCount
+		failed := messages
 
 		return models.NewTargetWriteResult(
-			sent,
+			nil,
 			failed,
-			messages,
+			nil,
 			nil,
 		), errors.Wrap(err, "Failed to get SQS queue URL")
 	}
@@ -78,9 +77,9 @@ func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResul
 		st.MaximumAllowedMessageSizeBytes(),
 	)
 
-	sent := int64(0)
-	failed := int64(0)
-
+	var sent []*models.Message
+	var failed []*models.Message
+	var invalid []*models.Message
 	var errResult error
 
 	for _, msg := range safeMessages {
@@ -91,13 +90,26 @@ func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResul
 		})
 
 		if err != nil {
+			if awsErr, ok := err.(awserr.Error); ok {
+				if awsErr.Code() == sqs.ErrCodeInvalidMessageContents {
+					st.log.Warnf("%s: %s", awsErr.Code(), awsErr.Message())
+
+					// Append error to message
+					msg.SetError(err)
+					invalid = append(invalid, msg)
+					continue
+				}
+			}
+
 			errResult = multierror.Append(errResult, err)
-			failed++
+
+			failed = append(failed, msg)
 		} else {
-			sent++
 			if msg.AckFunc != nil {
 				msg.AckFunc()
 			}
+
+			sent = append(sent, msg)
 		}
 	}
 
@@ -105,12 +117,12 @@ func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResul
 		errResult = errors.Wrap(errResult, "Error writing messages to SQS queue")
 	}
 
-	st.log.Debugf("Successfully wrote %d/%d messages", sent, len(safeMessages))
+	st.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(safeMessages))
 	return models.NewTargetWriteResult(
 		sent,
 		failed,
-		safeMessages,
 		oversized,
+		invalid,
 	), errResult
 }
 

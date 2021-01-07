@@ -25,6 +25,20 @@ type Message struct {
 	// AckFunc must be called on a successful message emission to ensure
 	// any cleanup process for the source is actioned
 	AckFunc func()
+
+	// If the message is invalid it can be decorated with an error
+	// message for logging and reporting
+	err error
+}
+
+// SetError sets the value of the message error in case of invalidation
+func (m *Message) SetError(err error) {
+	m.err = err
+}
+
+// GetError returns the error that has been set
+func (m *Message) GetError() error {
+	return m.err
 }
 
 func (m *Message) String() string {
