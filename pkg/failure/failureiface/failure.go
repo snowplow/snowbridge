@@ -14,8 +14,10 @@ import (
 // cannot be sent to its desired target and therefore should no longer be retried.
 //
 // This can be for:
-// 1. Oversized records
+// 1. Invalid messages
+// 2. Oversized messages
 type Failure interface {
+	WriteInvalid(messages []*models.Message) (*models.TargetWriteResult, error)
 	WriteOversized(maximumAllowedSizeBytes int, messages []*models.Message) (*models.TargetWriteResult, error)
 	Open()
 	Close()

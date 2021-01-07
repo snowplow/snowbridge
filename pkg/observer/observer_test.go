@@ -26,7 +26,11 @@ func (s *TestStatsReceiver) Send(b *models.ObserverBuffer) {
 
 // --- Tests
 
-func TestObserver_TestStatsReceiver(t *testing.T) {
+func TestObserverTargetWrite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	counter := 0
@@ -51,7 +55,7 @@ func TestObserver_TestStatsReceiver(t *testing.T) {
 
 	// Push some results
 	timeNow := time.Now().UTC()
-	messages := []*models.Message{
+	sent := []*models.Message{
 		{
 			Data:         []byte("Baz"),
 			PartitionKey: "partition1",
@@ -64,6 +68,8 @@ func TestObserver_TestStatsReceiver(t *testing.T) {
 			TimeCreated:  timeNow.Add(time.Duration(-70) * time.Minute),
 			TimePulled:   timeNow.Add(time.Duration(-7) * time.Minute),
 		},
+	}
+	failed := []*models.Message{
 		{
 			Data:         []byte("Foo"),
 			PartitionKey: "partition3",
@@ -71,7 +77,7 @@ func TestObserver_TestStatsReceiver(t *testing.T) {
 			TimePulled:   timeNow.Add(time.Duration(-10) * time.Minute),
 		},
 	}
-	r := models.NewTargetWriteResultWithTime(2, 1, timeNow, messages, nil)
+	r := models.NewTargetWriteResultWithTime(sent, failed, nil, nil, timeNow)
 	for i := 0; i < 5; i++ {
 		observer.TargetWrite(r)
 	}

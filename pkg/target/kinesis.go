@@ -86,7 +86,7 @@ func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteR
 		errResult = errors.Wrap(errResult, "Error writing messages to Kinesis stream")
 	}
 
-	kt.log.Debugf("Successfully wrote %d/%d messages", writeResult.Sent, writeResult.Total())
+	kt.log.Debugf("Successfully wrote %d/%d messages", writeResult.SentCount, writeResult.Total())
 	return writeResult, errResult
 }
 
@@ -108,26 +108,24 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 		StreamName: aws.String(kt.streamName),
 	})
 	if err != nil {
-		sent := int64(0)
-		failed := messageCount
+		failed := messages
 
 		return models.NewTargetWriteResult(
-			sent,
+			nil,
 			failed,
-			messages,
+			nil,
 			nil,
 		), errors.Wrap(err, "Failed to send message batch to Kinesis stream")
 	}
 
 	// TODO: Can we ack successful messages when some fail in the batch? This will cause duplicate processing on failure.
 	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
-		sent := messageCount - *res.FailedRecordCount
-		failed := *res.FailedRecordCount
+		failed := messages
 
 		return models.NewTargetWriteResult(
-			sent,
+			nil,
 			failed,
-			messages,
+			nil,
 			nil,
 		), errors.New("Failed to write all messages in batch to Kinesis stream")
 	}
@@ -138,14 +136,13 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 		}
 	}
 
-	sent := messageCount
-	failed := int64(0)
+	sent := messages
 
 	kt.log.Debugf("Successfully wrote %d messages", len(entries))
 	return models.NewTargetWriteResult(
 		sent,
-		failed,
-		messages,
+		nil,
+		nil,
 		nil,
 	), nil
 }

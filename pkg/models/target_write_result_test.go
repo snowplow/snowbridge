@@ -15,11 +15,11 @@ import (
 func TestNewTargetWriteResult_EmptyWithoutTime(t *testing.T) {
 	assert := assert.New(t)
 
-	r := NewTargetWriteResult(0, 0, nil, nil)
+	r := NewTargetWriteResult(nil, nil, nil, nil)
 	assert.NotNil(r)
 
-	assert.Equal(int64(0), r.Sent)
-	assert.Equal(int64(0), r.Failed)
+	assert.Equal(int64(0), r.SentCount)
+	assert.Equal(int64(0), r.FailedCount)
 	assert.Equal(int64(0), r.Total())
 
 	assert.Equal(time.Duration(0), r.MaxProcLatency)
@@ -34,11 +34,11 @@ func TestNewTargetWriteResult_EmptyWithoutTime(t *testing.T) {
 func TestNewTargetWriteResult_EmptyWithTime(t *testing.T) {
 	assert := assert.New(t)
 
-	r := NewTargetWriteResultWithTime(0, 0, time.Now().UTC(), nil, nil)
+	r := NewTargetWriteResultWithTime(nil, nil, nil, nil, time.Now().UTC())
 	assert.NotNil(r)
 
-	assert.Equal(int64(0), r.Sent)
-	assert.Equal(int64(0), r.Failed)
+	assert.Equal(int64(0), r.SentCount)
+	assert.Equal(int64(0), r.FailedCount)
 	assert.Equal(int64(0), r.Total())
 
 	assert.Equal(time.Duration(0), r.MaxProcLatency)
@@ -55,7 +55,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 
 	timeNow := time.Now().UTC()
 
-	messages := []*Message{
+	sent := []*Message{
 		{
 			Data:         []byte("Baz"),
 			PartitionKey: "partition1",
@@ -68,6 +68,8 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 			TimeCreated:  timeNow.Add(time.Duration(-70) * time.Minute),
 			TimePulled:   timeNow.Add(time.Duration(-7) * time.Minute),
 		},
+	}
+	failed := []*Message{
 		{
 			Data:         []byte("Foo"),
 			PartitionKey: "partition3",
@@ -76,11 +78,11 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 		},
 	}
 
-	r := NewTargetWriteResultWithTime(2, 1, timeNow, messages, nil)
+	r := NewTargetWriteResultWithTime(sent, failed, nil, nil, timeNow)
 	assert.NotNil(r)
 
-	assert.Equal(int64(2), r.Sent)
-	assert.Equal(int64(1), r.Failed)
+	assert.Equal(int64(2), r.SentCount)
+	assert.Equal(int64(1), r.FailedCount)
 	assert.Equal(int64(3), r.Total())
 	assert.Equal(time.Duration(10)*time.Minute, r.MaxProcLatency)
 	assert.Equal(time.Duration(4)*time.Minute, r.MinProcLatency)
@@ -89,13 +91,15 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	assert.Equal(time.Duration(30)*time.Minute, r.MinMsgLatency)
 	assert.Equal(time.Duration(50)*time.Minute, r.AvgMsgLatency)
 
-	messages1 := []*Message{
+	sent1 := []*Message{
 		{
 			Data:         []byte("Baz"),
 			PartitionKey: "partition1",
 			TimeCreated:  timeNow.Add(time.Duration(-55) * time.Minute),
 			TimePulled:   timeNow.Add(time.Duration(-2) * time.Minute),
 		},
+	}
+	failed1 := []*Message{
 		{
 			Data:         []byte("Bar"),
 			PartitionKey: "partition2",
@@ -110,7 +114,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 		},
 	}
 
-	r1 := NewTargetWriteResultWithTime(1, 2, timeNow, messages1, nil)
+	r1 := NewTargetWriteResultWithTime(sent1, failed1, nil, nil, timeNow)
 	assert.NotNil(r)
 
 	// Append a result
@@ -119,13 +123,13 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	r3 := r2.Append(nil)
 
 	// Check that the result has not been mutated
-	assert.Equal(int64(2), r.Sent)
-	assert.Equal(int64(1), r.Failed)
+	assert.Equal(int64(2), r.SentCount)
+	assert.Equal(int64(1), r.FailedCount)
 	assert.Equal(int64(3), r.Total())
 
 	// Check appended result
-	assert.Equal(int64(3), r3.Sent)
-	assert.Equal(int64(3), r3.Failed)
+	assert.Equal(int64(3), r3.SentCount)
+	assert.Equal(int64(3), r3.FailedCount)
 	assert.Equal(int64(6), r3.Total())
 	assert.Equal(time.Duration(15)*time.Minute, r3.MaxProcLatency)
 	assert.Equal(time.Duration(2)*time.Minute, r3.MinProcLatency)

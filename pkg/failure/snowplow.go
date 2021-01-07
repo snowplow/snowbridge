@@ -36,6 +36,40 @@ func NewSnowplowFailure(target targetiface.Target, processorArtifact string, pro
 	}, nil
 }
 
+// WriteInvalid will handle the conversion of invalid messages into failure
+// messages that will then pushed to the specified target
+func (d *SnowplowFailure) WriteInvalid(invalid []*models.Message) (*models.TargetWriteResult, error) {
+	var transformed []*models.Message
+
+	for _, msg := range invalid {
+		sv, err := badrows.NewGenericError(
+			&badrows.GenericErrorInput{
+				ProcessorArtifact: d.processorArtifact,
+				ProcessorVersion:  d.processorVersion,
+				Payload:           msg.Data,
+				FailureTimestamp:  msg.TimePulled,
+				FailureErrors:     nil,
+			},
+			d.target.MaximumAllowedMessageSizeBytes(),
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to transform invalid message to snowplow.generic_error bad-row JSON")
+		}
+
+		svCompact, err := sv.Compact()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get compacted snowplow.generic_error bad-row JSON")
+		}
+
+		tMsg := msg
+		tMsg.Data = []byte(svCompact)
+
+		transformed = append(transformed, tMsg)
+	}
+
+	return d.target.Write(transformed)
+}
+
 // WriteOversized will handle the conversion of oversized messages into failure
 // messages that will then pushed to the specified target
 func (d *SnowplowFailure) WriteOversized(maximumAllowedSizeBytes int, oversized []*models.Message) (*models.TargetWriteResult, error) {

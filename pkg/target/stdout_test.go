@@ -39,7 +39,7 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 	assert.Equal(int64(1), ackOps)
 
 	// Check results
-	assert.Equal(int64(1), writeRes.Sent)
-	assert.Equal(int64(0), writeRes.Failed)
+	assert.Equal(int64(1), writeRes.SentCount)
+	assert.Equal(int64(0), writeRes.FailedCount)
 	assert.Equal(0, len(writeRes.Oversized))
 }

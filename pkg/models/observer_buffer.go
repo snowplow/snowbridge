@@ -25,6 +25,11 @@ type ObserverBuffer struct {
 	OversizedMsgFailed     int64
 	OversizedMsgTotal      int64
 
+	InvalidTargetResults int64
+	InvalidMsgSent       int64
+	InvalidMsgFailed     int64
+	InvalidMsgTotal      int64
+
 	MaxProcLatency time.Duration
 	MinProcLatency time.Duration
 	SumProcLatency time.Duration
@@ -33,26 +38,49 @@ type ObserverBuffer struct {
 	SumMsgLatency  time.Duration
 }
 
-// Append adds a TargetWriteResult onto the buffer and stores the result
-func (b *ObserverBuffer) Append(res *TargetWriteResult, oversized bool) {
+// AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
+func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	if res == nil {
 		return
 	}
 
-	if !oversized {
-		b.TargetResults++
+	b.TargetResults++
+	b.MsgSent += res.SentCount
+	b.MsgFailed += res.FailedCount
+	b.MsgTotal += res.Total()
 
-		b.MsgSent += res.Sent
-		b.MsgFailed += res.Failed
-		b.MsgTotal += res.Total()
-	} else {
-		b.OversizedTargetResults++
+	b.append(res)
+}
 
-		b.OversizedMsgSent += res.Sent
-		b.OversizedMsgFailed += res.Failed
-		b.OversizedMsgTotal += res.Total()
+// AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
+func (b *ObserverBuffer) AppendWriteOversized(res *TargetWriteResult) {
+	if res == nil {
+		return
 	}
 
+	b.OversizedTargetResults++
+	b.OversizedMsgSent += res.SentCount
+	b.OversizedMsgFailed += res.FailedCount
+	b.OversizedMsgTotal += res.Total()
+
+	b.append(res)
+}
+
+// AppendWriteInvalid adds an invalid TargetWriteResult onto the buffer and stores the result
+func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
+	if res == nil {
+		return
+	}
+
+	b.InvalidTargetResults++
+	b.InvalidMsgSent += res.SentCount
+	b.InvalidMsgFailed += res.FailedCount
+	b.InvalidMsgTotal += res.Total()
+
+	b.append(res)
+}
+
+func (b *ObserverBuffer) append(res *TargetWriteResult) {
 	if b.MaxProcLatency < res.MaxProcLatency {
 		b.MaxProcLatency = res.MaxProcLatency
 	}
@@ -87,13 +115,16 @@ func (b *ObserverBuffer) GetAvgMsgLatency() time.Duration {
 
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,MaxProcLatency:%s,MaxMsgLatency:%s",
+		"TargetResults:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%s,MaxMsgLatency:%s",
 		b.TargetResults,
 		b.MsgSent,
 		b.MsgFailed,
 		b.OversizedTargetResults,
 		b.OversizedMsgSent,
 		b.OversizedMsgFailed,
+		b.InvalidTargetResults,
+		b.InvalidMsgSent,
+		b.InvalidMsgFailed,
 		b.MaxProcLatency,
 		b.MaxMsgLatency,
 	)

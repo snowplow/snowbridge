@@ -20,7 +20,7 @@ func TestObserverBuffer(t *testing.T) {
 
 	timeNow := time.Now().UTC()
 
-	messages := []*Message{
+	sent := []*Message{
 		{
 			Data:         []byte("Baz"),
 			PartitionKey: "partition1",
@@ -33,6 +33,8 @@ func TestObserverBuffer(t *testing.T) {
 			TimeCreated:  timeNow.Add(time.Duration(-70) * time.Minute),
 			TimePulled:   timeNow.Add(time.Duration(-7) * time.Minute),
 		},
+	}
+	failed := []*Message{
 		{
 			Data:         []byte("Foo"),
 			PartitionKey: "partition3",
@@ -41,11 +43,11 @@ func TestObserverBuffer(t *testing.T) {
 		},
 	}
 
-	r := NewTargetWriteResultWithTime(2, 1, timeNow, messages, nil)
+	r := NewTargetWriteResultWithTime(sent, failed, nil, nil, timeNow)
 
-	b.Append(r, false)
-	b.Append(r, false)
-	b.Append(nil, false)
+	b.AppendWrite(r)
+	b.AppendWrite(r)
+	b.AppendWrite(nil)
 
 	assert.Equal(int64(2), b.TargetResults)
 	assert.Equal(int64(4), b.MsgSent)
@@ -57,5 +59,5 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(70)*time.Minute, b.MaxMsgLatency)
 	assert.Equal(time.Duration(30)*time.Minute, b.MinMsgLatency)
 	assert.Equal(time.Duration(50)*time.Minute, b.GetAvgMsgLatency())
-	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,MaxProcLatency:10m0s,MaxMsgLatency:1h10m0s", b.String())
+	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MaxProcLatency:10m0s,MaxMsgLatency:1h10m0s", b.String())
 }

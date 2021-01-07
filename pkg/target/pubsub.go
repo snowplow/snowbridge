@@ -39,7 +39,7 @@ type PubSubTarget struct {
 // on success to ack the send
 type PubSubPublishResult struct {
 	Result  *pubsub.PublishResult
-	AckFunc func()
+	Message *models.Message
 }
 
 // NewPubSubTarget creates a new client for writing messages to Google PubSub
@@ -69,21 +69,18 @@ func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 strin
 
 // Write pushes all messages to the required target
 func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	messageCount := int64(len(messages))
-	ps.log.Debugf("Writing %d messages to topic ...", messageCount)
+	ps.log.Debugf("Writing %d messages to topic ...", len(messages))
 
 	ctx := context.Background()
 
 	if ps.topic == nil {
 		err := errors.New("Topic has not been opened, must call Open() before attempting to write")
-
-		sent := int64(0)
-		failed := messageCount
+		failed := messages
 
 		return models.NewTargetWriteResult(
-			sent,
+			nil,
 			failed,
-			messages,
+			nil,
 			nil,
 		), err
 	}
@@ -103,13 +100,12 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		r := ps.topic.Publish(ctx, pubSubMsg)
 		results = append(results, &PubSubPublishResult{
 			Result:  r,
-			AckFunc: msg.AckFunc,
+			Message: msg,
 		})
 	}
 
-	sent := int64(0)
-	failed := int64(0)
-
+	var sent []*models.Message
+	var failed []*models.Message
 	var errResult error
 
 	for _, r := range results {
@@ -117,12 +113,14 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 
 		if err != nil {
 			errResult = multierror.Append(errResult, err)
-			failed++
+
+			failed = append(failed, r.Message)
 		} else {
-			sent++
-			if r.AckFunc != nil {
-				r.AckFunc()
+			if r.Message.AckFunc != nil {
+				r.Message.AckFunc()
 			}
+
+			sent = append(sent, r.Message)
 		}
 	}
 
@@ -130,12 +128,12 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		errResult = errors.Wrap(errResult, "Error writing messages to PubSub topic")
 	}
 
-	ps.log.Debugf("Successfully wrote %d/%d messages", sent, len(safeMessages))
+	ps.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(safeMessages))
 	return models.NewTargetWriteResult(
 		sent,
 		failed,
-		safeMessages,
 		oversized,
+		nil,
 	), errResult
 }
 
