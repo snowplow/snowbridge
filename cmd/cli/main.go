@@ -137,9 +137,13 @@ func main() {
 // All with retry logic baked in to remove any of this handling from the implementations
 func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, o *observer.Observer) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
+		// Send message buffer
+		messagesToSend := messages
 		res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {
-			res, err := t.Write(messages)
+			res, err := t.Write(messagesToSend)
+
 			o.TargetWrite(res)
+			messagesToSend = res.Failed
 			return res, err
 		})
 		if err != nil {
@@ -147,21 +151,43 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, o *observer.
 		}
 		resCast := res.(*models.TargetWriteResult)
 
-		return retry.Exponential(5, time.Second, "failureTarget.Write", func() error {
-			if len(resCast.Oversized) > 0 {
-				res, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), resCast.Oversized)
-
-				// NOTE: This should never happen but we check for it anyway to avoid
-				//       unack'able messages ever occurring
-				if len(res.Oversized) != 0 {
-					log.Fatal("Oversized message transformation resulted in new oversized messages")
+		// Send oversized message buffer
+		messagesToSend = resCast.Oversized
+		if len(messagesToSend) > 0 {
+			err2 := retry.Exponential(5, time.Second, "failureTarget.WriteOversized", func() error {
+				res, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), messagesToSend)
+				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+					log.Fatal("Oversized message transformation resulted in new oversized / invalid messages")
 				}
 
 				o.TargetWriteOversized(res)
+				messagesToSend = res.Failed
 				return err
+			})
+			if err2 != nil {
+				return err2
 			}
-			return nil
-		})
+		}
+
+		// Send invalid message buffer
+		messagesToSend = resCast.Invalid
+		if len(messagesToSend) > 0 {
+			err3 := retry.Exponential(5, time.Second, "failureTarget.WriteInvalid", func() error {
+				res, err := ft.WriteInvalid(messagesToSend)
+				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+					log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
+				}
+
+				o.TargetWriteInvalid(res)
+				messagesToSend = res.Failed
+				return err
+			})
+			if err3 != nil {
+				return err3
+			}
+		}
+
+		return nil
 	}
 }
 
