@@ -48,8 +48,18 @@ func ServerlessRequestHandler(messages []*models.Message) error {
 
 	if len(res.Oversized) > 0 {
 		res2, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), res.Oversized)
-		if len(res2.Oversized) != 0 {
-			log.Fatal("Oversized message transformation resulted in new oversized messages")
+		if len(res2.Oversized) != 0 || len(res2.Invalid) != 0 {
+			log.Fatal("Oversized message transformation resulted in new oversized / invalid messages")
+		}
+		if err != nil {
+			log.WithFields(log.Fields{"error": err}).Error(err)
+		}
+	}
+
+	if len(res.Invalid) > 0 {
+		res3, err := ft.WriteInvalid(res.Invalid)
+		if len(res3.Oversized) != 0 || len(res3.Invalid) != 0 {
+			log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
 		}
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Error(err)
