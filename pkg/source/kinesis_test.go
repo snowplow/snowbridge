@@ -1,5 +1,3 @@
-// +build integration
-
 // PROPRIETARY AND CONFIDENTIAL
 //
 // Unauthorized copying of this file via any medium is strictly prohibited.
@@ -16,6 +14,10 @@ import (
 )
 
 func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()

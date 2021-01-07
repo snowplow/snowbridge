@@ -22,6 +22,7 @@ type Observer struct {
 	stopDone                 chan struct{}
 	targetWriteChan          chan *models.TargetWriteResult
 	targetWriteOversizedChan chan *models.TargetWriteResult
+	targetWriteInvalidChan   chan *models.TargetWriteResult
 	timeout                  time.Duration
 	reportInterval           time.Duration
 	isRunning                bool
@@ -38,6 +39,7 @@ func New(statsClient statsreceiveriface.StatsReceiver, timeout time.Duration, re
 		stopDone:                 make(chan struct{}),
 		targetWriteChan:          make(chan *models.TargetWriteResult, 1000),
 		targetWriteOversizedChan: make(chan *models.TargetWriteResult, 1000),
+		targetWriteInvalidChan:   make(chan *models.TargetWriteResult, 1000),
 		timeout:                  timeout,
 		reportInterval:           reportInterval,
 		log:                      log.WithFields(log.Fields{"name": "Observer"}),
@@ -72,9 +74,11 @@ func (o *Observer) Start() {
 				o.isRunning = false
 				break ObserverLoop
 			case res := <-o.targetWriteChan:
-				buffer.Append(res, false)
+				buffer.AppendWrite(res)
 			case res := <-o.targetWriteOversizedChan:
-				buffer.Append(res, true)
+				buffer.AppendWriteOversized(res)
+			case res := <-o.targetWriteInvalidChan:
+				buffer.AppendWriteInvalid(res)
 			case <-time.After(o.timeout):
 				o.log.Debugf("Observer timed out after (%v) waiting for result", o.timeout)
 			}
@@ -113,4 +117,10 @@ func (o *Observer) TargetWrite(r *models.TargetWriteResult) {
 // by the observer
 func (o *Observer) TargetWriteOversized(r *models.TargetWriteResult) {
 	o.targetWriteOversizedChan <- r
+}
+
+// TargetWriteInvalid pushes a failure targets write result onto a channel for processing
+// by the observer
+func (o *Observer) TargetWriteInvalid(r *models.TargetWriteResult) {
+	o.targetWriteInvalidChan <- r
 }

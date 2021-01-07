@@ -117,12 +117,14 @@ test-setup:
 	GO111MODULE=on go get -u golang.org/x/tools/cmd/cover
 
 test: test-setup
-	GO111MODULE=on go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+	GO111MODULE=on go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
 	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
+	GO111MODULE=on go tool cover -func=$(coverage_out)
 
 integration-test: test-setup
-	GO111MODULE=on go test $(go_dirs) -tags integration -v -covermode=count -coverprofile=$(coverage_out)
+	GO111MODULE=on go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
+	GO111MODULE=on go tool cover -func=$(coverage_out)
 
 integration-reset: integration-down integration-up
 

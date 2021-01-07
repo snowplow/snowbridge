@@ -1,5 +1,3 @@
-// +build integration
-
 // PROPRIETARY AND CONFIDENTIAL
 //
 // Unauthorized copying of this file via any medium is strictly prohibited.
@@ -17,6 +15,10 @@ import (
 )
 
 func TestKinesisTarget_WriteFailure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackKinesisClient()
@@ -35,11 +37,15 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 	assert.NotNil(writeRes)
 
 	// Check results
-	assert.Equal(int64(0), writeRes.Sent)
-	assert.Equal(int64(1), writeRes.Failed)
+	assert.Equal(int64(0), writeRes.SentCount)
+	assert.Equal(int64(1), writeRes.FailedCount)
 }
 
 func TestKinesisTarget_WriteSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackKinesisClient()
@@ -73,11 +79,15 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 	assert.Equal(int64(501), ackOps)
 
 	// Check results
-	assert.Equal(int64(501), writeRes.Sent)
-	assert.Equal(int64(0), writeRes.Failed)
+	assert.Equal(int64(501), writeRes.SentCount)
+	assert.Equal(int64(0), writeRes.FailedCount)
 }
 
 func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackKinesisClient()
@@ -112,11 +122,15 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	assert.Equal(int64(20), ackOps)
 
 	// Check results
-	assert.Equal(int64(20), writeRes.Sent)
-	assert.Equal(int64(0), writeRes.Failed)
+	assert.Equal(int64(20), writeRes.SentCount)
+	assert.Equal(int64(0), writeRes.FailedCount)
 }
 
 func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackKinesisClient()
@@ -151,7 +165,7 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 
 	// Check results
-	assert.Equal(int64(10), writeRes.Sent)
-	assert.Equal(int64(0), writeRes.Failed)
+	assert.Equal(int64(10), writeRes.SentCount)
+	assert.Equal(int64(0), writeRes.FailedCount)
 	assert.Equal(1, len(writeRes.Oversized))
 }

@@ -7,6 +7,7 @@
 package models
 
 import (
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -20,6 +21,12 @@ func TestMessageString(t *testing.T) {
 	}
 
 	assert.Equal("PartitionKey:some-key,TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,Data:Hello World!", msg.String())
+	assert.Nil(msg.GetError())
+
+	msg.SetError(errors.New("I Failed!"))
+
+	assert.NotNil(msg.GetError())
+	assert.Equal("I Failed!", msg.GetError().Error())
 }
 
 func TestGetChunkedMessages(t *testing.T) {

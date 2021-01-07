@@ -7,6 +7,7 @@
 package failure
 
 import (
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"testing"
 
@@ -59,6 +60,38 @@ func TestSnowplowFailure_WriteOversized(t *testing.T) {
 	messages := testutil.GetTestMessages(5, "Hello Snowplow!!", nil)
 
 	r, err := sf.WriteOversized(5000, messages)
+	assert.Nil(r)
+	assert.Nil(err)
+}
+
+func TestSnowplowFailure_WriteInvalid(t *testing.T) {
+	assert := assert.New(t)
+
+	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
+		assert.Equal(5, len(messages))
+		for _, msg := range messages {
+			assert.Equal("{\"data\":{\"failure\":{\"errors\":[\"I failed!\"],\"timestamp\":\"0001-01-01T00:00:00Z\"},\"payload\":\"Hello Snowplow!!\",\"processor\":{\"artifact\":\"test\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0\"}", string(msg.Data))
+		}
+
+		return nil, nil
+	}
+	tft := TestFailureTarget{
+		onWrite: onWrite,
+	}
+
+	sf, err := NewSnowplowFailure(&tft, "test", "0.1.0")
+	assert.Nil(err)
+	assert.NotNil(sf)
+
+	defer sf.Close()
+	sf.Open()
+
+	messages := testutil.GetTestMessages(5, "Hello Snowplow!!", nil)
+	for _, msg := range messages {
+		msg.SetError(errors.New("I failed!"))
+	}
+
+	r, err := sf.WriteInvalid(messages)
 	assert.Nil(r)
 	assert.Nil(err)
 }

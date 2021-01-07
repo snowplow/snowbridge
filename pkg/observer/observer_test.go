@@ -26,7 +26,7 @@ func (s *TestStatsReceiver) Send(b *models.ObserverBuffer) {
 
 // --- Tests
 
-func TestObserver_TestStatsReceiver(t *testing.T) {
+func TestObserverTargetWrite(t *testing.T) {
 	assert := assert.New(t)
 
 	counter := 0
@@ -34,9 +34,13 @@ func TestObserver_TestStatsReceiver(t *testing.T) {
 		assert.NotNil(b)
 		if counter == 0 {
 			assert.Equal(int64(5), b.TargetResults)
+			assert.Equal(int64(5), b.OversizedTargetResults)
+			assert.Equal(int64(5), b.InvalidTargetResults)
 			counter++
 		} else {
 			assert.Equal(int64(1), b.TargetResults)
+			assert.Equal(int64(1), b.OversizedTargetResults)
+			assert.Equal(int64(1), b.InvalidTargetResults)
 		}
 	}
 
@@ -51,7 +55,7 @@ func TestObserver_TestStatsReceiver(t *testing.T) {
 
 	// Push some results
 	timeNow := time.Now().UTC()
-	messages := []*models.Message{
+	sent := []*models.Message{
 		{
 			Data:         []byte("Baz"),
 			PartitionKey: "partition1",
@@ -64,6 +68,8 @@ func TestObserver_TestStatsReceiver(t *testing.T) {
 			TimeCreated:  timeNow.Add(time.Duration(-70) * time.Minute),
 			TimePulled:   timeNow.Add(time.Duration(-7) * time.Minute),
 		},
+	}
+	failed := []*models.Message{
 		{
 			Data:         []byte("Foo"),
 			PartitionKey: "partition3",
@@ -71,18 +77,22 @@ func TestObserver_TestStatsReceiver(t *testing.T) {
 			TimePulled:   timeNow.Add(time.Duration(-10) * time.Minute),
 		},
 	}
-	r := models.NewTargetWriteResultWithTime(2, 1, timeNow, messages, nil)
+	r := models.NewTargetWriteResultWithTime(sent, failed, nil, nil, timeNow)
 	for i := 0; i < 5; i++ {
 		observer.TargetWrite(r)
+		observer.TargetWriteOversized(r)
+		observer.TargetWriteInvalid(r)
 	}
 
 	// Trigger timeout (1 second)
 	time.Sleep(2 * time.Second)
 
 	// Trigger flush (3 seconds) - first counter check
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// Trigger emergency flush (4 seconds) - second counter check
 	observer.TargetWrite(r)
+	observer.TargetWriteOversized(r)
+	observer.TargetWriteInvalid(r)
 	observer.Stop()
 }

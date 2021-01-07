@@ -47,16 +47,12 @@ func NewStatsDStatsReceiver(address string, prefix string, tagsRaw string) (*Sta
 
 // Send emits the bufferred metrics to the receiver
 func (s *StatsDStatsReceiver) Send(b *models.ObserverBuffer) {
-	s.client.Gauge("target_results", b.TargetResults)
 	s.client.Incr("message_sent", b.MsgSent)
 	s.client.Incr("message_failed", b.MsgFailed)
-	s.client.Incr("message_total", b.MsgTotal)
-
-	s.client.Gauge("oversized_target_results", b.OversizedTargetResults)
 	s.client.Incr("oversized_message_sent", b.OversizedMsgSent)
 	s.client.Incr("oversized_message_failed", b.OversizedMsgFailed)
-	s.client.Incr("oversized_message_total", b.OversizedMsgTotal)
-
+	s.client.Incr("invalid_message_sent", b.InvalidMsgSent)
+	s.client.Incr("invalid_message_failed", b.InvalidMsgFailed)
 	s.client.PrecisionTiming("latency_proccesing_max", b.MaxProcLatency)
 	s.client.PrecisionTiming("latency_message_max", b.MaxMsgLatency)
 }

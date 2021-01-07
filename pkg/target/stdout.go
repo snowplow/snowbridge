@@ -27,31 +27,30 @@ func NewStdoutTarget() (*StdoutTarget, error) {
 
 // Write pushes all messages to the required target
 func (st *StdoutTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	messageCount := int64(len(messages))
-	st.log.Debugf("Writing %d messages to stdout ...", messageCount)
+	st.log.Debugf("Writing %d messages to stdout ...", len(messages))
 
 	safeMessages, oversized := models.FilterOversizedMessages(
 		messages,
 		st.MaximumAllowedMessageSizeBytes(),
 	)
 
-	sent := int64(0)
-	failed := int64(0)
+	var sent []*models.Message
 
 	for _, msg := range safeMessages {
 		fmt.Println(msg.String())
-		sent++
 
 		if msg.AckFunc != nil {
 			msg.AckFunc()
 		}
+
+		sent = append(sent, msg)
 	}
 
 	return models.NewTargetWriteResult(
 		sent,
-		failed,
-		safeMessages,
+		nil,
 		oversized,
+		nil,
 	), nil
 }
 

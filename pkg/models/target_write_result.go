@@ -14,12 +14,25 @@ import (
 
 // TargetWriteResult contains the results from a target write operation
 type TargetWriteResult struct {
-	Sent   int64
-	Failed int64
+	SentCount   int64
+	FailedCount int64
+
+	// Sent holds all the messages that were successfully sent to the target
+	// and therefore have been acked by the target successfully.
+	Sent []*Message
+
+	// Failed contains all the messages that could not be sent to the target
+	// and that should be retried.
+	Failed []*Message
 
 	// Oversized holds all the messages that were too big to be sent to
-	// the downstream target
+	// the target and need to be handled externally to the target.
 	Oversized []*Message
+
+	// Invalid contains all the messages that cannot be sent to the target
+	// due to various parseability reasons.  These messages cannot be retried
+	// and need to be specially handled.
+	Invalid []*Message
 
 	// Delta between TimePulled and TimeOfWrite tells us how well the
 	// application is at processing data internally
@@ -35,20 +48,25 @@ type TargetWriteResult struct {
 }
 
 // NewTargetWriteResult uses the current time as the WriteTime and then calls NewTargetWriteResultWithTime
-func NewTargetWriteResult(sent int64, failed int64, processed []*Message, oversized []*Message) *TargetWriteResult {
-	return NewTargetWriteResultWithTime(sent, failed, time.Now().UTC(), processed, oversized)
+func NewTargetWriteResult(sent []*Message, failed []*Message, oversized []*Message, invalid []*Message) *TargetWriteResult {
+	return NewTargetWriteResultWithTime(sent, failed, oversized, invalid, time.Now().UTC())
 }
 
 // NewTargetWriteResultWithTime builds a result structure to return from a target write
 // attempt which contains the sent and failed message counts as well as several
 // derived latency measures.
-func NewTargetWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Time, processed []*Message, oversized []*Message) *TargetWriteResult {
+func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized []*Message, invalid []*Message, timeOfWrite time.Time) *TargetWriteResult {
 	r := TargetWriteResult{
-		Sent:      sent,
-		Failed:    failed,
-		Oversized: oversized,
+		SentCount:   int64(len(sent)),
+		FailedCount: int64(len(failed)),
+		Sent:        sent,
+		Failed:      failed,
+		Oversized:   oversized,
+		Invalid:     invalid,
 	}
 
+	// Calculate latency on sent & failed events
+	processed := append(sent, failed...)
 	processedLen := int64(len(processed))
 
 	var sumProcLatency time.Duration
@@ -84,7 +102,7 @@ func NewTargetWriteResultWithTime(sent int64, failed int64, timeOfWrite time.Tim
 
 // Total returns the sum of Sent + Failed messages
 func (wr *TargetWriteResult) Total() int64 {
-	return wr.Sent + wr.Failed
+	return wr.SentCount + wr.FailedCount
 }
 
 // Append will add another write result to the source one to allow for
@@ -93,9 +111,13 @@ func (wr *TargetWriteResult) Append(nwr *TargetWriteResult) *TargetWriteResult {
 	wrC := *wr
 
 	if nwr != nil {
-		wrC.Sent += nwr.Sent
-		wrC.Failed += nwr.Failed
+		wrC.SentCount += nwr.SentCount
+		wrC.FailedCount += nwr.FailedCount
+
+		wrC.Sent = append(wrC.Sent, nwr.Sent...)
+		wrC.Failed = append(wrC.Failed, nwr.Failed...)
 		wrC.Oversized = append(wrC.Oversized, nwr.Oversized...)
+		wrC.Invalid = append(wrC.Invalid, nwr.Invalid...)
 
 		if wrC.MaxProcLatency < nwr.MaxProcLatency {
 			wrC.MaxProcLatency = nwr.MaxProcLatency
