@@ -9,21 +9,27 @@ package main
 import (
 	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
+	retry "github.com/snowplow-devops/go-retry"
 	"github.com/urfave/cli"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/internal"
-	"github.com/snowplow-devops/stream-replicator/internal/models"
-	"github.com/snowplow-devops/stream-replicator/internal/source/sourceiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/retry"
+	"net/http"
+	_ "net/http/pprof"
+
+	"github.com/snowplow-devops/stream-replicator/cmd"
+	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/observer"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
 )
 
 const (
-	appVersion   = "0.1.0"
-	appName      = "stream-replicator"
+	appVersion   = cmd.AppVersion
+	appName      = cmd.AppName
 	appUsage     = "Replicates data streams to supported targets"
 	appCopyright = "(c) 2020 Snowplow Analytics, LTD"
 )
@@ -31,7 +37,7 @@ const (
 func main() {
 	// Init must be run at the top of the stack so that its context is available
 	// after app.Action() returns
-	cfg, sentryEnabled, err := internal.Init()
+	cfg, sentryEnabled, err := cmd.Init()
 	if err != nil {
 		exitWithError(err, sentryEnabled)
 	}
@@ -48,24 +54,44 @@ func main() {
 			Email: "tech-ops-team@snowplowanalytics.com",
 		},
 	}
-	app.Flags = []cli.Flag{}
+
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "profile, p",
+			Usage: "Enable application profiling endpoint on port 8080",
+		},
+	}
+
 	app.Action = func(c *cli.Context) error {
+		profile := c.Bool("profile")
+		if profile {
+			go func() {
+				http.ListenAndServe("localhost:8080", nil)
+			}()
+		}
+
 		source, err := cfg.GetSource()
 		if err != nil {
 			return err
 		}
 
-		target, err := cfg.GetTarget()
+		t, err := cfg.GetTarget()
 		if err != nil {
 			return err
 		}
-		target.Open()
+		t.Open()
 
-		observer, err := cfg.GetObserver()
+		ft, err := cfg.GetFailureTarget()
 		if err != nil {
 			return err
 		}
-		observer.Start()
+		ft.Open()
+
+		o, err := cfg.GetObserver()
+		if err != nil {
+			return err
+		}
+		o.Start()
 
 		// Handle SIGTERM
 		sig := make(chan os.Signal)
@@ -73,21 +99,30 @@ func main() {
 		go func() {
 			<-sig
 			log.Warn("SIGTERM called, cleaning up and closing application ...")
-			source.Stop()
-		}()
 
-		// Extend target.Write() to push metrics to the observer
-		writeFunc := func(messages []*models.Message) error {
-			return retry.Retry(5, time.Second, "target.Write", func() error {
-				res, err := target.Write(messages)
-				observer.TargetWrite(res)
-				return err
-			})
-		}
+			stop := make(chan struct{}, 1)
+			go func() {
+				source.Stop()
+				stop <- struct{}{}
+			}()
+
+			select {
+			case <-stop:
+				log.Debug("source.Stop() finished successfully!")
+			case <-time.After(5 * time.Second):
+				log.Error("source.Stop() took more than 5 seconds, forcing shutdown ...")
+
+				t.Close()
+				ft.Close()
+				o.Stop()
+
+				os.Exit(1)
+			}
+		}()
 
 		// Callback functions for the source to leverage when writing data
 		sf := sourceiface.SourceFunctions{
-			WriteToTarget: writeFunc,
+			WriteToTarget: sourceWriteFunc(t, ft, o),
 		}
 
 		// Read is a long running process and will only return when the source
@@ -97,8 +132,9 @@ func main() {
 			return err
 		}
 
-		target.Close()
-		observer.Stop()
+		t.Close()
+		ft.Close()
+		o.Stop()
 		return nil
 	}
 
@@ -108,6 +144,71 @@ func main() {
 	}
 }
 
+// sourceWriteFunc builds the function which wraps the different objects together to handle:
+//
+// 1. Sending messages to the target
+// 2. Observing results
+// 3. Sending oversized messages to the failure target
+// 4. Observing these results
+//
+// All with retry logic baked in to remove any of this handling from the implementations
+func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, o *observer.Observer) func(messages []*models.Message) error {
+	return func(messages []*models.Message) error {
+		// Send message buffer
+		messagesToSend := messages
+		res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {
+			res, err := t.Write(messagesToSend)
+
+			o.TargetWrite(res)
+			messagesToSend = res.Failed
+			return res, err
+		})
+		if err != nil {
+			return err
+		}
+		resCast := res.(*models.TargetWriteResult)
+
+		// Send oversized message buffer
+		messagesToSend = resCast.Oversized
+		if len(messagesToSend) > 0 {
+			err2 := retry.Exponential(5, time.Second, "failureTarget.WriteOversized", func() error {
+				res, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), messagesToSend)
+				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+					log.Fatal("Oversized message transformation resulted in new oversized / invalid messages")
+				}
+
+				o.TargetWriteOversized(res)
+				messagesToSend = res.Failed
+				return err
+			})
+			if err2 != nil {
+				return err2
+			}
+		}
+
+		// Send invalid message buffer
+		messagesToSend = resCast.Invalid
+		if len(messagesToSend) > 0 {
+			err3 := retry.Exponential(5, time.Second, "failureTarget.WriteInvalid", func() error {
+				res, err := ft.WriteInvalid(messagesToSend)
+				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+					log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
+				}
+
+				o.TargetWriteInvalid(res)
+				messagesToSend = res.Failed
+				return err
+			})
+			if err3 != nil {
+				return err3
+			}
+		}
+
+		return nil
+	}
+}
+
+// exitWithError will ensure we log the error and leave time for Sentry to flush
 func exitWithError(err error, flushSentry bool) {
 	log.WithFields(log.Fields{"error": err}).Error(err)
 	if flushSentry {

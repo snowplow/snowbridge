@@ -1,4 +1,4 @@
-.PHONY: all gox aws-lambda gcp-cloudfunctions cli cli-linux cli-darwin cli-windows format lint tidy test-setup test integration-reset integration-up integration-down integration-test clean
+.PHONY: all gox aws-lambda gcp-cloudfunctions cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test integration-reset integration-up integration-down integration-test container-release clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -24,11 +24,13 @@ linux_out_dir   = $(output_dir)/linux
 darwin_out_dir  = $(output_dir)/darwin
 windows_out_dir = $(output_dir)/windows
 
+container_name = snowplow/stream-replicator
+
 # -----------------------------------------------------------------------------
 #  BUILDING
 # -----------------------------------------------------------------------------
 
-all: aws-lambda gcp-cloudfunctions cli
+all: aws-lambda gcp-cloudfunctions cli container
 
 gox:
 	GO111MODULE=on go get -u github.com/mitchellh/gox
@@ -53,17 +55,24 @@ gcp-cloudfunctions: gox
 	cp -R ./$(vendor_dir)/ $(staging_dir)/gcp/cloudfunctions/vendor/
 
 	# Copy local packages into staging area
+	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/
+	cp ./cmd/config.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/config.go
+	cp ./cmd/constants.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/constants.go
+	cp ./cmd/init.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/init.go
+	cp ./cmd/serverless.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/serverless.go
+
 	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/
-	cp -R ./internal/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/internal/
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/
-	cp -R ./pkg/retry/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/retry/
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/
-	cp -R ./third_party/sentryhook/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/sentryhook/
+	cp -R ./pkg/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/
+
+	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/
+	cp -R ./third_party/snowplow/badrows/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows
+	cp -R ./third_party/snowplow/iglu/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu
 
 	echo "# github.com/snowplow-devops/stream-replicator v$(version)" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/internal" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/pkg/retry" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/third_party/sentryhook" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/cmd" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/pkg" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 
 	# Create ZIP file for upload to CloudFunctions
 	(cd $(staging_dir)/gcp/cloudfunctions/ && zip -r staging.zip .)
@@ -85,6 +94,9 @@ cli-darwin: gox
 
 cli-windows: gox
 	GO111MODULE=on CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/cli/stream-replicator ./cmd/cli/
+
+container: cli-linux
+	docker build -t $(container_name):$(version) .
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
@@ -110,12 +122,14 @@ test-setup:
 	GO111MODULE=on go get -u golang.org/x/tools/cmd/cover
 
 test: test-setup
-	GO111MODULE=on go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+	GO111MODULE=on go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
 	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
+	GO111MODULE=on go tool cover -func=$(coverage_out)
 
 integration-test: test-setup
-	GO111MODULE=on go test $(go_dirs) -tags integration -v -covermode=count -coverprofile=$(coverage_out)
+	GO111MODULE=on go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
+	GO111MODULE=on go tool cover -func=$(coverage_out)
 
 integration-reset: integration-down integration-up
 
@@ -126,6 +140,16 @@ integration-up:
 integration-down:
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml down)
 	rm -rf $(integration_dir)/.localstack
+
+# -----------------------------------------------------------------------------
+#  RELEASE
+# -----------------------------------------------------------------------------
+
+container-release:
+	@-docker login --username $(DOCKER_USERNAME) --password $(DOCKER_PASSWORD)
+	docker push $(container_name):$(version)
+	docker tag ${container_name}:${version} ${container_name}:latest
+	docker push $(container_name):latest
 
 # -----------------------------------------------------------------------------
 #  CLEANUP

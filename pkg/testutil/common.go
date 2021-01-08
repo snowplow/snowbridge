@@ -10,7 +10,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/internal/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
 const charset = "abcdefghijklmnopqrstuvwxyz" +

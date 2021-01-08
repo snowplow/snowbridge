@@ -10,12 +10,9 @@ import (
 	"context"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/getsentry/sentry-go"
-	log "github.com/sirupsen/logrus"
-	"time"
 
-	"github.com/snowplow-devops/stream-replicator/internal"
-	"github.com/snowplow-devops/stream-replicator/internal/models"
+	"github.com/snowplow-devops/stream-replicator/cmd"
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
 func main() {
@@ -24,20 +21,6 @@ func main() {
 
 // HandleRequest processes the Kinesis event and forwards it onto another stream
 func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
-	cfg, sentryEnabled, err := internal.Init()
-	if err != nil {
-		return err
-	}
-	if sentryEnabled {
-		defer sentry.Flush(2 * time.Second)
-	}
-
-	t, err := cfg.GetTarget()
-	if err != nil {
-		return err
-	}
-	t.Open()
-
 	messages := make([]*models.Message, len(event.Records))
 	for i := 0; i < len(messages); i++ {
 		record := event.Records[i]
@@ -47,11 +30,5 @@ func HandleRequest(ctx context.Context, event events.KinesisEvent) error {
 		}
 	}
 
-	_, err = t.Write(messages)
-	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Error(err)
-	}
-
-	t.Close()
-	return err
+	return cmd.ServerlessRequestHandler(messages)
 }

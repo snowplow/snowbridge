@@ -1,3 +1,21 @@
+Version 0.2.0 (2021-01-08)
+--------------------------
+[CLI] Cancel retry loop on SIGTERM (#16)
+Add Snowplow Iglu package (#18)
+Add Snowplow BadRows package (#19)
+Add retry.ExponentialWithInterface function to allow returning a value on retry (#20)
+Define application version and name in dedicated constants file (#21)
+Add ability to handle oversized messages gracefully (#22)
+Monitor and report on oversized messages separately (#23)
+Add oversized message handling to server-less applications (#25)
+Add oversized message handling to CLI application (#24)
+Refactor package structure to fix CloudFunctions support (#28)
+Add ability to handle invalid messages gracefully (#26)
+Add invalid message handling to CLI application (#27)
+Add invalid message handling to server-less applications (#29)
+Add Docker container deployment for CLI version (#11)
+Add profiling endpoint for easy debugging (#30)
+
 Version 0.1.0 (2021-01-01)
 --------------------------
 Initial release
