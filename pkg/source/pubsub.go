@@ -25,6 +25,7 @@ type PubSubSource struct {
 	projectID      string
 	client         *pubsub.Client
 	subscriptionID string
+	concurrentWrites int
 
 	log *log.Entry
 
@@ -33,7 +34,7 @@ type PubSubSource struct {
 }
 
 // NewPubSubSource creates a new client for reading messages from PubSub
-func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 string) (*PubSubSource, error) {
+func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID string, serviceAccountB64 string) (*PubSubSource, error) {
 	if serviceAccountB64 != "" {
 		targetFile, err := common.GetGCPServiceAccountFromBase64(serviceAccountB64)
 		if err != nil {
@@ -53,6 +54,7 @@ func NewPubSubSource(projectID string, subscriptionID string, serviceAccountB64 
 		projectID:      projectID,
 		client:         client,
 		subscriptionID: subscriptionID,
+		concurrentWrites:   concurrentWrites,
 		log:            log.WithFields(log.Fields{"source": "pubsub", "cloud": "GCP", "project": projectID, "subscription": subscriptionID}),
 	}, nil
 }
@@ -64,6 +66,8 @@ func (ps *PubSubSource) Read(sf *sourceiface.SourceFunctions) error {
 	ps.log.Info("Reading messages from subscription ...")
 
 	sub := ps.client.Subscription(ps.subscriptionID)
+	sub.ReceiveSettings.NumGoroutines = ps.concurrentWrites
+
 	cctx, cancel := context.WithCancel(ctx)
 
 	// Store reference to cancel
