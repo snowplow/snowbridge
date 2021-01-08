@@ -16,6 +16,9 @@ import (
 	"syscall"
 	"time"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/snowplow-devops/stream-replicator/cmd"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -51,8 +54,22 @@ func main() {
 			Email: "tech-ops-team@snowplowanalytics.com",
 		},
 	}
-	app.Flags = []cli.Flag{}
+
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "profile, p",
+			Usage: "Enable application profiling endpoint on port 8080",
+		},
+	}
+
 	app.Action = func(c *cli.Context) error {
+		profile := c.Bool("profile")
+		if profile {
+			go func() {
+				http.ListenAndServe("localhost:8080", nil)
+			}()
+		}
+
 		source, err := cfg.GetSource()
 		if err != nil {
 			return err
