@@ -22,9 +22,9 @@ import (
 
 // PubSubSource holds a new client for reading messages from PubSub
 type PubSubSource struct {
-	projectID      string
-	client         *pubsub.Client
-	subscriptionID string
+	projectID        string
+	client           *pubsub.Client
+	subscriptionID   string
 	concurrentWrites int
 
 	log *log.Entry
@@ -51,11 +51,11 @@ func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID stri
 	}
 
 	return &PubSubSource{
-		projectID:      projectID,
-		client:         client,
-		subscriptionID: subscriptionID,
-		concurrentWrites:   concurrentWrites,
-		log:            log.WithFields(log.Fields{"source": "pubsub", "cloud": "GCP", "project": projectID, "subscription": subscriptionID}),
+		projectID:        projectID,
+		client:           client,
+		subscriptionID:   subscriptionID,
+		concurrentWrites: concurrentWrites,
+		log:              log.WithFields(log.Fields{"source": "pubsub", "cloud": "GCP", "project": projectID, "subscription": subscriptionID}),
 	}, nil
 }
 
