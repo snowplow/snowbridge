@@ -16,4 +16,5 @@ type Target interface {
 	Open()
 	Close()
 	MaximumAllowedMessageSizeBytes() int
+	GetID() string
 }

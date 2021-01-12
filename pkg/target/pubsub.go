@@ -9,6 +9,7 @@ package target
 import (
 	"cloud.google.com/go/pubsub"
 	"context"
+	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -154,4 +155,9 @@ func (ps *PubSubTarget) Close() {
 // per message for this target
 func (ps *PubSubTarget) MaximumAllowedMessageSizeBytes() int {
 	return pubSubPublishMessageByteLimit
+}
+
+// GetID returns the identifier for this target
+func (ps *PubSubTarget) GetID() string {
+	return fmt.Sprintf("projects/%s/topics/%s", ps.projectID, ps.topicName)
 }

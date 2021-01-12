@@ -7,6 +7,7 @@
 package source
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
@@ -25,8 +26,11 @@ import (
 // SQSSource holds a new client for reading messages from SQS
 type SQSSource struct {
 	client           sqsiface.SQSAPI
+	queueURL         *string
 	queueName        string
 	concurrentWrites int
+	region           string
+	accountID        string
 
 	log *log.Entry
 
@@ -40,19 +44,24 @@ type SQSSource struct {
 
 // NewSQSSource creates a new client for reading messages from SQS
 func NewSQSSource(concurrentWrites int, region string, queueName string, roleARN string) (*SQSSource, error) {
-	awsSession, awsConfig := common.GetAWSSession(region, roleARN)
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
+	if err != nil {
+		return nil, err
+	}
 	sqsClient := sqs.New(awsSession, awsConfig)
 
-	return NewSQSSourceWithInterfaces(sqsClient, concurrentWrites, region, queueName)
+	return NewSQSSourceWithInterfaces(sqsClient, *awsAccountID, concurrentWrites, region, queueName)
 }
 
 // NewSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
-func NewSQSSourceWithInterfaces(client sqsiface.SQSAPI, concurrentWrites int, region string, queueName string) (*SQSSource, error) {
+func NewSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*SQSSource, error) {
 	return &SQSSource{
 		client:             client,
 		queueName:          queueName,
 		concurrentWrites:   concurrentWrites,
+		region:             region,
+		accountID:          awsAccountID,
 		log:                log.WithFields(log.Fields{"source": "sqs", "cloud": "AWS", "region": region, "queue": queueName}),
 		exitSignal:         make(chan struct{}),
 		processErrorSignal: make(chan error, concurrentWrites),
@@ -69,7 +78,7 @@ func (ss *SQSSource) Read(sf *sourceiface.SourceFunctions) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to get SQS queue URL")
 	}
-	queueURL := urlResult.QueueUrl
+	ss.queueURL = urlResult.QueueUrl
 
 	throttle := make(chan struct{}, ss.concurrentWrites)
 	wg := sync.WaitGroup{}
@@ -88,7 +97,7 @@ ProcessLoop:
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := ss.process(queueURL, sf)
+				err := ss.process(sf)
 				if err != nil {
 					ss.processErrorSignal <- err
 				}
@@ -101,7 +110,7 @@ ProcessLoop:
 	return processErr
 }
 
-func (ss *SQSSource) process(queueURL *string, sf *sourceiface.SourceFunctions) error {
+func (ss *SQSSource) process(sf *sourceiface.SourceFunctions) error {
 	msgRes, err := ss.client.ReceiveMessage(&sqs.ReceiveMessageInput{
 		AttributeNames: []*string{
 			aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
@@ -109,7 +118,7 @@ func (ss *SQSSource) process(queueURL *string, sf *sourceiface.SourceFunctions) 
 		MessageAttributeNames: []*string{
 			aws.String(sqs.QueueAttributeNameAll),
 		},
-		QueueUrl:            queueURL,
+		QueueUrl:            ss.queueURL,
 		MaxNumberOfMessages: aws.Int64(10),
 		VisibilityTimeout:   aws.Int64(10),
 		WaitTimeSeconds:     aws.Int64(1),
@@ -126,7 +135,7 @@ func (ss *SQSSource) process(queueURL *string, sf *sourceiface.SourceFunctions) 
 		ackFunc := func() {
 			ss.log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
 			_, err := ss.client.DeleteMessage(&sqs.DeleteMessageInput{
-				QueueUrl:      queueURL,
+				QueueUrl:      ss.queueURL,
 				ReceiptHandle: receiptHandle,
 			})
 			if err != nil {
@@ -172,4 +181,10 @@ func (ss *SQSSource) process(queueURL *string, sf *sourceiface.SourceFunctions) 
 func (ss *SQSSource) Stop() {
 	ss.log.Warn("Cancelling SQS receive ...")
 	ss.exitSignal <- struct{}{}
+	ss.queueURL = nil
+}
+
+// GetID returns the identifier for this source
+func (ss *SQSSource) GetID() string {
+	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", ss.region, ss.accountID, ss.queueName)
 }

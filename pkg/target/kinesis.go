@@ -7,6 +7,7 @@
 package target
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
@@ -33,24 +34,31 @@ const (
 type KinesisTarget struct {
 	client     kinesisiface.KinesisAPI
 	streamName string
+	region     string
+	accountID  string
 
 	log *log.Entry
 }
 
 // NewKinesisTarget creates a new client for writing messages to kinesis
 func NewKinesisTarget(region string, streamName string, roleARN string) (*KinesisTarget, error) {
-	awsSession, awsConfig := common.GetAWSSession(region, roleARN)
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
+	if err != nil {
+		return nil, err
+	}
 	kinesisClient := kinesis.New(awsSession, awsConfig)
 
-	return NewKinesisTargetWithInterfaces(kinesisClient, region, streamName)
+	return NewKinesisTargetWithInterfaces(kinesisClient, *awsAccountID, region, streamName)
 }
 
 // NewKinesisTargetWithInterfaces allows you to provide a Kinesis client directly to allow
 // for mocking and localstack usage
-func NewKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, region string, streamName string) (*KinesisTarget, error) {
+func NewKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID string, region string, streamName string) (*KinesisTarget, error) {
 	return &KinesisTarget{
 		client:     client,
 		streamName: streamName,
+		region:     region,
+		accountID:  awsAccountID,
 		log:        log.WithFields(log.Fields{"target": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
 	}, nil
 }
@@ -157,4 +165,9 @@ func (kt *KinesisTarget) Close() {}
 // per message for this target
 func (kt *KinesisTarget) MaximumAllowedMessageSizeBytes() int {
 	return kinesisPutRecordsMessageByteLimit
+}
+
+// GetID returns the identifier for this target
+func (kt *KinesisTarget) GetID() string {
+	return fmt.Sprintf("arn:aws:kinesis:%s:%s:stream/%s", kt.region, kt.accountID, kt.streamName)
 }

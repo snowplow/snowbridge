@@ -25,9 +25,10 @@ func TestSQSSource_ReadFailure(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	source, err := NewSQSSourceWithInterfaces(client, 1, testutil.AWSLocalstackRegion, "not-exists")
+	source, err := NewSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
 	assert.Nil(err)
 	assert.NotNil(source)
+	assert.Equal("arn:aws:sqs:us-east-1:00000000000:not-exists", source.GetID())
 
 	err = source.Read(nil)
 	assert.NotNil(err)
@@ -46,7 +47,7 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
 	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 
-	source, err := NewSQSSourceWithInterfaces(client, 10, testutil.AWSLocalstackRegion, queueName)
+	source, err := NewSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
 	assert.NotNil(source)
 

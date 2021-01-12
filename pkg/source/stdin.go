@@ -76,3 +76,8 @@ func (ss *StdinSource) Read(sf *sourceiface.SourceFunctions) error {
 func (ss *StdinSource) Stop() {
 	ss.log.Warn("Press CTRL + D to exit!")
 }
+
+// GetID returns the identifier for this source
+func (ss *StdinSource) GetID() string {
+	return "stdin"
+}

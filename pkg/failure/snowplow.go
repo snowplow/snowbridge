@@ -121,3 +121,8 @@ func (d *SnowplowFailure) Open() {
 func (d *SnowplowFailure) Close() {
 	d.target.Close()
 }
+
+// GetID returns the identifier for this target
+func (d *SnowplowFailure) GetID() string {
+	return d.target.GetID()
+}

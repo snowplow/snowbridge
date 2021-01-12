@@ -39,13 +39,17 @@ func TestGetGCPServiceAccountFromBase64_NotBase64(t *testing.T) {
 func TestGetAWSSession(t *testing.T) {
 	assert := assert.New(t)
 
-	sess, cfg := GetAWSSession("us-east-1", "")
+	sess, cfg, accID, err := GetAWSSession("us-east-1", "")
 	assert.NotNil(sess)
 	assert.Nil(cfg)
+	assert.Nil(accID)
+	assert.NotNil(err)
 
-	sess2, cfg2 := GetAWSSession("us-east-1", "some-role-arn")
+	sess2, cfg2, accID2, err2 := GetAWSSession("us-east-1", "some-role-arn")
 	assert.NotNil(sess2)
 	assert.NotNil(cfg2)
+	assert.Nil(accID2)
+	assert.NotNil(err2)
 }
 
 // --- Generic Helpers

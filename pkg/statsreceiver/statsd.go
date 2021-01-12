@@ -21,7 +21,7 @@ type StatsDStatsReceiver struct {
 }
 
 // NewStatsDStatsReceiver creates a new client for writing metrics to StatsD
-func NewStatsDStatsReceiver(address string, prefix string, tagsRaw string) (*StatsDStatsReceiver, error) {
+func NewStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsMapClient map[string]string) (*StatsDStatsReceiver, error) {
 	tagsMap := map[string]string{}
 	err := json.Unmarshal([]byte(tagsRaw), &tagsMap)
 	if err != nil {
@@ -30,6 +30,9 @@ func NewStatsDStatsReceiver(address string, prefix string, tagsRaw string) (*Sta
 
 	var tags []statsd.Tag
 	for key, value := range tagsMap {
+		tags = append(tags, statsd.StringTag(key, value))
+	}
+	for key, value := range tagsMapClient {
 		tags = append(tags, statsd.StringTag(key, value))
 	}
 

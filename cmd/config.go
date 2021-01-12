@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	"github.com/pkg/errors"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
@@ -275,10 +277,30 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 	}
 }
 
+// GetTags returns a list of tags to use in identifying this instance of stream-replicator
+func (c *Config) GetTags(sourceID string, targetID string, failureTargetID string) (map[string]string, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get server hostname as tag")
+	}
+
+	processID := os.Getpid()
+
+	tags := map[string]string{
+		"hostname":          hostname,
+		"process_id":        strconv.Itoa(processID),
+		"source_id":         sourceID,
+		"target_id":         targetID,
+		"failure_target_id": failureTargetID,
+	}
+
+	return tags, nil
+}
+
 // GetObserver builds and returns the observer with the embedded
 // optional stats receiver
-func (c *Config) GetObserver() (*observer.Observer, error) {
-	sr, err := c.GetStatsReceiver()
+func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error) {
+	sr, err := c.GetStatsReceiver(tags)
 	if err != nil {
 		return nil, err
 	}
@@ -286,13 +308,14 @@ func (c *Config) GetObserver() (*observer.Observer, error) {
 }
 
 // GetStatsReceiver builds and returns the stats receiver
-func (c *Config) GetStatsReceiver() (statsreceiveriface.StatsReceiver, error) {
+func (c *Config) GetStatsReceiver(tags map[string]string) (statsreceiveriface.StatsReceiver, error) {
 	switch c.StatsReceiver {
 	case "statsd":
 		return statsreceiver.NewStatsDStatsReceiver(
 			c.StatsReceivers.StatsD.Address,
 			c.StatsReceivers.StatsD.Prefix,
 			c.StatsReceivers.StatsD.Tags,
+			tags,
 		)
 	case "":
 		return nil, nil

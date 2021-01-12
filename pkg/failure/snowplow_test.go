@@ -33,6 +33,10 @@ func (t *TestFailureTarget) MaximumAllowedMessageSizeBytes() int {
 	return 5000
 }
 
+func (t *TestFailureTarget) GetID() string {
+	return "empty"
+}
+
 // --- Tests
 
 func TestSnowplowFailure_WriteOversized(t *testing.T) {
@@ -53,6 +57,7 @@ func TestSnowplowFailure_WriteOversized(t *testing.T) {
 	sf, err := NewSnowplowFailure(&tft, "test", "0.1.0")
 	assert.Nil(err)
 	assert.NotNil(sf)
+	assert.Equal("empty", sf.GetID())
 
 	defer sf.Close()
 	sf.Open()

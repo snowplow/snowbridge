@@ -9,6 +9,7 @@ package source
 import (
 	"cloud.google.com/go/pubsub"
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
@@ -111,4 +112,9 @@ func (ps *PubSubSource) Stop() {
 		ps.cancel()
 	}
 	ps.cancel = nil
+}
+
+// GetID returns the identifier for this source
+func (ps *PubSubSource) GetID() string {
+	return fmt.Sprintf("projects/%s/subscriptions/%s", ps.projectID, ps.subscriptionID)
 }
