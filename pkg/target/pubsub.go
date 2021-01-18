@@ -83,7 +83,16 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		ps.MaximumAllowedMessageSizeBytes(),
 	)
 
+	var invalid []*models.Message
+
 	for _, msg := range safeMessages {
+		// Sent empty messages to invalid queue
+		if len(msg.Data) == 0 {
+			msg.SetError(errors.New("pubsub cannot accept empty messages: each message must contain either non-empty data, or at least one attribute"))
+			invalid = append(invalid, msg)
+			continue
+		}
+
 		pubSubMsg := &pubsub.Message{
 			Data: msg.Data,
 		}
@@ -124,7 +133,7 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		sent,
 		failed,
 		oversized,
-		nil,
+		invalid,
 	), errResult
 }
 
