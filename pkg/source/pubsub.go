@@ -13,10 +13,8 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
-	"os"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
@@ -35,15 +33,7 @@ type PubSubSource struct {
 }
 
 // NewPubSubSource creates a new client for reading messages from PubSub
-func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID string, serviceAccountB64 string) (*PubSubSource, error) {
-	if serviceAccountB64 != "" {
-		targetFile, err := common.GetGCPServiceAccountFromBase64(serviceAccountB64)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to store GCP Service Account JSON file")
-		}
-		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", targetFile)
-	}
-
+func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID string) (*PubSubSource, error) {
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectID)

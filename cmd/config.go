@@ -36,9 +36,8 @@ type KinesisTargetConfig struct {
 
 // PubSubTargetConfig configures the destination for records consumed
 type PubSubTargetConfig struct {
-	ProjectID         string `env:"TARGET_PUBSUB_PROJECT_ID"`
-	TopicName         string `env:"TARGET_PUBSUB_TOPIC_NAME"`
-	ServiceAccountB64 string `env:"TARGET_PUBSUB_SERVICE_ACCOUNT_B64"`
+	ProjectID string `env:"TARGET_PUBSUB_PROJECT_ID"`
+	TopicName string `env:"TARGET_PUBSUB_TOPIC_NAME"`
 }
 
 // SQSTargetConfig configures the destination for records consumed
@@ -66,9 +65,8 @@ type FailureKinesisTargetConfig struct {
 
 // FailurePubSubTargetConfig configures the destination for records consumed
 type FailurePubSubTargetConfig struct {
-	ProjectID         string `env:"FAILURE_TARGET_PUBSUB_PROJECT_ID"`
-	TopicName         string `env:"FAILURE_TARGET_PUBSUB_TOPIC_NAME"`
-	ServiceAccountB64 string `env:"FAILURE_TARGET_PUBSUB_SERVICE_ACCOUNT_B64"`
+	ProjectID string `env:"FAILURE_TARGET_PUBSUB_PROJECT_ID"`
+	TopicName string `env:"FAILURE_TARGET_PUBSUB_TOPIC_NAME"`
 }
 
 // FailureSQSTargetConfig configures the destination for records consumed
@@ -101,9 +99,8 @@ type KinesisSourceConfig struct {
 
 // PubSubSourceConfig configures the source for records pulled
 type PubSubSourceConfig struct {
-	ProjectID         string `env:"SOURCE_PUBSUB_PROJECT_ID"`
-	SubscriptionID    string `env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
-	ServiceAccountB64 string `env:"SOURCE_PUBSUB_SERVICE_ACCOUNT_B64"`
+	ProjectID      string `env:"SOURCE_PUBSUB_PROJECT_ID"`
+	SubscriptionID string `env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
 }
 
 // SQSSourceConfig configures the source for records pulled
@@ -162,6 +159,9 @@ type Config struct {
 	Sentry         SentryConfig
 	StatsReceiver  string `env:"STATS_RECEIVER"`
 	StatsReceivers StatsReceiversConfig
+
+	// Provides the ability to provide a GCP service account to the application directly
+	GoogleServiceAccountB64 string `env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
 }
 
 // NewConfig resolves the config from the environment
@@ -194,7 +194,6 @@ func (c *Config) GetSource() (sourceiface.Source, error) {
 			c.Sources.ConcurrentWrites,
 			c.Sources.PubSub.ProjectID,
 			c.Sources.PubSub.SubscriptionID,
-			c.Sources.PubSub.ServiceAccountB64,
 		)
 	case "sqs":
 		return source.NewSQSSource(
@@ -223,7 +222,6 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		return target.NewPubSubTarget(
 			c.Targets.PubSub.ProjectID,
 			c.Targets.PubSub.TopicName,
-			c.Targets.PubSub.ServiceAccountB64,
 		)
 	case "sqs":
 		return target.NewSQSTarget(
@@ -254,7 +252,6 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 		t, err = target.NewPubSubTarget(
 			c.FailureTargets.PubSub.ProjectID,
 			c.FailureTargets.PubSub.TopicName,
-			c.FailureTargets.PubSub.ServiceAccountB64,
 		)
 	case "sqs":
 		t, err = target.NewSQSTarget(

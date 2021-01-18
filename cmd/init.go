@@ -13,6 +13,9 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	sentryhook "github.com/snowplow-devops/go-sentryhook"
+	"os"
+
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 )
 
 var (
@@ -36,6 +39,15 @@ func Init() (*Config, bool, error) {
 	cfg, err := NewConfig()
 	if err != nil {
 		return nil, false, errors.Wrap(err, "Failed to build config")
+	}
+
+	// Configure GCP Access (if set)
+	if cfg.GoogleServiceAccountB64 != "" {
+		targetFile, err := common.GetGCPServiceAccountFromBase64(cfg.GoogleServiceAccountB64)
+		if err != nil {
+			return nil, false, errors.Wrap(err, "Failed to store GCP Service Account JSON file")
+		}
+		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", targetFile)
 	}
 
 	// Configure Sentry
