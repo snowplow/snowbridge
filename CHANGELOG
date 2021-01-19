@@ -1,3 +1,7 @@
+Version 0.2.2 (2021-01-19)
+--------------------------
+Ensure statsd client reconnects to follow DNS changes correctly (#38)
+
 Version 0.2.1 (2021-01-18)
 --------------------------
 Change number of goroutines used by PubSub source (#32)
