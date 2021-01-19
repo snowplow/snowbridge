@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	statsd "github.com/smira/go-statsd"
+	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
@@ -41,6 +42,7 @@ func NewStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsM
 		statsd.MetricPrefix(fmt.Sprintf("%s.", prefix)),
 		statsd.TagStyle(statsd.TagFormatDatadog),
 		statsd.DefaultTags(tags...),
+		statsd.ReconnectInterval(60*time.Second),
 	)
 
 	return &StatsDStatsReceiver{
