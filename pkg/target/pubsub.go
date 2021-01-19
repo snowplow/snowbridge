@@ -9,12 +9,11 @@ package target
 import (
 	"cloud.google.com/go/pubsub"
 	"context"
+	"fmt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"os"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
@@ -43,15 +42,7 @@ type PubSubPublishResult struct {
 }
 
 // NewPubSubTarget creates a new client for writing messages to Google PubSub
-func NewPubSubTarget(projectID string, topicName string, serviceAccountB64 string) (*PubSubTarget, error) {
-	if serviceAccountB64 != "" {
-		targetFile, err := common.GetGCPServiceAccountFromBase64(serviceAccountB64)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to store GCP Service Account JSON file")
-		}
-		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", targetFile)
-	}
-
+func NewPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) {
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectID)
@@ -92,7 +83,16 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		ps.MaximumAllowedMessageSizeBytes(),
 	)
 
+	var invalid []*models.Message
+
 	for _, msg := range safeMessages {
+		// Sent empty messages to invalid queue
+		if len(msg.Data) == 0 {
+			msg.SetError(errors.New("pubsub cannot accept empty messages: each message must contain either non-empty data, or at least one attribute"))
+			invalid = append(invalid, msg)
+			continue
+		}
+
 		pubSubMsg := &pubsub.Message{
 			Data: msg.Data,
 		}
@@ -133,7 +133,7 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		sent,
 		failed,
 		oversized,
-		nil,
+		invalid,
 	), errResult
 }
 
@@ -154,4 +154,9 @@ func (ps *PubSubTarget) Close() {
 // per message for this target
 func (ps *PubSubTarget) MaximumAllowedMessageSizeBytes() int {
 	return pubSubPublishMessageByteLimit
+}
+
+// GetID returns the identifier for this target
+func (ps *PubSubTarget) GetID() string {
+	return fmt.Sprintf("projects/%s/topics/%s", ps.projectID, ps.topicName)
 }

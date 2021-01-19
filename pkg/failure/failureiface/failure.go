@@ -21,4 +21,5 @@ type Failure interface {
 	WriteOversized(maximumAllowedSizeBytes int, messages []*models.Message) (*models.TargetWriteResult, error)
 	Open()
 	Close()
+	GetID() string
 }

@@ -35,7 +35,7 @@ func TestNewConfig(t *testing.T) {
 	assert.NotNil(failureTarget)
 	assert.Nil(err)
 
-	observer, err := c.GetObserver()
+	observer, err := c.GetObserver(map[string]string{})
 	assert.NotNil(observer)
 	assert.Nil(err)
 }
@@ -151,8 +151,36 @@ func TestNewConfig_InvalidStatsReceiver(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	source, err := c.GetObserver()
+	source, err := c.GetObserver(map[string]string{})
 	assert.Nil(source)
 	assert.NotNil(err)
 	assert.Equal("Invalid stats receiver found; expected one of 'statsd' and got 'fake'", err.Error())
+}
+
+func TestNewConfig_GetTags(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	tags, err := c.GetTags("source", "target", "failure_target")
+	assert.NotNil(tags)
+	assert.Nil(err)
+
+	processID, ok := tags["process_id"]
+	assert.NotEqual("", processID)
+	assert.True(ok)
+	hostname, ok := tags["hostname"]
+	assert.NotEqual("", hostname)
+	assert.True(ok)
+	source, ok := tags["source_id"]
+	assert.Equal("source", source)
+	assert.True(ok)
+	target, ok := tags["target_id"]
+	assert.Equal("target", target)
+	assert.True(ok)
+	failureTarget, ok := tags["failure_target_id"]
+	assert.Equal("failure_target", failureTarget)
+	assert.True(ok)
 }

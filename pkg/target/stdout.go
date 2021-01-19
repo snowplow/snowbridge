@@ -68,3 +68,8 @@ func (st *StdoutTarget) Close() {}
 func (st *StdoutTarget) MaximumAllowedMessageSizeBytes() int {
 	return 10485760
 }
+
+// GetID returns the identifier for this target
+func (st *StdoutTarget) GetID() string {
+	return "stdout"
+}

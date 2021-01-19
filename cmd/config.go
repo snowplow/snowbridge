@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	"github.com/pkg/errors"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
@@ -34,9 +36,8 @@ type KinesisTargetConfig struct {
 
 // PubSubTargetConfig configures the destination for records consumed
 type PubSubTargetConfig struct {
-	ProjectID         string `env:"TARGET_PUBSUB_PROJECT_ID"`
-	TopicName         string `env:"TARGET_PUBSUB_TOPIC_NAME"`
-	ServiceAccountB64 string `env:"TARGET_PUBSUB_SERVICE_ACCOUNT_B64"`
+	ProjectID string `env:"TARGET_PUBSUB_PROJECT_ID"`
+	TopicName string `env:"TARGET_PUBSUB_TOPIC_NAME"`
 }
 
 // SQSTargetConfig configures the destination for records consumed
@@ -64,9 +65,8 @@ type FailureKinesisTargetConfig struct {
 
 // FailurePubSubTargetConfig configures the destination for records consumed
 type FailurePubSubTargetConfig struct {
-	ProjectID         string `env:"FAILURE_TARGET_PUBSUB_PROJECT_ID"`
-	TopicName         string `env:"FAILURE_TARGET_PUBSUB_TOPIC_NAME"`
-	ServiceAccountB64 string `env:"FAILURE_TARGET_PUBSUB_SERVICE_ACCOUNT_B64"`
+	ProjectID string `env:"FAILURE_TARGET_PUBSUB_PROJECT_ID"`
+	TopicName string `env:"FAILURE_TARGET_PUBSUB_TOPIC_NAME"`
 }
 
 // FailureSQSTargetConfig configures the destination for records consumed
@@ -99,9 +99,8 @@ type KinesisSourceConfig struct {
 
 // PubSubSourceConfig configures the source for records pulled
 type PubSubSourceConfig struct {
-	ProjectID         string `env:"SOURCE_PUBSUB_PROJECT_ID"`
-	SubscriptionID    string `env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
-	ServiceAccountB64 string `env:"SOURCE_PUBSUB_SERVICE_ACCOUNT_B64"`
+	ProjectID      string `env:"SOURCE_PUBSUB_PROJECT_ID"`
+	SubscriptionID string `env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
 }
 
 // SQSSourceConfig configures the source for records pulled
@@ -118,7 +117,6 @@ type SourcesConfig struct {
 	SQS     SQSSourceConfig
 
 	// ConcurrentWrites is how many go-routines a source can leverage to parallelise processing
-	// NOTE: PubSub does not use this setting as concurreny is managed internally
 	ConcurrentWrites int `env:"SOURCE_CONCURRENT_WRITES" envDefault:"50"`
 }
 
@@ -161,6 +159,9 @@ type Config struct {
 	Sentry         SentryConfig
 	StatsReceiver  string `env:"STATS_RECEIVER"`
 	StatsReceivers StatsReceiversConfig
+
+	// Provides the ability to provide a GCP service account to the application directly
+	GoogleServiceAccountB64 string `env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
 }
 
 // NewConfig resolves the config from the environment
@@ -190,9 +191,9 @@ func (c *Config) GetSource() (sourceiface.Source, error) {
 		)
 	case "pubsub":
 		return source.NewPubSubSource(
+			c.Sources.ConcurrentWrites,
 			c.Sources.PubSub.ProjectID,
 			c.Sources.PubSub.SubscriptionID,
-			c.Sources.PubSub.ServiceAccountB64,
 		)
 	case "sqs":
 		return source.NewSQSSource(
@@ -221,7 +222,6 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		return target.NewPubSubTarget(
 			c.Targets.PubSub.ProjectID,
 			c.Targets.PubSub.TopicName,
-			c.Targets.PubSub.ServiceAccountB64,
 		)
 	case "sqs":
 		return target.NewSQSTarget(
@@ -252,7 +252,6 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 		t, err = target.NewPubSubTarget(
 			c.FailureTargets.PubSub.ProjectID,
 			c.FailureTargets.PubSub.TopicName,
-			c.FailureTargets.PubSub.ServiceAccountB64,
 		)
 	case "sqs":
 		t, err = target.NewSQSTarget(
@@ -275,10 +274,30 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 	}
 }
 
+// GetTags returns a list of tags to use in identifying this instance of stream-replicator
+func (c *Config) GetTags(sourceID string, targetID string, failureTargetID string) (map[string]string, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get server hostname as tag")
+	}
+
+	processID := os.Getpid()
+
+	tags := map[string]string{
+		"hostname":          hostname,
+		"process_id":        strconv.Itoa(processID),
+		"source_id":         sourceID,
+		"target_id":         targetID,
+		"failure_target_id": failureTargetID,
+	}
+
+	return tags, nil
+}
+
 // GetObserver builds and returns the observer with the embedded
 // optional stats receiver
-func (c *Config) GetObserver() (*observer.Observer, error) {
-	sr, err := c.GetStatsReceiver()
+func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error) {
+	sr, err := c.GetStatsReceiver(tags)
 	if err != nil {
 		return nil, err
 	}
@@ -286,13 +305,14 @@ func (c *Config) GetObserver() (*observer.Observer, error) {
 }
 
 // GetStatsReceiver builds and returns the stats receiver
-func (c *Config) GetStatsReceiver() (statsreceiveriface.StatsReceiver, error) {
+func (c *Config) GetStatsReceiver(tags map[string]string) (statsreceiveriface.StatsReceiver, error) {
 	switch c.StatsReceiver {
 	case "statsd":
 		return statsreceiver.NewStatsDStatsReceiver(
 			c.StatsReceivers.StatsD.Address,
 			c.StatsReceivers.StatsD.Prefix,
 			c.StatsReceivers.StatsD.Tags,
+			tags,
 		)
 	case "":
 		return nil, nil

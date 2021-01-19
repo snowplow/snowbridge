@@ -1,3 +1,10 @@
+Version 0.2.1 (2021-01-18)
+--------------------------
+Change number of goroutines used by PubSub source (#32)
+Add default tags to statsd metrics (#33)
+Only allow the ability to set one GCP Service Account as environment variable (#35)
+Exclude empty messages from PubSub target (#34)
+
 Version 0.2.0 (2021-01-08)
 --------------------------
 [CLI] Cancel retry loop on SIGTERM (#16)

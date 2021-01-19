@@ -70,7 +70,7 @@ func main() {
 			}()
 		}
 
-		source, err := cfg.GetSource()
+		s, err := cfg.GetSource()
 		if err != nil {
 			return err
 		}
@@ -87,7 +87,11 @@ func main() {
 		}
 		ft.Open()
 
-		o, err := cfg.GetObserver()
+		tags, err := cfg.GetTags(s.GetID(), t.GetID(), ft.GetID())
+		if err != nil {
+			return err
+		}
+		o, err := cfg.GetObserver(tags)
 		if err != nil {
 			return err
 		}
@@ -102,7 +106,7 @@ func main() {
 
 			stop := make(chan struct{}, 1)
 			go func() {
-				source.Stop()
+				s.Stop()
 				stop <- struct{}{}
 			}()
 
@@ -127,7 +131,7 @@ func main() {
 
 		// Read is a long running process and will only return when the source
 		// is exhausted or if an error occurs
-		err = source.Read(&sf)
+		err = s.Read(&sf)
 		if err != nil {
 			return err
 		}

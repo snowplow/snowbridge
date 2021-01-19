@@ -10,4 +10,5 @@ package sourceiface
 type Source interface {
 	Read(sf *SourceFunctions) error
 	Stop()
+	GetID() string
 }

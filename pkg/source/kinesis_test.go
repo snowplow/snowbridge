@@ -23,9 +23,10 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name")
+	source, err := NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name")
 	assert.Nil(err)
 	assert.NotNil(source)
+	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", source.GetID())
 
 	err = source.Read(nil)
 	assert.NotNil(err)

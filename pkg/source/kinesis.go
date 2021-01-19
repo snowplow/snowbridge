@@ -7,6 +7,7 @@
 package source
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -40,22 +41,27 @@ type KinesisSource struct {
 	client           *kinsumer.Kinsumer
 	streamName       string
 	concurrentWrites int
+	region           string
+	accountID        string
 
 	log *log.Entry
 }
 
 // NewKinesisSource creates a new client for reading messages from kinesis
 func NewKinesisSource(concurrentWrites int, region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
-	awsSession, awsConfig := common.GetAWSSession(region, roleARN)
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
+	if err != nil {
+		return nil, err
+	}
 	kinesisClient := kinesis.New(awsSession, awsConfig)
 	dynamodbClient := dynamodb.New(awsSession, awsConfig)
 
-	return NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, concurrentWrites, region, streamName, appName)
+	return NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, *awsAccountID, concurrentWrites, region, streamName, appName)
 }
 
 // NewKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
 // for mocking and localstack usage
-func NewKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, concurrentWrites int, region string, streamName string, appName string) (*KinesisSource, error) {
+func NewKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string, concurrentWrites int, region string, streamName string, appName string) (*KinesisSource, error) {
 	// TODO: Add statistics monitoring to be able to report on consumer latency
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(10 * time.Second).
@@ -75,6 +81,8 @@ func NewKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynam
 		client:           k,
 		streamName:       streamName,
 		concurrentWrites: concurrentWrites,
+		region:           region,
+		accountID:        awsAccountID,
 		log:              log.WithFields(log.Fields{"source": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
 	}, nil
 }
@@ -143,4 +151,9 @@ func (ks *KinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 func (ks *KinesisSource) Stop() {
 	ks.log.Warn("Cancelling Kinesis receive ...")
 	ks.client.Stop()
+}
+
+// GetID returns the identifier for this source
+func (ks *KinesisSource) GetID() string {
+	return fmt.Sprintf("arn:aws:kinesis:%s:%s:stream/%s", ks.region, ks.accountID, ks.streamName)
 }

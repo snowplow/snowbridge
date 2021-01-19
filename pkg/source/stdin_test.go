@@ -38,6 +38,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	source, err := NewStdinSource(1)
 	assert.NotNil(source)
 	assert.Nil(err)
+	assert.Equal("stdin", source.GetID())
 	defer source.Stop()
 
 	writeFunc := func(messages []*models.Message) error {

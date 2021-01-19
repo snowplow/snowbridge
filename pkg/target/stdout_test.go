@@ -20,6 +20,7 @@ func TestStdoutTarget_WriteSuccess(t *testing.T) {
 	target, err := NewStdoutTarget()
 	assert.NotNil(target)
 	assert.Nil(err)
+	assert.Equal("stdout", target.GetID())
 
 	defer target.Close()
 	target.Open()

@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/pkg/errors"
 	"github.com/twinj/uuid"
 	"os"
@@ -48,8 +49,8 @@ func GetGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
 // GetAWSSession is a general tool to handle generating an AWS session
 // using the standard auth flow.  We also have the ability to pass a role ARN
 // to allow for roles to be assumed in cross-account access flows.
-func GetAWSSession(region string, roleARN string) (*session.Session, *aws.Config) {
-	session := session.Must(session.NewSessionWithOptions(session.Options{
+func GetAWSSession(region string, roleARN string) (sess *session.Session, cfg *aws.Config, accountID *string, err error) {
+	sess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 		Config: aws.Config{
 			Region: aws.String(region),
@@ -57,15 +58,22 @@ func GetAWSSession(region string, roleARN string) (*session.Session, *aws.Config
 	}))
 
 	if roleARN != "" {
-		creds := stscreds.NewCredentials(session, roleARN)
-		config := aws.Config{
+		creds := stscreds.NewCredentials(sess, roleARN)
+		cfg = &aws.Config{
 			Credentials: creds,
 			Region:      aws.String(region),
 		}
-
-		return session, &config
 	}
-	return session, nil
+
+	stsClient := sts.New(sess, cfg)
+
+	res, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		return sess, cfg, nil, err
+	}
+	accountID = res.Account
+
+	return sess, cfg, accountID, nil
 }
 
 // --- Generic Helpers
