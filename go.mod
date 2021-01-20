@@ -19,7 +19,7 @@ require (
 	github.com/twinj/uuid v1.0.0
 	github.com/twitchscience/kinsumer v0.0.0-00010101000000-000000000000
 	github.com/urfave/cli v1.22.5
-	golang.org/x/tools v0.0.0-20210105210202-9ed45478a130 // indirect
+	golang.org/x/tools v0.0.0-20210115202250-e0d201561e39 // indirect
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
 )
 
