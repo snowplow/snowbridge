@@ -9,12 +9,12 @@ package target
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"strconv"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -23,14 +23,18 @@ import (
 const (
 	// API Documentation: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
 
+	// Limited to 10 messages in a single request
+	sqsSendMessageBatchChunkSize = 10
 	// Each message can only be up to 256 KB in size
 	sqsSendMessageByteLimit = 262144
+	// Each request can be a maximum of 256 KB in size total
+	sqsSendMessageBatchByteLimit = 262144
 )
 
 // SQSTarget holds a new client for writing messages to sqs
 type SQSTarget struct {
 	client    sqsiface.SQSAPI
-	queueURL  *string
+	queueURL  string
 	queueName string
 	region    string
 	accountID string
@@ -66,44 +70,25 @@ func NewSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, reg
 func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	st.log.Debugf("Writing %d messages to target queue ...", len(messages))
 
-	safeMessages, oversized := models.FilterOversizedMessages(
+	chunks, oversized := models.GetChunkedMessages(
 		messages,
+		sqsSendMessageBatchChunkSize,
 		st.MaximumAllowedMessageSizeBytes(),
+		sqsSendMessageBatchByteLimit,
 	)
 
-	var sent []*models.Message
-	var failed []*models.Message
-	var invalid []*models.Message
+	writeResult := &models.TargetWriteResult{
+		Oversized: oversized,
+	}
+
 	var errResult error
 
-	for _, msg := range safeMessages {
-		_, err := st.client.SendMessage(&sqs.SendMessageInput{
-			DelaySeconds: aws.Int64(0),
-			MessageBody:  aws.String(string(msg.Data)),
-			QueueUrl:     st.queueURL,
-		})
+	for _, chunk := range chunks {
+		res, err := st.process(chunk)
+		writeResult = writeResult.Append(res)
 
 		if err != nil {
-			if awsErr, ok := err.(awserr.Error); ok {
-				if awsErr.Code() == sqs.ErrCodeInvalidMessageContents {
-					st.log.Warnf("%s: %s", awsErr.Code(), awsErr.Message())
-
-					// Append error to message
-					msg.SetError(err)
-					invalid = append(invalid, msg)
-					continue
-				}
-			}
-
 			errResult = multierror.Append(errResult, err)
-
-			failed = append(failed, msg)
-		} else {
-			if msg.AckFunc != nil {
-				msg.AckFunc()
-			}
-
-			sent = append(sent, msg)
 		}
 	}
 
@@ -111,11 +96,89 @@ func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResul
 		errResult = errors.Wrap(errResult, "Error writing messages to SQS queue")
 	}
 
-	st.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(safeMessages))
+	st.log.Debugf("Successfully wrote %d/%d messages", writeResult.SentCount, writeResult.Total())
+	return writeResult, errResult
+}
+
+func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteResult, error) {
+	messageCount := int64(len(messages))
+	st.log.Debugf("Writing chunk of %d messages to target queue ...", messageCount)
+
+	lookup := make(map[string]*models.Message)
+
+	entries := make([]*sqs.SendMessageBatchRequestEntry, messageCount)
+	for i := 0; i < len(entries); i++ {
+		msg := messages[i]
+		msgID := strconv.Itoa(i)
+
+		entries[i] = &sqs.SendMessageBatchRequestEntry{
+			DelaySeconds: aws.Int64(0),
+			MessageBody:  aws.String(string(msg.Data)),
+			Id:           aws.String(msgID),
+		}
+		lookup[msgID] = msg
+	}
+
+	res, err := st.client.SendMessageBatch(&sqs.SendMessageBatchInput{
+		Entries:  entries,
+		QueueUrl: aws.String(st.queueURL),
+	})
+	if err != nil {
+		failed := messages
+
+		return models.NewTargetWriteResult(
+			nil,
+			failed,
+			nil,
+			nil,
+		), errors.Wrap(err, "Failed to send message batch to SQS queue")
+	}
+
+	var sent []*models.Message
+	var failed []*models.Message
+	var invalid []*models.Message
+	var errResult error
+
+	for _, f := range res.Failed {
+		msg := lookup[*f.Id]
+		fErr := errors.New(fmt.Sprintf("%s: %s", *f.Code, *f.Message))
+
+		if *f.Code == sqs.ErrCodeInvalidMessageContents {
+			st.log.Warnf(fErr.Error())
+
+			// Append error to message
+			msg.SetError(fErr)
+			invalid = append(invalid, msg)
+		} else {
+			errResult = multierror.Append(errResult, fErr)
+			failed = append(failed, msg)
+		}
+
+		delete(lookup, *f.Id)
+	}
+
+	for _, s := range res.Successful {
+		msg := lookup[*s.Id]
+		if msg.AckFunc != nil {
+			msg.AckFunc()
+		}
+		sent = append(sent, msg)
+
+		delete(lookup, *s.Id)
+	}
+
+	if len(lookup) != 0 {
+		st.log.Warnf("Not all messages found in sent batch results; will re-send...")
+		for _, msg := range lookup {
+			failed = append(failed, msg)
+		}
+	}
+
+	st.log.Debugf("Successfully wrote %d/%d messages", len(sent), messageCount)
 	return models.NewTargetWriteResult(
 		sent,
 		failed,
-		oversized,
+		nil,
 		invalid,
 	), errResult
 }
@@ -130,12 +193,12 @@ func (st *SQSTarget) Open() {
 		st.log.WithFields(log.Fields{"error": errWrapped}).Fatal(errWrapped)
 	}
 
-	st.queueURL = urlResult.QueueUrl
+	st.queueURL = *urlResult.QueueUrl
 }
 
 // Close resets the queue URL value
 func (st *SQSTarget) Close() {
-	st.queueURL = nil
+	st.queueURL = ""
 }
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
