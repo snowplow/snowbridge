@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"strconv"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -108,14 +109,14 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 	entries := make([]*sqs.SendMessageBatchRequestEntry, messageCount)
 	for i := 0; i < len(entries); i++ {
 		msg := messages[i]
+		msgID := strconv.Itoa(i)
+
 		entries[i] = &sqs.SendMessageBatchRequestEntry{
 			DelaySeconds: aws.Int64(0),
 			MessageBody:  aws.String(string(msg.Data)),
-			Id:           aws.String(msg.PartitionKey),
+			Id:           aws.String(msgID),
 		}
-
-		// Store lookup map
-		lookup[msg.PartitionKey] = msg
+		lookup[msgID] = msg
 	}
 
 	res, err := st.client.SendMessageBatch(&sqs.SendMessageBatchInput{
