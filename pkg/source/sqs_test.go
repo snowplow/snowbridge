@@ -47,7 +47,7 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
 	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 
-	source, err := NewSQSSourceWithInterfaces(client, "00000000000", 50, testutil.AWSLocalstackRegion, queueName)
+	source, err := NewSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
 	assert.NotNil(source)
 
@@ -74,7 +74,7 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 	}()
 
 	// Wait for the reader to process a batch
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	source.Stop()
 
 	select {
