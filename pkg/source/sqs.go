@@ -119,7 +119,7 @@ func (ss *SQSSource) process(sf *sourceiface.SourceFunctions) error {
 			aws.String(sqs.QueueAttributeNameAll),
 		},
 		QueueUrl:            aws.String(ss.queueURL),
-		MaxNumberOfMessages: aws.Int64(1),
+		MaxNumberOfMessages: aws.Int64(10),
 		VisibilityTimeout:   aws.Int64(10),
 		WaitTimeSeconds:     aws.Int64(1),
 	})
