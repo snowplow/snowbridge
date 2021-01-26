@@ -1,3 +1,7 @@
+Version 0.2.3 (2021-01-26)
+--------------------------
+Add batching to SQS egress to improve performance (#40)
+
 Version 0.2.2 (2021-01-19)
 --------------------------
 Ensure statsd client reconnects to follow DNS changes correctly (#38)
