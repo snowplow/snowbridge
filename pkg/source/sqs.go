@@ -26,7 +26,7 @@ import (
 // SQSSource holds a new client for reading messages from SQS
 type SQSSource struct {
 	client           sqsiface.SQSAPI
-	queueURL         *string
+	queueURL         string
 	queueName        string
 	concurrentWrites int
 	region           string
@@ -78,7 +78,7 @@ func (ss *SQSSource) Read(sf *sourceiface.SourceFunctions) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to get SQS queue URL")
 	}
-	ss.queueURL = urlResult.QueueUrl
+	ss.queueURL = *urlResult.QueueUrl
 
 	throttle := make(chan struct{}, ss.concurrentWrites)
 	wg := sync.WaitGroup{}
@@ -118,7 +118,7 @@ func (ss *SQSSource) process(sf *sourceiface.SourceFunctions) error {
 		MessageAttributeNames: []*string{
 			aws.String(sqs.QueueAttributeNameAll),
 		},
-		QueueUrl:            ss.queueURL,
+		QueueUrl:            aws.String(ss.queueURL),
 		MaxNumberOfMessages: aws.Int64(10),
 		VisibilityTimeout:   aws.Int64(10),
 		WaitTimeSeconds:     aws.Int64(1),
@@ -135,7 +135,7 @@ func (ss *SQSSource) process(sf *sourceiface.SourceFunctions) error {
 		ackFunc := func() {
 			ss.log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
 			_, err := ss.client.DeleteMessage(&sqs.DeleteMessageInput{
-				QueueUrl:      ss.queueURL,
+				QueueUrl:      aws.String(ss.queueURL),
 				ReceiptHandle: receiptHandle,
 			})
 			if err != nil {
@@ -181,7 +181,6 @@ func (ss *SQSSource) process(sf *sourceiface.SourceFunctions) error {
 func (ss *SQSSource) Stop() {
 	ss.log.Warn("Cancelling SQS receive ...")
 	ss.exitSignal <- struct{}{}
-	ss.queueURL = nil
 }
 
 // GetID returns the identifier for this source

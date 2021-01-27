@@ -7,6 +7,7 @@
 package testutil
 
 import (
+	"github.com/twinj/uuid"
 	"math/rand"
 	"time"
 
@@ -37,7 +38,7 @@ func GetTestMessages(count int, body string, ackFunc func()) []*models.Message {
 	for i := 0; i < count; i++ {
 		messages = append(messages, &models.Message{
 			Data:         []byte(body),
-			PartitionKey: "some-key",
+			PartitionKey: uuid.NewV4().String(),
 			AckFunc:      ackFunc,
 		})
 	}
