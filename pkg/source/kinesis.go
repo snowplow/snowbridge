@@ -8,6 +8,9 @@ package source
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -16,8 +19,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
-	"sync"
-	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
