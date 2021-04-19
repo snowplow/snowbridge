@@ -8,12 +8,13 @@ package source
 
 import (
 	"bufio"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/twinj/uuid"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"

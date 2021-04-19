@@ -7,9 +7,10 @@
 package cmd
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -103,7 +104,7 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 	source, err := c.GetTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got 'fake'", err.Error())
+	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidFailureTarget(t *testing.T) {
@@ -120,7 +121,7 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	source, err := c.GetFailureTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs' and got 'fake'", err.Error())
+	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidFailureFormat(t *testing.T) {
@@ -183,4 +184,54 @@ func TestNewConfig_GetTags(t *testing.T) {
 	failureTarget, ok := tags["failure_target_id"]
 	assert.Equal("failure_target", failureTarget)
 	assert.True(ok)
+}
+
+func TestNewConfig_KafkaTargetDefaults(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("TARGET")
+
+	os.Setenv("TARGET", "kafka")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	target := c.Targets.Kafka
+	assert.NotNil(target)
+	assert.Equal(target.MaxRetries, 10)
+	assert.Equal(target.ByteLimit, 1048576)
+	assert.Equal(target.Compress, false)
+	assert.Equal(target.WaitForAll, false)
+	assert.Equal(target.Idempotent, false)
+	assert.Equal(target.EnableSASL, false)
+	assert.Equal(target.ForceSyncProducer, false)
+	assert.Equal(target.FlushFrequency, 0)
+	assert.Equal(target.FlushMessages, 0)
+	assert.Equal(target.FlushBytes, 0)
+}
+
+func TestNewConfig_KafkaFailureTargetDefaults(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("FAILURE_TARGET")
+
+	os.Setenv("FAILURE_TARGET", "kafka")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	target := c.FailureTargets.Kafka
+	assert.NotNil(target)
+	assert.Equal(target.MaxRetries, 10)
+	assert.Equal(target.ByteLimit, 1048576)
+	assert.Equal(target.Compress, false)
+	assert.Equal(target.WaitForAll, false)
+	assert.Equal(target.Idempotent, false)
+	assert.Equal(target.EnableSASL, false)
+	assert.Equal(target.ForceSyncProducer, false)
+	assert.Equal(target.FlushFrequency, 0)
+	assert.Equal(target.FlushMessages, 0)
+	assert.Equal(target.FlushBytes, 0)
 }
