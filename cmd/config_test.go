@@ -7,9 +7,10 @@
 package cmd
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -103,7 +104,7 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 	source, err := c.GetTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got 'fake'", err.Error())
+	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidFailureTarget(t *testing.T) {
@@ -120,7 +121,7 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	source, err := c.GetFailureTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs' and got 'fake'", err.Error())
+	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidFailureFormat(t *testing.T) {

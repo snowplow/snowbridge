@@ -8,11 +8,12 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/pkg/errors"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/pkg/errors"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
@@ -47,11 +48,18 @@ type SQSTargetConfig struct {
 	RoleARN   string `env:"TARGET_SQS_ROLE_ARN"`
 }
 
+// KafkaTargetConfig configures the destination for records consumed
+type KafkaTargetConfig struct {
+	Brokers   string `env:"TARGET_KAFKA_BROKERS"`
+	TopicName string `env:"TARGET_KAFKA_TOPIC_NAME"`
+}
+
 // TargetsConfig holds configuration for the available targets
 type TargetsConfig struct {
 	Kinesis KinesisTargetConfig
 	PubSub  PubSubTargetConfig
 	SQS     SQSTargetConfig
+	Kafka   KafkaTargetConfig
 }
 
 // ---------- [ FAILURE MESSAGE TARGETS ] ----------
@@ -76,11 +84,18 @@ type FailureSQSTargetConfig struct {
 	RoleARN   string `env:"FAILURE_TARGET_SQS_ROLE_ARN"`
 }
 
+// KafkaTargetConfig configures the destination for records consumed
+type FailureKafkaTargetConfig struct {
+	Brokers   string `env:"FAILURE_TARGET_KAFKA_BROKERS"`
+	TopicName string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`
+}
+
 // FailureTargetsConfig holds configuration for the available targets
 type FailureTargetsConfig struct {
 	Kinesis FailureKinesisTargetConfig
 	PubSub  FailurePubSubTargetConfig
 	SQS     FailureSQSTargetConfig
+	Kafka   FailureKafkaTargetConfig
 
 	// Format defines how the message will be transformed before
 	// being sent to the target
@@ -229,8 +244,13 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 			c.Targets.SQS.QueueName,
 			c.Targets.SQS.RoleARN,
 		)
+	case "kafka":
+		return target.NewKafkaTarget(
+			c.Targets.Kafka.Brokers,
+			c.Targets.Kafka.TopicName,
+		)
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.Target))
+		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.Target))
 	}
 }
 
@@ -259,8 +279,13 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 			c.FailureTargets.SQS.QueueName,
 			c.FailureTargets.SQS.RoleARN,
 		)
+	case "kafka":
+		t, err = target.NewKafkaTarget(
+			c.FailureTargets.Kafka.Brokers,
+			c.FailureTargets.PubSub.TopicName,
+		)
 	default:
-		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs' and got '%s'", c.FailureTarget))
+		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.FailureTarget))
 	}
 	if err != nil {
 		return nil, err
