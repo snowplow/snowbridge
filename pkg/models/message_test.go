@@ -7,9 +7,10 @@
 package models
 
 import (
+	"testing"
+
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMessageString(t *testing.T) {
@@ -20,7 +21,7 @@ func TestMessageString(t *testing.T) {
 		PartitionKey: "some-key",
 	}
 
-	assert.Equal("PartitionKey:some-key,TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,Data:Hello World!", msg.String())
+	assert.Equal("PartitionKey:some-key,TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,TimeTransformed:0001-01-01 00:00:00 +0000 UTC,Data:Hello World!", msg.String())
 	assert.Nil(msg.GetError())
 
 	msg.SetError(errors.New("failure"))

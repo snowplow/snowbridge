@@ -24,6 +24,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
 // ---------- [ TARGETS ] ----------
@@ -198,6 +199,7 @@ type Config struct {
 	Targets        TargetsConfig
 	FailureTarget  string `env:"FAILURE_TARGET" envDefault:"stdout"`
 	FailureTargets FailureTargetsConfig
+	Transformation string `env:"MESSAGE_TRANSFORMATION" envDefault:"none"`
 	LogLevel       string `env:"LOG_LEVEL" envDefault:"info"`
 	Sentry         SentryConfig
 	StatsReceiver  string `env:"STATS_RECEIVER"`
@@ -353,6 +355,19 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid failure format found; expected one of 'snowplow' and got '%s'", c.FailureTargets.Format))
 	}
+}
+
+func (c *Config) GetTransformations() (transform.TransformationApplyFunction, error) {
+	funcs := make([]transform.TransformationFunction, 0, 0)
+
+	switch c.Transformation {
+	case "spEnrichedToJson":
+		funcs = append(funcs, transform.SpEnrichedToJson)
+	case "none":
+	default:
+		return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'spEnrichedToJson' and got '%s'", c.Transformation))
+	}
+	return transform.NewTransformation(funcs...), nil
 }
 
 // GetTags returns a list of tags to use in identifying this instance of stream-replicator

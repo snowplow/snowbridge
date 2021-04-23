@@ -22,6 +22,9 @@ type Message struct {
 	// TimePulled is when the message was pulled from the source
 	TimePulled time.Time
 
+	// TimeTransformed is when the message has completed its last successful transform function
+	TimeTransformed time.Time
+
 	// AckFunc must be called on a successful message emission to ensure
 	// any cleanup process for the source is actioned
 	AckFunc func()
@@ -43,10 +46,11 @@ func (m *Message) GetError() error {
 
 func (m *Message) String() string {
 	return fmt.Sprintf(
-		"PartitionKey:%s,TimeCreated:%v,TimePulled:%v,Data:%s",
+		"PartitionKey:%s,TimeCreated:%v,TimePulled:%v,TimeTransformed:%v,Data:%s",
 		m.PartitionKey,
 		m.TimeCreated,
 		m.TimePulled,
+		m.TimeTransformed,
 		string(m.Data),
 	)
 }

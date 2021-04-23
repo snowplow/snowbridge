@@ -45,6 +45,12 @@ type TargetWriteResult struct {
 	MaxMsgLatency time.Duration
 	MinMsgLatency time.Duration
 	AvgMsgLatency time.Duration
+
+	// Delta between TimeCreated and TimeTransformed tells us how well the
+	// application is at executing transformation functions
+	MaxTransformLatency time.Duration
+	MinTransformLatency time.Duration
+	AvgTransformLatency time.Duration
 }
 
 // NewTargetWriteResult uses the current time as the WriteTime and then calls NewTargetWriteResultWithTime
@@ -71,6 +77,7 @@ func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized 
 
 	var sumProcLatency time.Duration
 	var sumMessageLatency time.Duration
+	var sumTransformLatency time.Duration
 
 	for _, msg := range processed {
 		procLatency := timeOfWrite.Sub(msg.TimePulled)
@@ -90,11 +97,21 @@ func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized 
 			r.MinMsgLatency = messageLatency
 		}
 		sumMessageLatency += messageLatency
+
+		transformLatency := msg.TimeTransformed.Sub(msg.TimePulled)
+		if r.MaxTransformLatency < transformLatency {
+			r.MaxTransformLatency = transformLatency
+		}
+		if r.MinTransformLatency > transformLatency || r.MinTransformLatency == time.Duration(0) {
+			r.MinTransformLatency = transformLatency
+		}
+		sumTransformLatency += transformLatency
 	}
 
 	if processedLen > 0 {
 		r.AvgProcLatency = common.GetAverageFromDuration(sumProcLatency, processedLen)
 		r.AvgMsgLatency = common.GetAverageFromDuration(sumMessageLatency, processedLen)
+		r.AvgTransformLatency = common.GetAverageFromDuration(sumTransformLatency, processedLen)
 	}
 
 	return &r
@@ -134,6 +151,14 @@ func (wr *TargetWriteResult) Append(nwr *TargetWriteResult) *TargetWriteResult {
 			wrC.MinMsgLatency = nwr.MinMsgLatency
 		}
 		wrC.AvgMsgLatency = common.GetAverageFromDuration(wrC.AvgMsgLatency+nwr.AvgMsgLatency, 2)
+
+		if wrC.MaxTransformLatency < nwr.MaxTransformLatency {
+			wrC.MaxTransformLatency = nwr.MaxTransformLatency
+		}
+		if wrC.MinTransformLatency > nwr.MinTransformLatency || wrC.MinTransformLatency == time.Duration(0) {
+			wrC.MinTransformLatency = nwr.MinTransformLatency
+		}
+		wrC.AvgTransformLatency = common.GetAverageFromDuration(wrC.AvgTransformLatency+nwr.AvgTransformLatency, 2)
 	}
 
 	return &wrC
