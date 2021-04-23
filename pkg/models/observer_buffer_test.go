@@ -7,9 +7,10 @@
 package models
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestObserverBuffer(t *testing.T) {
@@ -22,24 +23,27 @@ func TestObserverBuffer(t *testing.T) {
 
 	sent := []*Message{
 		{
-			Data:         []byte("Baz"),
-			PartitionKey: "partition1",
-			TimeCreated:  timeNow.Add(time.Duration(-50) * time.Minute),
-			TimePulled:   timeNow.Add(time.Duration(-4) * time.Minute),
+			Data:            []byte("Baz"),
+			PartitionKey:    "partition1",
+			TimeCreated:     timeNow.Add(time.Duration(-50) * time.Minute),
+			TimePulled:      timeNow.Add(time.Duration(-4) * time.Minute),
+			TimeTransformed: timeNow.Add(time.Duration(-2) * time.Minute),
 		},
 		{
-			Data:         []byte("Bar"),
-			PartitionKey: "partition2",
-			TimeCreated:  timeNow.Add(time.Duration(-70) * time.Minute),
-			TimePulled:   timeNow.Add(time.Duration(-7) * time.Minute),
+			Data:            []byte("Bar"),
+			PartitionKey:    "partition2",
+			TimeCreated:     timeNow.Add(time.Duration(-70) * time.Minute),
+			TimePulled:      timeNow.Add(time.Duration(-7) * time.Minute),
+			TimeTransformed: timeNow.Add(time.Duration(-4) * time.Minute),
 		},
 	}
 	failed := []*Message{
 		{
-			Data:         []byte("Foo"),
-			PartitionKey: "partition3",
-			TimeCreated:  timeNow.Add(time.Duration(-30) * time.Minute),
-			TimePulled:   timeNow.Add(time.Duration(-10) * time.Minute),
+			Data:            []byte("Foo"),
+			PartitionKey:    "partition3",
+			TimeCreated:     timeNow.Add(time.Duration(-30) * time.Minute),
+			TimePulled:      timeNow.Add(time.Duration(-10) * time.Minute),
+			TimeTransformed: timeNow.Add(time.Duration(-9) * time.Minute),
 		},
 	}
 
@@ -76,6 +80,9 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(70)*time.Minute, b.MaxMsgLatency)
 	assert.Equal(time.Duration(30)*time.Minute, b.MinMsgLatency)
 	assert.Equal(time.Duration(50)*time.Minute, b.GetAvgMsgLatency())
+	assert.Equal(time.Duration(3)*time.Minute, b.MaxTransformLatency)
+	assert.Equal(time.Duration(1)*time.Minute, b.MinTransformLatency)
+	assert.Equal(time.Duration(2)*time.Minute, b.GetAvgTransformLatency())
 
-	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:10m0s,MaxMsgLatency:1h10m0s", b.String())
+	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:10m0s,MaxMsgLatency:1h10m0s,MaxTransformLatency:3m0s", b.String())
 }

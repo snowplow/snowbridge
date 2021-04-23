@@ -30,12 +30,15 @@ type ObserverBuffer struct {
 	InvalidMsgFailed     int64
 	InvalidMsgTotal      int64
 
-	MaxProcLatency time.Duration
-	MinProcLatency time.Duration
-	SumProcLatency time.Duration
-	MaxMsgLatency  time.Duration
-	MinMsgLatency  time.Duration
-	SumMsgLatency  time.Duration
+	MaxProcLatency      time.Duration
+	MinProcLatency      time.Duration
+	SumProcLatency      time.Duration
+	MaxMsgLatency       time.Duration
+	MinMsgLatency       time.Duration
+	SumMsgLatency       time.Duration
+	MaxTransformLatency time.Duration
+	MinTransformLatency time.Duration
+	SumTransformLatency time.Duration
 }
 
 // AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
@@ -96,6 +99,14 @@ func (b *ObserverBuffer) append(res *TargetWriteResult) {
 		b.MinMsgLatency = res.MinMsgLatency
 	}
 	b.SumMsgLatency += res.AvgMsgLatency
+
+	if b.MaxTransformLatency < res.MaxTransformLatency {
+		b.MaxTransformLatency = res.MaxTransformLatency
+	}
+	if b.MinTransformLatency > res.MinTransformLatency || b.MinTransformLatency == time.Duration(0) {
+		b.MinTransformLatency = res.MinTransformLatency
+	}
+	b.SumTransformLatency += res.AvgTransformLatency
 }
 
 // GetSumResults returns the total number of results logged in the buffer
@@ -113,9 +124,14 @@ func (b *ObserverBuffer) GetAvgMsgLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumMsgLatency, b.GetSumResults())
 }
 
+// GetAvgTansformLatency calculates average transformation latency
+func (b *ObserverBuffer) GetAvgTransformLatency() time.Duration {
+	return common.GetAverageFromDuration(b.SumTransformLatency, b.MsgTotal)
+}
+
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%s,MaxMsgLatency:%s",
+		"TargetResults:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%s,MaxMsgLatency:%s,MaxTransformLatency:%s",
 		b.TargetResults,
 		b.MsgSent,
 		b.MsgFailed,
@@ -127,5 +143,6 @@ func (b *ObserverBuffer) String() string {
 		b.InvalidMsgFailed,
 		b.MaxProcLatency,
 		b.MaxMsgLatency,
+		b.MaxTransformLatency,
 	)
 }
