@@ -7,9 +7,10 @@
 package cmd
 
 import (
+	"time"
+
 	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
-	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
@@ -33,6 +34,11 @@ func ServerlessRequestHandler(messages []*models.Message) error {
 	}
 	t.Open()
 
+	tr, err := cfg.GetTransformations()
+	if err != nil {
+		return err
+	}
+
 	ft, err := cfg.GetFailureTarget()
 	if err != nil {
 		return err
@@ -41,7 +47,10 @@ func ServerlessRequestHandler(messages []*models.Message) error {
 
 	// --- Process events
 
-	res, err := t.Write(messages)
+	transformed := tr(messages)
+	// no error as errors should be returned in the failures array of TransformationResult
+
+	res, err := t.Write(transformed.Result)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Error(err)
 	}
@@ -56,8 +65,10 @@ func ServerlessRequestHandler(messages []*models.Message) error {
 		}
 	}
 
-	if len(res.Invalid) > 0 {
-		res3, err := ft.WriteInvalid(res.Invalid)
+	invalid := append(res.Invalid, transformed.Invalid...)
+
+	if len(invalid) > 0 {
+		res3, err := ft.WriteInvalid(invalid)
 		if len(res3.Oversized) != 0 || len(res3.Invalid) != 0 {
 			log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
 		}

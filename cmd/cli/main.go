@@ -7,14 +7,15 @@
 package main
 
 import (
-	"github.com/getsentry/sentry-go"
-	log "github.com/sirupsen/logrus"
-	retry "github.com/snowplow-devops/go-retry"
-	"github.com/urfave/cli"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/getsentry/sentry-go"
+	log "github.com/sirupsen/logrus"
+	retry "github.com/snowplow-devops/go-retry"
+	"github.com/urfave/cli"
 
 	"net/http"
 	_ "net/http/pprof"
@@ -25,6 +26,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
 const (
@@ -71,6 +73,11 @@ func main() {
 		}
 
 		s, err := cfg.GetSource()
+		if err != nil {
+			return err
+		}
+
+		tr, err := cfg.GetTransformations()
 		if err != nil {
 			return err
 		}
@@ -126,7 +133,7 @@ func main() {
 
 		// Callback functions for the source to leverage when writing data
 		sf := sourceiface.SourceFunctions{
-			WriteToTarget: sourceWriteFunc(t, ft, o),
+			WriteToTarget: sourceWriteFunc(t, ft, tr, o),
 		}
 
 		// Read is a long running process and will only return when the source
@@ -156,10 +163,16 @@ func main() {
 // 4. Observing these results
 //
 // All with retry logic baked in to remove any of this handling from the implementations
-func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, o *observer.Observer) func(messages []*models.Message) error {
+func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform.TransformationApplyFunction, o *observer.Observer) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
+
+		// Apply transformations
+		transformed := tr(messages)
+		// no error as errors should be returned in the failures array of TransformationResult
+
 		// Send message buffer
-		messagesToSend := messages
+		messagesToSend := transformed.Result
+
 		res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {
 			res, err := t.Write(messagesToSend)
 
@@ -191,7 +204,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, o *observer.
 		}
 
 		// Send invalid message buffer
-		messagesToSend = resCast.Invalid
+		messagesToSend = append(resCast.Invalid, transformed.Invalid...)
 		if len(messagesToSend) > 0 {
 			err3 := retry.Exponential(5, time.Second, "failureTarget.WriteInvalid", func() error {
 				res, err := ft.WriteInvalid(messagesToSend)

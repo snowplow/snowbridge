@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -24,6 +25,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
 // ---------- [ TARGETS ] ----------
@@ -206,6 +208,7 @@ type Config struct {
 	Targets        TargetsConfig
 	FailureTarget  string `env:"FAILURE_TARGET" envDefault:"stdout"`
 	FailureTargets FailureTargetsConfig
+	Transformation string `env:"MESSAGE_TRANSFORMATION" envDefault:"none"`
 	LogLevel       string `env:"LOG_LEVEL" envDefault:"info"`
 	Sentry         SentryConfig
 	StatsReceiver  string `env:"STATS_RECEIVER"`
@@ -369,6 +372,29 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid failure format found; expected one of 'snowplow' and got '%s'", c.FailureTargets.Format))
 	}
+}
+
+func (c *Config) GetTransformations() (transform.TransformationApplyFunction, error) {
+	funcs := make([]transform.TransformationFunction, 0, 0)
+
+	// Parse list of transformations
+	transformations := strings.Split(c.Transformation, ",")
+
+	for _, transformation := range transformations {
+		// Parse function name-option sets
+		funcOpts := strings.Split(transformation, ":")
+
+		switch funcOpts[0] {
+		case "spEnrichedToJson":
+			funcs = append(funcs, transform.SpEnrichedToJson)
+		case "spEnrichedSetPk":
+			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(funcOpts[1]))
+		case "none":
+		default:
+			return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}' and got '%s'", c.Transformation))
+		}
+	}
+	return transform.NewTransformation(funcs...), nil
 }
 
 // GetTags returns a list of tags to use in identifying this instance of stream-replicator
