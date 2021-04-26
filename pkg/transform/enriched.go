@@ -31,7 +31,7 @@ func NewTransformation(tranformFunctions ...transformiface.TransformationFunctio
 } // This seems generic enough that perhaps it should live elsewhere? If we were to create a set of transformations on raw data or some other format, for example, this exact same function would be used.
 
 // EnrichedToJson is a specific transformation implementation to transform good enriched data within a message to Json
-func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Message, error) {
+func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Message, error) { // Probably no need for error here actually. Any errored transformation should be returned in the failures slice.
 	successes := make([]*models.Message, 0, len(messages))
 	failures := make([]*models.Message, 0, len(messages))
 
@@ -40,11 +40,12 @@ func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Me
 		if err != nil {
 			message.SetError(err)
 			failures = append(failures, message)
+			continue
 		}
 		JsonMessage, err := parsedMessage.ToJson()
 		if err != nil {
 			message.SetError(err)
-			failures = append(failures, message)
+			failures = append(failures, message) // use continue here as well and remove `else` below? Any reason for/against?
 		} else {
 			message.Data = JsonMessage
 			successes = append(successes, message)
