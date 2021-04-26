@@ -9,8 +9,6 @@ package transform
 import (
 	"testing"
 
-	"github.com/pkg/errors"
-
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/stretchr/testify/assert"
 )
@@ -56,9 +54,11 @@ func TestEnrichedToJson(t *testing.T) {
 	transformSuccess, transformFailure, err := EnrichedToJson(messages)
 
 	assert.Nil(err)
-	assert.Equal(len(transformFailure), 1)                                                                                                   // Not matching equivalence because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal(errors.New("Cannot parse tsv event - wrong number of fields provided: 20").Error(), transformFailure[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
+	assert.Equal(len(transformFailure), 1)                                                                               // Not matching equivalence because error stacktrace makes it unfeasible. Doing each component part instead.
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", transformFailure[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
 	assert.Equal([]byte("not	a	snowplow	event"), transformFailure[0].Data)
 	assert.Equal("some-key4", transformFailure[0].PartitionKey)
 	assert.Equal(expectedGood, transformSuccess)
 }
+
+// TODO: Figure out how to test NewTransformation() - it outputs a function, do we define the function literally? Do we test the result of the function?
