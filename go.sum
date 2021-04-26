@@ -273,6 +273,7 @@ github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a h1:9
 github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a/go.mod h1:7/jMxl0yrvgiUlv5L37fw6pql71aNh55sKQc4kBFj5s=
 github.com/snowplow-devops/kinsumer v0.0.0-20201222120237-1233f129ef85 h1:bt/dGnHZ6XcamFJBPtqWDaTlDM0awQLfjSSiuPQqNow=
 github.com/snowplow-devops/kinsumer v0.0.0-20201222120237-1233f129ef85/go.mod h1:++IOOQNbqVZShJNWEqlPdDatgECxL0ixvX0Hru5rcY0=
+github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.1 h1:EYwaHn0hbqg6gZiHtiA1ih3IggTDDmrLFOYMsp5imAM=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.1/go.mod h1:Hin0YGiQqQ3a+AwFR/4Go3mqsG0w89VjZRfnaThX/BY=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/cast v1.3.0/go.mod h1:Qx5cxh0v+4UWYiBimWS+eyWzqEqokIECu5etghLkUJE=

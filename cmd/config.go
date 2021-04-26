@@ -8,11 +8,12 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/pkg/errors"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/pkg/errors"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
@@ -23,6 +24,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformiface"
 )
 
 // ---------- [ TARGETS ] ----------
@@ -147,18 +150,30 @@ type StatsReceiversConfig struct {
 	BufferSec int `env:"STATS_RECEIVER_BUFFER_SEC" envDefault:"15"`
 }
 
+// ---------- [ Transformations ] ----------
+
+type EnrichedTransformationConfig struct {
+	TransformFunction transformiface.TransformationFunction
+}
+
+type TransformationsConfig struct {
+	EnrichedTransformations EnrichedTransformationConfig
+}
+
 // Config for holding all configuration details
 type Config struct {
-	Source         string `env:"SOURCE" envDefault:"stdin"`
-	Sources        SourcesConfig
-	Target         string `env:"TARGET" envDefault:"stdout"`
-	Targets        TargetsConfig
-	FailureTarget  string `env:"FAILURE_TARGET" envDefault:"stdout"`
-	FailureTargets FailureTargetsConfig
-	LogLevel       string `env:"LOG_LEVEL" envDefault:"info"`
-	Sentry         SentryConfig
-	StatsReceiver  string `env:"STATS_RECEIVER"`
-	StatsReceivers StatsReceiversConfig
+	Source          string `env:"SOURCE" envDefault:"stdin"`
+	Sources         SourcesConfig
+	Target          string `env:"TARGET" envDefault:"stdout"`
+	Targets         TargetsConfig
+	FailureTarget   string `env:"FAILURE_TARGET" envDefault:"stdout"`
+	FailureTargets  FailureTargetsConfig
+	Transformation  string `env:"MESSAGE_TRANSFORMATION" envDefault:"none"`
+	Transformations TransformationsConfig
+	LogLevel        string `env:"LOG_LEVEL" envDefault:"info"`
+	Sentry          SentryConfig
+	StatsReceiver   string `env:"STATS_RECEIVER"`
+	StatsReceivers  StatsReceiversConfig
 
 	// Provides the ability to provide a GCP service account to the application directly
 	GoogleServiceAccountB64 string `env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
@@ -272,6 +287,19 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid failure format found; expected one of 'snowplow' and got '%s'", c.FailureTargets.Format))
 	}
+}
+
+func (c *Config) GetTransformations() (transformiface.TransformationApplyFunction, error) {
+	funcs := make([]transformiface.TransformationFunction, 0, 0)
+
+	switch c.Transformation {
+	case "enrichedJson":
+		funcs = append(funcs, transform.EnrichedToJson)
+	case "none":
+	default:
+		return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'enrichedJson' and got '%s'", c.Transformation))
+	}
+	return transform.NewTransformation(funcs...), nil
 }
 
 // GetTags returns a list of tags to use in identifying this instance of stream-replicator
