@@ -47,7 +47,7 @@ func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Me
 			message.SetError(err)
 			failures = append(failures, message) // use continue here as well and remove `else` below? Any reason for/against?
 		} else {
-			message.Data = JsonMessage
+			message.Data = JsonMessage // because we're using a pointer, this alters the original value I think. TODO: Check that this is acceptable
 			successes = append(successes, message)
 		}
 	}
