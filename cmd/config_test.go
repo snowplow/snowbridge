@@ -7,9 +7,10 @@
 package cmd
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -21,6 +22,7 @@ func TestNewConfig(t *testing.T) {
 
 	assert.Equal("info", c.LogLevel)
 	assert.Equal("stdout", c.Target)
+	assert.Equal("none", c.Transformation)
 	assert.Equal("stdin", c.Source)
 
 	source, err := c.GetSource()
@@ -29,6 +31,10 @@ func TestNewConfig(t *testing.T) {
 
 	target, err := c.GetTarget()
 	assert.NotNil(target)
+	assert.Nil(err)
+
+	transformation, err := c.GetTransformations()
+	assert.NotNil(transformation)
 	assert.Nil(err)
 
 	failureTarget, err := c.GetFailureTarget()
@@ -87,6 +93,23 @@ func TestNewConfig_InvalidSource(t *testing.T) {
 	assert.Nil(source)
 	assert.NotNil(err)
 	assert.Equal("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got 'fake'", err.Error())
+}
+
+func TestNewConfig_InvalidTransformation(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("MESSAGE_TRANSFORMATION")
+
+	os.Setenv("MESSAGE_TRANSFORMATION", "fake")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	transformation, err := c.GetTransformations()
+	assert.Nil(transformation)
+	assert.NotNil(err)
+	assert.Equal("Invalid transformation found; expected one of 'enrichedJson' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidTarget(t *testing.T) {
