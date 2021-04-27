@@ -18,6 +18,7 @@ type TransformationResult struct {
 	// Filtered contains all the messages that could be transformed but
 	// are filtered out from sending to the target.
 	// Filtered []*Message
+	// Included as an example of how to extend, for feedback purposes.
 
 	// Invalid contains all the messages that cannot be transformed
 	// due to various parseability reasons.  These messages cannot be retried
@@ -25,7 +26,7 @@ type TransformationResult struct {
 	Invalid []*Message
 }
 
-// NewTargetWriteResult uses the current time as the WriteTime and then calls NewTargetWriteResultWithTime
+// NewTransformationResult contains slices successfully tranformed and unsuccessfully transformed messages, and their lengths.
 func NewTransformationResult(result []*Message, invalid []*Message) *TransformationResult {
 	r := TransformationResult{
 		int64(len(result)),

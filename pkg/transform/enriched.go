@@ -12,7 +12,9 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-// NewTransformation constructs a function which applies a sequence of transformations to messages, and returns a TransformationResult.
+// Should NewTransformation live somewhere else and if so where? It's written to be general to applying _any_ set of transformations.
+
+// NewTransformation constructs a function which applies all transformations to all messages, returning a TransformationResult.
 func NewTransformation(tranformFunctions ...transformiface.TransformationFunction) func(messages []*models.Message) *models.TransformationResult {
 	return func(messages []*models.Message) *models.TransformationResult {
 		successes := messages
@@ -20,16 +22,16 @@ func NewTransformation(tranformFunctions ...transformiface.TransformationFunctio
 
 		for _, transformFunction := range tranformFunctions {
 			success, failure := transformFunction(messages)
-			// no error as errors should be returned in the failures array of TransformationResult
+			// no error as errors should be returned in the 'Invalid' slice of TransformationResult
 			failures = append(failures, failure...)
 			successes = success
 		}
 		return models.NewTransformationResult(successes, failures)
 	}
-} // This seems generic enough that perhaps it should live elsewhere? If we were to create a set of transformations on raw data or some other format, for example, this exact same function would be used.
+}
 
 // EnrichedToJson is a specific transformation implementation to transform good enriched data within a message to Json
-func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Message) { // Probably no need for error here actually. Any errored transformation should be returned in the failures slice.
+func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Message) {
 	successes := make([]*models.Message, 0, len(messages))
 	failures := make([]*models.Message, 0, len(messages))
 
@@ -43,11 +45,12 @@ func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Me
 		JsonMessage, err := parsedMessage.ToJson()
 		if err != nil {
 			message.SetError(err)
-			failures = append(failures, message) // use continue here as well and remove `else` below? Any reason for/against?
-		} else {
-			message.Data = JsonMessage // because we're using a pointer, this alters the original value I think. TODO: Check that this is acceptable
-			successes = append(successes, message)
+			failures = append(failures, message)
+			continue
 		}
+		message.Data = JsonMessage // because we're using a pointer, this alters the original value I think. Is this is acceptable?
+		successes = append(successes, message)
+
 	}
 	return successes, failures // Doesn't return any err as errors should all go into failures.
 }
