@@ -50,8 +50,14 @@ type SQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type KafkaTargetConfig struct {
-	Brokers   string `env:"TARGET_KAFKA_BROKERS"`
-	TopicName string `env:"TARGET_KAFKA_TOPIC_NAME"`
+	Brokers    string `env:"TARGET_KAFKA_BROKERS"`
+	TopicName  string `env:"TARGET_KAFKA_TOPIC_NAME"`
+	ByteLimit  int    `env:"TARGET_KAFKA_BYTE_LIMIT"`
+	Idempotent bool   `env:"TARGET_KAFKA_IDEMPOTENT"` // Exactly once writes
+	certFile   string `env:"TARGET_KAFKA_CERT_FILE"`  // The optional certificate file for client authentication
+	keyFile    string `env:"TARGET_KAFKA_KEY_FILE"`   // The optional key file for client authentication
+	caCert     string `env:"TARGET_KAFKA_CA_CERT"`    // The optional certificate authority file for TLS client authentication
+	verifySsl  bool   `env:"TARGET_KAFKA_VERIFY_SSL"` // Optional verify ssl certificates chain
 }
 
 // TargetsConfig holds configuration for the available targets
@@ -86,8 +92,14 @@ type FailureSQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type FailureKafkaTargetConfig struct {
-	Brokers   string `env:"FAILURE_TARGET_KAFKA_BROKERS"`
-	TopicName string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`
+	Brokers    string `env:"FAILURE_TARGET_KAFKA_BROKERS"`
+	TopicName  string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`
+	ByteLimit  int    `env:"FAILURE_TARGET_KAFKA_BYTE_LIMIT"`
+	Idempotent bool   `env:"FAILURE_TARGET_KAFKA_IDEMPOTENT"` // Exactly once writes
+	certFile   string `env:"FAILURE_TARGET_KAFKA_CERT_FILE"`  // The optional certificate file for client authentication
+	keyFile    string `env:"FAILURE_TARGET_KAFKA_KEY_FILE"`   // The optional key file for client authentication
+	caCert     string `env:"FAILURE_TARGET_KAFKA_CA_CERT"`    // The optional certificate authority file for TLS client authentication
+	verifySsl  bool   `env:"FAILURE_TARGET_KAFKA_VERIFY_SSL"` // Optional verify ssl certificates chain
 }
 
 // FailureTargetsConfig holds configuration for the available targets
@@ -248,6 +260,12 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		return target.NewKafkaTarget(
 			c.Targets.Kafka.Brokers,
 			c.Targets.Kafka.TopicName,
+			c.Targets.Kafka.ByteLimit,
+			c.Targets.Kafka.Idempotent,
+			c.Targets.Kafka.certFile,
+			c.Targets.Kafka.keyFile,
+			c.Targets.Kafka.caCert,
+			c.Targets.Kafka.verifySsl,
 		)
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.Target))
@@ -282,7 +300,13 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 	case "kafka":
 		t, err = target.NewKafkaTarget(
 			c.FailureTargets.Kafka.Brokers,
-			c.FailureTargets.PubSub.TopicName,
+			c.FailureTargets.Kafka.TopicName,
+			c.FailureTargets.Kafka.ByteLimit,
+			c.FailureTargets.Kafka.Idempotent,
+			c.FailureTargets.Kafka.certFile,
+			c.FailureTargets.Kafka.keyFile,
+			c.FailureTargets.Kafka.caCert,
+			c.FailureTargets.Kafka.verifySsl,
 		)
 	default:
 		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.FailureTarget))

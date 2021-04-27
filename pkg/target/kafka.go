@@ -7,6 +7,8 @@
 package target
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"strings"
 
@@ -19,7 +21,7 @@ import (
 
 const (
 	// Each record can only be up to 1 MiB in size - Kafka default
-	kafkaPublishMessageByteLimit = 1048576 // TODO: Make configurable
+	defaultKafkaMessageByteLimit = 1048576
 )
 
 // KafkaTarget holds a new client for writing messages to Apache Kafka
@@ -28,27 +30,36 @@ type KafkaTarget struct {
 	topicName string
 	brokers   string
 
+	messageByteLimit int
+
+	tlsConfig *tls.Config
+
 	log *log.Entry
 }
 
 // NewKafkaTarget creates a new client for writing messages to Apache Kafka
-func NewKafkaTarget(brokers string, topicName string) (*KafkaTarget, error) {
+func NewKafkaTarget(brokers string, topicName string, byteLimit int, idempotent bool, certFile string, keyFile string, caCert string, verifySsl bool) (*KafkaTarget, error) {
 	brokerList := strings.Split(brokers, ",")
 
 	// For the data collector, we are looking for strong consistency semantics.
 	// Because we don't change the flush settings, sarama will try to produce messages
 	// as fast as possible to keep latency low.
 	config := sarama.NewConfig()
-	config.Net.MaxOpenRequests = 1
-	config.Producer.Idempotent = true
+
+	if idempotent {
+		config.Producer.Idempotent = true
+		config.Net.MaxOpenRequests = 1
+	}
+
 	config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	config.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
 	config.Producer.Return.Successes = true
-	// tlsConfig := createTlsConfiguration()
-	// if tlsConfig != nil {
-	// 	config.Net.TLS.Config = tlsConfig
-	// 	config.Net.TLS.Enable = true
-	// }
+
+	tlsConfig := createTlsConfiguration(certFile, keyFile, caCert, verifySsl)
+	if tlsConfig != nil {
+		config.Net.TLS.Config = tlsConfig
+		config.Net.TLS.Enable = true
+	}
 
 	// On the broker side, you may want to change the following settings to get
 	// stronger consistency guarantees:
@@ -57,10 +68,12 @@ func NewKafkaTarget(brokers string, topicName string) (*KafkaTarget, error) {
 	producer, err := sarama.NewSyncProducer(brokerList, config)
 
 	return &KafkaTarget{
-		producer:  producer,
-		brokers:   brokers,
-		topicName: topicName,
-		log:       log.WithFields(log.Fields{"target": "kafka", "brokers": brokers, "topic": topicName}),
+		producer:         producer,
+		brokers:          brokers,
+		topicName:        topicName,
+		messageByteLimit: byteLimit,
+		tlsConfig:        tlsConfig,
+		log:              log.WithFields(log.Fields{"target": "kafka", "brokers": brokers, "topic": topicName}),
 	}, err
 }
 
@@ -127,10 +140,38 @@ func (kt *KafkaTarget) Close() {
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
 // per message for this target
 func (kt *KafkaTarget) MaximumAllowedMessageSizeBytes() int {
-	return kafkaPublishMessageByteLimit
+	if kt.messageByteLimit != 0 {
+		return kt.messageByteLimit
+	}
+
+	return defaultKafkaMessageByteLimit
 }
 
 // GetID returns the identifier for this target
 func (kt *KafkaTarget) GetID() string {
 	return fmt.Sprintf("brokers:%s:topic:%s", kt.brokers, kt.topicName)
+}
+
+func createTlsConfiguration(certFile string, keyFile string, caCert string, verifySsl bool) (t *tls.Config) {
+	if certFile != "" && keyFile != "" {
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if caCert != "" {
+			log.Fatal("No CA Cert provided but certFile and keyFile have been provided")
+		}
+
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM([]byte(caCert))
+
+		t = &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			RootCAs:            caCertPool,
+			InsecureSkipVerify: verifySsl,
+		}
+	}
+	// will be nil by default if nothing is provided
+	return t
 }
