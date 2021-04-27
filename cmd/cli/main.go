@@ -167,10 +167,8 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 	return func(messages []*models.Message) error {
 
 		// Apply transformations
-		transformed, err := tr(messages)
-		if err != nil {
-			return err
-		}
+		transformed := tr(messages)
+		// no error as errors should be returned in the failures array of TransformationResult
 
 		// Send message buffer
 		messagesToSend := transformed.Result

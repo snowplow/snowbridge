@@ -47,10 +47,8 @@ func ServerlessRequestHandler(messages []*models.Message) error {
 
 	// --- Process events
 
-	transformed, err := tr(messages)
-	if err != nil {
-		return err
-	}
+	transformed := tr(messages)
+	// no error as errors should be returned in the failures array of TransformationResult
 
 	res, err := t.Write(transformed.Result)
 	if err != nil {

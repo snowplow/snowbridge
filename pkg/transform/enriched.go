@@ -13,25 +13,23 @@ import (
 )
 
 // NewTransformation constructs a function which applies a sequence of transformations to messages, and returns a TransformationResult.
-func NewTransformation(tranformFunctions ...transformiface.TransformationFunction) func(messages []*models.Message) (*models.TransformationResult, error) {
-	return func(messages []*models.Message) (*models.TransformationResult, error) {
+func NewTransformation(tranformFunctions ...transformiface.TransformationFunction) func(messages []*models.Message) *models.TransformationResult {
+	return func(messages []*models.Message) *models.TransformationResult {
 		successes := messages
 		failures := make([]*models.Message, 0, len(messages))
 
 		for _, transformFunction := range tranformFunctions {
-			success, failure, err := transformFunction(messages)
-			if err != nil { // TODO: Figure out error handling...
-				// do something
-			}
+			success, failure := transformFunction(messages)
+			// no error as errors should be returned in the failures array of TransformationResult
 			failures = append(failures, failure...)
 			successes = success
 		}
-		return models.NewTransformationResult(successes, failures), nil
+		return models.NewTransformationResult(successes, failures)
 	}
 } // This seems generic enough that perhaps it should live elsewhere? If we were to create a set of transformations on raw data or some other format, for example, this exact same function would be used.
 
 // EnrichedToJson is a specific transformation implementation to transform good enriched data within a message to Json
-func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Message, error) { // Probably no need for error here actually. Any errored transformation should be returned in the failures slice.
+func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Message) { // Probably no need for error here actually. Any errored transformation should be returned in the failures slice.
 	successes := make([]*models.Message, 0, len(messages))
 	failures := make([]*models.Message, 0, len(messages))
 
@@ -51,5 +49,5 @@ func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Me
 			successes = append(successes, message)
 		}
 	}
-	return successes, failures, nil // TO DO: Figure out error handling...
+	return successes, failures // Doesn't return any err as errors should all go into failures.
 }

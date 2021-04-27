@@ -51,9 +51,7 @@ func TestEnrichedToJson(t *testing.T) {
 		},
 	}
 
-	transformSuccess, transformFailure, err := EnrichedToJson(messages)
-
-	assert.Nil(err)
+	transformSuccess, transformFailure := EnrichedToJson(messages)
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal(len(transformFailure), 1)
@@ -103,20 +101,18 @@ func TestNewTransformation(t *testing.T) {
 
 	noTransform := NewTransformation(make([]transformiface.TransformationFunction, 0, 0)...)
 
-	noTransformResult, err := noTransform(messages)
+	noTransformResult := noTransform(messages)
 
 	expectedNoTransformRes := models.NewTransformationResult(messages, make([]*models.Message, 0, 0)) // This is a bad test as the function edits the input in place at current. TODO: figure out better way.
 
-	assert.Nil(err)
 	assert.Equal(expectedNoTransformRes, noTransformResult)
 
 	tranformEnrichJson := NewTransformation(EnrichedToJson)
 
-	enrichJsonRes, err := tranformEnrichJson(messages)
+	enrichJsonRes := tranformEnrichJson(messages)
 	// the messages object is operated on by the above noTransform test. However that case is just a pass-through. Does this still make for a bad test?
 	// feels like potentially yes as it's just happenstance that the object isn't altered... So perhaps a separate function per case?
 
-	assert.Nil(err)
 	assert.Equal(expectedGood, enrichJsonRes.Result)
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
