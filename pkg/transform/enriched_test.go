@@ -7,7 +7,6 @@
 package transform
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -55,7 +54,9 @@ func TestEnrichedToJson(t *testing.T) {
 	transformSuccess, transformFailure, err := EnrichedToJson(messages)
 
 	assert.Nil(err)
-	assert.Equal(len(transformFailure), 1)                                                                               // Not matching equivalence because error stacktrace makes it unfeasible. Doing each component part instead.
+
+	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
+	assert.Equal(len(transformFailure), 1)
 	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", transformFailure[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
 	assert.Equal([]byte("not	a	snowplow	event"), transformFailure[0].Data)
 	assert.Equal("some-key4", transformFailure[0].PartitionKey)
@@ -85,6 +86,21 @@ func TestNewTransformation(t *testing.T) {
 		},
 	}
 
+	var expectedGood = []*models.Message{
+		{
+			Data:         []byte(`{"app_id":"test-data","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`),
+			PartitionKey: "some-key",
+		},
+		{
+			Data:         []byte(`{"app_id":"test-data","collector_tstamp":"2019-05-10T14:40:31.105Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:31.105Z","dvce_created_tstamp":"2019-05-10T14:40:30.218Z","dvce_sent_tstamp":"2019-05-10T14:40:30Z","etl_tstamp":"2019-05-10T14:40:32.392Z","event":"transaction_item","event_format":"jsonschema","event_id":"5071169f-3050-473f-b03f-9748319b1ef2","event_name":"transaction_item","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"68220ade-307b-4898-8e25-c4c8ac92f1d7","platform":"pc","ti_orderid":"transaction\u003cbuilt-in function input\u003e","ti_price":35.87,"ti_quantity":1,"ti_sku":"item58","user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`),
+			PartitionKey: "some-key1",
+		},
+		{
+			Data:         []byte(`{"app_id":"test-data","collector_tstamp":"2019-05-10T14:40:29.576Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:29.576Z","dvce_created_tstamp":"2019-05-10T14:40:29.204Z","dvce_sent_tstamp":"2019-05-10T14:40:29Z","etl_tstamp":"2019-05-10T14:40:30.836Z","event":"page_view","event_format":"jsonschema","event_id":"e8aef68d-8533-45c6-a672-26a0f01be9bd","event_name":"page_view","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"b66c4a12-8584-4c7a-9a5d-7c96f59e2556","page_title":"landing-page","page_url":"www.demo-site.com/campaign-landing-page","page_urlpath":"www.demo-site.com/campaign-landing-page","page_urlport":80,"platform":"pc","user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`),
+			PartitionKey: "some-key2",
+		},
+	}
+
 	noTransform := NewTransformation(make([]transformiface.TransformationFunction, 0, 0)...)
 
 	noTransformResult, err := noTransform(messages)
@@ -96,11 +112,17 @@ func TestNewTransformation(t *testing.T) {
 
 	tranformEnrichJson := NewTransformation(EnrichedToJson)
 
-	// fmt.Println(messages)
+	enrichJsonRes, err := tranformEnrichJson(messages)
+	// the messages object is operated on by the above noTransform test. However that case is just a pass-through. Does this still make for a bad test?
+	// feels like potentially yes as it's just happenstance that the object isn't altered... So perhaps a separate function per case?
 
-	enrichJsonRes, err := tranformEnrichJson(messages) // messages is transformed in-place by now. So this is a bad test
-
-	fmt.Println(enrichJsonRes)
 	assert.Nil(err)
-	assert.NotNil(enrichJsonRes) // TODO: Better equvalence test like above
+	assert.Equal(expectedGood, enrichJsonRes.Result)
+
+	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
+	assert.Equal(1, len(enrichJsonRes.Invalid))
+	assert.Equal(int64(1), enrichJsonRes.InvalidCount)
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", enrichJsonRes.Invalid[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
+	assert.Equal([]byte("not	a	snowplow	event"), enrichJsonRes.Invalid[0].Data)
+	assert.Equal("some-key4", enrichJsonRes.Invalid[0].PartitionKey)
 }
