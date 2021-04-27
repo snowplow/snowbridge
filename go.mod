@@ -20,9 +20,8 @@ require (
 	github.com/twinj/uuid v1.0.0
 	github.com/twitchscience/kinsumer v0.0.0-00010101000000-000000000000
 	github.com/urfave/cli v1.22.5
-	// golang.org/x/tools v0.1.0 // indirect
+	golang.org/x/tools v0.1.0 // indirect
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
 )
 
 replace github.com/twitchscience/kinsumer => github.com/snowplow-devops/kinsumer v0.0.0-20201222120237-1233f129ef85
-
