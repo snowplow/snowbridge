@@ -13,6 +13,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"hash"
+	"io/ioutil"
 	"strings"
 
 	"github.com/Shopify/sarama"
@@ -38,8 +39,8 @@ type KafkaConfig struct {
 	SASLAlgorithm string
 	CertFile      string
 	KeyFile       string
-	CaCert        string
-	VerifySsl     bool
+	CaFile        string
+	SkipVerifyTls bool
 }
 
 // KafkaTarget holds a new client for writing messages to Apache Kafka
@@ -96,13 +97,14 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		} else if cfg.SASLAlgorithm == "sha256" {
 			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
 			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
-
+		} else if cfg.SASLAlgorithm == "plaintext" {
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 		} else {
 			return nil, fmt.Errorf("invalid SHA algorithm \"%s\": can be either \"sha256\" or \"sha512\"", cfg.SASLAlgorithm)
 		}
 	}
 
-	tlsConfig, err := createTlsConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaCert, cfg.VerifySsl)
+	tlsConfig, err := createTlsConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTls)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +218,7 @@ func getKafkaVersion(targetVersion string) (sarama.KafkaVersion, error) {
 	return preferredVersion, nil
 }
 
-func createTlsConfiguration(certFile string, keyFile string, caCert string, verifySsl bool) (*tls.Config, error) {
+func createTlsConfiguration(certFile string, keyFile string, caFile string, skipVerify bool) (*tls.Config, error) {
 	if certFile == "" || keyFile == "" {
 		return nil, nil
 	}
@@ -226,17 +228,18 @@ func createTlsConfiguration(certFile string, keyFile string, caCert string, veri
 		return nil, err
 	}
 
-	if caCert != "" {
-		return nil, fmt.Errorf("tls: no caCert provided but certFile and keyFile have been provided")
+	caCert, err := ioutil.ReadFile(caFile)
+	if err != nil {
+		return nil, err
 	}
 
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM([]byte(caCert))
+	caCertPool.AppendCertsFromPEM(caCert)
 
 	return &tls.Config{
 		Certificates:       []tls.Certificate{cert},
 		RootCAs:            caCertPool,
-		InsecureSkipVerify: verifySsl,
+		InsecureSkipVerify: skipVerify,
 	}, nil
 }
 

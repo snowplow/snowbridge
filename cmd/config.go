@@ -64,8 +64,8 @@ type KafkaTargetConfig struct {
 	SASLAlgorithm string `env:"TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
 	CertFile      string `env:"TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
 	KeyFile       string `env:"TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
-	CaCert        string `env:"TARGET_KAFKA_TLS_CA_CERT"`                        // The optional certificate authority file for TLS client authentication
-	VerifySsl     bool   `env:"TARGET_KAFKA_TLS_VERIFY_SSL"`                     // Optional verify ssl certificates chain
+	CaFile        string `env:"TARGET_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
+	SkipVerifyTls bool   `env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
 }
 
 // TargetsConfig holds configuration for the available targets
@@ -114,8 +114,8 @@ type FailureKafkaTargetConfig struct {
 	SASLAlgorithm string `env:"FAILURE_TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
 	CertFile      string `env:"FAILURE_TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
 	KeyFile       string `env:"FAILURE_TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
-	CaCert        string `env:"FAILURE_TARGET_KAFKA_TLS_CA_CERT"`                        // The optional certificate authority file for TLS client authentication
-	VerifySsl     bool   `env:"FAILURE_TARGET_KAFKA_TLS_VERIFY_SSL"`                     // Optional verify ssl certificates chain
+	CaFile        string `env:"FAILURE_TARGET_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
+	SkipVerifyTls bool   `env:"FAILURE_TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
 }
 
 // FailureTargetsConfig holds configuration for the available targets
@@ -288,8 +288,8 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 			SASLAlgorithm: c.Targets.Kafka.SASLAlgorithm,
 			CertFile:      c.Targets.Kafka.CertFile,
 			KeyFile:       c.Targets.Kafka.KeyFile,
-			CaCert:        c.Targets.Kafka.CaCert,
-			VerifySsl:     c.Targets.Kafka.VerifySsl,
+			CaFile:        c.Targets.Kafka.CaFile,
+			SkipVerifyTls: c.Targets.Kafka.SkipVerifyTls,
 		})
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.Target))
@@ -337,8 +337,8 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 			SASLAlgorithm: c.FailureTargets.Kafka.SASLAlgorithm,
 			CertFile:      c.FailureTargets.Kafka.CertFile,
 			KeyFile:       c.FailureTargets.Kafka.KeyFile,
-			CaCert:        c.FailureTargets.Kafka.CaCert,
-			VerifySsl:     c.FailureTargets.Kafka.VerifySsl,
+			CaFile:        c.FailureTargets.Kafka.CaFile,
+			SkipVerifyTls: c.FailureTargets.Kafka.SkipVerifyTls,
 		})
 	default:
 		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.FailureTarget))
