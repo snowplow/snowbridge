@@ -50,9 +50,9 @@ type SQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type KafkaTargetConfig struct {
-	Brokers       string `env:"TARGET_KAFKA_BROKERS"`    // REQUIRED
-	TopicName     string `env:"TARGET_KAFKA_TOPIC_NAME"` // REQUIRED
-	Version       string `env:"TARGET_KAFKA_VERSION"`    // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
+	Brokers       string `env:"TARGET_KAFKA_BROKERS"`        // REQUIRED
+	TopicName     string `env:"TARGET_KAFKA_TOPIC_NAME"`     // REQUIRED
+	TargetVersion string `env:"TARGET_KAFKA_TARGET_VERSION"` // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
 	MaxRetries    int    `env:"TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
 	ByteLimit     int    `env:"TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"` // Kafka Default is 1MiB
 	Compress      bool   `env:"TARGET_KAFKA_COMPRESS"`                        // Reduces Network usage & Increases latency by compressing data
@@ -100,9 +100,9 @@ type FailureSQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type FailureKafkaTargetConfig struct {
-	Version       string `env:"FAILURE_TARGET_KAFKA_VERSION"`    // REQUIRED: The Kafka version (or lower) we should target e.g. 2.3.0
-	Brokers       string `env:"FAILURE_TARGET_KAFKA_BROKERS"`    // REQUIRED
-	TopicName     string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"` // REQUIRED
+	Brokers       string `env:"FAILURE_TARGET_KAFKA_BROKERS"`        // REQUIRED
+	TopicName     string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`     // REQUIRED
+	TargetVersion string `env:"FAILURE_TARGET_KAFKA_TARGET_VERSION"` // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
 	MaxRetries    int    `env:"FAILURE_TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
 	ByteLimit     int    `env:"FAILURE_TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"`
 	Compress      bool   `env:"FAILURE_TARGET_KAFKA_COMPRESS"`     // Reduces Network usage & Increases latency by compressing data
@@ -276,7 +276,7 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		return target.NewKafkaTarget(&target.KafkaConfig{
 			Brokers:       c.Targets.Kafka.Brokers,
 			TopicName:     c.Targets.Kafka.TopicName,
-			Version:       c.Targets.Kafka.Version,
+			TargetVersion: c.Targets.Kafka.TargetVersion,
 			MaxRetries:    c.Targets.Kafka.MaxRetries,
 			ByteLimit:     c.Targets.Kafka.ByteLimit,
 			Compress:      c.Targets.Kafka.Compress,
@@ -325,7 +325,7 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 		t, err = target.NewKafkaTarget(&target.KafkaConfig{
 			Brokers:       c.FailureTargets.Kafka.Brokers,
 			TopicName:     c.FailureTargets.Kafka.TopicName,
-			Version:       c.FailureTargets.Kafka.Version,
+			TargetVersion: c.FailureTargets.Kafka.TargetVersion,
 			MaxRetries:    c.FailureTargets.Kafka.MaxRetries,
 			ByteLimit:     c.FailureTargets.Kafka.ByteLimit,
 			Compress:      c.FailureTargets.Kafka.Compress,

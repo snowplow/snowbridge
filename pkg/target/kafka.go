@@ -26,7 +26,7 @@ import (
 type KafkaConfig struct {
 	Brokers       string
 	TopicName     string
-	Version       string
+	TargetVersion string
 	MaxRetries    int
 	ByteLimit     int
 	Compress      bool
@@ -57,29 +57,14 @@ type KafkaTarget struct {
 
 // NewKafkaTarget creates a new client for writing messages to Apache Kafka
 func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
-	preferredVersion := sarama.DefaultVersion
-
-	if cfg.Version != "" {
-		preferredVersion, err := sarama.ParseKafkaVersion(cfg.Version)
-		if err != nil {
-			return nil, err
-		} else {
-			supportedVersion := false
-			for _, version := range sarama.SupportedVersions {
-				if version == preferredVersion {
-					supportedVersion = true
-					break
-				}
-			}
-			if !supportedVersion {
-				return nil, fmt.Errorf("unsupported version `%s`. select older, compatible version instead", preferredVersion)
-			}
-		}
+	kafkaVersion, err := getKafkaVersion(cfg.TargetVersion)
+	if err != nil {
+		return nil, err
 	}
 
 	saramaConfig := sarama.NewConfig()
 	saramaConfig.ClientID = "snowplow_stream_replicator"
-	saramaConfig.Version = preferredVersion
+	saramaConfig.Version = kafkaVersion
 	saramaConfig.Producer.Retry.Max = cfg.MaxRetries
 	saramaConfig.Producer.MaxMessageBytes = cfg.ByteLimit
 
@@ -140,7 +125,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		topicName:        cfg.TopicName,
 		messageByteLimit: cfg.ByteLimit,
 		tlsConfig:        tlsConfig,
-		log:              log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": preferredVersion}),
+		log:              log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion}),
 	}, err
 }
 
@@ -209,6 +194,30 @@ func (kt *KafkaTarget) MaximumAllowedMessageSizeBytes() int {
 // GetID returns the identifier for this target
 func (kt *KafkaTarget) GetID() string {
 	return fmt.Sprintf("brokers:%s:topic:%s", kt.brokers, kt.topicName)
+}
+
+func getKafkaVersion(targetVersion string) (sarama.KafkaVersion, error) {
+	preferredVersion := sarama.DefaultVersion
+
+	if targetVersion != "" {
+		parsedVersion, err := sarama.ParseKafkaVersion(targetVersion)
+		if err != nil {
+			return sarama.DefaultVersion, err
+		}
+
+		supportedVersion := false
+		for _, version := range sarama.SupportedVersions {
+			if version == parsedVersion {
+				supportedVersion = true
+				break
+			}
+		}
+		if !supportedVersion {
+			return sarama.DefaultVersion, fmt.Errorf("unsupported version `%s`. select older, compatible version instead", parsedVersion)
+		}
+	}
+
+	return preferredVersion, nil
 }
 
 func createTlsConfiguration(certFile string, keyFile string, caCert string, verifySsl bool) (*tls.Config, error) {
