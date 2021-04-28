@@ -14,10 +14,6 @@ type TransformationApplyFunction func([]*models.Message) *models.TransformationR
 
 type TransformationGenerator func(...TransformationFunction) TransformationApplyFunction
 
-type Transformation interface {
-	NewTransformation(tranformFunctions ...TransformationFunction) func(messages []*models.Message) *models.TransformationResult
-} // Should this interface also include some kind of model for the specific transformation implementations, like EnrichedToJson?
-
 // NewTransformation constructs a function which applies all transformations to all messages, returning a TransformationResult.
 func NewTransformation(tranformFunctions ...TransformationFunction) TransformationApplyFunction {
 	return func(messages []*models.Message) *models.TransformationResult {
