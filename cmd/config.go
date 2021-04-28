@@ -50,14 +50,18 @@ type SQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type KafkaTargetConfig struct {
-	Brokers    string `env:"TARGET_KAFKA_BROKERS"`
-	TopicName  string `env:"TARGET_KAFKA_TOPIC_NAME"`
-	ByteLimit  int    `env:"TARGET_KAFKA_BYTE_LIMIT"`
-	Idempotent bool   `env:"TARGET_KAFKA_IDEMPOTENT"` // Exactly once writes
-	certFile   string `env:"TARGET_KAFKA_CERT_FILE"`  // The optional certificate file for client authentication
-	keyFile    string `env:"TARGET_KAFKA_KEY_FILE"`   // The optional key file for client authentication
-	caCert     string `env:"TARGET_KAFKA_CA_CERT"`    // The optional certificate authority file for TLS client authentication
-	verifySsl  bool   `env:"TARGET_KAFKA_VERIFY_SSL"` // Optional verify ssl certificates chain
+	Brokers    string `env:"TARGET_KAFKA_BROKERS"`    // REQUIRED
+	TopicName  string `env:"TARGET_KAFKA_TOPIC_NAME"` // REQUIRED
+	Version    string `env:"TARGET_KAFKA_VERSION"`    // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
+	MaxRetries int    `env:"TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
+	ByteLimit  int    `env:"TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"`
+	Compress   bool   `env:"TARGET_KAFKA_COMPRESS"`     // Reduces Network usage & Increases latency by compressing data
+	WaitForAll bool   `env:"TARGET_KAFKA_WAIT_FOR_ALL"` // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
+	Idempotent bool   `env:"TARGET_KAFKA_IDEMPOTENT"`   // Exactly once writes - Also sets RequiredAcks = WaitForAll
+	CertFile   string `env:"TARGET_KAFKA_CERT_FILE"`    // The optional certificate file for client authentication
+	KeyFile    string `env:"TARGET_KAFKA_KEY_FILE"`     // The optional key file for client authentication
+	CaCert     string `env:"TARGET_KAFKA_CA_CERT"`      // The optional certificate authority file for TLS client authentication
+	VerifySsl  bool   `env:"TARGET_KAFKA_VERIFY_SSL"`   // Optional verify ssl certificates chain
 }
 
 // TargetsConfig holds configuration for the available targets
@@ -92,14 +96,18 @@ type FailureSQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type FailureKafkaTargetConfig struct {
-	Brokers    string `env:"FAILURE_TARGET_KAFKA_BROKERS"`
-	TopicName  string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`
-	ByteLimit  int    `env:"FAILURE_TARGET_KAFKA_BYTE_LIMIT"`
-	Idempotent bool   `env:"FAILURE_TARGET_KAFKA_IDEMPOTENT"` // Exactly once writes
-	certFile   string `env:"FAILURE_TARGET_KAFKA_CERT_FILE"`  // The optional certificate file for client authentication
-	keyFile    string `env:"FAILURE_TARGET_KAFKA_KEY_FILE"`   // The optional key file for client authentication
-	caCert     string `env:"FAILURE_TARGET_KAFKA_CA_CERT"`    // The optional certificate authority file for TLS client authentication
-	verifySsl  bool   `env:"FAILURE_TARGET_KAFKA_VERIFY_SSL"` // Optional verify ssl certificates chain
+	Version    string `env:"FAILURE_TARGET_KAFKA_VERSION"`    // REQUIRED: The Kafka version (or lower) we should target e.g. 2.3.0
+	Brokers    string `env:"FAILURE_TARGET_KAFKA_BROKERS"`    // REQUIRED
+	TopicName  string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"` // REQUIRED
+	MaxRetries int    `env:"FAILURE_TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
+	ByteLimit  int    `env:"FAILURE_TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"`
+	Compress   bool   `env:"FAILURE_TARGET_KAFKA_COMPRESS"`     // Reduces Network usage & Increases latency by compressing data
+	WaitForAll bool   `env:"FAILURE_TARGET_KAFKA_WAIT_FOR_ALL"` // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
+	Idempotent bool   `env:"FAILURE_TARGET_KAFKA_IDEMPOTENT"`   // Exactly once writes
+	CertFile   string `env:"FAILURE_TARGET_KAFKA_CERT_FILE"`    // The optional certificate file for client authentication
+	KeyFile    string `env:"FAILURE_TARGET_KAFKA_KEY_FILE"`     // The optional key file for client authentication
+	CaCert     string `env:"FAILURE_TARGET_KAFKA_CA_CERT"`      // The optional certificate authority file for TLS client authentication
+	VerifySsl  bool   `env:"FAILURE_TARGET_KAFKA_VERIFY_SSL"`   // Optional verify ssl certificates chain
 }
 
 // FailureTargetsConfig holds configuration for the available targets
@@ -260,12 +268,16 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		return target.NewKafkaTarget(
 			c.Targets.Kafka.Brokers,
 			c.Targets.Kafka.TopicName,
+			c.Targets.Kafka.Version,
+			c.Targets.Kafka.MaxRetries,
 			c.Targets.Kafka.ByteLimit,
+			c.Targets.Kafka.Compress,
+			c.Targets.Kafka.WaitForAll,
 			c.Targets.Kafka.Idempotent,
-			c.Targets.Kafka.certFile,
-			c.Targets.Kafka.keyFile,
-			c.Targets.Kafka.caCert,
-			c.Targets.Kafka.verifySsl,
+			c.Targets.Kafka.CertFile,
+			c.Targets.Kafka.KeyFile,
+			c.Targets.Kafka.CaCert,
+			c.Targets.Kafka.VerifySsl,
 		)
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.Target))
@@ -301,12 +313,16 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 		t, err = target.NewKafkaTarget(
 			c.FailureTargets.Kafka.Brokers,
 			c.FailureTargets.Kafka.TopicName,
+			c.FailureTargets.Kafka.Version,
+			c.FailureTargets.Kafka.MaxRetries,
 			c.FailureTargets.Kafka.ByteLimit,
+			c.FailureTargets.Kafka.Compress,
+			c.FailureTargets.Kafka.WaitForAll,
 			c.FailureTargets.Kafka.Idempotent,
-			c.FailureTargets.Kafka.certFile,
-			c.FailureTargets.Kafka.keyFile,
-			c.FailureTargets.Kafka.caCert,
-			c.FailureTargets.Kafka.verifySsl,
+			c.FailureTargets.Kafka.CertFile,
+			c.FailureTargets.Kafka.KeyFile,
+			c.FailureTargets.Kafka.CaCert,
+			c.FailureTargets.Kafka.VerifySsl,
 		)
 	default:
 		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.FailureTarget))
