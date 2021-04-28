@@ -7,9 +7,12 @@
 package target
 
 import (
+	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"hash"
 	"strings"
 
 	"github.com/Shopify/sarama"
@@ -17,7 +20,27 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/xdg/scram"
 )
+
+type KafkaConfig struct {
+	Brokers       string
+	TopicName     string
+	Version       string
+	MaxRetries    int
+	ByteLimit     int
+	Compress      bool
+	WaitForAll    bool
+	Idempotent    bool
+	EnableSASL    bool
+	SASLUsername  string
+	SASLPassword  string
+	SASLAlgorithm string
+	CertFile      string
+	KeyFile       string
+	CaCert        string
+	VerifySsl     bool
+}
 
 // KafkaTarget holds a new client for writing messages to Apache Kafka
 type KafkaTarget struct {
@@ -33,11 +56,11 @@ type KafkaTarget struct {
 }
 
 // NewKafkaTarget creates a new client for writing messages to Apache Kafka
-func NewKafkaTarget(brokers string, topicName string, version string, maxRetries int, byteLimit int, compress bool, waitForAll bool, idempotent bool, certFile string, keyFile string, caCert string, verifySsl bool) (*KafkaTarget, error) {
+func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 	preferredVersion := sarama.DefaultVersion
 
-	if version != "" {
-		preferredVersion, err := sarama.ParseKafkaVersion(version)
+	if cfg.Version != "" {
+		preferredVersion, err := sarama.ParseKafkaVersion(cfg.Version)
 		if err != nil {
 			return nil, err
 		} else {
@@ -54,53 +77,70 @@ func NewKafkaTarget(brokers string, topicName string, version string, maxRetries
 		}
 	}
 
-	config := sarama.NewConfig()
-	config.ClientID = "snowplow_stream_replicator"
-	config.Version = preferredVersion
-	config.Producer.Retry.Max = maxRetries
-	config.Producer.MaxMessageBytes = byteLimit
+	saramaConfig := sarama.NewConfig()
+	saramaConfig.ClientID = "snowplow_stream_replicator"
+	saramaConfig.Version = preferredVersion
+	saramaConfig.Producer.Retry.Max = cfg.MaxRetries
+	saramaConfig.Producer.MaxMessageBytes = cfg.ByteLimit
 
 	// Must be enabled for the SyncProducer
-	config.Producer.Return.Successes = true
-	config.Producer.Return.Errors = true
+	saramaConfig.Producer.Return.Successes = true
+	saramaConfig.Producer.Return.Errors = true
 
-	if waitForAll {
-		config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
+	if cfg.WaitForAll {
+		saramaConfig.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 	}
 
-	if idempotent {
-		config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-		config.Producer.Idempotent = true
-		config.Net.MaxOpenRequests = 1
+	if cfg.Idempotent {
+		saramaConfig.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
+		saramaConfig.Producer.Idempotent = true
+		saramaConfig.Net.MaxOpenRequests = 1
 	}
 
 	// If we don't change the flush settings, sarama will try to produce messages
 	// as fast as possible to keep latency low.
-	if compress {
-		config.Producer.Compression = sarama.CompressionSnappy // Compress messages
+	if cfg.Compress {
+		saramaConfig.Producer.Compression = sarama.CompressionSnappy // Compress messages
 	}
 
-	tlsConfig, err := createTlsConfiguration(certFile, keyFile, caCert, verifySsl)
+	if cfg.EnableSASL {
+		saramaConfig.Net.SASL.Enable = true
+		saramaConfig.Net.SASL.User = cfg.SASLUsername
+		saramaConfig.Net.SASL.Password = cfg.SASLPassword
+		saramaConfig.Net.SASL.Handshake = true
+		if cfg.SASLAlgorithm == "sha512" {
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
+		} else if cfg.SASLAlgorithm == "sha256" {
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
+
+		} else {
+			return nil, fmt.Errorf("invalid SHA algorithm \"%s\": can be either \"sha256\" or \"sha512\"", cfg.SASLAlgorithm)
+		}
+	}
+
+	tlsConfig, err := createTlsConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaCert, cfg.VerifySsl)
 	if err != nil {
 		return nil, err
 	}
 	if tlsConfig != nil {
-		config.Net.TLS.Config = tlsConfig
-		config.Net.TLS.Enable = true
+		saramaConfig.Net.TLS.Config = tlsConfig
+		saramaConfig.Net.TLS.Enable = true
 	}
 
 	// On the broker side, you may want to change the following settings to get stronger consistency guarantees:
 	// - For your broker, set `unclean.leader.election.enable` to false
 	// - For the topic, you could increase `min.insync.replicas`.
-	producer, err := sarama.NewSyncProducer(strings.Split(brokers, ","), config)
+	producer, err := sarama.NewSyncProducer(strings.Split(cfg.Brokers, ","), saramaConfig)
 
 	return &KafkaTarget{
 		producer:         producer,
-		brokers:          brokers,
-		topicName:        topicName,
-		messageByteLimit: byteLimit,
+		brokers:          cfg.Brokers,
+		topicName:        cfg.TopicName,
+		messageByteLimit: cfg.ByteLimit,
 		tlsConfig:        tlsConfig,
-		log:              log.WithFields(log.Fields{"target": "kafka", "brokers": brokers, "topic": topicName, "version": preferredVersion}),
+		log:              log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": preferredVersion}),
 	}, err
 }
 
@@ -193,4 +233,31 @@ func createTlsConfiguration(certFile string, keyFile string, caCert string, veri
 		RootCAs:            caCertPool,
 		InsecureSkipVerify: verifySsl,
 	}, nil
+}
+
+var SHA256 scram.HashGeneratorFcn = func() hash.Hash { return sha256.New() }
+var SHA512 scram.HashGeneratorFcn = func() hash.Hash { return sha512.New() }
+
+type XDGSCRAMClient struct {
+	*scram.Client
+	*scram.ClientConversation
+	scram.HashGeneratorFcn
+}
+
+func (x *XDGSCRAMClient) Begin(userName, password, authzID string) (err error) {
+	x.Client, err = x.HashGeneratorFcn.NewClient(userName, password, authzID)
+	if err != nil {
+		return err
+	}
+	x.ClientConversation = x.Client.NewConversation()
+	return nil
+}
+
+func (x *XDGSCRAMClient) Step(challenge string) (response string, err error) {
+	response, err = x.ClientConversation.Step(challenge)
+	return
+}
+
+func (x *XDGSCRAMClient) Done() bool {
+	return x.ClientConversation.Done()
 }
