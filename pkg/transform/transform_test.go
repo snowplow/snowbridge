@@ -4,14 +4,12 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package transformiface
+package transform
 
 import (
 	"testing"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -84,7 +82,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 		},
 	}
 
-	tranformEnrichJson := NewTransformation(transform.EnrichedToJson)
+	tranformEnrichJson := NewTransformation(EnrichedToJson)
 
 	enrichJsonRes := tranformEnrichJson(messages)
 	// the messages object is operated on by the above noTransform test. However that case is just a pass-through. Does this still make for a bad test?

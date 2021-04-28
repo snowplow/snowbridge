@@ -25,7 +25,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformiface"
 )
 
 // ---------- [ TARGETS ] ----------
@@ -153,7 +152,7 @@ type StatsReceiversConfig struct {
 // ---------- [ Transformations ] ----------
 
 type EnrichedTransformationConfig struct {
-	TransformFunction transformiface.TransformationFunction
+	TransformFunction transform.TransformationFunction
 }
 
 type TransformationsConfig struct {
@@ -289,8 +288,8 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 	}
 }
 
-func (c *Config) GetTransformations() (transformiface.TransformationApplyFunction, error) {
-	funcs := make([]transformiface.TransformationFunction, 0, 0)
+func (c *Config) GetTransformations() (transform.TransformationApplyFunction, error) {
+	funcs := make([]transform.TransformationFunction, 0, 0)
 
 	switch c.Transformation {
 	case "enrichedJson":
@@ -299,7 +298,7 @@ func (c *Config) GetTransformations() (transformiface.TransformationApplyFunctio
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'enrichedJson' and got '%s'", c.Transformation))
 	}
-	return transformiface.NewTransformation(funcs...), nil
+	return transform.NewTransformation(funcs...), nil
 }
 
 // GetTags returns a list of tags to use in identifying this instance of stream-replicator
