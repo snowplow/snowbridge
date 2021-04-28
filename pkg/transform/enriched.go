@@ -23,13 +23,13 @@ func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Me
 			failures = append(failures, message)
 			continue
 		}
-		JsonMessage, err := parsedMessage.ToJson()
+		jsonMessage, err := parsedMessage.ToJson()
 		if err != nil {
 			message.SetError(err)
 			failures = append(failures, message)
 			continue
 		}
-		message.Data = JsonMessage // because we're using a pointer, this alters the original value I think. Is this is acceptable?
+		message.Data = jsonMessage // because we're using a pointer, this alters the original value I think. Is this is acceptable?
 		successes = append(successes, message)
 
 	}
