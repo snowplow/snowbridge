@@ -62,10 +62,10 @@ type KafkaTargetConfig struct {
 	SASLUsername  string `env:"TARGET_KAFKA_SASL_USERNAME"`
 	SASLPassword  string `env:"TARGET_KAFKA_SASL_PASSWORD"`
 	SASLAlgorithm string `env:"TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
-	CertFile      string `env:"TARGET_KAFKA_CERT_FILE"`                          // The optional certificate file for client authentication
-	KeyFile       string `env:"TARGET_KAFKA_KEY_FILE"`                           // The optional key file for client authentication
-	CaCert        string `env:"TARGET_KAFKA_CA_CERT"`                            // The optional certificate authority file for TLS client authentication
-	VerifySsl     bool   `env:"TARGET_KAFKA_VERIFY_SSL"`                         // Optional verify ssl certificates chain
+	CertFile      string `env:"TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
+	KeyFile       string `env:"TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
+	CaCert        string `env:"TARGET_KAFKA_TLS_CA_CERT"`                        // The optional certificate authority file for TLS client authentication
+	VerifySsl     bool   `env:"TARGET_KAFKA_TLS_VERIFY_SSL"`                     // Optional verify ssl certificates chain
 }
 
 // TargetsConfig holds configuration for the available targets
@@ -112,10 +112,10 @@ type FailureKafkaTargetConfig struct {
 	SASLUsername  string `env:"FAILURE_TARGET_KAFKA_SASL_USERNAME"`
 	SASLPassword  string `env:"FAILURE_TARGET_KAFKA_SASL_PASSWORD"`
 	SASLAlgorithm string `env:"FAILURE_TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
-	CertFile      string `env:"FAILURE_TARGET_KAFKA_CERT_FILE"`                          // The optional certificate file for client authentication
-	KeyFile       string `env:"FAILURE_TARGET_KAFKA_KEY_FILE"`                           // The optional key file for client authentication
-	CaCert        string `env:"FAILURE_TARGET_KAFKA_CA_CERT"`                            // The optional certificate authority file for TLS client authentication
-	VerifySsl     bool   `env:"FAILURE_TARGET_KAFKA_VERIFY_SSL"`                         // Optional verify ssl certificates chain
+	CertFile      string `env:"FAILURE_TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
+	KeyFile       string `env:"FAILURE_TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
+	CaCert        string `env:"FAILURE_TARGET_KAFKA_TLS_CA_CERT"`                        // The optional certificate authority file for TLS client authentication
+	VerifySsl     bool   `env:"FAILURE_TARGET_KAFKA_TLS_VERIFY_SSL"`                     // Optional verify ssl certificates chain
 }
 
 // FailureTargetsConfig holds configuration for the available targets
