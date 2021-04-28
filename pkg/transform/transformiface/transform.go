@@ -17,3 +17,19 @@ type TransformationGenerator func(...TransformationFunction) TransformationApply
 type Transformation interface {
 	NewTransformation(tranformFunctions ...TransformationFunction) func(messages []*models.Message) *models.TransformationResult
 } // Should this interface also include some kind of model for the specific transformation implementations, like EnrichedToJson?
+
+// NewTransformation constructs a function which applies all transformations to all messages, returning a TransformationResult.
+func NewTransformation(tranformFunctions ...TransformationFunction) func(messages []*models.Message) *models.TransformationResult {
+	return func(messages []*models.Message) *models.TransformationResult {
+		successes := messages
+		failures := make([]*models.Message, 0, len(messages))
+
+		for _, transformFunction := range tranformFunctions {
+			success, failure := transformFunction(messages)
+			// no error as errors should be returned in the 'Invalid' slice of TransformationResult
+			failures = append(failures, failure...)
+			successes = success
+		}
+		return models.NewTransformationResult(successes, failures)
+	}
+}

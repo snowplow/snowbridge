@@ -299,7 +299,7 @@ func (c *Config) GetTransformations() (transformiface.TransformationApplyFunctio
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'enrichedJson' and got '%s'", c.Transformation))
 	}
-	return transform.NewTransformation(funcs...), nil
+	return transformiface.NewTransformation(funcs...), nil
 }
 
 // GetTags returns a list of tags to use in identifying this instance of stream-replicator

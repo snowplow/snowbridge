@@ -4,19 +4,52 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package transform
+package transformiface
 
 import (
 	"testing"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEnrichedToJson(t *testing.T) {
+// To test a function which creates a function, we're creating the function then testing that. Not sure if there's a better way?
+func TestNewTransformation_Passthrough(t *testing.T) {
 	assert := assert.New(t)
 
-	// Handling of test inputs is messy but avoids edit-in-place complications. Perhaps there's a cleaner way?
+	var messages = []*models.Message{
+		{
+			Data: []byte(`test-data	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`),
+			PartitionKey: "some-key",
+		},
+		{
+			Data: []byte(`test-data	pc	2019-05-10 14:40:32.392	2019-05-10 14:40:31.105	2019-05-10 14:40:30.218	transaction_item	5071169f-3050-473f-b03f-9748319b1ef2			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				68220ade-307b-4898-8e25-c4c8ac92f1d7																																																		transaction<built-in function input>	item58			35.87	1					python-requests/2.21.0																																										2019-05-10 14:40:30.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:31.105	com.snowplowanalytics.snowplow	transaction_item	jsonschema	1-0-0		`),
+			PartitionKey: "some-key1",
+		},
+		{
+			Data: []byte(`test-data	pc	2019-05-10 14:40:30.836	2019-05-10 14:40:29.576	2019-05-10 14:40:29.204	page_view	e8aef68d-8533-45c6-a672-26a0f01be9bd			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				b66c4a12-8584-4c7a-9a5d-7c96f59e2556												www.demo-site.com/campaign-landing-page	landing-page				80	www.demo-site.com/campaign-landing-page																																										python-requests/2.21.0																																										2019-05-10 14:40:29.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:29.576	com.snowplowanalytics.snowplow	page_view	jsonschema	1-0-0		`),
+			PartitionKey: "some-key2",
+		},
+		{
+			Data: []byte(`not	a	snowplow	event`),
+			PartitionKey: "some-key4",
+		},
+	}
+
+	expectedNoTransformRes := models.NewTransformationResult(messages, make([]*models.Message, 0, 0)) // Is this a bad test? As the transformations edit the original data they'll always be equal?
+
+	noTransform := NewTransformation(make([]TransformationFunction, 0, 0)...)
+
+	noTransformResult := noTransform(messages)
+
+	assert.Equal(expectedNoTransformRes, noTransformResult)
+}
+
+func TestNewTransformation_EnrichedToJson(t *testing.T) {
+	assert := assert.New(t)
+
 	var messages = []*models.Message{
 		{
 			Data: []byte(`test-data	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`),
@@ -51,12 +84,18 @@ func TestEnrichedToJson(t *testing.T) {
 		},
 	}
 
-	transformSuccess, transformFailure := EnrichedToJson(messages)
+	tranformEnrichJson := NewTransformation(transform.EnrichedToJson)
+
+	enrichJsonRes := tranformEnrichJson(messages)
+	// the messages object is operated on by the above noTransform test. However that case is just a pass-through. Does this still make for a bad test?
+	// feels like potentially yes as it's just happenstance that the object isn't altered... So perhaps a separate function per case?
+
+	assert.Equal(expectedGood, enrichJsonRes.Result)
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal(len(transformFailure), 1)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", transformFailure[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
-	assert.Equal([]byte("not	a	snowplow	event"), transformFailure[0].Data)
-	assert.Equal("some-key4", transformFailure[0].PartitionKey)
-	assert.Equal(expectedGood, transformSuccess)
+	assert.Equal(1, len(enrichJsonRes.Invalid))
+	assert.Equal(int64(1), enrichJsonRes.InvalidCount)
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", enrichJsonRes.Invalid[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
+	assert.Equal([]byte("not	a	snowplow	event"), enrichJsonRes.Invalid[0].Data)
+	assert.Equal("some-key4", enrichJsonRes.Invalid[0].PartitionKey)
 }
