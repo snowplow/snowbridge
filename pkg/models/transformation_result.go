@@ -7,18 +7,12 @@
 package models
 
 type TransformationResult struct {
-	ResultCount int64
-	// FilteredCount int64
+	ResultCount  int64
 	InvalidCount int64
 
 	// Result holds all the messages that were successfully transformed and
 	// are ready for attempts to send to the target
 	Result []*Message
-
-	// Filtered contains all the messages that could be transformed but
-	// are filtered out from sending to the target.
-	// Filtered []*Message
-	// Included as an example of how to extend, for feedback purposes.
 
 	// Invalid contains all the messages that cannot be transformed
 	// due to various parseability reasons.  These messages cannot be retried
@@ -30,10 +24,8 @@ type TransformationResult struct {
 func NewTransformationResult(result []*Message, invalid []*Message) *TransformationResult {
 	r := TransformationResult{
 		int64(len(result)),
-		// int64(len(filtered)),
 		int64(len(invalid)),
 		result,
-		// filtered,
 		invalid,
 	}
 	return &r
