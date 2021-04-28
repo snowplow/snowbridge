@@ -44,13 +44,10 @@ type KafkaConfig struct {
 
 // KafkaTarget holds a new client for writing messages to Apache Kafka
 type KafkaTarget struct {
-	producer  sarama.SyncProducer
-	topicName string
-	brokers   string
-
+	producer         sarama.SyncProducer
+	topicName        string
+	brokers          string
 	messageByteLimit int
-
-	tlsConfig *tls.Config
 
 	log *log.Entry
 }
@@ -124,7 +121,6 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		brokers:          cfg.Brokers,
 		topicName:        cfg.TopicName,
 		messageByteLimit: cfg.ByteLimit,
-		tlsConfig:        tlsConfig,
 		log:              log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion}),
 	}, err
 }
