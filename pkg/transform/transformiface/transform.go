@@ -19,7 +19,7 @@ type Transformation interface {
 } // Should this interface also include some kind of model for the specific transformation implementations, like EnrichedToJson?
 
 // NewTransformation constructs a function which applies all transformations to all messages, returning a TransformationResult.
-func NewTransformation(tranformFunctions ...TransformationFunction) func(messages []*models.Message) *models.TransformationResult {
+func NewTransformation(tranformFunctions ...TransformationFunction) TransformationApplyFunction {
 	return func(messages []*models.Message) *models.TransformationResult {
 		successes := messages
 		failures := make([]*models.Message, 0, len(messages))
