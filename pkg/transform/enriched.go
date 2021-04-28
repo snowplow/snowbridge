@@ -29,9 +29,12 @@ func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Me
 			failures = append(failures, message)
 			continue
 		}
-		message.Data = jsonMessage // because we're using a pointer, this alters the original value I think. Is this is acceptable?
-		successes = append(successes, message)
+		newMessage := *message
+		newMessage.Data = jsonMessage // TODO: test if it's significantly faster to return pointer and edit-in-place
+		successes = append(successes, &newMessage)
 
 	}
 	return successes, failures // Doesn't return any err as errors should all go into failures.
 }
+
+// TODO: Rename this file to enriched_to_json.go
