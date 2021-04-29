@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEnrichedToJson(t *testing.T) {
+func TestSpEnrichedToJson(t *testing.T) {
 	assert := assert.New(t)
 
 	// Handling of test inputs is messy but avoids edit-in-place complications. Perhaps there's a cleaner way?
