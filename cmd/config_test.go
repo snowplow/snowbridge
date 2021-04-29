@@ -109,7 +109,7 @@ func TestNewConfig_InvalidTransformation(t *testing.T) {
 	transformation, err := c.GetTransformations()
 	assert.Nil(transformation)
 	assert.NotNil(err)
-	assert.Equal("Invalid transformation found; expected one of 'enrichedJson' and got 'fake'", err.Error())
+	assert.Equal("Invalid transformation found; expected one of 'spEnrichedToJson' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidTarget(t *testing.T) {
