@@ -11,8 +11,8 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-// EnrichedToJson is a specific transformation implementation to transform good enriched data within a message to Json
-func EnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Message) {
+// SpEnrichedToJson is a specific transformation implementation to transform good enriched data within a message to Json
+func SpEnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.Message) {
 	successes := make([]*models.Message, 0, len(messages))
 	failures := make([]*models.Message, 0, len(messages))
 

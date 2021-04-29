@@ -293,7 +293,7 @@ func (c *Config) GetTransformations() (transform.TransformationApplyFunction, er
 
 	switch c.Transformation {
 	case "enrichedJson":
-		funcs = append(funcs, transform.EnrichedToJson)
+		funcs = append(funcs, transform.SpEnrichedToJson)
 	case "none":
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'enrichedJson' and got '%s'", c.Transformation))

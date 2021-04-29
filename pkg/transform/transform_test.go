@@ -82,7 +82,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 		},
 	}
 
-	tranformEnrichJson := NewTransformation(EnrichedToJson)
+	tranformEnrichJson := NewTransformation(SpEnrichedToJson)
 
 	enrichJsonRes := tranformEnrichJson(messages)
 	// the messages object is operated on by the above noTransform test. However that case is just a pass-through. Does this still make for a bad test?

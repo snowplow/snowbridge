@@ -51,7 +51,7 @@ func TestEnrichedToJson(t *testing.T) {
 		},
 	}
 
-	transformSuccess, transformFailure := EnrichedToJson(messages)
+	transformSuccess, transformFailure := SpEnrichedToJson(messages)
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal(len(transformFailure), 1)
