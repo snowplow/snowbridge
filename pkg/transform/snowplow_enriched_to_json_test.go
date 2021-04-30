@@ -58,5 +58,9 @@ func TestSpEnrichedToJson(t *testing.T) {
 	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", transformFailure[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
 	assert.Equal([]byte("not	a	snowplow	event"), transformFailure[0].Data)
 	assert.Equal("some-key4", transformFailure[0].PartitionKey)
-	assert.Equal(expectedGood, transformSuccess)
+	for index, value := range expectedGood {
+		assert.Equal(value.Data, transformSuccess[index].Data)
+		assert.Equal(value.PartitionKey, transformSuccess[index].PartitionKey)
+		assert.NotNil(value.TimeTransformed)
+	}
 }

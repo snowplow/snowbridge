@@ -85,10 +85,12 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	tranformEnrichJson := NewTransformation(SpEnrichedToJson)
 
 	enrichJsonRes := tranformEnrichJson(messages)
-	// the messages object is operated on by the above noTransform test. However that case is just a pass-through. Does this still make for a bad test?
-	// feels like potentially yes as it's just happenstance that the object isn't altered... So perhaps a separate function per case?
 
-	assert.Equal(expectedGood, enrichJsonRes.Result)
+	for index, value := range expectedGood {
+		assert.Equal(value.Data, enrichJsonRes.Result[index].Data)
+		assert.Equal(value.PartitionKey, enrichJsonRes.Result[index].PartitionKey)
+		assert.NotNil(value.TimeTransformed)
+	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal(1, len(enrichJsonRes.Invalid))
