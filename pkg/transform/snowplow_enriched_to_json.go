@@ -7,6 +7,8 @@
 package transform
 
 import (
+	"time"
+
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
@@ -31,10 +33,8 @@ func SpEnrichedToJson(messages []*models.Message) ([]*models.Message, []*models.
 		}
 		newMessage := *message
 		newMessage.Data = jsonMessage // TODO: test if it's significantly faster to return pointer and edit-in-place
+		newMessage.TimeTransformed = time.Now().UTC()
 		successes = append(successes, &newMessage)
-
 	}
 	return successes, failures // Doesn't return any err as errors should all go into failures.
 }
-
-// TODO: Rename this file to enriched_to_json.go
