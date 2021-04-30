@@ -80,9 +80,9 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(70)*time.Minute, b.MaxMsgLatency)
 	assert.Equal(time.Duration(30)*time.Minute, b.MinMsgLatency)
 	assert.Equal(time.Duration(50)*time.Minute, b.GetAvgMsgLatency())
-	assert.Equal(time.Duration(66)*time.Minute, b.MaxTransformLatency)
-	assert.Equal(time.Duration(21)*time.Minute, b.MinTransformLatency)
-	assert.Equal(time.Duration(45)*time.Minute, b.GetAvgTransformLatency())
+	assert.Equal(time.Duration(3)*time.Minute, b.MaxTransformLatency)
+	assert.Equal(time.Duration(1)*time.Minute, b.MinTransformLatency)
+	assert.Equal(time.Duration(2)*time.Minute, b.GetAvgTransformLatency())
 
-	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:10m0s,MaxMsgLatency:1h10m0s,MaxTransformLatency:1h6m0s", b.String())
+	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:10m0s,MaxMsgLatency:1h10m0s,MaxTransformLatency:3m0s", b.String())
 }

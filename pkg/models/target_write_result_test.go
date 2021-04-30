@@ -102,9 +102,9 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	assert.Equal(time.Duration(70)*time.Minute, r.MaxMsgLatency)
 	assert.Equal(time.Duration(30)*time.Minute, r.MinMsgLatency)
 	assert.Equal(time.Duration(50)*time.Minute, r.AvgMsgLatency)
-	assert.Equal(time.Duration(66)*time.Minute, r.MaxTransformLatency)
-	assert.Equal(time.Duration(21)*time.Minute, r.MinTransformLatency)
-	assert.Equal(time.Duration(45)*time.Minute, r.AvgTransformLatency)
+	assert.Equal(time.Duration(3)*time.Minute, r.MaxTransformLatency)
+	assert.Equal(time.Duration(1)*time.Minute, r.MinTransformLatency)
+	assert.Equal(time.Duration(2)*time.Minute, r.AvgTransformLatency)
 
 	sent1 := []*Message{
 		{
@@ -121,7 +121,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 			PartitionKey:    "partition2",
 			TimeCreated:     timeNow.Add(time.Duration(-75) * time.Minute),
 			TimePulled:      timeNow.Add(time.Duration(-7) * time.Minute),
-			TimeTransformed: timeNow.Add(time.Duration(-6) * time.Minute),
+			TimeTransformed: timeNow.Add(time.Duration(-4) * time.Minute),
 		},
 		{
 			Data:            []byte("Foo"),
@@ -155,7 +155,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	assert.Equal(time.Duration(75)*time.Minute, r3.MaxMsgLatency)
 	assert.Equal(time.Duration(25)*time.Minute, r3.MinMsgLatency)
 	assert.Equal(time.Duration(3050)*time.Second, r3.AvgMsgLatency)
-	assert.Equal(time.Duration(69)*time.Minute, r3.MaxTransformLatency)
-	assert.Equal(time.Duration(18)*time.Minute, r3.MinTransformLatency)
-	assert.Equal(time.Duration(46)*time.Minute, r3.AvgTransformLatency)
+	assert.Equal(time.Duration(8)*time.Minute, r3.MaxTransformLatency)
+	assert.Equal(time.Duration(1)*time.Minute, r3.MinTransformLatency)
+	assert.Equal(time.Duration(3)*time.Minute, r3.AvgTransformLatency)
 }

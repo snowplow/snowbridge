@@ -98,7 +98,7 @@ func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized 
 		}
 		sumMessageLatency += messageLatency
 
-		transformLatency := msg.TimeTransformed.Sub(msg.TimeCreated)
+		transformLatency := msg.TimeTransformed.Sub(msg.TimePulled)
 		if r.MaxTransformLatency < transformLatency {
 			r.MaxTransformLatency = transformLatency
 		}
