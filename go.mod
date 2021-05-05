@@ -10,8 +10,6 @@ require (
 	github.com/caarlos0/env/v6 v6.4.0
 	github.com/getsentry/sentry-go v0.9.0
 	github.com/hashicorp/go-multierror v1.1.0
-	github.com/hashicorp/go-version v1.3.0 // indirect
-	github.com/mitchellh/gox v1.0.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.7.0
@@ -23,6 +21,7 @@ require (
 	github.com/twinj/uuid v1.0.0
 	github.com/twitchscience/kinsumer v0.0.0-00010101000000-000000000000
 	github.com/urfave/cli v1.22.5
+	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
 	golang.org/x/sys v0.0.0-20210426230700-d19ff857e887 // indirect
 	// golang.org/x/tools v0.1.0 // indirect
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
