@@ -51,16 +51,28 @@ func TestSpEnrichedToJson(t *testing.T) {
 		},
 	}
 
-	transformSuccess, transformFailure := SpEnrichedToJson(messages)
+	transformSuccesses := make([]*models.Message, 0)
+	transformFailures := make([]*models.Message, 0)
+
+	for _, message := range messages {
+		transformSuccess, transformFailure := SpEnrichedToJson(message)
+		if transformSuccess != nil {
+			transformSuccesses = append(transformSuccesses, transformSuccess)
+		}
+		if transformFailure != nil {
+			transformFailures = append(transformFailures, transformFailure)
+		}
+
+	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal(len(transformFailure), 1)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", transformFailure[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
-	assert.Equal([]byte("not	a	snowplow	event"), transformFailure[0].Data)
-	assert.Equal("some-key4", transformFailure[0].PartitionKey)
+	assert.Equal(1, len(transformFailures))
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", transformFailures[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
+	assert.Equal([]byte("not	a	snowplow	event"), transformFailures[0].Data)
+	assert.Equal("some-key4", transformFailures[0].PartitionKey)
 	for index, value := range expectedGood {
-		assert.Equal(value.Data, transformSuccess[index].Data)
-		assert.Equal(value.PartitionKey, transformSuccess[index].PartitionKey)
+		assert.Equal(value.Data, transformSuccesses[index].Data)
+		assert.Equal(value.PartitionKey, transformSuccesses[index].PartitionKey)
 		assert.NotNil(value.TimeTransformed)
 	}
 }
