@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -360,12 +361,22 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 func (c *Config) GetTransformations() (transform.TransformationApplyFunction, error) {
 	funcs := make([]transform.TransformationFunction, 0, 0)
 
-	switch c.Transformation {
-	case "spEnrichedToJson":
-		funcs = append(funcs, transform.SpEnrichedToJson)
-	case "none":
-	default:
-		return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'spEnrichedToJson' and got '%s'", c.Transformation))
+	// Parse list of transformations
+	transformations := strings.Split(c.Transformation, ",")
+
+	for _, transformation := range transformations {
+		// Parse function name-option sets
+		funcOpts := strings.Split(transformation, ":")
+
+		switch funcOpts[0] {
+		case "spEnrichedToJson":
+			funcs = append(funcs, transform.SpEnrichedToJson)
+		case "spEnrichedSetPk":
+			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(funcOpts[1]))
+		case "none":
+		default:
+			return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}' and got '%s'", c.Transformation))
+		}
 	}
 	return transform.NewTransformation(funcs...), nil
 }
