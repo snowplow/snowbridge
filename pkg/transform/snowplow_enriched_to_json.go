@@ -15,10 +15,19 @@ import (
 
 // SpEnrichedToJson is a specific transformation implementation to transform good enriched data within a message to Json
 func SpEnrichedToJson(message *models.Message) (*models.Message, *models.Message) {
-	parsedMessage, err := analytics.ParseEvent(string(message.Data))
-	if err != nil {
-		message.SetError(err)
-		return nil, message
+	// To avoid parsing message multiple times, we check for IntermediateState and save the parsed message to it if there is none.
+	// Note that this will overwrite any differently typed IntermediateState - in such a case order of execution matters.
+	var parsedMessage, ok = message.IntermediateState.(analytics.ParsedEvent)
+	var parseErr error
+	if ok {
+		parsedMessage = message.IntermediateState.(analytics.ParsedEvent)
+	} else {
+		parsedMessage, parseErr = analytics.ParseEvent(string(message.Data))
+		if parseErr != nil {
+			message.SetError(parseErr)
+			return nil, message
+		}
+		message.IntermediateState = parsedMessage
 	}
 	jsonMessage, err := parsedMessage.ToJson()
 	if err != nil {
@@ -26,7 +35,7 @@ func SpEnrichedToJson(message *models.Message) (*models.Message, *models.Message
 		return nil, message
 	}
 	newMessage := *message
-	newMessage.Data = jsonMessage // TODO: test if it's significantly faster to return pointer and edit-in-place
+	newMessage.Data = jsonMessage
 	newMessage.TimeTransformed = time.Now().UTC()
 	return &newMessage, nil
 }
