@@ -17,10 +17,18 @@ import (
 // NewSpEnrichedSetPkFunction returns a TransformationFunction which sets the partition key of a message to a field within a Snowplow enriched event
 func NewSpEnrichedSetPkFunction(pkField string) TransformationFunction {
 	return func(message *models.Message) (*models.Message, *models.Message) {
-		parsedMessage, err := analytics.ParseEvent(string(message.Data))
-		if err != nil {
-			message.SetError(err)
-			return nil, message
+		// To avoid parsing message multiple times, we check for IntermediateState and save the parsed message to it if there is none.
+		var parsedMessage, ok = message.IntermediateState.(analytics.ParsedEvent)
+		var parseErr error
+		if ok {
+			parsedMessage = message.IntermediateState.(analytics.ParsedEvent)
+		} else {
+			parsedMessage, parseErr = analytics.ParseEvent(string(message.Data))
+			if parseErr != nil {
+				message.SetError(parseErr)
+				return nil, message
+			}
+			message.IntermediateState = parsedMessage
 		}
 		pk, err := parsedMessage.GetValue(pkField)
 		if err != nil {
@@ -28,7 +36,7 @@ func NewSpEnrichedSetPkFunction(pkField string) TransformationFunction {
 			return nil, message
 		}
 		newMessage := *message
-		newMessage.PartitionKey = fmt.Sprintf("%v", pk) // Cheeky way to wrangle interface into string. Is it problematic?
+		newMessage.PartitionKey = fmt.Sprintf("%v", pk)
 		newMessage.TimeTransformed = time.Now().UTC()
 		return &newMessage, nil
 	}

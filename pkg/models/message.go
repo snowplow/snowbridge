@@ -16,6 +16,10 @@ type Message struct {
 	PartitionKey string
 	Data         []byte
 
+	// IntermediateState is for use where transformations each need to perform the same operation
+	// It allows us to save performance by storing the common state here, and reusing
+	IntermediateState interface{}
+
 	// TimeCreated is when the message was created originally
 	TimeCreated time.Time
 
