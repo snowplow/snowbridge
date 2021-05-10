@@ -52,22 +52,26 @@ type SQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type KafkaTargetConfig struct {
-	Brokers       string `env:"TARGET_KAFKA_BROKERS"`        // REQUIRED
-	TopicName     string `env:"TARGET_KAFKA_TOPIC_NAME"`     // REQUIRED
-	TargetVersion string `env:"TARGET_KAFKA_TARGET_VERSION"` // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
-	MaxRetries    int    `env:"TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
-	ByteLimit     int    `env:"TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"` // Kafka Default is 1MiB
-	Compress      bool   `env:"TARGET_KAFKA_COMPRESS"`                        // Reduces Network usage & Increases latency by compressing data
-	WaitForAll    bool   `env:"TARGET_KAFKA_WAIT_FOR_ALL"`                    // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
-	Idempotent    bool   `env:"TARGET_KAFKA_IDEMPOTENT"`                      // Exactly once writes - Also sets RequiredAcks = WaitForAll
-	EnableSASL    bool   `env:"TARGET_KAFKA_ENABLE_SASL"`                     // Enables SASL Support
-	SASLUsername  string `env:"TARGET_KAFKA_SASL_USERNAME"`
-	SASLPassword  string `env:"TARGET_KAFKA_SASL_PASSWORD"`
-	SASLAlgorithm string `env:"TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
-	CertFile      string `env:"TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
-	KeyFile       string `env:"TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
-	CaFile        string `env:"TARGET_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
-	SkipVerifyTls bool   `env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
+	Brokers           string `env:"TARGET_KAFKA_BROKERS"`        // REQUIRED
+	TopicName         string `env:"TARGET_KAFKA_TOPIC_NAME"`     // REQUIRED
+	TargetVersion     string `env:"TARGET_KAFKA_TARGET_VERSION"` // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
+	MaxRetries        int    `env:"TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
+	ByteLimit         int    `env:"TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"` // Kafka Default is 1MiB
+	Compress          bool   `env:"TARGET_KAFKA_COMPRESS"`                        // Reduces Network usage & Increases latency by compressing data
+	WaitForAll        bool   `env:"TARGET_KAFKA_WAIT_FOR_ALL"`                    // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
+	Idempotent        bool   `env:"TARGET_KAFKA_IDEMPOTENT"`                      // Exactly once writes - Also sets RequiredAcks = WaitForAll
+	EnableSASL        bool   `env:"TARGET_KAFKA_ENABLE_SASL"`                     // Enables SASL Support
+	SASLUsername      string `env:"TARGET_KAFKA_SASL_USERNAME"`
+	SASLPassword      string `env:"TARGET_KAFKA_SASL_PASSWORD"`
+	SASLAlgorithm     string `env:"TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
+	CertFile          string `env:"TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
+	KeyFile           string `env:"TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
+	CaFile            string `env:"TARGET_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
+	SkipVerifyTls     bool   `env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
+	ForceSyncProducer bool   `env:"TARGET_KAFKA_FORCE_SYNC_PRODUCER"`                // Forces the use of the Sync Producer, emits as fast as possible, may limit performance
+	FlushFrequency    int    `env:"TARGET_KAFKA_FLUSH_FREQUENCY" envDefault:"0"`     // Milliseconds between flushes of events - 0 = as fast as possible
+	FlushMessages     int    `env:"TARGET_KAFKA_FLUSH_MESSAGES" envDefault:"0"`      // Best effort for how many messages are sent in each batch - 0 = as fast as possible
+	FlushBytes        int    `env:"TARGET_KAFKA_FLUSH_BYTES" envDefault:"0"`         // Best effort for how many bytes will trigger a flush - 0 = as fast as possible
 }
 
 // TargetsConfig holds configuration for the available targets
@@ -102,22 +106,26 @@ type FailureSQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type FailureKafkaTargetConfig struct {
-	Brokers       string `env:"FAILURE_TARGET_KAFKA_BROKERS"`        // REQUIRED
-	TopicName     string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`     // REQUIRED
-	TargetVersion string `env:"FAILURE_TARGET_KAFKA_TARGET_VERSION"` // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
-	MaxRetries    int    `env:"FAILURE_TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
-	ByteLimit     int    `env:"FAILURE_TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"`
-	Compress      bool   `env:"FAILURE_TARGET_KAFKA_COMPRESS"`     // Reduces Network usage & Increases latency by compressing data
-	WaitForAll    bool   `env:"FAILURE_TARGET_KAFKA_WAIT_FOR_ALL"` // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
-	Idempotent    bool   `env:"FAILURE_TARGET_KAFKA_IDEMPOTENT"`   // Exactly once writes
-	EnableSASL    bool   `env:"FAILURE_TARGET_KAFKA_ENABLE_SASL"`  // Enables SASL Support
-	SASLUsername  string `env:"FAILURE_TARGET_KAFKA_SASL_USERNAME"`
-	SASLPassword  string `env:"FAILURE_TARGET_KAFKA_SASL_PASSWORD"`
-	SASLAlgorithm string `env:"FAILURE_TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
-	CertFile      string `env:"FAILURE_TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
-	KeyFile       string `env:"FAILURE_TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
-	CaFile        string `env:"FAILURE_TARGET_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
-	SkipVerifyTls bool   `env:"FAILURE_TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
+	Brokers           string `env:"FAILURE_TARGET_KAFKA_BROKERS"`        // REQUIRED
+	TopicName         string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`     // REQUIRED
+	TargetVersion     string `env:"FAILURE_TARGET_KAFKA_TARGET_VERSION"` // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
+	MaxRetries        int    `env:"FAILURE_TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
+	ByteLimit         int    `env:"FAILURE_TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"`
+	Compress          bool   `env:"FAILURE_TARGET_KAFKA_COMPRESS"`     // Reduces Network usage & Increases latency by compressing data
+	WaitForAll        bool   `env:"FAILURE_TARGET_KAFKA_WAIT_FOR_ALL"` // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
+	Idempotent        bool   `env:"FAILURE_TARGET_KAFKA_IDEMPOTENT"`   // Exactly once writes
+	EnableSASL        bool   `env:"FAILURE_TARGET_KAFKA_ENABLE_SASL"`  // Enables SASL Support
+	SASLUsername      string `env:"FAILURE_TARGET_KAFKA_SASL_USERNAME"`
+	SASLPassword      string `env:"FAILURE_TARGET_KAFKA_SASL_PASSWORD"`
+	SASLAlgorithm     string `env:"FAILURE_TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
+	CertFile          string `env:"FAILURE_TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
+	KeyFile           string `env:"FAILURE_TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
+	CaFile            string `env:"FAILURE_TARGET_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
+	SkipVerifyTls     bool   `env:"FAILURE_TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
+	ForceSyncProducer bool   `env:"FAILURE_TARGET_KAFKA_FORCE_SYNC_PRODUCER"`                // Forces the use of the Sync Producer, emits as fast as possible, may limit performance
+	FlushFrequency    int    `env:"FAILURE_TARGET_KAFKA_FLUSH_FREQUENCY" envDefault:"0"`     // Milliseconds between flushes of events - 0 = as fast as possible
+	FlushMessages     int    `env:"FAILURE_TARGET_KAFKA_FLUSH_MESSAGES" envDefault:"0"`      // Best effort for how many messages are sent in each batch - 0 = as fast as possible
+	FlushBytes        int    `env:"FAILURE_TARGET_KAFKA_FLUSH_BYTES" envDefault:"0"`         // Best effort for how many bytes will trigger a flush - 0 = as fast as possible
 }
 
 // FailureTargetsConfig holds configuration for the available targets
@@ -277,22 +285,26 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		)
 	case "kafka":
 		return target.NewKafkaTarget(&target.KafkaConfig{
-			Brokers:       c.Targets.Kafka.Brokers,
-			TopicName:     c.Targets.Kafka.TopicName,
-			TargetVersion: c.Targets.Kafka.TargetVersion,
-			MaxRetries:    c.Targets.Kafka.MaxRetries,
-			ByteLimit:     c.Targets.Kafka.ByteLimit,
-			Compress:      c.Targets.Kafka.Compress,
-			WaitForAll:    c.Targets.Kafka.WaitForAll,
-			Idempotent:    c.Targets.Kafka.Idempotent,
-			EnableSASL:    c.Targets.Kafka.EnableSASL,
-			SASLUsername:  c.Targets.Kafka.SASLUsername,
-			SASLPassword:  c.Targets.Kafka.SASLPassword,
-			SASLAlgorithm: c.Targets.Kafka.SASLAlgorithm,
-			CertFile:      c.Targets.Kafka.CertFile,
-			KeyFile:       c.Targets.Kafka.KeyFile,
-			CaFile:        c.Targets.Kafka.CaFile,
-			SkipVerifyTls: c.Targets.Kafka.SkipVerifyTls,
+			Brokers:        c.Targets.Kafka.Brokers,
+			TopicName:      c.Targets.Kafka.TopicName,
+			TargetVersion:  c.Targets.Kafka.TargetVersion,
+			MaxRetries:     c.Targets.Kafka.MaxRetries,
+			ByteLimit:      c.Targets.Kafka.ByteLimit,
+			Compress:       c.Targets.Kafka.Compress,
+			WaitForAll:     c.Targets.Kafka.WaitForAll,
+			Idempotent:     c.Targets.Kafka.Idempotent,
+			EnableSASL:     c.Targets.Kafka.EnableSASL,
+			SASLUsername:   c.Targets.Kafka.SASLUsername,
+			SASLPassword:   c.Targets.Kafka.SASLPassword,
+			SASLAlgorithm:  c.Targets.Kafka.SASLAlgorithm,
+			CertFile:       c.Targets.Kafka.CertFile,
+			KeyFile:        c.Targets.Kafka.KeyFile,
+			CaFile:         c.Targets.Kafka.CaFile,
+			SkipVerifyTls:  c.Targets.Kafka.SkipVerifyTls,
+			ForceSync:      c.Targets.Kafka.ForceSyncProducer,
+			FlushFrequency: c.Targets.Kafka.FlushFrequency,
+			FlushMessages:  c.Targets.Kafka.FlushMessages,
+			FlushBytes:     c.Targets.Kafka.FlushBytes,
 		})
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.Target))
@@ -326,22 +338,26 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 		)
 	case "kafka":
 		t, err = target.NewKafkaTarget(&target.KafkaConfig{
-			Brokers:       c.FailureTargets.Kafka.Brokers,
-			TopicName:     c.FailureTargets.Kafka.TopicName,
-			TargetVersion: c.FailureTargets.Kafka.TargetVersion,
-			MaxRetries:    c.FailureTargets.Kafka.MaxRetries,
-			ByteLimit:     c.FailureTargets.Kafka.ByteLimit,
-			Compress:      c.FailureTargets.Kafka.Compress,
-			WaitForAll:    c.FailureTargets.Kafka.WaitForAll,
-			Idempotent:    c.FailureTargets.Kafka.Idempotent,
-			EnableSASL:    c.FailureTargets.Kafka.EnableSASL,
-			SASLUsername:  c.FailureTargets.Kafka.SASLUsername,
-			SASLPassword:  c.FailureTargets.Kafka.SASLPassword,
-			SASLAlgorithm: c.FailureTargets.Kafka.SASLAlgorithm,
-			CertFile:      c.FailureTargets.Kafka.CertFile,
-			KeyFile:       c.FailureTargets.Kafka.KeyFile,
-			CaFile:        c.FailureTargets.Kafka.CaFile,
-			SkipVerifyTls: c.FailureTargets.Kafka.SkipVerifyTls,
+			Brokers:        c.FailureTargets.Kafka.Brokers,
+			TopicName:      c.FailureTargets.Kafka.TopicName,
+			TargetVersion:  c.FailureTargets.Kafka.TargetVersion,
+			MaxRetries:     c.FailureTargets.Kafka.MaxRetries,
+			ByteLimit:      c.FailureTargets.Kafka.ByteLimit,
+			Compress:       c.FailureTargets.Kafka.Compress,
+			WaitForAll:     c.FailureTargets.Kafka.WaitForAll,
+			Idempotent:     c.FailureTargets.Kafka.Idempotent,
+			EnableSASL:     c.FailureTargets.Kafka.EnableSASL,
+			SASLUsername:   c.FailureTargets.Kafka.SASLUsername,
+			SASLPassword:   c.FailureTargets.Kafka.SASLPassword,
+			SASLAlgorithm:  c.FailureTargets.Kafka.SASLAlgorithm,
+			CertFile:       c.FailureTargets.Kafka.CertFile,
+			KeyFile:        c.FailureTargets.Kafka.KeyFile,
+			CaFile:         c.FailureTargets.Kafka.CaFile,
+			SkipVerifyTls:  c.FailureTargets.Kafka.SkipVerifyTls,
+			ForceSync:      c.FailureTargets.Kafka.ForceSyncProducer,
+			FlushFrequency: c.FailureTargets.Kafka.FlushFrequency,
+			FlushMessages:  c.FailureTargets.Kafka.FlushMessages,
+			FlushBytes:     c.FailureTargets.Kafka.FlushBytes,
 		})
 	default:
 		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.FailureTarget))

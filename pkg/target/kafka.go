@@ -15,6 +15,7 @@ import (
 	"hash"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/hashicorp/go-multierror"
@@ -25,32 +26,43 @@ import (
 )
 
 type KafkaConfig struct {
-	Brokers       string
-	TopicName     string
-	TargetVersion string
-	MaxRetries    int
-	ByteLimit     int
-	Compress      bool
-	WaitForAll    bool
-	Idempotent    bool
-	EnableSASL    bool
-	SASLUsername  string
-	SASLPassword  string
-	SASLAlgorithm string
-	CertFile      string
-	KeyFile       string
-	CaFile        string
-	SkipVerifyTls bool
+	Brokers        string
+	TopicName      string
+	TargetVersion  string
+	MaxRetries     int
+	ByteLimit      int
+	Compress       bool
+	WaitForAll     bool
+	Idempotent     bool
+	EnableSASL     bool
+	SASLUsername   string
+	SASLPassword   string
+	SASLAlgorithm  string
+	CertFile       string
+	KeyFile        string
+	CaFile         string
+	SkipVerifyTls  bool
+	ForceSync      bool
+	FlushFrequency int
+	FlushMessages  int
+	FlushBytes     int
 }
 
 // KafkaTarget holds a new client for writing messages to Apache Kafka
 type KafkaTarget struct {
-	producer         sarama.SyncProducer
+	syncProducer     sarama.SyncProducer
+	asyncProducer    sarama.AsyncProducer
+	asyncResults     chan *SaramaResult
 	topicName        string
 	brokers          string
 	messageByteLimit int
 
 	log *log.Entry
+}
+
+type SaramaResult struct {
+	Msg *sarama.ProducerMessage
+	Err error
 }
 
 // NewKafkaTarget creates a new client for writing messages to Apache Kafka
@@ -80,8 +92,6 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		saramaConfig.Net.MaxOpenRequests = 1
 	}
 
-	// If we don't change the flush settings, sarama will try to produce messages
-	// as fast as possible to keep latency low.
 	if cfg.Compress {
 		saramaConfig.Producer.Compression = sarama.CompressionSnappy // Compress messages
 	}
@@ -113,18 +123,51 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		saramaConfig.Net.TLS.Enable = true
 	}
 
+	var asyncResults chan *SaramaResult = nil
+	var asyncProducer sarama.AsyncProducer = nil
+	var syncProducer sarama.SyncProducer = nil
+	var producerError error = nil
+
+	// If we don't change the flush settings, sarama will try to produce messages
+	// as fast as possible to keep latency low.
+	if !cfg.ForceSync {
+		saramaConfig.Producer.Flush.Messages = cfg.FlushMessages
+		saramaConfig.Producer.Flush.Bytes = cfg.FlushBytes
+		saramaConfig.Producer.Flush.Frequency = time.Duration(cfg.FlushFrequency) * time.Millisecond
+	}
+
 	// On the broker side, you may want to change the following settings to get stronger consistency guarantees:
 	// - For your broker, set `unclean.leader.election.enable` to false
 	// - For the topic, you could increase `min.insync.replicas`.
-	producer, err := sarama.NewSyncProducer(strings.Split(cfg.Brokers, ","), saramaConfig)
+	if !cfg.ForceSync {
+		asyncProducer, producerError = sarama.NewAsyncProducer(strings.Split(cfg.Brokers, ","), saramaConfig)
+
+		asyncResults = make(chan *SaramaResult)
+
+		go func() {
+			for err := range asyncProducer.Errors() {
+				asyncResults <- &SaramaResult{Msg: err.Msg, Err: err.Err}
+			}
+		}()
+
+		go func() {
+			for success := range asyncProducer.Successes() {
+				asyncResults <- &SaramaResult{Msg: success}
+			}
+		}()
+	} else {
+		syncProducer, producerError = sarama.NewSyncProducer(strings.Split(cfg.Brokers, ","), saramaConfig)
+	}
 
 	return &KafkaTarget{
-		producer:         producer,
+		syncProducer:     syncProducer,
+		asyncProducer:    asyncProducer,
+		asyncResults:     asyncResults,
 		brokers:          cfg.Brokers,
 		topicName:        cfg.TopicName,
 		messageByteLimit: cfg.ByteLimit,
 		log:              log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion}),
-	}, err
+	}, producerError
 }
 
 // Write pushes all messages to the required target
@@ -140,23 +183,54 @@ func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteRes
 	var failed []*models.Message
 	var errResult error
 
-	for _, msg := range safeMessages {
-		_, _, err := kt.producer.SendMessage(&sarama.ProducerMessage{
-			Topic: kt.topicName,
-			Key:   sarama.StringEncoder(msg.PartitionKey),
-			Value: sarama.ByteEncoder(msg.Data),
-		})
-
-		if err != nil {
-			errResult = multierror.Append(errResult, err)
-			msg.SetError(err)
-			failed = append(failed, msg)
-		} else {
-			if msg.AckFunc != nil {
-				msg.AckFunc()
+	if kt.asyncProducer != nil {
+		for _, msg := range safeMessages {
+			kt.asyncProducer.Input() <- &sarama.ProducerMessage{
+				Topic:    kt.topicName,
+				Key:      sarama.StringEncoder(msg.PartitionKey),
+				Value:    sarama.ByteEncoder(msg.Data),
+				Metadata: msg,
 			}
-			sent = append(sent, msg)
 		}
+
+		for i := 0; i < len(safeMessages); i++ {
+
+			result := <-kt.asyncResults // Block until result is returned
+
+			if result.Err != nil {
+				errResult = multierror.Append(errResult, result.Err)
+				originalMessage := result.Msg.Metadata.(*models.Message)
+				originalMessage.SetError(result.Err)
+				failed = append(failed, originalMessage)
+			} else {
+				originalMessage := result.Msg.Metadata.(*models.Message)
+				if originalMessage.AckFunc != nil {
+					originalMessage.AckFunc()
+				}
+				sent = append(sent, originalMessage)
+			}
+		}
+	} else if kt.syncProducer != nil {
+		for _, msg := range safeMessages {
+			_, _, err := kt.syncProducer.SendMessage(&sarama.ProducerMessage{
+				Topic: kt.topicName,
+				Key:   sarama.StringEncoder(msg.PartitionKey),
+				Value: sarama.ByteEncoder(msg.Data),
+			})
+
+			if err != nil {
+				errResult = multierror.Append(errResult, err)
+				msg.SetError(err)
+				failed = append(failed, msg)
+			} else {
+				if msg.AckFunc != nil {
+					msg.AckFunc()
+				}
+				sent = append(sent, msg)
+			}
+		}
+	} else {
+		errResult = multierror.Append(errResult, fmt.Errorf("no producer has been configured"))
 	}
 
 	if errResult != nil {
@@ -177,9 +251,18 @@ func (kt *KafkaTarget) Open() {}
 
 // Close stops the producer
 func (kt *KafkaTarget) Close() {
-	kt.log.Warnf("Closing target for topic '%s'", kt.topicName)
-	if err := kt.producer.Close(); err != nil {
-		kt.log.Fatal("Failed to close producer:", err)
+	kt.log.Warnf("Closing Kafka target for topic '%s'", kt.topicName)
+
+	if kt.asyncProducer != nil {
+		if err := kt.asyncProducer.Close(); err != nil {
+			kt.log.Fatal("Failed to close producer:", err)
+		}
+	}
+
+	if kt.syncProducer != nil {
+		if err := kt.syncProducer.Close(); err != nil {
+			kt.log.Fatal("Failed to close producer:", err)
+		}
 	}
 }
 
