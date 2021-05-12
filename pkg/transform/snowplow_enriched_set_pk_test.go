@@ -49,8 +49,6 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	assert.Equal("80", intAsPk.PartitionKey)
 	assert.Nil(failure)
 
-	// TODO: tests for other types?
-
 	failureCase, fail := aidSetPkFunc(&message2)
 
 	assert.Nil(failureCase)
@@ -72,7 +70,7 @@ func TestNewSpEnrichedSetPkFunction_WithIntermediateState(t *testing.T) {
 
 	expected := models.Message{
 		Data:              tsvEvent,
-		PartitionKey:      "some-key",
+		PartitionKey:      "test-data",
 		IntermediateState: parsed,
 	}
 
@@ -80,9 +78,7 @@ func TestNewSpEnrichedSetPkFunction_WithIntermediateState(t *testing.T) {
 
 	stringAsPk, fail := aidSetPkFunc(&message)
 
-	assert.Equal("test-data", stringAsPk.PartitionKey)
-	assert.Equal(expected.Data, stringAsPk.Data)
-	assert.Equal(expected.IntermediateState, stringAsPk.IntermediateState)
+	assert.Equal(&expected, stringAsPk)
 	assert.Nil(fail)
 
 	incompatibleIntermediateMessage := models.Message{
@@ -91,9 +87,10 @@ func TestNewSpEnrichedSetPkFunction_WithIntermediateState(t *testing.T) {
 		IntermediateState: "Incompatible intermediate state",
 	}
 
+	// When we have some incompatible IntermediateState, expected behaviour is to replace it with this transformation's IntermediateState
+
 	stringAsPkIncompat, failIncompat := aidSetPkFunc(&incompatibleIntermediateMessage)
-	assert.Equal("test-data", stringAsPkIncompat.PartitionKey)
-	assert.Equal(expected.Data, stringAsPkIncompat.Data)
-	assert.Equal(expected.IntermediateState, stringAsPkIncompat.IntermediateState)
+
+	assert.Equal(&expected, stringAsPkIncompat)
 	assert.Nil(failIncompat)
 }
