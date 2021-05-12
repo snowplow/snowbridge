@@ -8,7 +8,6 @@ package transform
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
@@ -38,7 +37,6 @@ func NewSpEnrichedSetPkFunction(pkField string) TransformationFunction {
 		}
 		newMessage := *message
 		newMessage.PartitionKey = fmt.Sprintf("%v", pk)
-		newMessage.TimeTransformed = time.Now().UTC()
 		return &newMessage, nil
 	}
 }

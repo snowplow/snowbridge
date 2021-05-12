@@ -7,8 +7,6 @@
 package transform
 
 import (
-	"time"
-
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
@@ -36,6 +34,5 @@ func SpEnrichedToJson(message *models.Message) (*models.Message, *models.Message
 	}
 	newMessage := *message
 	newMessage.Data = jsonMessage
-	newMessage.TimeTransformed = time.Now().UTC()
 	return &newMessage, nil
 }

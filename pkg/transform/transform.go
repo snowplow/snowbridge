@@ -6,7 +6,11 @@
 
 package transform
 
-import "github.com/snowplow-devops/stream-replicator/pkg/models"
+import (
+	"time"
+
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
+)
 
 type TransformationFunction func(*models.Message) (*models.Message, *models.Message)
 
@@ -35,6 +39,7 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 				}
 			}
 			if success != nil {
+				success.TimeTransformed = time.Now().UTC()
 				successes = append(successes, success)
 			}
 			if failure != nil {
