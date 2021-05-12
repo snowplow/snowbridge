@@ -320,6 +320,8 @@ github.com/snowplow-devops/kinsumer v0.0.0-20201222120237-1233f129ef85 h1:bt/dGn
 github.com/snowplow-devops/kinsumer v0.0.0-20201222120237-1233f129ef85/go.mod h1:++IOOQNbqVZShJNWEqlPdDatgECxL0ixvX0Hru5rcY0=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.1 h1:EYwaHn0hbqg6gZiHtiA1ih3IggTDDmrLFOYMsp5imAM=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.1/go.mod h1:Hin0YGiQqQ3a+AwFR/4Go3mqsG0w89VjZRfnaThX/BY=
+github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.2 h1:0WDix/0IZdzsf/9oODyGlJh4XX/FTtOS+EcIKNr7d8Q=
+github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.2/go.mod h1:M3HQeu6RcG1zuZx9qZZ9idYu9LyKuSJs3cpCYUaDDHI=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/cast v1.3.0/go.mod h1:Qx5cxh0v+4UWYiBimWS+eyWzqEqokIECu5etghLkUJE=
 github.com/spf13/cobra v0.0.5/go.mod h1:3K3wKZymM7VvHMDS9+Akkh4K60UwM26emMESw8tLCHU=

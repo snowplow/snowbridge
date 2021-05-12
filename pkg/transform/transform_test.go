@@ -95,7 +95,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal(1, len(enrichJsonRes.Invalid))
 	assert.Equal(int64(1), enrichJsonRes.InvalidCount)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", enrichJsonRes.Invalid[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJsonRes.Invalid[0].GetError().Error())
 	assert.Equal([]byte("not	a	snowplow	event"), enrichJsonRes.Invalid[0].Data)
 	assert.Equal("some-key4", enrichJsonRes.Invalid[0].PartitionKey)
 }
@@ -151,7 +151,7 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal(1, len(enrichJsonRes.Invalid))
 	assert.Equal(int64(1), enrichJsonRes.InvalidCount)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", enrichJsonRes.Invalid[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJsonRes.Invalid[0].GetError().Error())
 	assert.Equal([]byte("not	a	snowplow	event"), enrichJsonRes.Invalid[0].Data)
 	assert.Equal("some-key4", enrichJsonRes.Invalid[0].PartitionKey)
 }

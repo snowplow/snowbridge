@@ -55,8 +55,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 
 	assert.Nil(failureCase)
 	assert.NotNil(fail)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", fail.GetError().Error())
-	// Error message to be updated after fix in analytics sdk
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", fail.GetError().Error())
 }
 
 func TestNewSpEnrichedSetPkFunction_WithIntermediateState(t *testing.T) {

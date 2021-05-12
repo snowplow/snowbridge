@@ -68,7 +68,7 @@ func TestSpEnrichedToJson(t *testing.T) {
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal(1, len(transformFailures))
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 20", transformFailures[0].GetError().Error()) // Error message is actually incorrect but it's a bug in the analytics SDK. Update once fixed.
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", transformFailures[0].GetError().Error())
 	assert.Equal([]byte("not	a	snowplow	event"), transformFailures[0].Data)
 	assert.Equal("some-key4", transformFailures[0].PartitionKey)
 	for index, value := range expectedGood {
