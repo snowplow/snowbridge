@@ -23,16 +23,18 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 	return func(messages []*models.Message) *models.TransformationResult {
 		successes := make([]*models.Message, 0, len(messages))
 		failures := make([]*models.Message, 0, len(messages))
-		// if no transformations, just return the result rather than shuffling data between slices
+		// If no transformations, just return the result rather than shuffling data between slices
 		if len(tranformFunctions) == 0 {
 			return models.NewTransformationResult(messages, failures)
 		}
 
 		for _, message := range messages {
-			// Overwrite the input for each message in sequence, unless we hit a failure
+
 			success := message
 			var failure *models.Message
 			for _, transformFunction := range tranformFunctions {
+				// Overwrite the input for each iteration in sequence of transformations,
+				// since the desired result is a single transformed message with a nil failure, or a nil message with a single failure
 				success, failure = transformFunction(success)
 				if failure != nil {
 					break
