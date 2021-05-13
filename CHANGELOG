@@ -1,3 +1,9 @@
+Version 0.3.0 (2021-06-18)
+--------------------------
+Always log time values in ms (close #58)
+Add transformation support (close #57)
+Add Kafka target (close #10)
+
 Version 0.2.3 (2021-01-26)
 --------------------------
 Add batching to SQS egress to improve performance (#40)
