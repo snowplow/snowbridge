@@ -10,119 +10,65 @@ import (
 	"testing"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSpEnrichedToJson(t *testing.T) {
 	assert := assert.New(t)
 
-	tsv1 := []byte(`test-data	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`)
-	tsv1Parsed, _ := analytics.ParseEvent(string(tsv1))
-
-	tsv2 := []byte(`test-data	pc	2019-05-10 14:40:32.392	2019-05-10 14:40:31.105	2019-05-10 14:40:30.218	transaction_item	5071169f-3050-473f-b03f-9748319b1ef2			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				68220ade-307b-4898-8e25-c4c8ac92f1d7																																																		transaction<built-in function input>	item58			35.87	1					python-requests/2.21.0																																										2019-05-10 14:40:30.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:31.105	com.snowplowanalytics.snowplow	transaction_item	jsonschema	1-0-0		`)
-	tsv2Parsed, _ := analytics.ParseEvent(string(tsv2))
-
-	tsv3 := []byte(`test-data	pc	2019-05-10 14:40:30.836	2019-05-10 14:40:29.576	2019-05-10 14:40:29.204	page_view	e8aef68d-8533-45c6-a672-26a0f01be9bd			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				b66c4a12-8584-4c7a-9a5d-7c96f59e2556												www.demo-site.com/campaign-landing-page	landing-page				80	www.demo-site.com/campaign-landing-page																																										python-requests/2.21.0																																										2019-05-10 14:40:29.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:29.576	com.snowplowanalytics.snowplow	page_view	jsonschema	1-0-0		`)
-	tsv3Parsed, _ := analytics.ParseEvent(string(tsv3))
-
-	// Handling of test inputs is messy but avoids edit-in-place complications. Perhaps there's a cleaner way?
-	var messages = []*models.Message{
-		{
-			Data:         tsv1,
-			PartitionKey: "some-key",
-		},
-		{
-			Data:         tsv2,
-			PartitionKey: "some-key1",
-		},
-		{
-			Data:         tsv3,
-			PartitionKey: "some-key2",
-		},
-		{
-			Data: []byte(`not	a	snowplow	event`),
-			PartitionKey: "some-key4",
-		},
+	var messageGood = models.Message{
+		Data:         snowplowTsv1,
+		PartitionKey: "some-key",
 	}
 
-	var expectedGood = []*models.Message{
-		{
-			Data:              []byte(`{"app_id":"test-data","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`),
-			PartitionKey:      "some-key",
-			IntermediateState: tsv1Parsed,
-		},
-		{
-			Data:              []byte(`{"app_id":"test-data","collector_tstamp":"2019-05-10T14:40:31.105Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:31.105Z","dvce_created_tstamp":"2019-05-10T14:40:30.218Z","dvce_sent_tstamp":"2019-05-10T14:40:30Z","etl_tstamp":"2019-05-10T14:40:32.392Z","event":"transaction_item","event_format":"jsonschema","event_id":"5071169f-3050-473f-b03f-9748319b1ef2","event_name":"transaction_item","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"68220ade-307b-4898-8e25-c4c8ac92f1d7","platform":"pc","ti_orderid":"transaction\u003cbuilt-in function input\u003e","ti_price":35.87,"ti_quantity":1,"ti_sku":"item58","user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`),
-			PartitionKey:      "some-key1",
-			IntermediateState: tsv2Parsed,
-		},
-		{
-			Data:              []byte(`{"app_id":"test-data","collector_tstamp":"2019-05-10T14:40:29.576Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:29.576Z","dvce_created_tstamp":"2019-05-10T14:40:29.204Z","dvce_sent_tstamp":"2019-05-10T14:40:29Z","etl_tstamp":"2019-05-10T14:40:30.836Z","event":"page_view","event_format":"jsonschema","event_id":"e8aef68d-8533-45c6-a672-26a0f01be9bd","event_name":"page_view","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"b66c4a12-8584-4c7a-9a5d-7c96f59e2556","page_title":"landing-page","page_url":"www.demo-site.com/campaign-landing-page","page_urlpath":"www.demo-site.com/campaign-landing-page","page_urlport":80,"platform":"pc","user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`),
-			PartitionKey:      "some-key2",
-			IntermediateState: tsv3Parsed,
-		},
+	var messageBad = models.Message{
+		Data:         nonSnowplowString,
+		PartitionKey: "some-key4",
 	}
 
-	transformSuccesses := make([]*models.Message, 0)
-	transformFailures := make([]*models.Message, 0)
-
-	for _, message := range messages {
-		transformSuccess, transformFailure := SpEnrichedToJson(message)
-		if transformSuccess != nil {
-			transformSuccesses = append(transformSuccesses, transformSuccess)
-		}
-		if transformFailure != nil {
-			transformFailures = append(transformFailures, transformFailure)
-		}
-
+	var expectedGood = models.Message{
+		Data:              snowplowJson1,
+		PartitionKey:      "some-key",
+		IntermediateState: spTsv1Parsed,
 	}
 
-	assert.Equal(expectedGood, transformSuccesses)
+	// Simple success case
+	transformSuccess, failure := SpEnrichedToJson(&messageGood)
+
+	assert.Equal(&expectedGood, transformSuccess)
+	assert.Nil(failure)
+
+	// Check that the input has not been altered
+	assert.NotEqual(messageGood.Data, transformSuccess.Data)
+
+	// Simple failure case
+	success, transformFailure := SpEnrichedToJson(&messageBad)
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal(1, len(transformFailures))
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", transformFailures[0].GetError().Error())
-	assert.Equal([]byte("not	a	snowplow	event"), transformFailures[0].Data)
-	assert.Equal("some-key4", transformFailures[0].PartitionKey)
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", transformFailure.GetError().Error())
+	assert.Equal([]byte("not	a	snowplow	event"), transformFailure.Data)
+	assert.Equal("some-key4", transformFailure.PartitionKey)
 	// Failure in this case is in parsing to IntermediateState, so none expected in output
-	assert.Equal(nil, transformFailures[0].IntermediateState)
-}
+	assert.Nil(transformFailure.IntermediateState)
+	assert.Nil(success)
 
-func TestSpEnrichedToJson_WithIntermediateState(t *testing.T) {
-	assert := assert.New(t)
+	// Check that the input has not been altered
+	assert.Nil(messageGood.GetError())
 
-	tsvEvent := []byte(`test-data	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`)
-	parsed, _ := analytics.ParseEvent(string(tsvEvent))
-
-	message := models.Message{
-		Data:              tsvEvent,
-		PartitionKey:      "some-key",
-		IntermediateState: parsed,
-	}
-
-	expected := models.Message{
-		Data:              []byte(`{"app_id":"test-data","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`),
-		PartitionKey:      "some-key",
-		IntermediateState: parsed,
-	}
-
-	transformSuccess, transformFailure := SpEnrichedToJson(&message)
-
-	assert.Equal(&expected, transformSuccess)
-	assert.Nil(transformFailure)
-
+	// Nuanced success case
+	// Test to assert behaviour when there's an incompatible IntermediateState in the input
 	incompatibleIntermediateMessage := models.Message{
-		Data:              tsvEvent,
+		Data:              snowplowTsv1,
 		PartitionKey:      "some-key",
 		IntermediateState: "Incompatible intermediate state",
 	}
 
 	// When we have some incompatible IntermediateState, expected behaviour is to replace it with this transformation's IntermediateState
+	transformSuccess2, failure2 := SpEnrichedToJson(&incompatibleIntermediateMessage)
 
-	transformSuccess2, transformFailure2 := SpEnrichedToJson(&incompatibleIntermediateMessage)
+	assert.Equal(&expectedGood, transformSuccess2)
+	assert.Nil(failure2)
 
-	assert.Equal(&expected, transformSuccess2)
-	assert.Nil(transformFailure2)
-
+	// Check that the input has not been altered
+	assert.NotEqual(messageGood.Data, transformSuccess2.Data)
 }

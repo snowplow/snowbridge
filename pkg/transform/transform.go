@@ -30,7 +30,7 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 
 		for _, message := range messages {
 
-			success := message
+			success := message // dereference here instead of inside functions??
 			var failure *models.Message
 			for _, transformFunction := range tranformFunctions {
 				// Overwrite the input for each iteration in sequence of transformations,
@@ -45,6 +45,7 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 				successes = append(successes, success)
 			}
 			if failure != nil {
+				// We don't append TimeTransformed in the failure case, as it is less useful, and likely to skew metrics
 				failures = append(failures, failure)
 			}
 		}
