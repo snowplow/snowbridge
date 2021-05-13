@@ -52,17 +52,17 @@ type SQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type KafkaTargetConfig struct {
-	Brokers           string `env:"TARGET_KAFKA_BROKERS"`        // REQUIRED
-	TopicName         string `env:"TARGET_KAFKA_TOPIC_NAME"`     // REQUIRED
-	TargetVersion     string `env:"TARGET_KAFKA_TARGET_VERSION"` // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
-	MaxRetries        int    `env:"TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
-	ByteLimit         int    `env:"TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"` // Kafka Default is 1MiB
-	Compress          bool   `env:"TARGET_KAFKA_COMPRESS"`                        // Reduces Network usage & Increases latency by compressing data
-	WaitForAll        bool   `env:"TARGET_KAFKA_WAIT_FOR_ALL"`                    // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
-	Idempotent        bool   `env:"TARGET_KAFKA_IDEMPOTENT"`                      // Exactly once writes - Also sets RequiredAcks = WaitForAll
-	EnableSASL        bool   `env:"TARGET_KAFKA_ENABLE_SASL"`                     // Enables SASL Support
-	SASLUsername      string `env:"TARGET_KAFKA_SASL_USERNAME"`
-	SASLPassword      string `env:"TARGET_KAFKA_SASL_PASSWORD"`
+	Brokers           string `env:"TARGET_KAFKA_BROKERS"`                            // REQUIRED
+	TopicName         string `env:"TARGET_KAFKA_TOPIC_NAME"`                         // REQUIRED
+	TargetVersion     string `env:"TARGET_KAFKA_TARGET_VERSION"`                     // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
+	MaxRetries        int    `env:"TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`        // Max retries
+	ByteLimit         int    `env:"TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"`    // Kafka Default is 1MiB
+	Compress          bool   `env:"TARGET_KAFKA_COMPRESS"`                           // Reduces Network usage & Increases latency by compressing data
+	WaitForAll        bool   `env:"TARGET_KAFKA_WAIT_FOR_ALL"`                       // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
+	Idempotent        bool   `env:"TARGET_KAFKA_IDEMPOTENT"`                         // Exactly once writes - Also sets RequiredAcks = WaitForAll
+	EnableSASL        bool   `env:"TARGET_KAFKA_ENABLE_SASL"`                        // Enables SASL Support
+	SASLUsername      string `env:"TARGET_KAFKA_SASL_USERNAME"`                      // SASL auth
+	SASLPassword      string `env:"TARGET_KAFKA_SASL_PASSWORD"`                      // SASL auth
 	SASLAlgorithm     string `env:"TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
 	CertFile          string `env:"TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
 	KeyFile           string `env:"TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
@@ -106,17 +106,17 @@ type FailureSQSTargetConfig struct {
 
 // KafkaTargetConfig configures the destination for records consumed
 type FailureKafkaTargetConfig struct {
-	Brokers           string `env:"FAILURE_TARGET_KAFKA_BROKERS"`        // REQUIRED
-	TopicName         string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`     // REQUIRED
-	TargetVersion     string `env:"FAILURE_TARGET_KAFKA_TARGET_VERSION"` // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
-	MaxRetries        int    `env:"FAILURE_TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`
-	ByteLimit         int    `env:"FAILURE_TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"`
-	Compress          bool   `env:"FAILURE_TARGET_KAFKA_COMPRESS"`     // Reduces Network usage & Increases latency by compressing data
-	WaitForAll        bool   `env:"FAILURE_TARGET_KAFKA_WAIT_FOR_ALL"` // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
-	Idempotent        bool   `env:"FAILURE_TARGET_KAFKA_IDEMPOTENT"`   // Exactly once writes
-	EnableSASL        bool   `env:"FAILURE_TARGET_KAFKA_ENABLE_SASL"`  // Enables SASL Support
-	SASLUsername      string `env:"FAILURE_TARGET_KAFKA_SASL_USERNAME"`
-	SASLPassword      string `env:"FAILURE_TARGET_KAFKA_SASL_PASSWORD"`
+	Brokers           string `env:"FAILURE_TARGET_KAFKA_BROKERS"`                            // REQUIRED
+	TopicName         string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`                         // REQUIRED
+	TargetVersion     string `env:"FAILURE_TARGET_KAFKA_TARGET_VERSION"`                     // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
+	MaxRetries        int    `env:"FAILURE_TARGET_KAFKA_MAX_RETRIES" envDefault:"10"`        // Max retries
+	ByteLimit         int    `env:"FAILURE_TARGET_KAFKA_BYTE_LIMIT" envDefault:"1048576"`    // Kafka Default is 1MiB
+	Compress          bool   `env:"FAILURE_TARGET_KAFKA_COMPRESS"`                           // Reduces Network usage & Increases latency by compressing data
+	WaitForAll        bool   `env:"FAILURE_TARGET_KAFKA_WAIT_FOR_ALL"`                       // Sets RequireAcks = WaitForAll which waits for min.insync.replicas to Ack
+	Idempotent        bool   `env:"FAILURE_TARGET_KAFKA_IDEMPOTENT"`                         // Exactly once writes
+	EnableSASL        bool   `env:"FAILURE_TARGET_KAFKA_ENABLE_SASL"`                        // Enables SASL Support
+	SASLUsername      string `env:"FAILURE_TARGET_KAFKA_SASL_USERNAME"`                      // SASL auth
+	SASLPassword      string `env:"FAILURE_TARGET_KAFKA_SASL_PASSWORD"`                      // SASL auth
 	SASLAlgorithm     string `env:"FAILURE_TARGET_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
 	CertFile          string `env:"FAILURE_TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
 	KeyFile           string `env:"FAILURE_TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
