@@ -29,8 +29,8 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 		}
 
 		for _, message := range messages {
-
-			success := message // dereference here instead of inside functions??
+			msg := *message // dereference to avoid amending input
+			success := &msg
 			var failure *models.Message
 			for _, transformFunction := range tranformFunctions {
 				// Overwrite the input for each iteration in sequence of transformations,

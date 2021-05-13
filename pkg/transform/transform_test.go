@@ -93,12 +93,12 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.Equal(expectedGood[index].IntermediateState, value.IntermediateState)
 		assert.NotNil(expectedGood[index].TimeTransformed)
+
 		// assertion to ensure we don't accidentally modify the input
 		assert.NotEqual(messages[index].Data, value.Data)
-		// assert.NotEqual(messages[index].IntermediateState, value.IntermediateState)
-		// The above fails... But should it???
+		assert.NotEqual(messages[index].IntermediateState, value.IntermediateState)
+		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
 		assert.Equal(time.Time{}, messages[index].TimeTransformed)
-		// assert can't seem to deal with comparing the actual zero value, so assert that it's still zero instead
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
@@ -143,10 +143,10 @@ func TestNewTransformation_Multiple(t *testing.T) {
 		// assertion to ensure we don't accidentally modify the input
 		assert.NotEqual(messages[index].Data, value.Data)
 		assert.NotEqual(messages[index].PartitionKey, value.PartitionKey)
-		// assert.NotEqual(messages[index].IntermediateState, value.IntermediateState)
+		assert.NotEqual(messages[index].IntermediateState, value.IntermediateState)
 		// The above fails... But should it???
 		assert.Equal(time.Time{}, messages[index].TimeTransformed)
-		// assert can't seem to deal with comparing the actual zero value, so assert that it's still zero instead
+		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.

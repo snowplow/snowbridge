@@ -35,8 +35,7 @@ func NewSpEnrichedSetPkFunction(pkField string) TransformationFunction {
 			message.SetError(err)
 			return nil, message
 		}
-		newMessage := *message
-		newMessage.PartitionKey = fmt.Sprintf("%v", pk)
-		return &newMessage, nil
+		message.PartitionKey = fmt.Sprintf("%v", pk)
+		return message, nil
 	}
 }

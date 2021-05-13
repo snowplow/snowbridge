@@ -32,7 +32,6 @@ func SpEnrichedToJson(message *models.Message) (*models.Message, *models.Message
 		message.SetError(err)
 		return nil, message
 	}
-	newMessage := *message
-	newMessage.Data = jsonMessage
-	return &newMessage, nil
+	message.Data = jsonMessage
+	return message, nil
 }

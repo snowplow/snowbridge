@@ -38,9 +38,6 @@ func TestSpEnrichedToJson(t *testing.T) {
 	assert.Equal(&expectedGood, transformSuccess)
 	assert.Nil(failure)
 
-	// Check that the input has not been altered
-	assert.NotEqual(messageGood.Data, transformSuccess.Data)
-
 	// Simple failure case
 	success, transformFailure := SpEnrichedToJson(&messageBad)
 
@@ -68,7 +65,4 @@ func TestSpEnrichedToJson(t *testing.T) {
 
 	assert.Equal(&expectedGood, transformSuccess2)
 	assert.Nil(failure2)
-
-	// Check that the input has not been altered
-	assert.NotEqual(messageGood.Data, transformSuccess2.Data)
 }

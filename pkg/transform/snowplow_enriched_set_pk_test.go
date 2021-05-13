@@ -34,9 +34,6 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	assert.Equal("test-data", stringAsPk.PartitionKey)
 	assert.Nil(fail)
 
-	// assert input not modified
-	assert.NotEqual(messageGood.PartitionKey, stringAsPk.PartitionKey)
-
 	ctstampSetPkFunc := NewSpEnrichedSetPkFunction("collector_tstamp")
 
 	tstampAsPk, fail := ctstampSetPkFunc(&messageGood)
@@ -44,18 +41,12 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	assert.Equal("2019-05-10 14:40:29.576 +0000 UTC", tstampAsPk.PartitionKey)
 	assert.Nil(fail)
 
-	// assert input not modified
-	assert.NotEqual(messageGood.PartitionKey, tstampAsPk.PartitionKey)
-
 	pgurlportSetPkFunc := NewSpEnrichedSetPkFunction("page_urlport")
 
 	intAsPk, failure := pgurlportSetPkFunc(&messageGood)
 
 	assert.Equal("80", intAsPk.PartitionKey)
 	assert.Nil(failure)
-
-	// assert input not modified
-	assert.NotEqual(messageGood.PartitionKey, intAsPk.PartitionKey)
 
 	// Simple failure case
 	failureCase, fail := aidSetPkFunc(&messageBad)
