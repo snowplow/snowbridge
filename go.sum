@@ -318,8 +318,6 @@ github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a h1:9
 github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a/go.mod h1:7/jMxl0yrvgiUlv5L37fw6pql71aNh55sKQc4kBFj5s=
 github.com/snowplow-devops/kinsumer v0.0.0-20201222120237-1233f129ef85 h1:bt/dGnHZ6XcamFJBPtqWDaTlDM0awQLfjSSiuPQqNow=
 github.com/snowplow-devops/kinsumer v0.0.0-20201222120237-1233f129ef85/go.mod h1:++IOOQNbqVZShJNWEqlPdDatgECxL0ixvX0Hru5rcY0=
-github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.1 h1:EYwaHn0hbqg6gZiHtiA1ih3IggTDDmrLFOYMsp5imAM=
-github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.1/go.mod h1:Hin0YGiQqQ3a+AwFR/4Go3mqsG0w89VjZRfnaThX/BY=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.2 h1:0WDix/0IZdzsf/9oODyGlJh4XX/FTtOS+EcIKNr7d8Q=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0-beta.2/go.mod h1:M3HQeu6RcG1zuZx9qZZ9idYu9LyKuSJs3cpCYUaDDHI=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
@@ -521,8 +519,6 @@ golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20201201145000-ef89a241ccb3 h1:kzM6+9dur93BcC2kVlYl34cHU+TYZLanmpSJHVMmL64=
 golang.org/x/sys v0.0.0-20201201145000-ef89a241ccb3/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
-golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 h1:myAQVi0cGEoqQVR5POX+8RR2mrocKqNN1hmeMqhX27k=
-golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210510120138-977fb7262007/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 h1:yhBbb4IRs2HS9PPlAg6DMC6mUOKexJBNsLf4Z+6En1Q=
@@ -591,8 +587,6 @@ golang.org/x/tools v0.0.0-20201110124207-079ba7bd75cd/go.mod h1:emZCQorbCU4vsT4f
 golang.org/x/tools v0.0.0-20201201161351-ac6f37ff4c2a/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
 golang.org/x/tools v0.0.0-20201202200335-bef1c476418a/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
 golang.org/x/tools v0.0.0-20201208233053-a543418bbed2/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
-golang.org/x/tools v0.1.0 h1:po9/4sTYwZU9lPhi1tOrb4hCv3qrhiQ77LZfGa2OjwY=
-golang.org/x/tools v0.1.0/go.mod h1:xkSsbof2nBLbhDlRMhhhyNLN/zl3eTqcnHD5viDpcZ0=
 golang.org/x/tools v0.1.1 h1:wGiQel/hW0NnEkJUk8lbzkX2gFJU6PFxf1v5OlCfuOs=
 golang.org/x/tools v0.1.1/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
