@@ -12,8 +12,10 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
+// TransformationFunctions modify their inputs
 type TransformationFunction func(*models.Message) (*models.Message, *models.Message)
 
+// The transformationApplyFunction dereferences messages before running transformations
 type TransformationApplyFunction func([]*models.Message) *models.TransformationResult
 
 type TransformationGenerator func(...TransformationFunction) TransformationApplyFunction
@@ -30,7 +32,7 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 
 		for _, message := range messages {
 			msg := *message // dereference to avoid amending input
-			success := &msg
+			success := &msg // success must be both input and output to a TransformationFunction, so we make this pointer.
 			var failure *models.Message
 			for _, transformFunction := range tranformFunctions {
 				// Overwrite the input for each iteration in sequence of transformations,
