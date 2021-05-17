@@ -34,12 +34,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
+    - name: Extract tag version from ref, and project version from file
+      id: version
+      run: |
+          echo ::set-output name=VERSION_FILE::"refs/tags/$(cat VERSION)"
+
+    - name: Fail if version mismatch
+      id: check_version
+      if: ${{ github.ref != steps.version.outputs.VERSION_FILE }}
+      run: |
+        echo "VERSION file ${{steps.version.outputs.VERSION_FILE}} does not match tagged version ${{ github.ref }}"
+        exit 1
+
     - name: Compile
       run: make all
-
-    - name: Extract tag version from ref
-      id: get_version
-      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
 
     - name: Create Release
       uses: actions/create-release@v1
