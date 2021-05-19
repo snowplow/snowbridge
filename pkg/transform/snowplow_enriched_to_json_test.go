@@ -27,26 +27,26 @@ func TestSpEnrichedToJson(t *testing.T) {
 	}
 
 	var expectedGood = models.Message{
-		Data:              snowplowJson1,
-		PartitionKey:      "some-key",
-		IntermediateState: spTsv1Parsed,
+		Data:         snowplowJson1,
+		PartitionKey: "some-key",
 	}
 
 	// Simple success case
-	transformSuccess, failure := SpEnrichedToJson(&messageGood)
+	transformSuccess, failure, intermediate := SpEnrichedToJson(&messageGood, nil)
 
 	assert.Equal(&expectedGood, transformSuccess)
+	assert.Equal(spTsv1Parsed, intermediate)
 	assert.Nil(failure)
 
 	// Simple failure case
-	success, transformFailure := SpEnrichedToJson(&messageBad)
+	success, transformFailure, intermediate := SpEnrichedToJson(&messageBad, nil)
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", transformFailure.GetError().Error())
 	assert.Equal([]byte("not	a	snowplow	event"), transformFailure.Data)
 	assert.Equal("some-key4", transformFailure.PartitionKey)
 	// Failure in this case is in parsing to IntermediateState, so none expected in output
-	assert.Nil(transformFailure.IntermediateState)
+	assert.Nil(intermediate)
 	assert.Nil(success)
 
 	// Check that the input has not been altered
@@ -55,14 +55,16 @@ func TestSpEnrichedToJson(t *testing.T) {
 	// Nuanced success case
 	// Test to assert behaviour when there's an incompatible IntermediateState in the input
 	incompatibleIntermediateMessage := models.Message{
-		Data:              snowplowTsv1,
-		PartitionKey:      "some-key",
-		IntermediateState: "Incompatible intermediate state",
+		Data:         snowplowTsv1,
+		PartitionKey: "some-key",
 	}
 
+	incompatibleIntermediate := "Incompatible intermediate state"
+
 	// When we have some incompatible IntermediateState, expected behaviour is to replace it with this transformation's IntermediateState
-	transformSuccess2, failure2 := SpEnrichedToJson(&incompatibleIntermediateMessage)
+	transformSuccess2, failure2, intermediate2 := SpEnrichedToJson(&incompatibleIntermediateMessage, incompatibleIntermediate)
 
 	assert.Equal(&expectedGood, transformSuccess2)
+	assert.Equal(spTsv1Parsed, intermediate2)
 	assert.Nil(failure2)
 }

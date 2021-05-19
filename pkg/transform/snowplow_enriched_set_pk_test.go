@@ -29,49 +29,53 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	// Simple success cases for different datatypes
 	aidSetPkFunc := NewSpEnrichedSetPkFunction("app_id")
 
-	stringAsPk, fail := aidSetPkFunc(&messageGood)
+	stringAsPk, fail, intermediate := aidSetPkFunc(&messageGood, nil)
 
 	assert.Equal("test-data", stringAsPk.PartitionKey)
+	assert.Equal(spTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
 	ctstampSetPkFunc := NewSpEnrichedSetPkFunction("collector_tstamp")
 
-	tstampAsPk, fail := ctstampSetPkFunc(&messageGood)
+	tstampAsPk, fail, intermediate := ctstampSetPkFunc(&messageGood, nil)
 
 	assert.Equal("2019-05-10 14:40:29.576 +0000 UTC", tstampAsPk.PartitionKey)
+	assert.Equal(spTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
 	pgurlportSetPkFunc := NewSpEnrichedSetPkFunction("page_urlport")
 
-	intAsPk, failure := pgurlportSetPkFunc(&messageGood)
+	intAsPk, fail, intermediate := pgurlportSetPkFunc(&messageGood, nil)
 
 	assert.Equal("80", intAsPk.PartitionKey)
-	assert.Nil(failure)
+	assert.Equal(spTsv3Parsed, intermediate)
+	assert.Nil(fail)
 
 	// Simple failure case
-	failureCase, fail := aidSetPkFunc(&messageBad)
+	failureCase, fail, intermediate := aidSetPkFunc(&messageBad, nil)
 
 	assert.Nil(failureCase)
+	assert.Nil(intermediate)
 	assert.NotNil(fail)
 	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", fail.GetError().Error())
 
 	// Nuanced success case
-	// Test to assert behaviour when there's an incompatible IntermediateState in the input
+	// Test to assert behaviour when there's an incompatible intermediateState in the input
 	incompatibleIntermediateMessage := models.Message{
-		Data:              snowplowTsv1,
-		PartitionKey:      "some-key",
-		IntermediateState: "Incompatible intermediate state",
+		Data:         snowplowTsv1,
+		PartitionKey: "some-key",
 	}
 
 	expected := models.Message{
-		Data:              snowplowTsv1,
-		PartitionKey:      "test-data",
-		IntermediateState: spTsv1Parsed,
+		Data:         snowplowTsv1,
+		PartitionKey: "test-data",
 	}
+	incompatibleIntermediate := "Incompatible intermediate state"
 
-	// When we have some incompatible IntermediateState, expected behaviour is to replace it with this transformation's IntermediateState
-	stringAsPkIncompat, failIncompat := aidSetPkFunc(&incompatibleIntermediateMessage)
+	// When we have some incompatible intermediateState, expected behaviour is to replace it with this transformation's intermediateState
+	stringAsPkIncompat, failIncompat, intermediate := aidSetPkFunc(&incompatibleIntermediateMessage, incompatibleIntermediate)
 
 	assert.Equal(&expected, stringAsPkIncompat)
+	assert.Equal(spTsv1Parsed, intermediate)
 	assert.Nil(failIncompat)
 }

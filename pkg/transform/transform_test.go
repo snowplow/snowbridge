@@ -69,19 +69,16 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 
 	var expectedGood = []*models.Message{
 		{
-			Data:              snowplowJson1,
-			PartitionKey:      "some-key",
-			IntermediateState: spTsv1Parsed,
+			Data:         snowplowJson1,
+			PartitionKey: "some-key",
 		},
 		{
-			Data:              snowplowJson2,
-			PartitionKey:      "some-key1",
-			IntermediateState: spTsv2Parsed,
+			Data:         snowplowJson2,
+			PartitionKey: "some-key1",
 		},
 		{
-			Data:              snowplowJson3,
-			PartitionKey:      "some-key2",
-			IntermediateState: spTsv3Parsed,
+			Data:         snowplowJson3,
+			PartitionKey: "some-key2",
 		},
 	}
 
@@ -91,12 +88,10 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	for index, value := range enrichJsonRes.Result {
 		assert.Equal(expectedGood[index].Data, value.Data)
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
-		assert.Equal(expectedGood[index].IntermediateState, value.IntermediateState)
 		assert.NotNil(expectedGood[index].TimeTransformed)
 
-		// assertion to ensure we don't accidentally modify the input
+		// assertions to ensure we don't accidentally modify the input
 		assert.NotEqual(messages[index].Data, value.Data)
-		assert.NotEqual(messages[index].IntermediateState, value.IntermediateState)
 		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
 		assert.Equal(time.Time{}, messages[index].TimeTransformed)
 	}
@@ -114,19 +109,16 @@ func TestNewTransformation_Multiple(t *testing.T) {
 
 	var expectedGood = []*models.Message{
 		{
-			Data:              snowplowJson1,
-			PartitionKey:      "test-data",
-			IntermediateState: spTsv1Parsed,
+			Data:         snowplowJson1,
+			PartitionKey: "test-data",
 		},
 		{
-			Data:              snowplowJson2,
-			PartitionKey:      "test-data",
-			IntermediateState: spTsv2Parsed,
+			Data:         snowplowJson2,
+			PartitionKey: "test-data",
 		},
 		{
-			Data:              snowplowJson3,
-			PartitionKey:      "test-data",
-			IntermediateState: spTsv3Parsed,
+			Data:         snowplowJson3,
+			PartitionKey: "test-data",
 		},
 	}
 
@@ -138,15 +130,13 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	for index, value := range enrichJsonRes.Result {
 		assert.Equal(expectedGood[index].Data, value.Data)
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
-		assert.Equal(expectedGood[index].IntermediateState, value.IntermediateState)
 		assert.NotNil(expectedGood[index].TimeTransformed)
-		// assertion to ensure we don't accidentally modify the input
+
+		// assertions to ensure we don't accidentally modify the input
 		assert.NotEqual(messages[index].Data, value.Data)
 		assert.NotEqual(messages[index].PartitionKey, value.PartitionKey)
-		assert.NotEqual(messages[index].IntermediateState, value.IntermediateState)
-		// The above fails... But should it???
-		assert.Equal(time.Time{}, messages[index].TimeTransformed)
 		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
+		assert.Equal(time.Time{}, messages[index].TimeTransformed)
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
