@@ -290,6 +290,7 @@ func getKafkaVersion(targetVersion string) (sarama.KafkaVersion, error) {
 		for _, version := range sarama.SupportedVersions {
 			if version == parsedVersion {
 				supportedVersion = true
+				preferredVersion = parsedVersion
 				break
 			}
 		}
