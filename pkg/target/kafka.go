@@ -72,6 +72,9 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		return nil, err
 	}
 
+	logger := log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion})
+	sarama.Logger = logger
+
 	saramaConfig := sarama.NewConfig()
 	saramaConfig.ClientID = "snowplow_stream_replicator"
 	saramaConfig.Version = kafkaVersion
@@ -166,7 +169,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		brokers:          cfg.Brokers,
 		topicName:        cfg.TopicName,
 		messageByteLimit: cfg.ByteLimit,
-		log:              log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion}),
+		log:              logger,
 	}, producerError
 }
 
