@@ -84,5 +84,5 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(1)*time.Minute, b.MinTransformLatency)
 	assert.Equal(time.Duration(2)*time.Minute, b.GetAvgTransformLatency())
 
-	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:10m0s,MaxMsgLatency:1h10m0s,MaxTransformLatency:3m0s", b.String())
+	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:600000,MaxMsgLatency:4200000,MaxTransformLatency:180000", b.String())
 }

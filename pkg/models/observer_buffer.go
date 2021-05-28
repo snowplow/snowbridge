@@ -131,7 +131,7 @@ func (b *ObserverBuffer) GetAvgTransformLatency() time.Duration {
 
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%s,MaxMsgLatency:%s,MaxTransformLatency:%s",
+		"TargetResults:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxTransformLatency:%d",
 		b.TargetResults,
 		b.MsgSent,
 		b.MsgFailed,
@@ -141,8 +141,8 @@ func (b *ObserverBuffer) String() string {
 		b.InvalidTargetResults,
 		b.InvalidMsgSent,
 		b.InvalidMsgFailed,
-		b.MaxProcLatency,
-		b.MaxMsgLatency,
-		b.MaxTransformLatency,
+		b.MaxProcLatency.Milliseconds(),
+		b.MaxMsgLatency.Milliseconds(),
+		b.MaxTransformLatency.Milliseconds(),
 	)
 }
