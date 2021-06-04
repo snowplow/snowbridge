@@ -8,7 +8,7 @@ do
 
   # 2. Perform transformation
   output_decoded="Bash Transformation: ${input_decoded}"
-  output_b64encoded=$(printf "${output_decoded}" | base64)
+  output_b64encoded=$(echo "${output_decoded}" | base64)
 
   # 3. Echo base64 encoded result back to stdout
   echo "${output_b64encoded}";
