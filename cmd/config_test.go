@@ -109,7 +109,24 @@ func TestNewConfig_InvalidTransformation(t *testing.T) {
 	transformation, err := c.GetTransformations()
 	assert.Nil(transformation)
 	assert.NotNil(err)
-	assert.Equal("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}' and got 'fake'", err.Error())
+	assert.Equal("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}', spEnrichedFilter:{option} and got 'fake'", err.Error())
+}
+
+func TestNewConfig_FilterFailure(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("MESSAGE_TRANSFORMATION")
+
+	os.Setenv("MESSAGE_TRANSFORMATION", "spEnrichedFilter:incompatibleArg")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	transformation, err := c.GetTransformations()
+	assert.Nil(transformation)
+	assert.NotNil(err)
+	assert.Equal(`Invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`, err.Error())
 }
 
 func TestNewConfig_InvalidTarget(t *testing.T) {
