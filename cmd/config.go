@@ -389,9 +389,13 @@ func (c *Config) GetTransformations() (transform.TransformationApplyFunction, er
 			funcs = append(funcs, transform.SpEnrichedToJson)
 		case "spEnrichedSetPk":
 			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(funcOpts[1]))
+		case "plugin":
+			funcs = append(funcs, transform.NewPluginFunction(funcOpts[1]))
+		case "pluginLong":
+			funcs = append(funcs, transform.NewPluginLongFunction(funcOpts[1]))
 		case "none":
 		default:
-			return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}' and got '%s'", c.Transformation))
+			return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}', 'plugin:{path}', 'pluginLong:{path}' and got '%s'", c.Transformation))
 		}
 	}
 	return transform.NewTransformation(funcs...), nil
