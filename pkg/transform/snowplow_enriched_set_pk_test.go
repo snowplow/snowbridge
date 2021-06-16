@@ -31,7 +31,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 
 	stringAsPk, fail, intermediate := aidSetPkFunc(&messageGood, nil)
 
-	assert.Equal("test-data", stringAsPk.PartitionKey)
+	assert.Equal("test-data3", stringAsPk.PartitionKey)
 	assert.Equal(spTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
@@ -68,7 +68,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 
 	expected := models.Message{
 		Data:         snowplowTsv1,
-		PartitionKey: "test-data",
+		PartitionKey: "test-data1",
 	}
 	incompatibleIntermediate := "Incompatible intermediate state"
 

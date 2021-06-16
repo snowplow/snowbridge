@@ -14,25 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var messages = []*models.Message{
-	{
-		Data:         snowplowTsv1,
-		PartitionKey: "some-key",
-	},
-	{
-		Data:         snowplowTsv2,
-		PartitionKey: "some-key1",
-	},
-	{
-		Data:         snowplowTsv3,
-		PartitionKey: "some-key2",
-	},
-	{
-		Data:         nonSnowplowString,
-		PartitionKey: "some-key4",
-	},
-}
-
 // To test a function which creates a function, we're creating the function then testing that. Not sure if there's a better way?
 func TestNewTransformation_Passthrough(t *testing.T) {
 	assert := assert.New(t)
@@ -104,21 +85,39 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	assert.Equal("some-key4", enrichJsonRes.Invalid[0].PartitionKey)
 }
 
+func Benchmark_Transform_EnrichToJson(b *testing.B) {
+	tranformEnrichJson := NewTransformation(SpEnrichedToJson)
+	for i := 0; i < b.N; i++ {
+		tranformEnrichJson(messages)
+	}
+}
+
+func testfunc(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, interface{}) {
+	return message, nil, nil
+}
+
+func Benchmark_Transform_Passthrough(b *testing.B) {
+	tranformPassthrough := NewTransformation(testfunc)
+	for i := 0; i < b.N; i++ {
+		tranformPassthrough(messages)
+	}
+}
+
 func TestNewTransformation_Multiple(t *testing.T) {
 	assert := assert.New(t)
 
 	var expectedGood = []*models.Message{
 		{
 			Data:         snowplowJson1,
-			PartitionKey: "test-data",
+			PartitionKey: "test-data1",
 		},
 		{
 			Data:         snowplowJson2,
-			PartitionKey: "test-data",
+			PartitionKey: "test-data2",
 		},
 		{
 			Data:         snowplowJson3,
-			PartitionKey: "test-data",
+			PartitionKey: "test-data3",
 		},
 	}
 
