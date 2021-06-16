@@ -7,8 +7,9 @@
 package observer
 
 import (
-	log "github.com/sirupsen/logrus"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
@@ -20,6 +21,7 @@ type Observer struct {
 	statsClient              statsreceiveriface.StatsReceiver
 	exitSignal               chan struct{}
 	stopDone                 chan struct{}
+	filteredChan             chan *models.FilterResult
 	targetWriteChan          chan *models.TargetWriteResult
 	targetWriteOversizedChan chan *models.TargetWriteResult
 	targetWriteInvalidChan   chan *models.TargetWriteResult
@@ -37,6 +39,7 @@ func New(statsClient statsreceiveriface.StatsReceiver, timeout time.Duration, re
 		statsClient:              statsClient,
 		exitSignal:               make(chan struct{}),
 		stopDone:                 make(chan struct{}),
+		filteredChan:             make(chan *models.FilterResult, 1000),
 		targetWriteChan:          make(chan *models.TargetWriteResult, 1000),
 		targetWriteOversizedChan: make(chan *models.TargetWriteResult, 1000),
 		targetWriteInvalidChan:   make(chan *models.TargetWriteResult, 1000),
@@ -73,6 +76,8 @@ func (o *Observer) Start() {
 
 				o.isRunning = false
 				break ObserverLoop
+			case res := <-o.filteredChan:
+				buffer.AppendFiltered(res)
 			case res := <-o.targetWriteChan:
 				buffer.AppendWrite(res)
 			case res := <-o.targetWriteOversizedChan:
@@ -106,6 +111,12 @@ func (o *Observer) Stop() {
 }
 
 // --- Functions called to push information to observer
+
+// Filtered pushes a filter result onto a channel for processing
+// by the observer
+func (o *Observer) Filtered(r *models.FilterResult) {
+	o.filteredChan <- r
+}
 
 // TargetWrite pushes a targets write result onto a channel for processing
 // by the observer

@@ -170,6 +170,17 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 		transformed := tr(messages)
 		// no error as errors should be returned in the failures array of TransformationResult
 
+		// Ack filtered messages with no further action
+		messagesToFilter := transformed.Filtered
+		for _, msg := range messagesToFilter {
+			if msg.AckFunc != nil {
+				msg.AckFunc()
+			}
+		}
+		// Push filter result to observer
+		filterRes := models.NewFilterResult(messagesToFilter)
+		o.Filtered(filterRes)
+
 		// Send message buffer
 		messagesToSend := transformed.Result
 

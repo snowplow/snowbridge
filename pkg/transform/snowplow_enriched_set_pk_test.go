@@ -29,15 +29,15 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	// Simple success cases for different datatypes
 	aidSetPkFunc := NewSpEnrichedSetPkFunction("app_id")
 
-	stringAsPk, fail, intermediate := aidSetPkFunc(&messageGood, nil)
+	stringAsPk, _, fail, intermediate := aidSetPkFunc(&messageGood, nil)
 
-	assert.Equal("test-data", stringAsPk.PartitionKey)
+	assert.Equal("test-data3", stringAsPk.PartitionKey)
 	assert.Equal(spTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
 	ctstampSetPkFunc := NewSpEnrichedSetPkFunction("collector_tstamp")
 
-	tstampAsPk, fail, intermediate := ctstampSetPkFunc(&messageGood, nil)
+	tstampAsPk, _, fail, intermediate := ctstampSetPkFunc(&messageGood, nil)
 
 	assert.Equal("2019-05-10 14:40:29.576 +0000 UTC", tstampAsPk.PartitionKey)
 	assert.Equal(spTsv3Parsed, intermediate)
@@ -45,14 +45,14 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 
 	pgurlportSetPkFunc := NewSpEnrichedSetPkFunction("page_urlport")
 
-	intAsPk, fail, intermediate := pgurlportSetPkFunc(&messageGood, nil)
+	intAsPk, _, fail, intermediate := pgurlportSetPkFunc(&messageGood, nil)
 
 	assert.Equal("80", intAsPk.PartitionKey)
 	assert.Equal(spTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
 	// Simple failure case
-	failureCase, fail, intermediate := aidSetPkFunc(&messageBad, nil)
+	failureCase, _, fail, intermediate := aidSetPkFunc(&messageBad, nil)
 
 	assert.Nil(failureCase)
 	assert.Nil(intermediate)
@@ -68,12 +68,12 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 
 	expected := models.Message{
 		Data:         snowplowTsv1,
-		PartitionKey: "test-data",
+		PartitionKey: "test-data1",
 	}
 	incompatibleIntermediate := "Incompatible intermediate state"
 
 	// When we have some incompatible intermediateState, expected behaviour is to replace it with this transformation's intermediateState
-	stringAsPkIncompat, failIncompat, intermediate := aidSetPkFunc(&incompatibleIntermediateMessage, incompatibleIntermediate)
+	stringAsPkIncompat, _, failIncompat, intermediate := aidSetPkFunc(&incompatibleIntermediateMessage, incompatibleIntermediate)
 
 	assert.Equal(&expected, stringAsPkIncompat)
 	assert.Equal(spTsv1Parsed, intermediate)
