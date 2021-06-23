@@ -7,6 +7,7 @@
 package transform
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -59,7 +60,7 @@ func NewSpEnrichedFilterFunction(filterConfig string) TransformationFunction {
 		// Add negation too?
 	evaluation:
 		for _, valueToMatch := range strings.Split(keyValues[1], "|") {
-			if valueToMatch == valueFound {
+			if valueToMatch == fmt.Sprintf("%v", valueFound) { // coerce to string as valueFound may be any type found in a Snowplow event
 				keepMessage = !keepMessage
 				break evaluation
 				// Once config value is matched once, change keepMessage then break out of the loop to avoid reverting back when we have two matches

@@ -15,7 +15,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 		PartitionKey: "some-key",
 	}
 
-	// Single value affirmation cases
+	// Single value cases
 	aidFilterFuncKeep := NewSpEnrichedFilterFunction("app_id==test-data3")
 
 	aidFilteredIn, fail, _ := aidFilterFuncKeep(&messageGood, nil)
@@ -29,6 +29,14 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 
 	assert.Nil(aidFilteredOut)
 	assert.Nil(fail2)
+
+	// int value
+	urlPrtFilterFuncKeep := NewSpEnrichedFilterFunction("page_urlport==80")
+
+	urlPrtFilteredIn, fail, _ := urlPrtFilterFuncKeep(&messageGood, nil)
+
+	assert.Equal(snowplowTsv3, urlPrtFilteredIn.Data)
+	assert.Nil(fail)
 
 	// Multiple value cases
 	aidFilterFuncKeepWithMultiple := NewSpEnrichedFilterFunction("app_id==someotherValue|test-data3")
