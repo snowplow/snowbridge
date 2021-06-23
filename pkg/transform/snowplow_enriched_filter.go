@@ -57,7 +57,6 @@ func NewSpEnrichedFilterFunction(filterConfig string) TransformationFunction {
 			return nil, message, nil
 		}
 
-		// Add negation too?
 	evaluation:
 		for _, valueToMatch := range strings.Split(keyValues[1], "|") {
 			if valueToMatch == fmt.Sprintf("%v", valueFound) { // coerce to string as valueFound may be any type found in a Snowplow event
