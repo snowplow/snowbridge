@@ -7,35 +7,47 @@
 package transform
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-//
-
 // NewSpEnrichedFilter returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event.
 // The filterconfig should describe the conditions for including a message.
 // For example "aid=abc|def" includes all events with app IDs of abc or def, and filters out the rest.
 // aid!=abc|def includes all events whose app IDs do not match abc or def, and filters out the rest.
-func NewSpEnrichedFilterFunction(filterConfig string) TransformationFunction {
+func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, error) {
+
+	// This regex prevents whitespace characters in the value provided
+	regex := `\S+(!=|==)[^\s\|]+((?:\|[^\s|]+)*)$`
+	re := regexp.MustCompile(regex)
+
+	if !(re.MatchString(filterConfig)) {
+		// If invalid, return an error which will be returned by the main function
+		return nil, errors.New(fmt.Sprintf("Filter Function Config does not match regex %v", regex))
+	}
+
+	// Check for a negation condition first
+	keyValues := strings.SplitN(filterConfig, "!=", 2)
+
+	// Initial Keep Value is the t/f value of keepMessage, to be reset on every invocation of the returned function
+	var initialKeepValue bool
+	if len(keyValues) > 1 {
+		// If negation condition is found, default to keep the message, and change this when match found
+		initialKeepValue = true
+	} else {
+		// Otherwise, look for affirmation condition, default to drop the message and change when match found
+		keyValues = strings.SplitN(filterConfig, "==", 2)
+		initialKeepValue = false
+	}
+
 	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, interface{}) {
-
-		// Check for a negation condition first
-		keyValues := strings.SplitN(filterConfig, "!=", 2)
-
-		var keepMessage bool
-		if len(keyValues) > 1 {
-			// If negation condition is found, default to keep the message, and change this when match found
-			keepMessage = true
-		} else {
-			// Otherwise, look for affirmation condition, default to drop the message and change when match found
-			keyValues = strings.SplitN(filterConfig, "==", 2)
-			keepMessage = false
-		}
-		// TODO: Design - Should there be validation of the input here, or perhaps in the config? Or at all?
+		// Start by resetting keepMessage to initialKeepValue
+		keepMessage := initialKeepValue
 
 		// Todo: make this its own function and DRY across all the transformations?
 		var parsedMessage, ok = intermediateState.(analytics.ParsedEvent)
@@ -76,5 +88,5 @@ func NewSpEnrichedFilterFunction(filterConfig string) TransformationFunction {
 
 		// Otherwise, return the message and intermediateState for further processing.
 		return message, nil, intermediateState
-	}
+	}, nil
 }

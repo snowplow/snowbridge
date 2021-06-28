@@ -390,7 +390,11 @@ func (c *Config) GetTransformations() (transform.TransformationApplyFunction, er
 		case "spEnrichedSetPk":
 			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(funcOpts[1]))
 		case "spEnrichedFilter":
-			funcs = append(funcs, transform.NewSpEnrichedFilterFunction(funcOpts[1]))
+			filterFunc, err := transform.NewSpEnrichedFilterFunction(funcOpts[1])
+			if err != nil {
+				return nil, err
+			}
+			funcs = append(funcs, filterFunc)
 		case "none":
 		default:
 			return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}', spEnrichedFilter:{option} and got '%s'", c.Transformation))

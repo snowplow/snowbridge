@@ -16,14 +16,14 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	}
 
 	// Single value cases
-	aidFilterFuncKeep := NewSpEnrichedFilterFunction("app_id==test-data3")
+	aidFilterFuncKeep, _ := NewSpEnrichedFilterFunction("app_id==test-data3")
 
 	aidFilteredIn, fail, _ := aidFilterFuncKeep(&messageGood, nil)
 
 	assert.Equal(snowplowTsv3, aidFilteredIn.Data)
 	assert.Nil(fail)
 
-	aidFilterFuncDiscard := NewSpEnrichedFilterFunction("app_id==failThis")
+	aidFilterFuncDiscard, _ := NewSpEnrichedFilterFunction("app_id==failThis")
 
 	aidFilteredOut, fail2, _ := aidFilterFuncDiscard(&messageGood, nil)
 
@@ -31,7 +31,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail2)
 
 	// int value
-	urlPrtFilterFuncKeep := NewSpEnrichedFilterFunction("page_urlport==80")
+	urlPrtFilterFuncKeep, _ := NewSpEnrichedFilterFunction("page_urlport==80")
 
 	urlPrtFilteredIn, fail, _ := urlPrtFilterFuncKeep(&messageGood, nil)
 
@@ -39,14 +39,14 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail)
 
 	// Multiple value cases
-	aidFilterFuncKeepWithMultiple := NewSpEnrichedFilterFunction("app_id==someotherValue|test-data3")
+	aidFilterFuncKeepWithMultiple, _ := NewSpEnrichedFilterFunction("app_id==someotherValue|test-data3")
 
 	aidFilteredKeptWithMultiple, fail3, _ := aidFilterFuncKeepWithMultiple(&messageGood, nil)
 
 	assert.Equal(snowplowTsv3, aidFilteredKeptWithMultiple.Data)
 	assert.Nil(fail3)
 
-	aidFilterFuncDiscardWithMultiple := NewSpEnrichedFilterFunction("app_id==someotherValue|failThis")
+	aidFilterFuncDiscardWithMultiple, _ := NewSpEnrichedFilterFunction("app_id==someotherValue|failThis")
 
 	aidFilteredDiscardedWithMultiple, fail3, _ := aidFilterFuncDiscardWithMultiple(&messageGood, nil)
 
@@ -55,14 +55,14 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 
 	// Single value negation cases
 
-	aidFilterFuncNegationDiscard := NewSpEnrichedFilterFunction("app_id!=test-data3")
+	aidFilterFuncNegationDiscard, _ := NewSpEnrichedFilterFunction("app_id!=test-data3")
 
 	aidFilteredOutNegated, fail4, _ := aidFilterFuncNegationDiscard(&messageGood, nil)
 
 	assert.Nil(aidFilteredOutNegated)
 	assert.Nil(fail4)
 
-	aidFilterFuncNegationKeep := NewSpEnrichedFilterFunction("app_id!=failThis")
+	aidFilterFuncNegationKeep, _ := NewSpEnrichedFilterFunction("app_id!=failThis")
 
 	aidFilteredInNegated, fail5, _ := aidFilterFuncNegationKeep(&messageGood, nil)
 
@@ -70,19 +70,39 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail5)
 
 	// Multiple value negation cases
-	aidFilterFuncNegationDiscardMultiple := NewSpEnrichedFilterFunction("app_id!=someotherValue|test-data1|test-data2|test-data3")
+	aidFilterFuncNegationDiscardMultiple, _ := NewSpEnrichedFilterFunction("app_id!=someotherValue|test-data1|test-data2|test-data3")
 
 	aidFilteredDiscardedWithMultiple, fail6, _ := aidFilterFuncNegationDiscardMultiple(&messageGood, nil)
 
 	assert.Nil(aidFilteredDiscardedWithMultiple)
 	assert.Nil(fail6)
 
-	aidFilterFuncNegationKeptMultiple := NewSpEnrichedFilterFunction("app_id!=someotherValue|failThis")
+	aidFilterFuncNegationKeptMultiple, _ := NewSpEnrichedFilterFunction("app_id!=someotherValue|failThis")
 
 	aidFilteredKeptWithMultiple, fail7, _ := aidFilterFuncNegationKeptMultiple(&messageGood, nil)
 
 	assert.Equal(snowplowTsv3, aidFilteredKeptWithMultiple.Data)
 	assert.Nil(fail7)
+}
+
+func TestNewSpEnrichedFilterFunctio_Error(t *testing.T) {
+	assert := assert.New(t)
+	error := `Filter Function Config does not match regex \S+(!=|==)[^\s\|]+((?:\|[^\s|]+)*)$`
+
+	filterFunc, err1 := NewSpEnrichedFilterFunction("")
+
+	assert.Nil(filterFunc)
+	assert.Equal(error, err1.Error())
+
+	filterFunc, err2 := NewSpEnrichedFilterFunction("app_id==abc|")
+
+	assert.Nil(filterFunc)
+	assert.Equal(error, err2.Error())
+
+	filterFunc, err3 := NewSpEnrichedFilterFunction("!=abc")
+
+	assert.Nil(filterFunc)
+	assert.Equal(error, err3.Error())
 }
 
 func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
@@ -95,7 +115,9 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filter1 := NewTransformation(NewSpEnrichedFilterFunction("app_id==test-data1"))
+	filterFunc, _ := NewSpEnrichedFilterFunction("app_id==test-data1")
+
+	filter1 := NewTransformation(filterFunc)
 	filter1Res := filter1(messages)
 
 	assert.Equal(len(expectedFilter1), len(filter1Res.Result))
@@ -112,7 +134,9 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filter2 := NewTransformation(NewSpEnrichedFilterFunction("app_id==test-data1|test-data2"))
+	filterFunc2, _ := NewSpEnrichedFilterFunction("app_id==test-data1|test-data2")
+
+	filter2 := NewTransformation(filterFunc2)
 	filter2Res := filter2(messages)
 
 	assert.Equal(len(expectedFilter2), len(filter2Res.Result))
@@ -125,31 +149,12 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filter3 := NewTransformation(NewSpEnrichedFilterFunction("app_id!=test-data1|test-data2"))
+	filterFunc3, _ := NewSpEnrichedFilterFunction("app_id!=test-data1|test-data2")
+
+	filter3 := NewTransformation(filterFunc3)
 	filter3Res := filter3(messages)
 
 	assert.Equal(len(expectedFilter3), len(filter3Res.Result))
 	assert.Equal(1, len(filter3Res.Invalid))
 
-	/*
-		for index, value := range enrichJsonRes.Result {
-			assert.Equal(expectedGood[index].Data, value.Data)
-			assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
-			assert.NotNil(expectedGood[index].TimeTransformed)
-
-			// assertions to ensure we don't accidentally modify the input
-			assert.NotEqual(messages[index].Data, value.Data)
-			// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
-			assert.Equal(time.Time{}, messages[index].TimeTransformed)
-		}
-
-		// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-		assert.Equal(1, len(enrichJsonRes.Invalid))
-		assert.Equal(int64(1), enrichJsonRes.InvalidCount)
-		assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJsonRes.Invalid[0].GetError().Error())
-		assert.Equal([]byte("not	a	snowplow	event"), enrichJsonRes.Invalid[0].Data)
-		assert.Equal("some-key4", enrichJsonRes.Invalid[0].PartitionKey)
-	*/
 }
-
-// TODO: add tests checking slice of messages against output.
