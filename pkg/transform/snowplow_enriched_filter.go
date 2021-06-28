@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
 // NewSpEnrichedFilter returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event.
@@ -49,18 +48,11 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 		// Start by resetting keepMessage to initialKeepValue
 		keepMessage := initialKeepValue
 
-		// Todo: make this its own function and DRY across all the transformations?
-		var parsedMessage, ok = intermediateState.(analytics.ParsedEvent)
-		var parseErr error
-		if ok {
-			parsedMessage = intermediateState.(analytics.ParsedEvent)
-		} else {
-			parsedMessage, parseErr = analytics.ParseEvent(string(message.Data))
-			if parseErr != nil {
-				message.SetError(parseErr)
-				return nil, message, nil
-			}
-			intermediateState = parsedMessage
+		// Evalute intermediateState to parsedEvent
+		parsedMessage, parseErr := intermediateAsParsed(intermediateState, message)
+		if parseErr != nil {
+			message.SetError(parseErr)
+			return nil, message, nil
 		}
 
 		valueFound, err := parsedMessage.GetValue(keyValues[0])
@@ -87,6 +79,6 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 		}
 
 		// Otherwise, return the message and intermediateState for further processing.
-		return message, nil, intermediateState
+		return message, nil, parsedMessage
 	}, nil
 }
