@@ -161,7 +161,7 @@ func (b *ObserverBuffer) GetAvgFilterLatency() time.Duration {
 
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d",
+		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d,SumTransformLatency:%d,SumProcLatency:%d,SumMsgLatency:%d",
 		b.TargetResults,
 		b.MsgFiltered,
 		b.MsgSent,
@@ -176,5 +176,8 @@ func (b *ObserverBuffer) String() string {
 		b.MaxMsgLatency.Milliseconds(),
 		b.MaxFilterLatency.Milliseconds(),
 		b.MaxTransformLatency.Milliseconds(),
+		b.SumTransformLatency.Milliseconds(), // Reporting sums for rc version in order to compute averages in load tests.
+		b.SumProcLatency.Milliseconds(),
+		b.SumMsgLatency.Milliseconds(),
 	)
 }
