@@ -104,6 +104,7 @@ func (o *Observer) Start() {
 
 // Stop issues a signal to halt observer processing
 func (o *Observer) Stop() {
+	o.log.Info("Observer Stop() called")
 	if o.isRunning {
 		o.exitSignal <- struct{}{}
 		<-o.stopDone
