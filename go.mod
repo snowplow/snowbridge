@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	cloud.google.com/go/pubsub v1.9.1
+	github.com/Azure/azure-event-hubs-go/v3 v3.3.9
 	github.com/Shopify/sarama v1.28.0
 	github.com/aws/aws-lambda-go v1.20.0
 	github.com/aws/aws-sdk-go v1.36.8

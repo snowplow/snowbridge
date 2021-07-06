@@ -74,12 +74,25 @@ type KafkaTargetConfig struct {
 	FlushBytes        int    `env:"TARGET_KAFKA_FLUSH_BYTES" envDefault:"0"`         // Best effort for how many bytes will trigger a flush - 0 = as fast as possible
 }
 
+// EventHubTargetConfig configures the destination for records consumed
+type EventHubTargetConfig struct {
+	EventHubNamespace       string `env:"TARGET_EVENTHUB_NAMESPACE"`                               // REQUIRED - namespace housing Eventhub
+	EventHubName            string `env:"TARGET_EVENTHUB_NAME"`                                    // REQUIRED - name of Eventhub
+	MessageByteLimit        int    `env:"TARGET_EVENTHUB_MESSAGE_BYTE_LIMIT" envDefault:"1048576"` // Default presumes paid tier limit is 1MB
+	ChunkByteLimit          int    `env:"TARGET_EVENTHUB_CHUNK_BYTE_LIMIT" envDefault:"1048576"`   // Default chunk size of 1MB is arbitrary
+	ChunkMessageLimit       int    `env:"TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT" envDefault:"500"`    // Default of 500 is arbitrary
+	ContextTimeoutInSeconds int    `env:"TARGET_EVENTHUB_CONTEXT_TIMEOUT_SECONDS" envDefault:"20"` // Default of 20 is arbitrary
+	Batching                bool   `env:"TARGET_EVENTHUB_BATCHING" envDefault:"true"`              // Enable batching
+	BatchByteLimit          int    `env:"TARGET_EVENTHUB_BATCH_BYTE_LIMIT" envDefault:"1048576"`   // Default batch size of 1MB is the limit for EH's high tier
+}
+
 // TargetsConfig holds configuration for the available targets
 type TargetsConfig struct {
-	Kinesis KinesisTargetConfig
-	PubSub  PubSubTargetConfig
-	SQS     SQSTargetConfig
-	Kafka   KafkaTargetConfig
+	Kinesis  KinesisTargetConfig
+	PubSub   PubSubTargetConfig
+	SQS      SQSTargetConfig
+	Kafka    KafkaTargetConfig
+	EventHub EventHubTargetConfig
 }
 
 // ---------- [ FAILURE MESSAGE TARGETS ] ----------
@@ -128,12 +141,25 @@ type FailureKafkaTargetConfig struct {
 	FlushBytes        int    `env:"FAILURE_TARGET_KAFKA_FLUSH_BYTES" envDefault:"0"`         // Best effort for how many bytes will trigger a flush - 0 = as fast as possible
 }
 
+// FailureEventHubTargetConfig configures the destination for records consumed
+type FailureEventHubTargetConfig struct {
+	EventHubNamespace       string `env:"FAILURE_TARGET_EVENTHUB_NAMESPACE"`                               // REQUIRED - namespace housing Eventhub
+	EventHubName            string `env:"FAILURE_TARGET_EVENTHUB_NAME"`                                    // REQUIRED - name of Eventhub
+	MessageByteLimit        int    `env:"FAILURE_TARGET_EVENTHUB_MESSAGE_BYTE_LIMIT" envDefault:"1048576"` // Default presumes paid tier limit is 1MB
+	ChunkByteLimit          int    `env:"FAILURE_TARGET_EVENTHUB_CHUNK_BYTE_LIMIT" envDefault:"1048576"`   // Default chunk size of 1MB is arbitrary
+	ChunkMessageLimit       int    `env:"FAILURE_TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT" envDefault:"500"`    // Default of 500 is arbitrary
+	ContextTimeoutInSeconds int    `env:"FAILURE_TARGET_EVENTHUB_CONTEXT_TIMEOUT_SECONDS" envDefault:"20"` // Default of 20 is arbitrary
+	Batching                bool   `env:"FAILURE_TARGET_EVENTHUB_BATCHING" envDefault:"true"`              // Enable batching
+	BatchByteLimit          int    `env:"FAILURE_TARGET_EVENTHUB_BATCH_BYTE_LIMIT" envDefault:"1048576"`   // Default batch size of 1MB is the limit for EH's high tier
+}
+
 // FailureTargetsConfig holds configuration for the available targets
 type FailureTargetsConfig struct {
-	Kinesis FailureKinesisTargetConfig
-	PubSub  FailurePubSubTargetConfig
-	SQS     FailureSQSTargetConfig
-	Kafka   FailureKafkaTargetConfig
+	Kinesis  FailureKinesisTargetConfig
+	PubSub   FailurePubSubTargetConfig
+	SQS      FailureSQSTargetConfig
+	Kafka    FailureKafkaTargetConfig
+	EventHub FailureEventHubTargetConfig
 
 	// Format defines how the message will be transformed before
 	// being sent to the target
@@ -306,8 +332,19 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 			FlushMessages:  c.Targets.Kafka.FlushMessages,
 			FlushBytes:     c.Targets.Kafka.FlushBytes,
 		})
+	case "eventhub":
+		return target.NewEventHubTarget(&target.EventHubConfig{
+			EventHubNamespace:       c.Targets.EventHub.EventHubNamespace,
+			EventHubName:            c.Targets.EventHub.EventHubName,
+			MessageByteLimit:        c.Targets.EventHub.MessageByteLimit,
+			ChunkByteLimit:          c.Targets.EventHub.ChunkByteLimit,
+			ChunkMessageLimit:       c.Targets.EventHub.ChunkMessageLimit,
+			ContextTimeoutInSeconds: c.Targets.EventHub.ContextTimeoutInSeconds,
+			Batching:                c.Targets.EventHub.Batching,
+			BatchByteLimit:          c.Targets.EventHub.BatchByteLimit,
+		})
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.Target))
+		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub' and got '%s'", c.Target))
 	}
 }
 
@@ -359,8 +396,19 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 			FlushMessages:  c.FailureTargets.Kafka.FlushMessages,
 			FlushBytes:     c.FailureTargets.Kafka.FlushBytes,
 		})
+	case "eventhub":
+		t, err = target.NewEventHubTarget(&target.EventHubConfig{
+			EventHubNamespace:       c.FailureTargets.EventHub.EventHubNamespace,
+			EventHubName:            c.FailureTargets.EventHub.EventHubName,
+			MessageByteLimit:        c.FailureTargets.EventHub.MessageByteLimit,
+			ChunkByteLimit:          c.FailureTargets.EventHub.ChunkByteLimit,
+			ChunkMessageLimit:       c.FailureTargets.EventHub.ChunkMessageLimit,
+			ContextTimeoutInSeconds: c.FailureTargets.EventHub.ContextTimeoutInSeconds,
+			Batching:                c.FailureTargets.EventHub.Batching,
+			BatchByteLimit:          c.FailureTargets.EventHub.BatchByteLimit,
+		})
 	default:
-		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got '%s'", c.FailureTarget))
+		err = errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub' and got '%s'", c.FailureTarget))
 	}
 	if err != nil {
 		return nil, err
