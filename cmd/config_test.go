@@ -143,7 +143,7 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 	source, err := c.GetTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got 'fake'", err.Error())
+	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidFailureTarget(t *testing.T) {
@@ -160,7 +160,7 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	source, err := c.GetFailureTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka' and got 'fake'", err.Error())
+	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidFailureFormat(t *testing.T) {
@@ -273,4 +273,58 @@ func TestNewConfig_KafkaFailureTargetDefaults(t *testing.T) {
 	assert.Equal(target.FlushFrequency, 0)
 	assert.Equal(target.FlushMessages, 0)
 	assert.Equal(target.FlushBytes, 0)
+}
+
+func TestNewConfig_EventhubTargetDefaults(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("TARGET")
+	defer os.Unsetenv("TARGET_EVENTHUB_NAMESPACE")
+	defer os.Unsetenv("TARGET_EVENTHUB_NAME")
+
+	os.Setenv("TARGET", "eventhub")
+	os.Setenv("TARGET_EVENTHUB_NAMESPACE", "fake")
+	os.Setenv("TARGET_EVENTHUB_NAME", "fake")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	target := c.Targets.EventHub
+	assert.NotNil(target)
+	assert.Equal(target.EventHubName, "fake")
+	assert.Equal(target.EventHubNamespace, "fake")
+	assert.Equal(target.MessageByteLimit, 1048576)
+	assert.Equal(target.ChunkByteLimit, 1048576)
+	assert.Equal(target.ChunkMessageLimit, 500)
+	assert.Equal(target.ContextTimeoutInSeconds, 20)
+	assert.Equal(target.Batching, true)
+	assert.Equal(target.BatchByteLimit, 1048576)
+}
+
+func TestNewConfig_EventhubFailureTargetDefaults(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("FAILURE_TARGET")
+	defer os.Unsetenv("FAILURE_TARGET_EVENTHUB_NAMESPACE")
+	defer os.Unsetenv("FAILURE_TARGET_EVENTHUB_NAME")
+
+	os.Setenv("FAILURE_TARGET", "eventhub")
+	os.Setenv("FAILURE_TARGET_EVENTHUB_NAMESPACE", "fake")
+	os.Setenv("FAILURE_TARGET_EVENTHUB_NAME", "fake")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	target := c.FailureTargets.EventHub
+	assert.NotNil(target)
+	assert.Equal(target.EventHubName, "fake")
+	assert.Equal(target.EventHubNamespace, "fake")
+	assert.Equal(target.MessageByteLimit, 1048576)
+	assert.Equal(target.ChunkByteLimit, 1048576)
+	assert.Equal(target.ChunkMessageLimit, 500)
+	assert.Equal(target.ContextTimeoutInSeconds, 20)
+	assert.Equal(target.Batching, true)
+	assert.Equal(target.BatchByteLimit, 1048576)
 }
