@@ -52,7 +52,6 @@ func ServerlessRequestHandler(messages []*models.Message) error {
 
 	// Ack filtered messages with no further action
 	messagesToFilter := transformed.Filtered
-	// TODO: Abstract this to a function?
 	for _, msg := range messagesToFilter {
 		if msg.AckFunc != nil {
 			msg.AckFunc()

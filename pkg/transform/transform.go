@@ -50,7 +50,7 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 				successList = append(successList, success)
 			}
 			if filtered != nil {
-				filtered.TimeTransformed = time.Now().UTC() // TODO: Decide if we should separate this and call it TimeFiltered instead?
+				filtered.TimeTransformed = time.Now().UTC() // TODO: Decide if we should amend the model for observability here and implement TimeFiltered instead?
 				filteredList = append(filteredList, filtered)
 			}
 			if failure != nil {
