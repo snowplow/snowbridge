@@ -24,74 +24,84 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	// Single value cases
 	aidFilterFuncKeep, _ := NewSpEnrichedFilterFunction("app_id==test-data3")
 
-	aidFilteredIn, fail, _ := aidFilterFuncKeep(&messageGood, nil)
+	// TODO: sort out numbering for fail cases...
+	aidKeepIn, aidKeepOut, fail, _ := aidFilterFuncKeep(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, aidFilteredIn.Data)
+	assert.Equal(snowplowTsv3, aidKeepIn.Data)
+	assert.Nil(aidKeepOut)
 	assert.Nil(fail)
 
 	aidFilterFuncDiscard, _ := NewSpEnrichedFilterFunction("app_id==failThis")
 
-	aidFilteredOut, fail2, _ := aidFilterFuncDiscard(&messageGood, nil)
+	aidDiscardIn, aidDiscardOut, fail2, _ := aidFilterFuncDiscard(&messageGood, nil)
 
-	assert.Nil(aidFilteredOut)
+	assert.Nil(aidDiscardIn)
+	assert.Equal(snowplowTsv3, aidDiscardOut.Data)
 	assert.Nil(fail2)
 
 	// int value
 	urlPrtFilterFuncKeep, _ := NewSpEnrichedFilterFunction("page_urlport==80")
 
-	urlPrtFilteredIn, fail, _ := urlPrtFilterFuncKeep(&messageGood, nil)
+	urlPrtKeepIn, urlPrtKeepOut, fail, _ := urlPrtFilterFuncKeep(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, urlPrtFilteredIn.Data)
+	assert.Equal(snowplowTsv3, urlPrtKeepIn.Data)
+	assert.Nil(urlPrtKeepOut)
 	assert.Nil(fail)
 
 	// Multiple value cases
 	aidFilterFuncKeepWithMultiple, _ := NewSpEnrichedFilterFunction("app_id==someotherValue|test-data3")
 
-	aidFilteredKeptWithMultiple, fail3, _ := aidFilterFuncKeepWithMultiple(&messageGood, nil)
+	aidMultipleNegationFailedIn, aidMultipleKeepOut, fail3, _ := aidFilterFuncKeepWithMultiple(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, aidFilteredKeptWithMultiple.Data)
+	assert.Equal(snowplowTsv3, aidMultipleNegationFailedIn.Data)
+	assert.Nil(aidMultipleKeepOut)
 	assert.Nil(fail3)
 
 	aidFilterFuncDiscardWithMultiple, _ := NewSpEnrichedFilterFunction("app_id==someotherValue|failThis")
 
-	aidFilteredDiscardedWithMultiple, fail3, _ := aidFilterFuncDiscardWithMultiple(&messageGood, nil)
+	aidNegationMultipleIn, aidMultipleDiscardOut, fail3, _ := aidFilterFuncDiscardWithMultiple(&messageGood, nil)
 
-	assert.Nil(aidFilteredDiscardedWithMultiple)
+	assert.Nil(aidNegationMultipleIn)
+	assert.Equal(snowplowTsv3, aidMultipleDiscardOut.Data)
 	assert.Nil(fail3)
 
 	// Single value negation cases
 
 	aidFilterFuncNegationDiscard, _ := NewSpEnrichedFilterFunction("app_id!=test-data3")
 
-	aidFilteredOutNegated, fail4, _ := aidFilterFuncNegationDiscard(&messageGood, nil)
+	aidNegationIn, aidNegationOut, fail4, _ := aidFilterFuncNegationDiscard(&messageGood, nil)
 
-	assert.Nil(aidFilteredOutNegated)
+	assert.Nil(aidNegationIn)
+	assert.Equal(snowplowTsv3, aidNegationOut.Data)
 	assert.Nil(fail4)
 
 	aidFilterFuncNegationKeep, _ := NewSpEnrichedFilterFunction("app_id!=failThis")
 
-	aidFilteredInNegated, fail5, _ := aidFilterFuncNegationKeep(&messageGood, nil)
+	aidNegationFailedIn, aidNegationFailedOut, fail5, _ := aidFilterFuncNegationKeep(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, aidFilteredInNegated.Data)
+	assert.Equal(snowplowTsv3, aidNegationFailedIn.Data)
+	assert.Nil(aidNegationFailedOut)
 	assert.Nil(fail5)
 
 	// Multiple value negation cases
 	aidFilterFuncNegationDiscardMultiple, _ := NewSpEnrichedFilterFunction("app_id!=someotherValue|test-data1|test-data2|test-data3")
 
-	aidFilteredDiscardedWithMultiple, fail6, _ := aidFilterFuncNegationDiscardMultiple(&messageGood, nil)
+	aidNegationMultipleIn, aidNegationMultipleOut, fail6, _ := aidFilterFuncNegationDiscardMultiple(&messageGood, nil)
 
-	assert.Nil(aidFilteredDiscardedWithMultiple)
+	assert.Nil(aidNegationMultipleIn)
+	assert.Equal(snowplowTsv3, aidNegationMultipleOut.Data)
 	assert.Nil(fail6)
 
 	aidFilterFuncNegationKeptMultiple, _ := NewSpEnrichedFilterFunction("app_id!=someotherValue|failThis")
 
-	aidFilteredKeptWithMultiple, fail7, _ := aidFilterFuncNegationKeptMultiple(&messageGood, nil)
+	aidMultipleNegationFailedIn, aidMultipleNegationFailedOut, fail7, _ := aidFilterFuncNegationKeptMultiple(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, aidFilteredKeptWithMultiple.Data)
+	assert.Equal(snowplowTsv3, aidMultipleNegationFailedIn.Data)
+	assert.Nil(aidMultipleNegationFailedOut)
 	assert.Nil(fail7)
 }
 
-func TestNewSpEnrichedFilterFunctio_Error(t *testing.T) {
+func TestNewSpEnrichedFilterFunction_Error(t *testing.T) {
 	assert := assert.New(t)
 	error := `Filter Function Config does not match regex \S+(!=|==)[^\s\|]+((?:\|[^\s|]+)*)$`
 
@@ -114,10 +124,21 @@ func TestNewSpEnrichedFilterFunctio_Error(t *testing.T) {
 func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 	assert := assert.New(t)
 
-	var expectedFilter1 = []*models.Message{
+	var filter1Kept = []*models.Message{
 		{
 			Data:         snowplowTsv1,
 			PartitionKey: "some-key",
+		},
+	}
+
+	var filter1Discarded = []*models.Message{
+		{
+			Data:         snowplowTsv2,
+			PartitionKey: "some-key1",
+		},
+		{
+			Data:         snowplowTsv3,
+			PartitionKey: "some-key2",
 		},
 	}
 
@@ -126,10 +147,11 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 	filter1 := NewTransformation(filterFunc)
 	filter1Res := filter1(messages)
 
-	assert.Equal(len(expectedFilter1), len(filter1Res.Result))
+	assert.Equal(len(filter1Kept), len(filter1Res.Result))
+	assert.Equal(len(filter1Discarded), len(filter1Res.Filtered))
 	assert.Equal(1, len(filter1Res.Invalid))
 
-	var expectedFilter2 = []*models.Message{
+	var filter2Kept = []*models.Message{
 		{
 			Data:         snowplowTsv1,
 			PartitionKey: "some-key",
@@ -140,12 +162,21 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
+	var filter2Discarded = []*models.Message{
+
+		{
+			Data:         snowplowTsv3,
+			PartitionKey: "some-key2",
+		},
+	}
+
 	filterFunc2, _ := NewSpEnrichedFilterFunction("app_id==test-data1|test-data2")
 
 	filter2 := NewTransformation(filterFunc2)
 	filter2Res := filter2(messages)
 
-	assert.Equal(len(expectedFilter2), len(filter2Res.Result))
+	assert.Equal(len(filter2Kept), len(filter2Res.Result))
+	assert.Equal(len(filter2Discarded), len(filter2Res.Filtered))
 	assert.Equal(1, len(filter2Res.Invalid))
 
 	var expectedFilter3 = []*models.Message{

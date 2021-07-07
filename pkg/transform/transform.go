@@ -13,7 +13,7 @@ import (
 )
 
 // TransformationFunctions modify their inputs
-type TransformationFunction func(*models.Message, interface{}) (*models.Message, *models.Message, interface{})
+type TransformationFunction func(*models.Message, interface{}) (*models.Message, *models.Message, *models.Message, interface{})
 
 // The transformationApplyFunction dereferences messages before running transformations
 type TransformationApplyFunction func([]*models.Message) *models.TransformationResult
@@ -23,35 +23,41 @@ type TransformationGenerator func(...TransformationFunction) TransformationApply
 // NewTransformation constructs a function which applies all transformations to all messages, returning a TransformationResult.
 func NewTransformation(tranformFunctions ...TransformationFunction) TransformationApplyFunction {
 	return func(messages []*models.Message) *models.TransformationResult {
-		successes := make([]*models.Message, 0, len(messages))
-		failures := make([]*models.Message, 0, len(messages))
+		successList := make([]*models.Message, 0, len(messages))
+		filteredList := make([]*models.Message, 0, len(messages))
+		failureList := make([]*models.Message, 0, len(messages))
 		// If no transformations, just return the result rather than shuffling data between slices
 		if len(tranformFunctions) == 0 {
-			return models.NewTransformationResult(messages, failures)
+			return models.NewTransformationResult(messages, filteredList, failureList)
 		}
 
 		for _, message := range messages {
 			msg := *message // dereference to avoid amending input
 			success := &msg // success must be both input and output to a TransformationFunction, so we make this pointer.
 			var failure *models.Message
+			var filtered *models.Message
 			var intermediate interface{}
 			for _, transformFunction := range tranformFunctions {
 				// Overwrite the input for each iteration in sequence of transformations,
 				// since the desired result is a single transformed message with a nil failure, or a nil message with a single failure
-				success, failure, intermediate = transformFunction(success, intermediate)
+				success, filtered, failure, intermediate = transformFunction(success, intermediate)
 				if failure != nil {
 					break
 				}
 			}
 			if success != nil {
 				success.TimeTransformed = time.Now().UTC()
-				successes = append(successes, success)
+				successList = append(successList, success)
+			}
+			if filtered != nil {
+				filtered.TimeTransformed = time.Now().UTC() // TODO: Decide if we should separate this and call it TimeFiltered instead?
+				filteredList = append(filteredList, filtered)
 			}
 			if failure != nil {
 				// We don't append TimeTransformed in the failure case, as it is less useful, and likely to skew metrics
-				failures = append(failures, failure)
+				failureList = append(failureList, failure)
 			}
 		}
-		return models.NewTransformationResult(successes, failures)
+		return models.NewTransformationResult(successList, filteredList, failureList)
 	}
 }

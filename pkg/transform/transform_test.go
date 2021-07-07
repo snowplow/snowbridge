@@ -38,7 +38,7 @@ func TestNewTransformation_Passthrough(t *testing.T) {
 		},
 	}
 
-	expectedNoTransformRes := models.NewTransformationResult(expected, make([]*models.Message, 0, 0))
+	expectedNoTransformRes := models.NewTransformationResult(expected, make([]*models.Message, 0, 0), make([]*models.Message, 0, 0))
 	noTransform := NewTransformation(make([]TransformationFunction, 0, 0)...)
 	noTransformResult := noTransform(messages)
 
@@ -92,8 +92,8 @@ func Benchmark_Transform_EnrichToJson(b *testing.B) {
 	}
 }
 
-func testfunc(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, interface{}) {
-	return message, nil, nil
+func testfunc(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return message, nil, nil, nil
 }
 
 func Benchmark_Transform_Passthrough(b *testing.B) {

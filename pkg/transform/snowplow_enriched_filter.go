@@ -44,7 +44,7 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 		initialKeepValue = false
 	}
 
-	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 		// Start by resetting keepMessage to initialKeepValue
 		keepMessage := initialKeepValue
 
@@ -52,13 +52,15 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 		parsedMessage, parseErr := intermediateAsParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(parseErr)
-			return nil, message, nil
+			return nil, nil, message, nil
 		}
 
 		valueFound, err := parsedMessage.GetValue(keyValues[0])
+		// TODO: What happens if the key doesn't exist? What should happen?
+		// For a != condition, I think the behaviour should be different to that of an == condition (pass for !=, fail for == ...)
 		if err != nil {
 			message.SetError(err)
-			return nil, message, nil
+			return nil, nil, message, nil
 		}
 
 	evaluation:
@@ -70,15 +72,13 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 			}
 		}
 
-		// If message is not to be kept, ack it and return a nil result.
+		// If message is not to be kept, return it as a filtered message to be acked in the main function
 		if !keepMessage {
-			if message.AckFunc != nil {
-				message.AckFunc()
-			}
-			return nil, nil, nil
+
+			return nil, message, nil, nil
 		}
 
 		// Otherwise, return the message and intermediateState for further processing.
-		return message, nil, parsedMessage
+		return message, nil, nil, parsedMessage
 	}, nil
 }

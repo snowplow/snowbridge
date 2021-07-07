@@ -32,14 +32,14 @@ func TestSpEnrichedToJson(t *testing.T) {
 	}
 
 	// Simple success case
-	transformSuccess, failure, intermediate := SpEnrichedToJson(&messageGood, nil)
+	transformSuccess, _, failure, intermediate := SpEnrichedToJson(&messageGood, nil)
 
 	assert.Equal(&expectedGood, transformSuccess)
 	assert.Equal(spTsv1Parsed, intermediate)
 	assert.Nil(failure)
 
 	// Simple failure case
-	success, transformFailure, intermediate := SpEnrichedToJson(&messageBad, nil)
+	success, _, transformFailure, intermediate := SpEnrichedToJson(&messageBad, nil)
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", transformFailure.GetError().Error())
@@ -62,7 +62,7 @@ func TestSpEnrichedToJson(t *testing.T) {
 	incompatibleIntermediate := "Incompatible intermediate state"
 
 	// When we have some incompatible IntermediateState, expected behaviour is to replace it with this transformation's IntermediateState
-	transformSuccess2, failure2, intermediate2 := SpEnrichedToJson(&incompatibleIntermediateMessage, incompatibleIntermediate)
+	transformSuccess2, _, failure2, intermediate2 := SpEnrichedToJson(&incompatibleIntermediateMessage, incompatibleIntermediate)
 
 	assert.Equal(&expectedGood, transformSuccess2)
 	assert.Equal(spTsv1Parsed, intermediate2)

@@ -14,20 +14,20 @@ import (
 
 // NewSpEnrichedSetPkFunction returns a TransformationFunction which sets the partition key of a message to a field within a Snowplow enriched event
 func NewSpEnrichedSetPkFunction(pkField string) TransformationFunction {
-	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 		// Evalute intermediateState to parsedEvent
 		parsedMessage, parseErr := intermediateAsParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(parseErr)
-			return nil, message, nil
+			return nil, nil, message, nil
 		}
 
 		pk, err := parsedMessage.GetValue(pkField)
 		if err != nil {
 			message.SetError(err)
-			return nil, message, nil
+			return nil, nil, message, nil
 		}
 		message.PartitionKey = fmt.Sprintf("%v", pk)
-		return message, nil, parsedMessage
+		return message, nil, nil, parsedMessage
 	}
 }
