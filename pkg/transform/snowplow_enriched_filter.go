@@ -56,9 +56,11 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 		}
 
 		valueFound, err := parsedMessage.GetValue(keyValues[0])
-		// TODO: What happens if the key doesn't exist? What should happen?
-		// For a != condition, I think the behaviour should be different to that of an == condition (pass for !=, fail for == ...)
-		if err != nil {
+
+		// GetValue returns an error if the field requested is empty. Check for that particular error before failing the message.
+		if err != nil && err.Error() == fmt.Sprintf("Field %s is empty", keyValues[0]) {
+			valueFound = nil
+		} else if err != nil {
 			message.SetError(err)
 			return nil, nil, message, nil
 		}

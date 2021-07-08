@@ -99,6 +99,23 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Equal(snowplowTsv3, aidMultipleNegationFailedIn.Data)
 	assert.Nil(aidMultipleNegationFailedOut)
 	assert.Nil(fail7)
+
+	// Filters on a nil field
+	txnFilterFunctionAffirmation, _ := NewSpEnrichedFilterFunction("txn_id==something")
+
+	nilAffirmationIn, nilAffirmationOut, fail8, _ := txnFilterFunctionAffirmation(&messageGood, nil)
+
+	assert.Nil(nilAffirmationIn)
+	assert.Equal(snowplowTsv3, nilAffirmationOut.Data)
+	assert.Nil(fail8)
+
+	txnFilterFunctionNegation, _ := NewSpEnrichedFilterFunction("txn_id!=something")
+
+	nilNegationIn, nilNegationOut, fail8, _ := txnFilterFunctionNegation(&messageGood, nil)
+
+	assert.Equal(snowplowTsv3, nilNegationIn.Data)
+	assert.Nil(nilNegationOut)
+	assert.Nil(fail8)
 }
 
 func TestNewSpEnrichedFilterFunction_Error(t *testing.T) {
