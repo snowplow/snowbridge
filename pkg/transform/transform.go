@@ -49,12 +49,11 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 				success.TimeTransformed = time.Now().UTC()
 				successList = append(successList, success)
 			}
+			// We don't append TimeTransformed in the failure or filtered cases, as it is less useful, and likely to skew metrics
 			if filtered != nil {
-				filtered.TimeTransformed = time.Now().UTC() // TODO: Decide if we should amend the model for observability here and implement TimeFiltered instead?
 				filteredList = append(filteredList, filtered)
 			}
 			if failure != nil {
-				// We don't append TimeTransformed in the failure case, as it is less useful, and likely to skew metrics
 				failureList = append(failureList, failure)
 			}
 		}
