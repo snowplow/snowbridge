@@ -41,7 +41,7 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 				// Overwrite the input for each iteration in sequence of transformations,
 				// since the desired result is a single transformed message with a nil failure, or a nil message with a single failure
 				success, filtered, failure, intermediate = transformFunction(success, intermediate)
-				if failure != nil {
+				if failure != nil || filtered != nil {
 					break
 				}
 			}
