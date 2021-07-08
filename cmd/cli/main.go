@@ -177,6 +177,9 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 				msg.AckFunc()
 			}
 		}
+		// Push filter result to observer
+		filterRes := models.NewFilterResult(messagesToFilter)
+		o.Filtered(filterRes)
 
 		// Send message buffer
 		messagesToSend := transformed.Result

@@ -20,6 +20,8 @@ type ObserverBuffer struct {
 	MsgFailed     int64
 	MsgTotal      int64
 
+	MsgFiltered int64
+
 	OversizedTargetResults int64
 	OversizedMsgSent       int64
 	OversizedMsgFailed     int64
@@ -39,6 +41,9 @@ type ObserverBuffer struct {
 	MaxTransformLatency time.Duration
 	MinTransformLatency time.Duration
 	SumTransformLatency time.Duration
+	MaxFilterLatency    time.Duration
+	MinFilterLatency    time.Duration
+	SumFilterLatency    time.Duration
 }
 
 // AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
@@ -52,7 +57,7 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	b.MsgFailed += res.FailedCount
 	b.MsgTotal += res.Total()
 
-	b.append(res)
+	b.appendWriteResult(res)
 }
 
 // AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
@@ -66,7 +71,7 @@ func (b *ObserverBuffer) AppendWriteOversized(res *TargetWriteResult) {
 	b.OversizedMsgFailed += res.FailedCount
 	b.OversizedMsgTotal += res.Total()
 
-	b.append(res)
+	b.appendWriteResult(res)
 }
 
 // AppendWriteInvalid adds an invalid TargetWriteResult onto the buffer and stores the result
@@ -80,10 +85,10 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	b.InvalidMsgFailed += res.FailedCount
 	b.InvalidMsgTotal += res.Total()
 
-	b.append(res)
+	b.appendWriteResult(res)
 }
 
-func (b *ObserverBuffer) append(res *TargetWriteResult) {
+func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
 	if b.MaxProcLatency < res.MaxProcLatency {
 		b.MaxProcLatency = res.MaxProcLatency
 	}
@@ -109,6 +114,26 @@ func (b *ObserverBuffer) append(res *TargetWriteResult) {
 	b.SumTransformLatency += res.AvgTransformLatency
 }
 
+// AppendFiltered adds a FilterResult onto the buffer and stores the result
+func (b *ObserverBuffer) AppendFiltered(res *FilterResult) {
+	if res == nil {
+		return
+	}
+
+	b.MsgFiltered += res.FilteredCount
+	b.appendFilterResult(res)
+}
+
+func (b *ObserverBuffer) appendFilterResult(res *FilterResult) {
+	if b.MaxFilterLatency < res.MaxFilterLatency {
+		b.MaxFilterLatency = res.MaxFilterLatency
+	}
+	if b.MinFilterLatency > res.MinFilterLatency || b.MinFilterLatency == time.Duration(0) {
+		b.MinFilterLatency = res.MinFilterLatency
+	}
+	b.SumFilterLatency += res.AvgFilterLatency
+}
+
 // GetSumResults returns the total number of results logged in the buffer
 func (b *ObserverBuffer) GetSumResults() int64 {
 	return b.TargetResults + b.OversizedTargetResults + b.InvalidTargetResults
@@ -129,10 +154,16 @@ func (b *ObserverBuffer) GetAvgTransformLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumTransformLatency, b.MsgTotal)
 }
 
+// GetAvgFilterLatency calculates average filter latency
+func (b *ObserverBuffer) GetAvgFilterLatency() time.Duration {
+	return common.GetAverageFromDuration(b.SumFilterLatency, b.MsgFiltered)
+}
+
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxTransformLatency:%d",
+		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d",
 		b.TargetResults,
+		b.MsgFiltered,
 		b.MsgSent,
 		b.MsgFailed,
 		b.OversizedTargetResults,
@@ -143,6 +174,7 @@ func (b *ObserverBuffer) String() string {
 		b.InvalidMsgFailed,
 		b.MaxProcLatency.Milliseconds(),
 		b.MaxMsgLatency.Milliseconds(),
+		b.MaxFilterLatency.Milliseconds(),
 		b.MaxTransformLatency.Milliseconds(),
 	)
 }

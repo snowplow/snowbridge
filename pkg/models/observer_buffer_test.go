@@ -46,6 +46,15 @@ func TestObserverBuffer(t *testing.T) {
 			TimeTransformed: timeNow.Add(time.Duration(-9) * time.Minute),
 		},
 	}
+	filtered := []*Message{
+		{
+			Data:            []byte("FooBar"),
+			PartitionKey:    "partition4",
+			TimeCreated:     timeNow.Add(time.Duration(-30) * time.Minute),
+			TimePulled:      timeNow.Add(time.Duration(-10) * time.Minute),
+			TimeTransformed: timeNow.Add(time.Duration(-9) * time.Minute),
+		},
+	}
 
 	r := NewTargetWriteResultWithTime(sent, failed, nil, nil, timeNow)
 
@@ -59,10 +68,16 @@ func TestObserverBuffer(t *testing.T) {
 	b.AppendWriteInvalid(r)
 	b.AppendWriteInvalid(nil)
 
+	fr := NewFilterResultWithTime(filtered, timeNow)
+
+	b.AppendFiltered(fr)
+
 	assert.Equal(int64(2), b.TargetResults)
 	assert.Equal(int64(4), b.MsgSent)
 	assert.Equal(int64(2), b.MsgFailed)
 	assert.Equal(int64(6), b.MsgTotal)
+
+	assert.Equal(int64(1), b.MsgFiltered)
 
 	assert.Equal(int64(2), b.OversizedTargetResults)
 	assert.Equal(int64(4), b.OversizedMsgSent)
@@ -84,5 +99,9 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(1)*time.Minute, b.MinTransformLatency)
 	assert.Equal(time.Duration(2)*time.Minute, b.GetAvgTransformLatency())
 
-	assert.Equal("TargetResults:2,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:600000,MaxMsgLatency:4200000,MaxTransformLatency:180000", b.String())
+	assert.Equal(time.Duration(10)*time.Minute, b.MaxFilterLatency)
+	assert.Equal(time.Duration(10)*time.Minute, b.MinFilterLatency)
+	assert.Equal(time.Duration(10)*time.Minute, b.GetAvgFilterLatency())
+
+	assert.Equal("TargetResults:2,MsgFiltered:1,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:600000,MaxMsgLatency:4200000,MaxFilterLatency:600000,MaxTransformLatency:180000", b.String())
 }
