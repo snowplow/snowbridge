@@ -112,7 +112,7 @@ func (o *Observer) Stop() {
 
 // --- Functions called to push information to observer
 
-// FilteredWrite pushes a filter result onto a channel for processing
+// Filtered pushes a filter result onto a channel for processing
 // by the observer
 func (o *Observer) Filtered(r *models.FilterResult) {
 	o.filteredChan <- r
