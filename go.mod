@@ -22,6 +22,7 @@ require (
 	github.com/twitchscience/kinsumer v0.0.0-00010101000000-000000000000
 	github.com/urfave/cli v1.22.5
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
+	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
 	golang.org/x/tools v0.1.4 // indirect
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
