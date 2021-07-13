@@ -25,6 +25,7 @@ import (
 	"github.com/xdg/scram"
 )
 
+// KafkaConfig contains configurable options for the kafka target
 type KafkaConfig struct {
 	Brokers        string
 	TopicName      string
@@ -41,7 +42,7 @@ type KafkaConfig struct {
 	CertFile       string
 	KeyFile        string
 	CaFile         string
-	SkipVerifyTls  bool
+	SkipVerifyTLS  bool
 	ForceSync      bool
 	FlushFrequency int
 	FlushMessages  int
@@ -60,6 +61,7 @@ type KafkaTarget struct {
 	log *log.Entry
 }
 
+// SaramaResult holds the result of a Sarama request
 type SaramaResult struct {
 	Msg *sarama.ProducerMessage
 	Err error
@@ -105,10 +107,10 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		saramaConfig.Net.SASL.Password = cfg.SASLPassword
 		saramaConfig.Net.SASL.Handshake = true
 		if cfg.SASLAlgorithm == "sha512" {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &xdgSCRAMClient{HashGeneratorFcn: SHA512} }
 			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
 		} else if cfg.SASLAlgorithm == "sha256" {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &xdgSCRAMClient{HashGeneratorFcn: SHA256} }
 			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
 		} else if cfg.SASLAlgorithm == "plaintext" {
 			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
@@ -117,7 +119,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		}
 	}
 
-	tlsConfig, err := createTlsConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTls)
+	tlsConfig, err := createTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +307,7 @@ func getKafkaVersion(targetVersion string) (sarama.KafkaVersion, error) {
 	return preferredVersion, nil
 }
 
-func createTlsConfiguration(certFile string, keyFile string, caFile string, skipVerify bool) (*tls.Config, error) {
+func createTLSConfiguration(certFile string, keyFile string, caFile string, skipVerify bool) (*tls.Config, error) {
 	if certFile == "" || keyFile == "" {
 		return nil, nil
 	}
@@ -330,16 +332,19 @@ func createTlsConfiguration(certFile string, keyFile string, caFile string, skip
 	}, nil
 }
 
+// SHA256 hash
 var SHA256 scram.HashGeneratorFcn = func() hash.Hash { return sha256.New() }
+
+// SHA512 hash
 var SHA512 scram.HashGeneratorFcn = func() hash.Hash { return sha512.New() }
 
-type XDGSCRAMClient struct {
+type xdgSCRAMClient struct {
 	*scram.Client
 	*scram.ClientConversation
 	scram.HashGeneratorFcn
 }
 
-func (x *XDGSCRAMClient) Begin(userName, password, authzID string) (err error) {
+func (x *xdgSCRAMClient) Begin(userName, password, authzID string) (err error) {
 	x.Client, err = x.HashGeneratorFcn.NewClient(userName, password, authzID)
 	if err != nil {
 		return err
@@ -348,11 +353,11 @@ func (x *XDGSCRAMClient) Begin(userName, password, authzID string) (err error) {
 	return nil
 }
 
-func (x *XDGSCRAMClient) Step(challenge string) (response string, err error) {
+func (x *xdgSCRAMClient) Step(challenge string) (response string, err error) {
 	response, err = x.ClientConversation.Step(challenge)
 	return
 }
 
-func (x *XDGSCRAMClient) Done() bool {
+func (x *xdgSCRAMClient) Done() bool {
 	return x.ClientConversation.Done()
 }

@@ -12,12 +12,13 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
-// TransformationFunctions modify their inputs
+// TransformationFunction takes a message and intermediateState, and returns a transformed message, a filtered message or an errored message, along with an intermediateState
 type TransformationFunction func(*models.Message, interface{}) (*models.Message, *models.Message, *models.Message, interface{})
 
-// The transformationApplyFunction dereferences messages before running transformations
+// TransformationApplyFunction dereferences messages before running transformations, and returns a TransformationResult
 type TransformationApplyFunction func([]*models.Message) *models.TransformationResult
 
+// TransformationGenerator returns a TransformationApplyFunction from a provided set of TransformationFunctions
 type TransformationGenerator func(...TransformationFunction) TransformationApplyFunction
 
 // NewTransformation constructs a function which applies all transformations to all messages, returning a TransformationResult.

@@ -6,6 +6,7 @@
 
 package models
 
+// TransformationResult contains the results from a transformation operation
 type TransformationResult struct {
 	ResultCount   int64
 	FilteredCount int64

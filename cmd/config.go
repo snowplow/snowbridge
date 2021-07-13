@@ -67,7 +67,7 @@ type KafkaTargetConfig struct {
 	CertFile          string `env:"TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
 	KeyFile           string `env:"TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
 	CaFile            string `env:"TARGET_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
-	SkipVerifyTls     bool   `env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
+	SkipVerifyTLS     bool   `env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
 	ForceSyncProducer bool   `env:"TARGET_KAFKA_FORCE_SYNC_PRODUCER"`                // Forces the use of the Sync Producer, emits as fast as possible, may limit performance
 	FlushFrequency    int    `env:"TARGET_KAFKA_FLUSH_FREQUENCY" envDefault:"0"`     // Milliseconds between flushes of events - 0 = as fast as possible
 	FlushMessages     int    `env:"TARGET_KAFKA_FLUSH_MESSAGES" envDefault:"0"`      // Best effort for how many messages are sent in each batch - 0 = as fast as possible
@@ -104,7 +104,7 @@ type FailureSQSTargetConfig struct {
 	RoleARN   string `env:"FAILURE_TARGET_SQS_ROLE_ARN"`
 }
 
-// KafkaTargetConfig configures the destination for records consumed
+// FailureKafkaTargetConfig configures the destination for records consumed
 type FailureKafkaTargetConfig struct {
 	Brokers           string `env:"FAILURE_TARGET_KAFKA_BROKERS"`                            // REQUIRED
 	TopicName         string `env:"FAILURE_TARGET_KAFKA_TOPIC_NAME"`                         // REQUIRED
@@ -121,7 +121,7 @@ type FailureKafkaTargetConfig struct {
 	CertFile          string `env:"FAILURE_TARGET_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
 	KeyFile           string `env:"FAILURE_TARGET_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
 	CaFile            string `env:"FAILURE_TARGET_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
-	SkipVerifyTls     bool   `env:"FAILURE_TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
+	SkipVerifyTLS     bool   `env:"FAILURE_TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
 	ForceSyncProducer bool   `env:"FAILURE_TARGET_KAFKA_FORCE_SYNC_PRODUCER"`                // Forces the use of the Sync Producer, emits as fast as possible, may limit performance
 	FlushFrequency    int    `env:"FAILURE_TARGET_KAFKA_FLUSH_FREQUENCY" envDefault:"0"`     // Milliseconds between flushes of events - 0 = as fast as possible
 	FlushMessages     int    `env:"FAILURE_TARGET_KAFKA_FLUSH_MESSAGES" envDefault:"0"`      // Best effort for how many messages are sent in each batch - 0 = as fast as possible
@@ -300,7 +300,7 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 			CertFile:       c.Targets.Kafka.CertFile,
 			KeyFile:        c.Targets.Kafka.KeyFile,
 			CaFile:         c.Targets.Kafka.CaFile,
-			SkipVerifyTls:  c.Targets.Kafka.SkipVerifyTls,
+			SkipVerifyTLS:  c.Targets.Kafka.SkipVerifyTLS,
 			ForceSync:      c.Targets.Kafka.ForceSyncProducer,
 			FlushFrequency: c.Targets.Kafka.FlushFrequency,
 			FlushMessages:  c.Targets.Kafka.FlushMessages,
@@ -353,7 +353,7 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 			CertFile:       c.FailureTargets.Kafka.CertFile,
 			KeyFile:        c.FailureTargets.Kafka.KeyFile,
 			CaFile:         c.FailureTargets.Kafka.CaFile,
-			SkipVerifyTls:  c.FailureTargets.Kafka.SkipVerifyTls,
+			SkipVerifyTLS:  c.FailureTargets.Kafka.SkipVerifyTLS,
 			ForceSync:      c.FailureTargets.Kafka.ForceSyncProducer,
 			FlushFrequency: c.FailureTargets.Kafka.FlushFrequency,
 			FlushMessages:  c.FailureTargets.Kafka.FlushMessages,
@@ -374,6 +374,7 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 	}
 }
 
+// GetTransformations builds and returns transformationApplyFunction from the transformations configured
 func (c *Config) GetTransformations() (transform.TransformationApplyFunction, error) {
 	funcs := make([]transform.TransformationFunction, 0, 0)
 
@@ -386,7 +387,7 @@ func (c *Config) GetTransformations() (transform.TransformationApplyFunction, er
 
 		switch funcOpts[0] {
 		case "spEnrichedToJson":
-			funcs = append(funcs, transform.SpEnrichedToJson)
+			funcs = append(funcs, transform.SpEnrichedToJSON)
 		case "spEnrichedSetPk":
 			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(funcOpts[1]))
 		case "spEnrichedFilter":
