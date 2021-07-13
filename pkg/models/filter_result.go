@@ -12,7 +12,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 )
 
-// TargetWriteResult contains the results from a target write operation
+// FilterResult contains the results from a target write operation
 type FilterResult struct {
 	FilteredCount int64
 
@@ -26,7 +26,7 @@ type FilterResult struct {
 	AvgFilterLatency time.Duration
 }
 
-// NewFilterWriteResult uses the current time as the timeOfFilter and then calls NewFilterResultWithTime
+// NewFilterResult uses the current time as the timeOfFilter and then calls NewFilterResultWithTime
 func NewFilterResult(filtered []*Message) *FilterResult {
 	return NewFilterResultWithTime(filtered, time.Now().UTC())
 }

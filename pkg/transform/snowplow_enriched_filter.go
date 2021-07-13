@@ -15,7 +15,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
-// NewSpEnrichedFilter returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event.
+// NewSpEnrichedFilterFunction returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event.
 // The filterconfig should describe the conditions for including a message.
 // For example "aid=abc|def" includes all events with app IDs of abc or def, and filters out the rest.
 // aid!=abc|def includes all events whose app IDs do not match abc or def, and filters out the rest.
