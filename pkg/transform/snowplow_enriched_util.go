@@ -11,7 +11,7 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-func intermediateAsParsed(intermediateState interface{}, message *models.Message) (analytics.ParsedEvent, error) {
+func intermediateAsSpEnrichedParsed(intermediateState interface{}, message *models.Message) (analytics.ParsedEvent, error) {
 	var parsedMessage, ok = intermediateState.(analytics.ParsedEvent)
 	var parseErr error
 	if ok {

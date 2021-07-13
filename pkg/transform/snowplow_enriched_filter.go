@@ -49,7 +49,7 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 		shouldKeepMessage := isNegationFilter
 
 		// Evalute intermediateState to parsedEvent
-		parsedMessage, parseErr := intermediateAsParsed(intermediateState, message)
+		parsedMessage, parseErr := intermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(parseErr)
 			return nil, nil, message, nil
