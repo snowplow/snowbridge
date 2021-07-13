@@ -27,7 +27,7 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 
 	if !(re.MatchString(filterConfig)) {
 		// If invalid, return an error which will be returned by the main function
-		return nil, errors.New(fmt.Sprintf("Filter Function Config does not match regex %v", regex))
+		return nil, errors.New("Invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]")
 	}
 
 	// Check for a negation condition first

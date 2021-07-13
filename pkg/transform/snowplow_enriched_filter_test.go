@@ -120,7 +120,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 
 func TestNewSpEnrichedFilterFunction_Error(t *testing.T) {
 	assert := assert.New(t)
-	error := `Filter Function Config does not match regex \S+(!=|==)[^\s\|]+((?:\|[^\s|]+)*)$`
+	error := `Invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`
 
 	filterFunc, err1 := NewSpEnrichedFilterFunction("")
 
