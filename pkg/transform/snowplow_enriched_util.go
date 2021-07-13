@@ -16,11 +16,10 @@ func intermediateAsSpEnrichedParsed(intermediateState interface{}, message *mode
 	var parseErr error
 	if ok {
 		return parsedMessage, nil
-	} else {
-		parsedMessage, parseErr = analytics.ParseEvent(string(message.Data))
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		return parsedMessage, nil
 	}
+	parsedMessage, parseErr = analytics.ParseEvent(string(message.Data))
+	if parseErr != nil {
+		return nil, parseErr
+	}
+	return parsedMessage, nil
 }
