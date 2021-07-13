@@ -10,8 +10,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
-// SpEnrichedToJson is a specific transformation implementation to transform good enriched data within a message to Json
-func SpEnrichedToJson(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+// SpEnrichedToJSON is a specific transformation implementation to transform good enriched data within a message to Json
+func SpEnrichedToJSON(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 	// Evalute intermediateState to parsedEvent
 	parsedMessage, parseErr := intermediateAsSpEnrichedParsed(intermediateState, message)
 	if parseErr != nil {

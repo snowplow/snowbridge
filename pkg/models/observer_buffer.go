@@ -149,7 +149,7 @@ func (b *ObserverBuffer) GetAvgMsgLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumMsgLatency, b.GetSumResults())
 }
 
-// GetAvgTansformLatency calculates average transformation latency
+// GetAvgTransformLatency calculates average transformation latency
 func (b *ObserverBuffer) GetAvgTransformLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumTransformLatency, b.MsgTotal)
 }

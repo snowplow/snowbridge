@@ -50,23 +50,23 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 
 	var expectedGood = []*models.Message{
 		{
-			Data:         snowplowJson1,
+			Data:         snowplowJSON1,
 			PartitionKey: "some-key",
 		},
 		{
-			Data:         snowplowJson2,
+			Data:         snowplowJSON2,
 			PartitionKey: "some-key1",
 		},
 		{
-			Data:         snowplowJson3,
+			Data:         snowplowJSON3,
 			PartitionKey: "some-key2",
 		},
 	}
 
-	tranformEnrichJson := NewTransformation(SpEnrichedToJson)
-	enrichJsonRes := tranformEnrichJson(messages)
+	tranformEnrichJSON := NewTransformation(SpEnrichedToJSON)
+	enrichJSONRes := tranformEnrichJSON(messages)
 
-	for index, value := range enrichJsonRes.Result {
+	for index, value := range enrichJSONRes.Result {
 		assert.Equal(expectedGood[index].Data, value.Data)
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.NotNil(expectedGood[index].TimeTransformed)
@@ -78,17 +78,17 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal(1, len(enrichJsonRes.Invalid))
-	assert.Equal(int64(1), enrichJsonRes.InvalidCount)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJsonRes.Invalid[0].GetError().Error())
-	assert.Equal([]byte("not	a	snowplow	event"), enrichJsonRes.Invalid[0].Data)
-	assert.Equal("some-key4", enrichJsonRes.Invalid[0].PartitionKey)
+	assert.Equal(1, len(enrichJSONRes.Invalid))
+	assert.Equal(int64(1), enrichJSONRes.InvalidCount)
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+	assert.Equal([]byte("not	a	snowplow	event"), enrichJSONRes.Invalid[0].Data)
+	assert.Equal("some-key4", enrichJSONRes.Invalid[0].PartitionKey)
 }
 
 func Benchmark_Transform_EnrichToJson(b *testing.B) {
-	tranformEnrichJson := NewTransformation(SpEnrichedToJson)
+	tranformEnrichJSON := NewTransformation(SpEnrichedToJSON)
 	for i := 0; i < b.N; i++ {
-		tranformEnrichJson(messages)
+		tranformEnrichJSON(messages)
 	}
 }
 
@@ -108,25 +108,25 @@ func TestNewTransformation_Multiple(t *testing.T) {
 
 	var expectedGood = []*models.Message{
 		{
-			Data:         snowplowJson1,
+			Data:         snowplowJSON1,
 			PartitionKey: "test-data1",
 		},
 		{
-			Data:         snowplowJson2,
+			Data:         snowplowJSON2,
 			PartitionKey: "test-data2",
 		},
 		{
-			Data:         snowplowJson3,
+			Data:         snowplowJSON3,
 			PartitionKey: "test-data3",
 		},
 	}
 
-	setPkToAppId := NewSpEnrichedSetPkFunction("app_id")
-	tranformMultiple := NewTransformation(setPkToAppId, SpEnrichedToJson)
+	setPkToAppID := NewSpEnrichedSetPkFunction("app_id")
+	tranformMultiple := NewTransformation(setPkToAppID, SpEnrichedToJSON)
 
-	enrichJsonRes := tranformMultiple(messages)
+	enrichJSONRes := tranformMultiple(messages)
 
-	for index, value := range enrichJsonRes.Result {
+	for index, value := range enrichJSONRes.Result {
 		assert.Equal(expectedGood[index].Data, value.Data)
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.NotNil(expectedGood[index].TimeTransformed)
@@ -139,9 +139,9 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal(1, len(enrichJsonRes.Invalid))
-	assert.Equal(int64(1), enrichJsonRes.InvalidCount)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJsonRes.Invalid[0].GetError().Error())
-	assert.Equal([]byte("not	a	snowplow	event"), enrichJsonRes.Invalid[0].Data)
-	assert.Equal("some-key4", enrichJsonRes.Invalid[0].PartitionKey)
+	assert.Equal(1, len(enrichJSONRes.Invalid))
+	assert.Equal(int64(1), enrichJSONRes.InvalidCount)
+	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+	assert.Equal([]byte("not	a	snowplow	event"), enrichJSONRes.Invalid[0].Data)
+	assert.Equal("some-key4", enrichJSONRes.Invalid[0].PartitionKey)
 }
