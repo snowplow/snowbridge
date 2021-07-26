@@ -166,6 +166,12 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 		successes = messages
 	}
 
+	for _, msg := range successes {
+		if msg.AckFunc != nil {
+			msg.AckFunc()
+		}
+	}
+
 	eht.log.Debugf("Successfully wrote %d messages from chunk of %d", len(successes), len(messages))
 	return models.NewTargetWriteResult(
 		successes,
