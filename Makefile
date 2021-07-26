@@ -33,7 +33,7 @@ container_name = snowplow/stream-replicator
 all: aws-lambda gcp-cloudfunctions cli container
 
 gox:
-	GO111MODULE=on go get -u github.com/mitchellh/gox
+	GO111MODULE=on go install github.com/mitchellh/gox@latest
 	mkdir -p $(compiled_dir)
 
 aws-lambda: gox
@@ -107,7 +107,7 @@ format:
 	GO111MODULE=on gofmt -s -w .
 
 lint:
-	GO111MODULE=on go get -u golang.org/x/lint/golint
+	GO111MODULE=on go install golang.org/x/lint/golint@latest
 	GO111MODULE=on golint $(go_dirs)
 
 tidy:
@@ -119,7 +119,7 @@ tidy:
 
 test-setup:
 	mkdir -p $(coverage_dir)
-	GO111MODULE=on go get -u golang.org/x/tools/cmd/cover
+	GO111MODULE=on go install golang.org/x/tools/cmd/cover@latest
 
 test: test-setup
 	GO111MODULE=on go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
