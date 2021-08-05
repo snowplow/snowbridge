@@ -185,7 +185,9 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 func (eht *EventHubTarget) Open() {}
 
 // Close does not do anything for this target - client is closed automatically on completion, or by expiration of the provided context
-func (eht *EventHubTarget) Close() {}
+func (eht *EventHubTarget) Close() {
+	eht.log.Info("BETA TEST DEBUG: EventHub target Close() called")
+}
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
 // per message for this target

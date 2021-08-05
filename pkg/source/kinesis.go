@@ -140,9 +140,11 @@ func (ks *KinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 				<-throttle
 			}()
 		} else {
+			ks.log.Info("BETA TEST DEBUG: Returning nil: record = nil")
 			return nil
 		}
 	}
+	ks.log.Info("BETA TEST DEBUG: Unreachable code reached somehow.")
 	wg.Wait()
 
 	return nil

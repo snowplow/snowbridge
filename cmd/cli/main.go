@@ -7,6 +7,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -140,6 +141,7 @@ func main() {
 		// is exhausted or if an error occurs
 		err = s.Read(&sf)
 		if err != nil {
+			log.Warn(fmt.Sprintf("BETA TEST DEBUG: Error in source Read function: %v", err))
 			return err
 		}
 
