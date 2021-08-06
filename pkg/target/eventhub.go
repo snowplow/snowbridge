@@ -142,6 +142,7 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 			err := eht.client.Send(ctx, event)
 
 			if err != nil {
+				eht.log.Info(fmt.Sprintf("BETA TEST DEBUG: EventHub error: %v", err))
 				msg.SetError(err)
 				failures = append(failures, msg)
 				continue
