@@ -125,9 +125,6 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 	var failures []*models.Message
 	var successes []*models.Message
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(eht.contextTimeoutInSeconds)*time.Second)
-	defer cancel()
-
 	ehBatch := make([]*eventhub.Event, messageCount)
 	for i, msg := range messages {
 		ehEvent := eventhub.NewEvent(msg.Data)
@@ -135,12 +132,19 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 		ehBatch[i] = ehEvent
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(eht.contextTimeoutInSeconds)*time.Second)
+	defer cancel()
+
 	if !eht.batching { // Defaults to using non-batch when nothing is provided
 
 		for i, event := range ehBatch {
 			msg := messages[i]
 			err := eht.client.Send(ctx, event)
 
+			// This doesn't return an error... But it should, becuase kinsumer blocks until it either gets a success, or gets an error (then it reboots).
+			// So the solution is to:
+			// 1. Move away from the chunking model we have here
+			// 2. Have this return an error.
 			if err != nil {
 				eht.log.Info(fmt.Sprintf("BETA TEST DEBUG: EventHub error: %v", err))
 				msg.SetError(err)
@@ -153,6 +157,7 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 
 		batchIterator := eventhub.NewEventBatchIterator(ehBatch...)
 		err := eht.client.SendBatch(ctx, batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
+		// The eventhub client will continue to retry data without returning an error, until the context times out.
 
 		if err != nil {
 			// If we hit an error, we can't distinguish successful batches from the failed one(s), so we return the whole chunk as failed
