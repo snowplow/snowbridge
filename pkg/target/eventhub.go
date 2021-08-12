@@ -160,6 +160,9 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 		// The eventhub client will continue to retry data without returning an error, until the context times out.
 
 		if err != nil {
+			// Close the hub for this context
+			eht.client.Close(ctx)
+
 			// If we hit an error, we can't distinguish successful batches from the failed one(s), so we return the whole chunk as failed
 			return models.NewTargetWriteResult(
 				nil,
@@ -179,6 +182,7 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 	}
 
 	eht.log.Debugf("Successfully wrote %d messages from chunk of %d", len(successes), len(messages))
+	// TODO: CALL eht.client.Close(ctx) here too? Or defer it perhaps?
 	return models.NewTargetWriteResult(
 		successes,
 		failures,
@@ -192,6 +196,7 @@ func (eht *EventHubTarget) Open() {}
 
 // Close does not do anything for this target - client is closed automatically on completion, or by expiration of the provided context
 func (eht *EventHubTarget) Close() {
+	// eht.client.Close() <- Can't do this as the ctx isn't available here, and there's no practiceable way to make it available without redesigning all senders to depend on ctx in some way.
 	eht.log.Info("BETA TEST DEBUG: EventHub target Close() called")
 }
 
