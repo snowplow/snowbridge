@@ -4,8 +4,6 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-// package main
-
 package target
 
 import (
@@ -124,9 +122,6 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 	messageCount := len(messages)
 	eht.log.Debugf("Writing chunk of %d messages to eventHub ...", messageCount)
 
-	var failures []*models.Message
-	var successes []*models.Message
-
 	ehBatch := make([]*eventhub.Event, messageCount)
 	for i, msg := range messages {
 		ehEvent := eventhub.NewEvent(msg.Data)
@@ -139,55 +134,32 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 
 	// TODO: Decide whether this timeout should still be included, or just using context.Background() is sufficient
 
-	if !eht.batching { // Defaults to using non-batch when nothing is provided
+	batchIterator := eventhub.NewEventBatchIterator(ehBatch...)
+	err := eht.client.SendBatch(context.Background(), batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
 
-		for i, event := range ehBatch {
-			msg := messages[i]
-			err := eht.client.Send(context.Background(), event)
-
-			// This doesn't return an error... But it should, becuase kinsumer blocks until it either gets a success, or gets an error (then it reboots).
-			// So the solution is to:
-			// 1. Move away from the chunking model we have here
-			// 2. Have this return an error.
-			if err != nil {
-				eht.log.Info(fmt.Sprintf("BETA TEST DEBUG: EventHub error: %v", err))
-				msg.SetError(err)
-				failures = append(failures, msg)
-				continue
-			}
-			successes = append(successes, msg)
-		}
-	} else {
-
-		batchIterator := eventhub.NewEventBatchIterator(ehBatch...)
-		err := eht.client.SendBatch(context.Background(), batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
-
-		if err != nil {
-			eht.log.Info("BETA TEST DEBUG: EventHub - closing client on error")
-			// eht.client.Close(context.Background())
-			// If we hit an error, we can't distinguish successful batches from the failed one(s), so we return the whole chunk as failed
-			return models.NewTargetWriteResult(
-				nil,
-				messages,
-				nil,
-				nil,
-			), errors.Wrap(err, "Failed to send message batch to EventHub")
-		}
-		// If no error, all messages were successes
-		successes = messages
+	if err != nil {
+		eht.log.Info("BETA TEST DEBUG: EventHub - closing client on error")
+		// eht.client.Close(context.Background())
+		// If we hit an error, we can't distinguish successful batches from the failed one(s), so we return the whole chunk as failed
+		return models.NewTargetWriteResult(
+			nil,
+			messages,
+			nil,
+			nil,
+		), errors.Wrap(err, "Failed to send message batch to EventHub")
 	}
 
-	for _, msg := range successes {
+	// If no error, all messages were successes
+	for _, msg := range messages {
 		if msg.AckFunc != nil {
 			msg.AckFunc()
 		}
 	}
 
-	eht.log.Debugf("Successfully wrote %d messages from chunk of %d", len(successes), len(messages))
-	// TODO: CALL eht.client.Close(ctx) here too? Or defer it perhaps?
+	eht.log.Debugf("Successfully wrote chunk of %d messages", len(messages))
 	return models.NewTargetWriteResult(
-		successes,
-		failures,
+		messages,
+		nil,
 		nil,
 		nil,
 	), nil

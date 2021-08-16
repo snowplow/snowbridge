@@ -298,7 +298,6 @@ func TestNewConfig_EventhubTargetDefaults(t *testing.T) {
 	assert.Equal(target.ChunkByteLimit, 1048576)
 	assert.Equal(target.ChunkMessageLimit, 500)
 	assert.Equal(target.ContextTimeoutInSeconds, 20)
-	assert.Equal(target.Batching, true)
 	assert.Equal(target.BatchByteLimit, 1048576)
 }
 
@@ -325,6 +324,5 @@ func TestNewConfig_EventhubFailureTargetDefaults(t *testing.T) {
 	assert.Equal(target.ChunkByteLimit, 1048576)
 	assert.Equal(target.ChunkMessageLimit, 500)
 	assert.Equal(target.ContextTimeoutInSeconds, 20)
-	assert.Equal(target.Batching, true)
 	assert.Equal(target.BatchByteLimit, 1048576)
 }

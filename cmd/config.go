@@ -82,7 +82,6 @@ type EventHubTargetConfig struct {
 	ChunkByteLimit          int    `env:"TARGET_EVENTHUB_CHUNK_BYTE_LIMIT" envDefault:"1048576"`   // Default chunk size of 1MB is arbitrary
 	ChunkMessageLimit       int    `env:"TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT" envDefault:"500"`    // Default of 500 is arbitrary
 	ContextTimeoutInSeconds int    `env:"TARGET_EVENTHUB_CONTEXT_TIMEOUT_SECONDS" envDefault:"20"` // Default of 20 is arbitrary
-	Batching                bool   `env:"TARGET_EVENTHUB_BATCHING" envDefault:"true"`              // Enable batching
 	BatchByteLimit          int    `env:"TARGET_EVENTHUB_BATCH_BYTE_LIMIT" envDefault:"1048576"`   // Default batch size of 1MB is the limit for EH's high tier
 }
 
@@ -149,7 +148,6 @@ type FailureEventHubTargetConfig struct {
 	ChunkByteLimit          int    `env:"FAILURE_TARGET_EVENTHUB_CHUNK_BYTE_LIMIT" envDefault:"1048576"`   // Default chunk size of 1MB is arbitrary
 	ChunkMessageLimit       int    `env:"FAILURE_TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT" envDefault:"500"`    // Default of 500 is arbitrary
 	ContextTimeoutInSeconds int    `env:"FAILURE_TARGET_EVENTHUB_CONTEXT_TIMEOUT_SECONDS" envDefault:"20"` // Default of 20 is arbitrary
-	Batching                bool   `env:"FAILURE_TARGET_EVENTHUB_BATCHING" envDefault:"true"`              // Enable batching
 	BatchByteLimit          int    `env:"FAILURE_TARGET_EVENTHUB_BATCH_BYTE_LIMIT" envDefault:"1048576"`   // Default batch size of 1MB is the limit for EH's high tier
 }
 
@@ -340,7 +338,6 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 			ChunkByteLimit:          c.Targets.EventHub.ChunkByteLimit,
 			ChunkMessageLimit:       c.Targets.EventHub.ChunkMessageLimit,
 			ContextTimeoutInSeconds: c.Targets.EventHub.ContextTimeoutInSeconds,
-			Batching:                c.Targets.EventHub.Batching,
 			BatchByteLimit:          c.Targets.EventHub.BatchByteLimit,
 		})
 	default:
@@ -404,7 +401,6 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 			ChunkByteLimit:          c.FailureTargets.EventHub.ChunkByteLimit,
 			ChunkMessageLimit:       c.FailureTargets.EventHub.ChunkMessageLimit,
 			ContextTimeoutInSeconds: c.FailureTargets.EventHub.ContextTimeoutInSeconds,
-			Batching:                c.FailureTargets.EventHub.Batching,
 			BatchByteLimit:          c.FailureTargets.EventHub.BatchByteLimit,
 		})
 	default:
