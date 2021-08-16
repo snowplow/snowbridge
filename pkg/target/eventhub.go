@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	eventhub "github.com/Azure/azure-event-hubs-go/v3"
 	"github.com/hashicorp/go-multierror"
@@ -68,7 +67,10 @@ func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 		return nil, errors.Errorf("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment")
 	}
 
-	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(cfg.EventHubNamespace, cfg.EventHubName)
+	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(cfg.EventHubNamespace, cfg.EventHubName, eventhub.HubWithSenderMaxRetryCount(2))
+	// Using HubWithSenderMaxRetryCount limits the amount of retries that are handled by the eventhubs package natively
+
+	// Setting to 1 seems to cause it to not ever recover from 'link detached' errors. TODO: Remove this note
 
 	return &EventHubTarget{
 		client:                  hub,
@@ -132,14 +134,16 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 		ehBatch[i] = ehEvent
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(eht.contextTimeoutInSeconds)*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(context.Background(), time.Duration(eht.contextTimeoutInSeconds)*time.Second)
+	// defer cancel()
+
+	// TODO: Decide whether this timeout should still be included, or just using context.Background() is sufficient
 
 	if !eht.batching { // Defaults to using non-batch when nothing is provided
 
 		for i, event := range ehBatch {
 			msg := messages[i]
-			err := eht.client.Send(ctx, event)
+			err := eht.client.Send(context.Background(), event)
 
 			// This doesn't return an error... But it should, becuase kinsumer blocks until it either gets a success, or gets an error (then it reboots).
 			// So the solution is to:
@@ -156,13 +160,11 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 	} else {
 
 		batchIterator := eventhub.NewEventBatchIterator(ehBatch...)
-		err := eht.client.SendBatch(ctx, batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
-		// The eventhub client will continue to retry data without returning an error, until the context times out.
+		err := eht.client.SendBatch(context.Background(), batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
 
 		if err != nil {
-			// Close the hub for this context
-			eht.client.Close(ctx)
-
+			eht.log.Info("BETA TEST DEBUG: EventHub - closing client on error")
+			// eht.client.Close(context.Background())
 			// If we hit an error, we can't distinguish successful batches from the failed one(s), so we return the whole chunk as failed
 			return models.NewTargetWriteResult(
 				nil,
@@ -196,7 +198,8 @@ func (eht *EventHubTarget) Open() {}
 
 // Close does not do anything for this target - client is closed automatically on completion, or by expiration of the provided context
 func (eht *EventHubTarget) Close() {
-	// eht.client.Close() <- Can't do this as the ctx isn't available here, and there's no practiceable way to make it available without redesigning all senders to depend on ctx in some way.
+	// ctx, cancel := context.WithTimeout(context.Background(), time.Duration(eht.contextTimeoutInSeconds)*time.Second)
+	// eht.client.Close(ctx)
 	eht.log.Info("BETA TEST DEBUG: EventHub target Close() called")
 }
 
