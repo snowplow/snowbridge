@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	eventhub "github.com/Azure/azure-event-hubs-go/v3"
 	"github.com/hashicorp/go-multierror"
@@ -26,7 +27,6 @@ type EventHubConfig struct {
 	ChunkByteLimit          int
 	ChunkMessageLimit       int
 	ContextTimeoutInSeconds int
-	Batching                bool
 	BatchByteLimit          int
 }
 
@@ -39,7 +39,6 @@ type EventHubTarget struct {
 	chunkByteLimit          int
 	chunkMessageLimit       int
 	contextTimeoutInSeconds int
-	batching                bool
 	batchByteLimit          int
 
 	log *log.Entry
@@ -65,10 +64,10 @@ func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 		return nil, errors.Errorf("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment")
 	}
 
-	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(cfg.EventHubNamespace, cfg.EventHubName, eventhub.HubWithSenderMaxRetryCount(2))
+	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(cfg.EventHubNamespace, cfg.EventHubName, eventhub.HubWithSenderMaxRetryCount(1))
 	// Using HubWithSenderMaxRetryCount limits the amount of retries that are handled by the eventhubs package natively
-
-	// Setting to 1 seems to cause it to not ever recover from 'link detached' errors. TODO: Remove this note
+	// If none is specified, it will retry indefinitely until the context times out, which hides the actual error message
+	// Since we already handle retry logic generically, fixing it to 1 retry.
 
 	return &EventHubTarget{
 		client:                  hub,
@@ -78,7 +77,6 @@ func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 		chunkByteLimit:          cfg.ChunkByteLimit,
 		chunkMessageLimit:       cfg.ChunkMessageLimit,
 		contextTimeoutInSeconds: cfg.ContextTimeoutInSeconds,
-		batching:                cfg.Batching,
 		batchByteLimit:          cfg.BatchByteLimit,
 
 		log: log.WithFields(log.Fields{"target": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
@@ -129,17 +127,13 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 		ehBatch[i] = ehEvent
 	}
 
-	// ctx, cancel := context.WithTimeout(context.Background(), time.Duration(eht.contextTimeoutInSeconds)*time.Second)
-	// defer cancel()
-
-	// TODO: Decide whether this timeout should still be included, or just using context.Background() is sufficient
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(eht.contextTimeoutInSeconds)*time.Second)
+	defer cancel()
 
 	batchIterator := eventhub.NewEventBatchIterator(ehBatch...)
-	err := eht.client.SendBatch(context.Background(), batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
+	err := eht.client.SendBatch(ctx, batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
 
 	if err != nil {
-		eht.log.Info("BETA TEST DEBUG: EventHub - closing client on error")
-		// eht.client.Close(context.Background())
 		// If we hit an error, we can't distinguish successful batches from the failed one(s), so we return the whole chunk as failed
 		return models.NewTargetWriteResult(
 			nil,
@@ -170,9 +164,7 @@ func (eht *EventHubTarget) Open() {}
 
 // Close does not do anything for this target - client is closed automatically on completion, or by expiration of the provided context
 func (eht *EventHubTarget) Close() {
-	// ctx, cancel := context.WithTimeout(context.Background(), time.Duration(eht.contextTimeoutInSeconds)*time.Second)
-	// eht.client.Close(ctx)
-	eht.log.Info("BETA TEST DEBUG: EventHub target Close() called")
+	// TODO: Figure out how to add close function which acts gracefully
 }
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
