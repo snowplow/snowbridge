@@ -78,6 +78,7 @@ type KafkaTargetConfig struct {
 type EventHubTargetConfig struct {
 	EventHubNamespace       string `env:"TARGET_EVENTHUB_NAMESPACE"`                               // REQUIRED - namespace housing Eventhub
 	EventHubName            string `env:"TARGET_EVENTHUB_NAME"`                                    // REQUIRED - name of Eventhub
+	MaxAutoRetries          int    `env:"TARGET_EVENTHUB_MAX_AUTO_RETRY" envDefault:"1"`           // Number of retries handled automatically by the EH library - all retries should be completed before context timeout
 	MessageByteLimit        int    `env:"TARGET_EVENTHUB_MESSAGE_BYTE_LIMIT" envDefault:"1048576"` // Default presumes paid tier limit is 1MB
 	ChunkByteLimit          int    `env:"TARGET_EVENTHUB_CHUNK_BYTE_LIMIT" envDefault:"1048576"`   // Default chunk size of 1MB is arbitrary
 	ChunkMessageLimit       int    `env:"TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT" envDefault:"500"`    // Default of 500 is arbitrary
@@ -144,6 +145,7 @@ type FailureKafkaTargetConfig struct {
 type FailureEventHubTargetConfig struct {
 	EventHubNamespace       string `env:"FAILURE_TARGET_EVENTHUB_NAMESPACE"`                               // REQUIRED - namespace housing Eventhub
 	EventHubName            string `env:"FAILURE_TARGET_EVENTHUB_NAME"`                                    // REQUIRED - name of Eventhub
+	MaxAutoRetries          int    `env:"FAILURE_TARGET_EVENTHUB_MAX_AUTO_RETRY" envDefault:"1"`           // Number of retries handled automatically by the EH library - all retries should be completed before context timeout
 	MessageByteLimit        int    `env:"FAILURE_TARGET_EVENTHUB_MESSAGE_BYTE_LIMIT" envDefault:"1048576"` // Default presumes paid tier limit is 1MB
 	ChunkByteLimit          int    `env:"FAILURE_TARGET_EVENTHUB_CHUNK_BYTE_LIMIT" envDefault:"1048576"`   // Default chunk size of 1MB is arbitrary
 	ChunkMessageLimit       int    `env:"FAILURE_TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT" envDefault:"500"`    // Default of 500 is arbitrary
@@ -334,6 +336,7 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		return target.NewEventHubTarget(&target.EventHubConfig{
 			EventHubNamespace:       c.Targets.EventHub.EventHubNamespace,
 			EventHubName:            c.Targets.EventHub.EventHubName,
+			MaxAutoRetries:          c.Targets.EventHub.MaxAutoRetries,
 			MessageByteLimit:        c.Targets.EventHub.MessageByteLimit,
 			ChunkByteLimit:          c.Targets.EventHub.ChunkByteLimit,
 			ChunkMessageLimit:       c.Targets.EventHub.ChunkMessageLimit,
@@ -397,6 +400,7 @@ func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
 		t, err = target.NewEventHubTarget(&target.EventHubConfig{
 			EventHubNamespace:       c.FailureTargets.EventHub.EventHubNamespace,
 			EventHubName:            c.FailureTargets.EventHub.EventHubName,
+			MaxAutoRetries:          c.FailureTargets.EventHub.MaxAutoRetries,
 			MessageByteLimit:        c.FailureTargets.EventHub.MessageByteLimit,
 			ChunkByteLimit:          c.FailureTargets.EventHub.ChunkByteLimit,
 			ChunkMessageLimit:       c.FailureTargets.EventHub.ChunkMessageLimit,

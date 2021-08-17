@@ -23,6 +23,7 @@ import (
 type EventHubConfig struct {
 	EventHubNamespace       string
 	EventHubName            string
+	MaxAutoRetries          int
 	MessageByteLimit        int
 	ChunkByteLimit          int
 	ChunkMessageLimit       int
@@ -64,10 +65,10 @@ func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 		return nil, errors.Errorf("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment")
 	}
 
-	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(cfg.EventHubNamespace, cfg.EventHubName, eventhub.HubWithSenderMaxRetryCount(1))
-	// Using HubWithSenderMaxRetryCount limits the amount of retries that are handled by the eventhubs package natively
+	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(cfg.EventHubNamespace, cfg.EventHubName, eventhub.HubWithSenderMaxRetryCount(cfg.MaxAutoRetries))
+	// Using HubWithSenderMaxRetryCount limits the amount of retries that are handled by the eventhubs package natively (this app handles retries externally to this also)
 	// If none is specified, it will retry indefinitely until the context times out, which hides the actual error message
-	// Since we already handle retry logic generically, fixing it to 1 retry.
+	// To avoid obscuring errors, contextTimeoutInSeconds should be configured to ensure all retries may be completed before its expiry
 
 	return &EventHubTarget{
 		client:                  hub,
