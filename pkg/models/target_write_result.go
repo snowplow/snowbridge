@@ -46,7 +46,7 @@ type TargetWriteResult struct {
 	MinMsgLatency time.Duration
 	AvgMsgLatency time.Duration
 
-	// Delta between TimeCreated and TimeTransformed tells us how well the
+	// Delta between TimePulled and TimeTransformed tells us how well the
 	// application is at executing transformation functions
 	MaxTransformLatency time.Duration
 	MinTransformLatency time.Duration
