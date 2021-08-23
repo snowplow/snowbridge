@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
@@ -100,10 +101,12 @@ func (ks *KinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 	throttle := make(chan struct{}, ks.concurrentWrites)
 	wg := sync.WaitGroup{}
 
+	var kinesisPullErr error
 	for {
 		record, checkpointer, err := ks.client.NextRecordWithCheckpointer()
 		if err != nil {
-			return errors.Wrap(err, "Failed to pull next Kinesis record from Kinsumer client")
+			kinesisPullErr = errors.Wrap(err, "Failed to pull next Kinesis record from Kinsumer client")
+			break
 		}
 
 		timePulled := time.Now().UTC()
@@ -140,10 +143,30 @@ func (ks *KinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 				<-throttle
 			}()
 		} else {
-			return nil
+			break
 		}
 	}
-	wg.Wait()
+
+	// Otherwise, wait for other threads to finish, but force a fatal error if it takes too long.
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		break
+	case <-time.After(10 * time.Second):
+		// Append errors and crash
+		multierror.Append(kinesisPullErr, errors.Errorf("wg.Wait() took too long, forcing app close."))
+		ks.log.WithFields(log.Fields{"error": err}).Fatal(err)
+	}
+
+	// Return kinesisPullErr if we have one
+	if kinesisPullErr != nil {
+		return kinesisPullErr
+	}
 
 	return nil
 }
