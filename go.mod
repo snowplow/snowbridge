@@ -23,10 +23,8 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/hashicorp/go-version v1.3.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/klauspost/compress v1.13.4 // indirect
-	github.com/mitchellh/gox v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
@@ -40,23 +38,16 @@ require (
 	github.com/twinj/uuid v1.0.0
 	github.com/twitchscience/kinsumer v0.0.0-20210611163023-da24975e2c91
 	github.com/urfave/cli v1.22.5
-<<<<<<< HEAD
-	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
-	golang.org/x/tools v0.1.4 // indirect
-=======
 	github.com/xdg/scram v1.0.3
 	golang.org/x/crypto v0.0.0-20210812204632-0ba0e8f03122 // indirect
 	golang.org/x/mod v0.5.0 // indirect
 	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
 	golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5 // indirect
-	golang.org/x/sys v0.0.0-20210816074244-15123e1e1f71 // indirect
+	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/api v0.54.0 // indirect
 	google.golang.org/genproto v0.0.0-20210813162853-db860fec028c // indirect
 	google.golang.org/grpc v1.40.0 // indirect
->>>>>>> c3ab685 (Tweak eventhubs client setup)
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
 )
 
