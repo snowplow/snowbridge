@@ -23,10 +23,8 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/hashicorp/go-version v1.3.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/klauspost/compress v1.13.4 // indirect
-	github.com/mitchellh/gox v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
