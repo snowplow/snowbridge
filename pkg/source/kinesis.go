@@ -50,7 +50,7 @@ type KinesisSource struct {
 }
 
 // NewKinesisSource creates a new client for reading messages from kinesis
-func NewKinesisSource(concurrentWrites int, region string, streamName string, roleARN string, appName string) (*KinesisSource, error) {
+func NewKinesisSource(concurrentWrites int, region string, streamName string, roleARN string, appName string, startTimestamp *time.Time) (*KinesisSource, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
 	if err != nil {
 		return nil, err
@@ -58,18 +58,19 @@ func NewKinesisSource(concurrentWrites int, region string, streamName string, ro
 	kinesisClient := kinesis.New(awsSession, awsConfig)
 	dynamodbClient := dynamodb.New(awsSession, awsConfig)
 
-	return NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, *awsAccountID, concurrentWrites, region, streamName, appName)
+	return NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, *awsAccountID, concurrentWrites, region, streamName, appName, startTimestamp)
 }
 
 // NewKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
 // for mocking and localstack usage
-func NewKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string, concurrentWrites int, region string, streamName string, appName string) (*KinesisSource, error) {
+func NewKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string, concurrentWrites int, region string, streamName string, appName string, startTimestamp *time.Time) (*KinesisSource, error) {
 	// TODO: Add statistics monitoring to be able to report on consumer latency
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(10 * time.Second).
 		WithLeaderActionFrequency(10 * time.Second).
 		WithManualCheckpointing(true).
-		WithLogger(&KinsumerLogrus{})
+		WithLogger(&KinsumerLogrus{}).
+		WithIteratorStartTimestamp(startTimestamp)
 
 	// TODO: See if the client name can be reused to survive same node reboots
 	name := uuid.NewV4().String()
