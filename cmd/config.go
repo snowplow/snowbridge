@@ -170,10 +170,11 @@ type FailureTargetsConfig struct {
 
 // KinesisSourceConfig configures the source for records pulled
 type KinesisSourceConfig struct {
-	StreamName string `env:"SOURCE_KINESIS_STREAM_NAME"`
-	Region     string `env:"SOURCE_KINESIS_REGION"`
-	RoleARN    string `env:"SOURCE_KINESIS_ROLE_ARN"`
-	AppName    string `env:"SOURCE_KINESIS_APP_NAME"`
+	StreamName     string `env:"SOURCE_KINESIS_STREAM_NAME"`
+	Region         string `env:"SOURCE_KINESIS_REGION"`
+	RoleARN        string `env:"SOURCE_KINESIS_ROLE_ARN"`
+	AppName        string `env:"SOURCE_KINESIS_APP_NAME"`
+	StartTimestamp string `env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
 }
 
 // PubSubSourceConfig configures the source for records pulled
@@ -262,12 +263,21 @@ func (c *Config) GetSource() (sourceiface.Source, error) {
 			c.Sources.ConcurrentWrites,
 		)
 	case "kinesis":
+		var iteratorTstamp time.Time
+		var tstampParseErr error
+		if c.Sources.Kinesis.StartTimestamp != "" {
+			iteratorTstamp, tstampParseErr = time.Parse("2006-01-02 15:04:05.999", c.Sources.Kinesis.StartTimestamp)
+			if tstampParseErr != nil {
+				return nil, errors.Wrap(tstampParseErr, fmt.Sprintf("Failed to parse provided value for SOURCE_KINESIS_START_TIMESTAMP: %v", iteratorTstamp))
+			}
+		}
 		return source.NewKinesisSource(
 			c.Sources.ConcurrentWrites,
 			c.Sources.Kinesis.Region,
 			c.Sources.Kinesis.StreamName,
 			c.Sources.Kinesis.RoleARN,
 			c.Sources.Kinesis.AppName,
+			&iteratorTstamp,
 		)
 	case "pubsub":
 		return source.NewPubSubSource(
