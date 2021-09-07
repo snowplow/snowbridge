@@ -43,6 +43,81 @@ func GetAWSLocalstackDynamoDBClient() dynamodbiface.DynamoDBAPI {
 	return dynamodb.New(GetAWSLocalstackSession())
 }
 
+// CreateAWSLocalstackDynamoDBTable creates a new Dynamo DB table and polls until
+// the table is in an ACTIVE state
+func createAWSLocalstackDynamoDBTable(client dynamodbiface.DynamoDBAPI, tableName string, distKey string) error {
+	_, err := client.CreateTable(&dynamodb.CreateTableInput{
+		AttributeDefinitions: []*dynamodb.AttributeDefinition{{
+			AttributeName: aws.String(distKey),
+			AttributeType: aws.String(dynamodb.ScalarAttributeTypeS),
+		}},
+		KeySchema: []*dynamodb.KeySchemaElement{{
+			AttributeName: aws.String(distKey),
+			KeyType:       aws.String(dynamodb.KeyTypeHash),
+		}},
+		BillingMode: aws.String("PAY_PER_REQUEST"),
+		TableName:   aws.String(tableName),
+	})
+	if err != nil {
+		return err
+	}
+
+	for {
+		res, err1 := client.DescribeTable(&dynamodb.DescribeTableInput{TableName: &tableName})
+		if err1 != nil {
+			return err1
+		}
+
+		if *res.Table.TableStatus == "ACTIVE" {
+			return nil
+		}
+	}
+}
+
+// DeleteAWSLocalstackDynamoDBTable deletes an existing Dynamo DB table
+func deleteAWSLocalstackDynamoDBTable(client dynamodbiface.DynamoDBAPI, tableName string) (*dynamodb.DeleteTableOutput, error) {
+	return client.DeleteTable(&dynamodb.DeleteTableInput{TableName: &tableName})
+}
+
+// CreateAWSLocalstackDynamoDBTables creates all the DynamoDB tables kinsumer requires and
+// polls them until each table is in ACTIVE state
+func CreateAWSLocalstackDynamoDBTables(client dynamodbiface.DynamoDBAPI, appName string) error {
+
+	clientTableError := createAWSLocalstackDynamoDBTable(client, appName+"_clients", "ID")
+	if clientTableError != nil {
+		return clientTableError
+	}
+	checkpointTableError := createAWSLocalstackDynamoDBTable(client, appName+"_checkpoints", "Shard")
+	if checkpointTableError != nil {
+		return checkpointTableError
+	}
+	metadataTableError := createAWSLocalstackDynamoDBTable(client, appName+"_metadata", "Key")
+	if metadataTableError != nil {
+		return metadataTableError
+	}
+	// TODO: Maybe wrap the three errors, and return that?
+	return nil
+}
+
+func DeleteAWSLocalstackDynamoDBTables(client dynamodbiface.DynamoDBAPI, appName string) error {
+
+	_, clientTableError := deleteAWSLocalstackDynamoDBTable(client, appName+"_clients")
+	if clientTableError != nil {
+		return clientTableError
+	}
+	_, checkpointTableError := deleteAWSLocalstackDynamoDBTable(client, appName+"_checkpoints")
+	if checkpointTableError != nil {
+		return checkpointTableError
+	}
+	_, metadataTableError := deleteAWSLocalstackDynamoDBTable(client, appName+"_metadata")
+	if metadataTableError != nil {
+		return metadataTableError
+	}
+
+	// TODO: figure out what to do about return values here?
+	return nil
+}
+
 // --- Kinesis Testing
 
 // GetAWSLocalstackKinesisClient returns a Kinesis client
