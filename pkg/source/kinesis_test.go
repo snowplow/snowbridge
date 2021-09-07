@@ -74,28 +74,12 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-1", source.GetID())
 
-	var successfulReads []*models.Message
-	sf := sourceiface.SourceFunctions{
-		WriteToTarget: testWriteFuncBuilder(source, &successfulReads),
-	}
+	successfulReads := readAndReturnMessages(source)
 
-	hitError := make(chan error)
-	// run the read function in a goroutine, so that we can close it after a timeout
-	go runRead(hitError, source, &sf)
-
-	select {
-	case err1 := <-hitError:
-		panic(err1)
-	case <-time.After(5 * time.Second):
-		fmt.Println("Stopping source.")
-		source.Stop()
-	}
-
-	assert.Nil(err)
 	assert.Equal(10, len(successfulReads))
 }
 
-func TestKinesisSource_Experiment(t *testing.T) {
+func TestKinesisSource_StartTimestamp(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -136,6 +120,36 @@ func TestKinesisSource_Experiment(t *testing.T) {
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-1", source.GetID())
 
+	successfulReads := readAndReturnMessages(source)
+
+	// Check that we have ten messages
+	assert.Equal(10, len(successfulReads))
+
+	// Check that all messages are from the second batch of Puts
+	for _, msg := range successfulReads {
+		assert.Contains(string(msg.Data), "Second batch")
+	}
+}
+
+func putNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, streamName string, dataPrefix string) error {
+	// Put ten records into kinesis stream
+	for i := 0; i < n; i++ {
+		_, err := kinesisClient.PutRecord(&kinesis.PutRecordInput{Data: []byte(fmt.Sprint(dataPrefix, " ", i)), PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runRead(ch chan error, source sourceiface.Source, sf *sourceiface.SourceFunctions) {
+	err := source.Read(sf)
+	if err != nil {
+		ch <- err
+	}
+}
+
+func readAndReturnMessages(source sourceiface.Source) []*models.Message {
 	var successfulReads []*models.Message
 	sf := sourceiface.SourceFunctions{
 		WriteToTarget: testWriteFuncBuilder(source, &successfulReads),
@@ -152,33 +166,7 @@ func TestKinesisSource_Experiment(t *testing.T) {
 		fmt.Println("Stopping source.")
 		source.Stop()
 	}
-
-	assert.Nil(err)
-	// Check that we have ten messages
-	assert.Equal(10, len(successfulReads))
-
-	// Check that all messages are from the second batch of Puts
-	for _, msg := range successfulReads {
-		assert.Contains(string(msg.Data), "Second batch")
-	}
-}
-
-func runRead(ch chan error, source sourceiface.Source, sf *sourceiface.SourceFunctions) {
-	err := source.Read(sf)
-	if err != nil {
-		ch <- err
-	}
-}
-
-func putNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, streamName string, dataPrefix string) error {
-	// Put ten records into kinesis stream
-	for i := 0; i < n; i++ {
-		_, err := kinesisClient.PutRecord(&kinesis.PutRecordInput{Data: []byte(fmt.Sprint(dataPrefix, " ", i)), PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return successfulReads
 }
 
 // TODO: Current implementation isn't threadsafe, so concurrent writes must be 1.
