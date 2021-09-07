@@ -69,7 +69,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 		panic(putErr)
 	}
 
-	source, err := NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, streamName, appName, nil)
+	source, err := NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-1", source.GetID())
@@ -151,31 +151,37 @@ func runRead(ch chan error, source sourceiface.Source, sf *sourceiface.SourceFun
 
 func readAndReturnMessages(source sourceiface.Source) []*models.Message {
 	var successfulReads []*models.Message
-	sf := sourceiface.SourceFunctions{
-		WriteToTarget: testWriteFuncBuilder(source, &successfulReads),
-	}
 
 	hitError := make(chan error)
+	msgRecieved := make(chan *models.Message)
 	// run the read function in a goroutine, so that we can close it after a timeout
+	sf := sourceiface.SourceFunctions{
+		WriteToTarget: testWriteFuncBuilder(source, msgRecieved),
+	}
 	go runRead(hitError, source, &sf)
 
-	select {
-	case err1 := <-hitError:
-		panic(err1)
-	case <-time.After(5 * time.Second):
-		fmt.Println("Stopping source.")
-		source.Stop()
+	for { // TODO: I think this pattern makes it threadsafe. Need to verify.
+		select {
+		case err1 := <-hitError:
+			panic(err1)
+		case msg := <-msgRecieved:
+			successfulReads = append(successfulReads, msg)
+		case <-time.After(1 * time.Second):
+			// Stop source after 1s with no messages (should be ample time)
+			fmt.Println("Stopping source.")
+			source.Stop()
+			return successfulReads
+		}
+
 	}
-	return successfulReads
+
 }
 
-// TODO: Current implementation isn't threadsafe, so concurrent writes must be 1.
-// We can make it threadsafe by adding mutex when we write to the slice, or maybe by using another channel.
-func testWriteFuncBuilder(source sourceiface.Source, successfulReads *[]*models.Message) func(messages []*models.Message) error {
+func testWriteFuncBuilder(source sourceiface.Source, msgChan chan *models.Message) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
 		for _, msg := range messages {
-			// Append each message read to the original slice that was created outside this scope
-			*successfulReads = append(*successfulReads, msg)
+			// Send each message onto the channel to be appended to results
+			msgChan <- msg
 			msg.AckFunc()
 		}
 		return nil
