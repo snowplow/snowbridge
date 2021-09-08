@@ -95,10 +95,10 @@ func CreateAWSLocalstackDynamoDBTables(client dynamodbiface.DynamoDBAPI, appName
 	if metadataTableError != nil {
 		return metadataTableError
 	}
-	// TODO: Maybe wrap the three errors, and return that?
 	return nil
 }
 
+// DeleteAWSLocalstackDynamoDBTables creates all tables that kinsumer requires.
 func DeleteAWSLocalstackDynamoDBTables(client dynamodbiface.DynamoDBAPI, appName string) error {
 
 	_, clientTableError := deleteAWSLocalstackDynamoDBTable(client, appName+"_clients")
@@ -113,8 +113,6 @@ func DeleteAWSLocalstackDynamoDBTables(client dynamodbiface.DynamoDBAPI, appName
 	if metadataTableError != nil {
 		return metadataTableError
 	}
-
-	// TODO: figure out what to do about return values here?
 	return nil
 }
 
