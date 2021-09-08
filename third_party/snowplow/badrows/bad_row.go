@@ -8,8 +8,9 @@ package badrows
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu"
 )

@@ -8,6 +8,7 @@ package cloudfunctions
 
 import (
 	"context"
+
 	"github.com/twinj/uuid"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"

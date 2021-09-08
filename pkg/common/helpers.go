@@ -9,14 +9,15 @@ package common
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/pkg/errors"
 	"github.com/twinj/uuid"
-	"os"
-	"time"
 )
 
 // --- Cloud Helpers

@@ -8,6 +8,7 @@ package target
 
 import (
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"

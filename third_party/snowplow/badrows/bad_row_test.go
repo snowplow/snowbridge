@@ -7,8 +7,9 @@
 package badrows
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewBadRow_InvalidData(t *testing.T) {
