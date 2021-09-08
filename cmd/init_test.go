@@ -7,9 +7,10 @@
 package cmd
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInit_Success(t *testing.T) {

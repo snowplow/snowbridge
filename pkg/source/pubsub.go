@@ -7,13 +7,14 @@
 package source
 
 import (
-	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
+	"time"
+
+	"cloud.google.com/go/pubsub"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
-	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"

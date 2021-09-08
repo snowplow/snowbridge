@@ -7,9 +7,10 @@
 package target
 
 import (
-	"github.com/stretchr/testify/assert"
 	"sync/atomic"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )

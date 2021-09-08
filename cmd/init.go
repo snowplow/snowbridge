@@ -9,11 +9,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/getsentry/sentry-go"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	sentryhook "github.com/snowplow-devops/go-sentryhook"
-	"os"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 )

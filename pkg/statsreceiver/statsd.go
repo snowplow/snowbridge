@@ -9,9 +9,10 @@ package statsreceiver
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/pkg/errors"
 	statsd "github.com/smira/go-statsd"
-	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )

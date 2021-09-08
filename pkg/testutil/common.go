@@ -7,9 +7,10 @@
 package testutil
 
 import (
-	"github.com/twinj/uuid"
 	"math/rand"
 	"time"
+
+	"github.com/twinj/uuid"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
