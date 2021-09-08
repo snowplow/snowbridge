@@ -1,3 +1,16 @@
+Version 0.6.0 (2021-09-10)
+--------------------------
+Reorder import statements throughout the project (#74)
+Add integration tests for Kinesis source (#13)
+Add start timestamp for Kinesis source (#72)
+
+Version 0.5.0 (2021-09-01)
+--------------------------
+Fix comment in target write result (#70)
+Kinesis source: Break for loop instead of returning (#69)
+Update to go 1.17 (#68)
+Add Azure EventHubs target (#7)
+
 Version 0.4.0 (2021-07-19)
 --------------------------
 Fix lint errors (#65)
