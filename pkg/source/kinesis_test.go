@@ -89,7 +89,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	streamName := "kinesis-source-integration-1"
+	streamName := "kinesis-source-integration-2"
 	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
 	if createErr != nil {
 		panic(createErr)
@@ -115,7 +115,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 		panic(putErr2)
 	}
 
-	source, err := NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart)
+	source, err := NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-1", source.GetID())
@@ -166,8 +166,8 @@ func readAndReturnMessages(source sourceiface.Source) []*models.Message {
 			panic(err1)
 		case msg := <-msgRecieved:
 			successfulReads = append(successfulReads, msg)
-		case <-time.After(1 * time.Second):
-			// Stop source after 1s with no messages (should be ample time)
+		case <-time.After(3 * time.Second):
+			// Stop source after 3s with no messages (should be ample time)
 			fmt.Println("Stopping source.")
 			source.Stop()
 			return successfulReads
