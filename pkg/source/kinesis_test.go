@@ -115,10 +115,10 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 		panic(putErr2)
 	}
 
-	source, err := NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart)
+	source, err := NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart)
 	assert.Nil(err)
 	assert.NotNil(source)
-	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-1", source.GetID())
+	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-2", source.GetID())
 
 	successfulReads := readAndReturnMessages(source)
 
