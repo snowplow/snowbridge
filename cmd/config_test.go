@@ -143,7 +143,7 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 	source, err := c.GetTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub' and got 'fake'", err.Error())
+	assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidFailureTarget(t *testing.T) {
@@ -160,7 +160,7 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	source, err := c.GetFailureTarget()
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub' and got 'fake'", err.Error())
+	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidFailureFormat(t *testing.T) {

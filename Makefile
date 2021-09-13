@@ -11,6 +11,9 @@ go_dirs = `go list ./... | grep -v /build/ | grep -v /vendor/`
 build_dir       = build
 vendor_dir      = vendor
 integration_dir = integration
+cert_dir 		= $(integration_dir)/http
+abs_cert_dir	= $$(pwd)/$(cert_dir)
+ngrok_path		= ${NGROK_DIR}ngrok # Set NGROK_DIR to `/path/to/directory/` for local setup
 
 coverage_dir  = $(build_dir)/coverage
 coverage_out  = $(coverage_dir)/coverage.out
@@ -127,19 +130,29 @@ test: test-setup
 	GO111MODULE=on go tool cover -func=$(coverage_out)
 
 integration-test: test-setup
+	export CERT_DIR=$(abs_cert_dir); \
 	GO111MODULE=on go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
 	GO111MODULE=on go tool cover -func=$(coverage_out)
 
 integration-reset: integration-down integration-up
 
-integration-up:
+integration-up: http-up
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml up -d)
 	sleep 5
 
-integration-down:
+integration-down: http-down
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml down)
 	rm -rf $(integration_dir)/.localstack
+
+http-up:
+	(cd "$(integration_dir)/http/server" && go run server.go &)
+	sleep 5
+	($(ngrok_path) http https://localhost:8999 &>/dev/null &)
+
+http-down:
+	(cd "$(integration_dir)/http/shutdown" && go run shutdownRequest.go)
+	killall ngrok
 
 # -----------------------------------------------------------------------------
 #  RELEASE

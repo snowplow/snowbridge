@@ -15,6 +15,8 @@ jobs:
         go-version: [1.17.0]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
 
     steps:
     - name: Install Go
@@ -33,8 +35,23 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
+    - name: Block Concurrent Executions of Integration Tests
+      if: ${{ env.NGROK_TOKEN != '' }} 
+      uses: softprops/turnstyle@v1
+      with:
+        poll-interval-seconds: 10
+        same-branch-only: false
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Install ngrok
+      run: |
+          mkdir -p $GITHUB_WORKSPACE/bin
+          wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip && unzip ngrok-stable-linux-amd64.zip -d $GITHUB_WORKSPACE/bin/
+          $GITHUB_WORKSPACE/bin/ngrok authtoken ${{ secrets.NGROK_TOKEN }}
+
     - name: Setup integration resources
-      run: make integration-up
+      run: export NGROK_DIR=$GITHUB_WORKSPACE/bin/ && make integration-up
 
     - name: Run integration & unit tests
       run: make integration-test
