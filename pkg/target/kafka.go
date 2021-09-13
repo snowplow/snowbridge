@@ -9,11 +9,8 @@ package target
 import (
 	"crypto/sha256"
 	"crypto/sha512"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"hash"
-	"io/ioutil"
 	"strings"
 	"time"
 
@@ -119,7 +116,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		}
 	}
 
-	tlsConfig, err := createTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
+	tlsConfig, err := CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
@@ -305,31 +302,6 @@ func getKafkaVersion(targetVersion string) (sarama.KafkaVersion, error) {
 	}
 
 	return preferredVersion, nil
-}
-
-func createTLSConfiguration(certFile string, keyFile string, caFile string, skipVerify bool) (*tls.Config, error) {
-	if certFile == "" || keyFile == "" {
-		return nil, nil
-	}
-
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, err
-	}
-
-	caCert, err := ioutil.ReadFile(caFile)
-	if err != nil {
-		return nil, err
-	}
-
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-
-	return &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		RootCAs:            caCertPool,
-		InsecureSkipVerify: skipVerify,
-	}, nil
 }
 
 // SHA256 hash
