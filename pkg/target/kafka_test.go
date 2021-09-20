@@ -165,7 +165,7 @@ func TestKafkaTarget_SyncWriteSuccess(t *testing.T) {
 	assert.Equal(int64(0), writeRes.FailedCount)
 }
 
-func TestKafkaarget_WriteSuccess_OversizeBatch(t *testing.T) {
+func TestKafkaTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	assert := assert.New(t)
 
 	mockProducer, target := SetUpMockAsyncProducer(t)
