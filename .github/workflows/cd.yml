@@ -57,7 +57,7 @@ jobs:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
         draft: false
-        prerelease: contains(${{ github.ref }}, '-rc')
+        prerelease: ${{ contains(github.ref , '-rc') }}
 
     - name: Upload release binaries
       uses: alexellis/upload-assets@0.2.3
