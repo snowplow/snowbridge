@@ -15,6 +15,8 @@ jobs:
         go-version: [1.17.0]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    ports: 
+      - 8999
 
     steps:
     - name: Install Go
