@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-// Note that on MacOs, firewall rules may prevent a network connection to the server. Remedy this by allowing the `server` binary in this directory, in Firewall options.
+// Note that on MacOs, firewall rules may prevent a network connection to the server. Must be allowlisted on server startup.
 
 func main() {
 	mux := http.NewServeMux()
