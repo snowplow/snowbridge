@@ -1,3 +1,10 @@
+Version 0.7.0 (2021-10-14)
+--------------------------
+Handle error on creation of kafka async Producer (#75)
+Fix clerical errors (#80)
+Update deployment script to make rc versions pre-releases (#78)
+Add HTTP target (#43)
+
 Version 0.6.0 (2021-09-10)
 --------------------------
 Reorder import statements throughout the project (#74)
