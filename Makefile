@@ -145,7 +145,7 @@ integration-down: http-down
 	rm -rf $(integration_dir)/.localstack
 
 http-up:
-	(cd "$(integration_dir)/http/server" && ./server &)
+	(cd "$(integration_dir)/http/server" && go run server.go &)
 
 http-down:
 	(cd "$(integration_dir)/http/shutdown" && go run shutdownRequest.go)
