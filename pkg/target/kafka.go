@@ -143,6 +143,9 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 	// - For the topic, you could increase `min.insync.replicas`.
 	if !cfg.ForceSync {
 		asyncProducer, producerError = sarama.NewAsyncProducer(strings.Split(cfg.Brokers, ","), saramaConfig)
+		if producerError != nil {
+			return nil, producerError
+		}
 
 		asyncResults = make(chan *SaramaResult)
 
