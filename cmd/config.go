@@ -222,11 +222,18 @@ type SQSSourceConfig struct {
 	RoleARN   string `env:"SOURCE_SQS_ROLE_ARN"`
 }
 
+type BigQuerySourceConfig struct {
+	ProjectID string `env:"SOURCE_BIGQUERY_PROJECT_ID"`
+	DatasetID string `env:"SOURCE_BIGQUERY_DATASET_ID"`
+	TableID   string `env:"SOURCE_BIGQUERY_TABLE_ID"`
+}
+
 // SourcesConfig holds configuration for the available sources
 type SourcesConfig struct {
-	Kinesis KinesisSourceConfig
-	PubSub  PubSubSourceConfig
-	SQS     SQSSourceConfig
+	Kinesis  KinesisSourceConfig
+	PubSub   PubSubSourceConfig
+	SQS      SQSSourceConfig
+	BigQuery BigQuerySourceConfig
 
 	// ConcurrentWrites is how many go-routines a source can leverage to parallelise processing
 	ConcurrentWrites int `env:"SOURCE_CONCURRENT_WRITES" envDefault:"50"`
@@ -323,6 +330,13 @@ func (c *Config) GetSource() (sourceiface.Source, error) {
 			c.Sources.SQS.Region,
 			c.Sources.SQS.QueueName,
 			c.Sources.SQS.RoleARN,
+		)
+	case "bigquery":
+		return source.NewBigQuerySource(
+			c.Sources.ConcurrentWrites,
+			c.Sources.BigQuery.ProjectID,
+			c.Sources.BigQuery.DatasetID,
+			c.Sources.BigQuery.TableID,
 		)
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got '%s'", c.Source))
