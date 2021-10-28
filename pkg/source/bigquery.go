@@ -16,7 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
-	"github.com/twinj/uuid"
 	"google.golang.org/api/iterator"
 )
 
@@ -25,12 +24,23 @@ type BigQuerySource struct {
 	projectID        string
 	datasetID        string
 	tableID          string
+	manifestInserter *bigquery.Inserter
 	concurrentWrites int
 
 	log *log.Entry
 }
 
-func NewBigQuerySource(concurrentWrites int, projectID string, datasetID string, tableID string) (*BigQuerySource, error) { // TODO: instrument config
+type ManifestRecord struct {
+	ManifestID string
+}
+
+func (mr *ManifestRecord) Save() (map[string]bigquery.Value, string, error) {
+	return map[string]bigquery.Value{
+		"manifestID": mr.ManifestID,
+	}, "", nil
+}
+
+func NewBigQuerySource(concurrentWrites int, projectID string, datasetID string, tableID string, manifestDatasetID string, manifestTableID string) (*BigQuerySource, error) { // TODO: instrument config
 	//projectID := "engineering-sandbox"
 	//datasetID := "scratch"
 	//tableID := "hackathon_test"
@@ -40,11 +50,16 @@ func NewBigQuerySource(concurrentWrites int, projectID string, datasetID string,
 		return nil, fmt.Errorf("bigquery.NewClient: %v", err)
 	}
 
+	inserter := client.Dataset(manifestDatasetID).Table(manifestTableID).Inserter()
+
 	return &BigQuerySource{
-		client:           client,
-		projectID:        projectID,
-		datasetID:        datasetID,
-		tableID:          tableID,
+		client:    client,
+		projectID: projectID,
+		datasetID: datasetID,
+		tableID:   tableID,
+		// manifestDatasetID: "scratch",
+		// manifestTableID:   "hackathon_test_revetl_manifest",
+		manifestInserter: inserter,
 		concurrentWrites: concurrentWrites,
 
 		log: log.WithFields(log.Fields{"source": "bigquery", "cloud": "GCP", "project": projectID, "dataset": datasetID}),
@@ -76,12 +91,20 @@ func (bq *BigQuerySource) Read(sf *sourceiface.SourceFunctions) error {
 		// TODO: Figure out sensible handling of timeCreated and related stats
 
 		data := row[0].(string)
+		manifestID := row[1].(string)
+
+		ackFunc := func() {
+			if err := bq.manifestInserter.Put(context.Background(), ManifestRecord{ManifestID: manifestID}); err != nil {
+				fmt.Println(err)
+			}
+		}
+
 		messages := []*models.Message{
 			{
 				Data:         []byte(data),
-				PartitionKey: uuid.NewV4().String(),
-				AckFunc:      nil,              // TODO: add acking
-				TimeCreated:  time.Now().UTC(), // TODO: fix this
+				PartitionKey: manifestID, // TODO: make  using this feature configurable
+				AckFunc:      ackFunc,    // TODO: add acking
+				TimeCreated:  timePulled, // TODO: fix this
 				TimePulled:   timePulled,
 			},
 		} // Perhaps a partition key may be speicified from the data itself, perhaps that's not useful.

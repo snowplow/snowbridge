@@ -223,9 +223,11 @@ type SQSSourceConfig struct {
 }
 
 type BigQuerySourceConfig struct {
-	ProjectID string `env:"SOURCE_BIGQUERY_PROJECT_ID"`
-	DatasetID string `env:"SOURCE_BIGQUERY_DATASET_ID"`
-	TableID   string `env:"SOURCE_BIGQUERY_TABLE_ID"`
+	ProjectID         string `env:"SOURCE_BIGQUERY_PROJECT_ID"`
+	DatasetID         string `env:"SOURCE_BIGQUERY_DATASET_ID"`
+	TableID           string `env:"SOURCE_BIGQUERY_TABLE_ID"`
+	ManifestDatasetID string `env:"SOURCE_BIGQUERY_MANIFEST_DATASET_ID"`
+	ManifestTableID   string `env:"SOURCE_BIGQUERY_MANIFEST_TABLE_ID"`
 }
 
 // SourcesConfig holds configuration for the available sources
@@ -337,6 +339,8 @@ func (c *Config) GetSource() (sourceiface.Source, error) {
 			c.Sources.BigQuery.ProjectID,
 			c.Sources.BigQuery.DatasetID,
 			c.Sources.BigQuery.TableID,
+			c.Sources.BigQuery.ManifestDatasetID,
+			c.Sources.BigQuery.ManifestTableID,
 		)
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got '%s'", c.Source))
