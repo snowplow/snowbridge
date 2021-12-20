@@ -94,11 +94,9 @@ func main() {
 		}
 		ft.Open()
 
-		tags, err := cfg.GetTags(s.GetID(), t.GetID(), ft.GetID())
-		if err != nil {
-			return err
-		}
-		o, err := cfg.GetObserver(tags)
+		// Note: There is no current need for pre-defined tags to be fed into the observer
+		//       or stats receiver interfaces - this can be used at a later date if needed!
+		o, err := cfg.GetObserver(map[string]string{})
 		if err != nil {
 			return err
 		}
