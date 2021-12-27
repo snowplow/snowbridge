@@ -1,3 +1,7 @@
+Version 0.7.2 (2021-12-27)
+--------------------------
+Add hostname / pod_name tag to StatsD metrics (#90) 
+
 Version 0.7.1 (2021-12-20)
 --------------------------
 Remove default tags from StatsD emitter (#88)
