@@ -94,9 +94,11 @@ func main() {
 		}
 		ft.Open()
 
-		// Note: There is no current need for pre-defined tags to be fed into the observer
-		//       or stats receiver interfaces - this can be used at a later date if needed!
-		o, err := cfg.GetObserver(map[string]string{})
+		tags, err := cfg.GetTags()
+		if err != nil {
+			return err
+		}
+		o, err := cfg.GetObserver(tags)
 		if err != nil {
 			return err
 		}
