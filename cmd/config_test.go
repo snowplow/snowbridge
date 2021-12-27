@@ -204,24 +204,15 @@ func TestNewConfig_GetTags(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	tags, err := c.GetTags("source", "target", "failure_target")
+	tags, err := c.GetTags()
 	assert.NotNil(tags)
 	assert.Nil(err)
 
 	processID, ok := tags["process_id"]
 	assert.NotEqual("", processID)
 	assert.True(ok)
-	hostname, ok := tags["hostname"]
+	hostname, ok := tags["host"]
 	assert.NotEqual("", hostname)
-	assert.True(ok)
-	source, ok := tags["source_id"]
-	assert.Equal("source", source)
-	assert.True(ok)
-	target, ok := tags["target_id"]
-	assert.Equal("target", target)
-	assert.True(ok)
-	failureTarget, ok := tags["failure_target_id"]
-	assert.Equal("failure_target", failureTarget)
 	assert.True(ok)
 }
 

@@ -522,8 +522,10 @@ func (c *Config) GetTransformations() (transform.TransformationApplyFunction, er
 	return transform.NewTransformation(funcs...), nil
 }
 
-// GetTags returns a list of tags to use in identifying this instance of stream-replicator
-func (c *Config) GetTags(sourceID string, targetID string, failureTargetID string) (map[string]string, error) {
+// GetTags returns a list of tags to use in identifying this instance of stream-replicator with enough
+// entropy so as to avoid collisions as it should not be possible to have both the host and process_id be
+// the same.
+func (c *Config) GetTags() (map[string]string, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get server hostname as tag")
@@ -532,11 +534,8 @@ func (c *Config) GetTags(sourceID string, targetID string, failureTargetID strin
 	processID := os.Getpid()
 
 	tags := map[string]string{
-		"hostname":          hostname,
-		"process_id":        strconv.Itoa(processID),
-		"source_id":         sourceID,
-		"target_id":         targetID,
-		"failure_target_id": failureTargetID,
+		"host":       hostname,
+		"process_id": strconv.Itoa(processID),
 	}
 
 	return tags, nil
