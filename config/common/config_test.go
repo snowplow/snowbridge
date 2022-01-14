@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package cmd
+package config
 
 import (
 	"os"
@@ -25,7 +25,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal("none", c.Transformation)
 	assert.Equal("stdin", c.Source)
 
-	source, err := c.GetSource()
+	source, err := c.GetSource(DefaultKinsesSourceConfigFunction)
 	assert.NotNil(source)
 	assert.Nil(err)
 
@@ -37,7 +37,7 @@ func TestNewConfig(t *testing.T) {
 	assert.NotNil(transformation)
 	assert.Nil(err)
 
-	failureTarget, err := c.GetFailureTarget()
+	failureTarget, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.NotNil(failureTarget)
 	assert.Nil(err)
 
@@ -89,7 +89,7 @@ func TestNewConfig_InvalidSource(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	source, err := c.GetSource()
+	source, err := c.GetSource(DefaultKinsesSourceConfigFunction)
 	assert.Nil(source)
 	assert.NotNil(err)
 	assert.Equal("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got 'fake'", err.Error())
@@ -157,7 +157,7 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	source, err := c.GetFailureTarget()
+	source, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.Nil(source)
 	assert.NotNil(err)
 	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fake'", err.Error())
@@ -174,7 +174,7 @@ func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	source, err := c.GetFailureTarget()
+	source, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.Nil(source)
 	assert.NotNil(err)
 	assert.Equal("Invalid failure format found; expected one of 'snowplow' and got 'fake'", err.Error())
@@ -316,4 +316,20 @@ func TestNewConfig_EventhubFailureTargetDefaults(t *testing.T) {
 	assert.Equal(target.ChunkMessageLimit, 500)
 	assert.Equal(target.ContextTimeoutInSeconds, 20)
 	assert.Equal(target.BatchByteLimit, 1048576)
+}
+
+func TestNewConfig_LicenceBlockedKinesisSource(t *testing.T) {
+	assert := assert.New(t)
+
+	defer os.Unsetenv("SOURCE")
+
+	os.Setenv("SOURCE", "kinesis")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	source, err := c.GetSource(DefaultKinsesSourceConfigFunction)
+	assert.Nil(source)
+	assert.Equal("Kinesis source unavailable due to the kinsumer licence", err.Error())
 }

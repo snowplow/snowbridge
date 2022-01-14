@@ -4,16 +4,14 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package source
+package kinesissource
 
 import (
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -21,7 +19,6 @@ import (
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
@@ -47,18 +44,6 @@ type KinesisSource struct {
 	accountID        string
 
 	log *log.Entry
-}
-
-// NewKinesisSource creates a new client for reading messages from kinesis
-func NewKinesisSource(concurrentWrites int, region string, streamName string, roleARN string, appName string, startTimestamp *time.Time) (*KinesisSource, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
-	if err != nil {
-		return nil, err
-	}
-	kinesisClient := kinesis.New(awsSession, awsConfig)
-	dynamodbClient := dynamodb.New(awsSession, awsConfig)
-
-	return NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, *awsAccountID, concurrentWrites, region, streamName, appName, startTimestamp)
 }
 
 // NewKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow

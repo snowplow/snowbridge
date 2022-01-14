@@ -27,7 +27,8 @@ linux_out_dir   = $(output_dir)/linux
 darwin_out_dir  = $(output_dir)/darwin
 windows_out_dir = $(output_dir)/windows
 
-container_name = snowplow/stream-replicator
+aws_container_name = snowplow/stream-replicator/aws
+gcp_container_name = snowplow/stream-replicator/gcp
 
 # -----------------------------------------------------------------------------
 #  BUILDING
@@ -59,10 +60,12 @@ gcp-cloudfunctions: gox
 
 	# Copy local packages into staging area
 	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/
-	cp ./cmd/config.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/config.go
 	cp ./cmd/constants.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/constants.go
 	cp ./cmd/init.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/init.go
 	cp ./cmd/serverless.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/serverless.go
+
+	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/config/common/
+	cp ./config/common/config.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/config/common/config.go
 
 	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/
 	cp -R ./pkg/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/
@@ -72,6 +75,7 @@ gcp-cloudfunctions: gox
 	cp -R ./third_party/snowplow/iglu/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu
 
 	echo "# github.com/snowplow-devops/stream-replicator v$(version)" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/config/common" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 	echo "github.com/snowplow-devops/stream-replicator/cmd" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 	echo "github.com/snowplow-devops/stream-replicator/pkg" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 	echo "github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
@@ -82,24 +86,34 @@ gcp-cloudfunctions: gox
 	mv $(staging_dir)/gcp/cloudfunctions/staging.zip $(compiled_dir)/gcp_cloudfunctions_stream_replicator_$(version)_linux_amd64.zip
 
 cli: gox cli-linux cli-darwin cli-windows
-	(cd $(linux_out_dir)/cli/ && zip -r staging.zip stream-replicator)
-	mv $(linux_out_dir)/cli/staging.zip $(compiled_dir)/cli_stream_replicator_$(version)_linux_amd64.zip
-	(cd $(darwin_out_dir)/cli/ && zip -r staging.zip stream-replicator)
-	mv $(darwin_out_dir)/cli/staging.zip $(compiled_dir)/cli_stream_replicator_$(version)_darwin_amd64.zip
-	(cd $(windows_out_dir)/cli/ && zip -r staging.zip stream-replicator.exe)
-	mv $(windows_out_dir)/cli/staging.zip $(compiled_dir)/cli_stream_replicator_$(version)_windows_amd64.zip
+	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip stream-replicator)
+	mv $(linux_out_dir)/aws/cli/staging.zip $(compiled_dir)/aws_cli_stream_replicator_$(version)_linux_amd64.zip
+	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip stream-replicator)
+	mv $(darwin_out_dir)/aws/cli/staging.zip $(compiled_dir)/aws_cli_stream_replicator_$(version)_darwin_amd64.zip
+	(cd $(windows_out_dir)/aws/cli/ && zip -r staging.zip stream-replicator.exe)
+	mv $(windows_out_dir)/aws/cli/staging.zip $(compiled_dir)/aws_cli_stream_replicator_$(version)_windows_amd64.zip
+	(cd $(linux_out_dir)/gcp/cli/ && zip -r staging.zip stream-replicator)
+	mv $(linux_out_dir)/gcp/cli/staging.zip $(compiled_dir)/gcp_cli_stream_replicator_$(version)_linux_amd64.zip
+	(cd $(darwin_out_dir)/gcp/cli/ && zip -r staging.zip stream-replicator)
+	mv $(darwin_out_dir)/gcp/cli/staging.zip $(compiled_dir)/gcp_cli_stream_replicator_$(version)_darwin_amd64.zip
+	(cd $(windows_out_dir)/gcp/cli/ && zip -r staging.zip stream-replicator.exe)
+	mv $(windows_out_dir)/gcp/cli/staging.zip $(compiled_dir)/gcp_cli_stream_replicator_$(version)_windows_amd64.zip
 
 cli-linux: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/cli/stream-replicator ./cmd/cli/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
 
 cli-darwin: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/cli/stream-replicator ./cmd/cli/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
 
 cli-windows: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/cli/stream-replicator ./cmd/cli/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
+	GO111MODULE=on CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
 
 container: cli-linux
-	docker build -t $(container_name):$(version) .
+	docker build -t $(aws_container_name):$(version) -f Dockerfile.aws .
+	docker build -t $(gcp_container_name):$(version) -f Dockerfile.gcp .
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
@@ -160,9 +174,12 @@ http-down:
 
 container-release:
 	@-docker login --username $(DOCKER_USERNAME) --password $(DOCKER_PASSWORD)
-	docker push $(container_name):$(version)
-	docker tag ${container_name}:${version} ${container_name}:latest
-	docker push $(container_name):latest
+	docker push $(aws_container_name):$(version)
+	docker tag ${aws_container_name}:${version} ${aws_container_name}:latest
+	docker push $(aws_container_name):latest
+	docker push $(gcp_container_name):$(version)
+	docker tag ${gcp_container_name}:${version} ${gcp_container_name}:latest
+	docker push $(gcp_container_name):latest
 
 # -----------------------------------------------------------------------------
 #  CLEANUP
