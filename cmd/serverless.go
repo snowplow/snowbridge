@@ -39,7 +39,7 @@ func ServerlessRequestHandler(messages []*models.Message) error {
 		return err
 	}
 
-	ft, err := cfg.GetFailureTarget()
+	ft, err := cfg.GetFailureTarget(AppName, AppVersion)
 	if err != nil {
 		return err
 	}

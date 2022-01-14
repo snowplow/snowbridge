@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package source
+package sqssource
 
 import (
 	"fmt"
@@ -19,8 +19,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
@@ -43,16 +45,30 @@ type SQSSource struct {
 	processErrorSignal chan error
 }
 
-// NewSQSSource creates a new client for reading messages from SQS
-func NewSQSSource(concurrentWrites int, region string, queueName string, roleARN string) (*SQSSource, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
+// SQSSourceConfigFunctionGeneratorWithInterfaces generates the SQS Source Config function, allowing you
+// to provide an SQS client directly to allow for mocking and localstack usage
+func SQSSourceConfigFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
+	return func(c *config.Config) (sourceiface.Source, error) {
+		return NewSQSSourceWithInterfaces(client, awsAccountID, c.Sources.ConcurrentWrites, c.Sources.SQS.Region, c.Sources.SQS.QueueName)
+	}
+}
+
+// SQSSourceConfigFunction returns an SQS source from a config
+func SQSSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Sources.SQS.Region, c.Sources.SQS.RoleARN)
 	if err != nil {
 		return nil, err
 	}
+
 	sqsClient := sqs.New(awsSession, awsConfig)
 
-	return NewSQSSourceWithInterfaces(sqsClient, *awsAccountID, concurrentWrites, region, queueName)
+	sourceConfigFunc := SQSSourceConfigFunctionGeneratorWithInterfaces(sqsClient, *awsAccountID)
+
+	return sourceConfigFunc(c)
 }
+
+// SQSSourceConfigPair is passed to configuration to determine when to build an SQS source.
+var SQSSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "sqs", SourceConfigFunc: SQSSourceConfigFunction}
 
 // NewSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage

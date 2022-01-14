@@ -4,15 +4,18 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package source
+package sqssource
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
@@ -85,4 +88,42 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 	}
 
 	assert.Equal(50, messageCount)
+}
+
+func TestGetSource_WithSQSSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	assert := assert.New(t)
+
+	// Set up localstack resources
+	sqsClient := testutil.GetAWSLocalstackSQSClient()
+
+	queueName := "sqs-source-config-integration-1"
+	_, createErr := testutil.CreateAWSLocalstackSQSQueue(sqsClient, queueName)
+	if createErr != nil {
+		panic(createErr)
+	}
+
+	defer testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName)
+
+	defer os.Unsetenv("SOURCE")
+
+	os.Setenv("SOURCE", "sqs")
+	os.Setenv("SOURCE_SQS_QUEUE_NAME", queueName)
+
+	c, err := config.NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	sqsSourceConfigFunctionWithLocalStack := SQSSourceConfigFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
+	sqsSourceConfigPairWithInterfaces := sourceconfig.SourceConfigPair{SourceName: "sqs", SourceConfigFunc: sqsSourceConfigFunctionWithLocalStack}
+	supportedSources := []sourceconfig.SourceConfigPair{sqsSourceConfigPairWithInterfaces}
+
+	source, err := sourceconfig.GetSource(c, supportedSources)
+	assert.NotNil(source)
+	assert.Nil(err)
+
+	assert.IsType(&SQSSource{}, source)
 }
