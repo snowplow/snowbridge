@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package source
+package stdinsource
 
 import (
 	"bufio"
@@ -16,7 +16,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
@@ -26,6 +28,16 @@ type StdinSource struct {
 
 	log *log.Entry
 }
+
+// StdinSourceConfigfunction returns an stdin source from a config
+func StdinSourceConfigfunction(c *config.Config) (sourceiface.Source, error) {
+	return NewStdinSource(
+		c.Sources.ConcurrentWrites,
+	)
+}
+
+// StdinSourceConfigfunction is passed to configuration to determine when to build an stdin source.
+var StdinSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "stdin", SourceConfigFunc: StdinSourceConfigfunction}
 
 // NewStdinSource creates a new client for reading messages from stdin
 func NewStdinSource(concurrentWrites int) (*StdinSource, error) {

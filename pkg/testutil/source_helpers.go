@@ -38,8 +38,6 @@ resultLoop:
 	return successfulReads
 }
 
-// TODO: Future tests will probably require us to configure the time we wait before closing the source and returning.
-
 func runRead(ch chan error, source sourceiface.Source, sf *sourceiface.SourceFunctions) {
 	err := source.Read(sf)
 	if err != nil {

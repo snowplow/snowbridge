@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package source
+package pubsubsource
 
 import (
 	"context"
@@ -16,7 +16,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
@@ -32,6 +34,18 @@ type PubSubSource struct {
 	// cancel function to be used to halt reading
 	cancel context.CancelFunc
 }
+
+// PubsubSourceConfigFunction returns a pubsub source from a config
+func PubsubSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
+	return NewPubSubSource(
+		c.Sources.ConcurrentWrites,
+		c.Sources.PubSub.ProjectID,
+		c.Sources.PubSub.SubscriptionID,
+	)
+}
+
+// PubsubSourceConfigPair is passed to configuration to determine when to build a Pubsub source.
+var PubsubSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "pubsub", SourceConfigFunc: PubsubSourceConfigFunction}
 
 // NewPubSubSource creates a new client for reading messages from PubSub
 func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID string) (*PubSubSource, error) {

@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package main
+package cli
 
 import (
 	"os"
@@ -18,12 +18,14 @@ import (
 	"github.com/urfave/cli"
 
 	"net/http"
+	// pprof imported for the side effect of registering its HTTP handlers
 	_ "net/http/pprof"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
@@ -36,9 +38,8 @@ const (
 	appCopyright = "(c) 2020 Snowplow Analytics, LTD"
 )
 
-func main() {
-	// Init must be run at the top of the stack so that its context is available
-	// after app.Action() returns
+// RunCli runs the app
+func RunCli(supportedSourceConfigPairs []sourceconfig.SourceConfigPair) {
 	cfg, sentryEnabled, err := cmd.Init()
 	if err != nil {
 		exitWithError(err, sentryEnabled)
@@ -72,7 +73,7 @@ func main() {
 			}()
 		}
 
-		s, err := cfg.GetSource()
+		s, err := sourceconfig.GetSource(cfg, supportedSourceConfigPairs)
 		if err != nil {
 			return err
 		}
@@ -88,7 +89,7 @@ func main() {
 		}
 		t.Open()
 
-		ft, err := cfg.GetFailureTarget()
+		ft, err := cfg.GetFailureTarget(cmd.AppName, cmd.AppVersion)
 		if err != nil {
 			return err
 		}
@@ -153,6 +154,7 @@ func main() {
 	if err1 != nil {
 		exitWithError(err1, sentryEnabled)
 	}
+
 }
 
 // sourceWriteFunc builds the function which wraps the different objects together to handle:
