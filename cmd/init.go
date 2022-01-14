@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	sentryhook "github.com/snowplow-devops/go-sentryhook"
 
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 )
 
@@ -36,8 +37,8 @@ var (
 // 1. Loading the Config from the environment
 // 2. Configuring Sentry
 // 3. Configuring Logrus (+Logrus -> Sentry)
-func Init() (*Config, bool, error) {
-	cfg, err := NewConfig()
+func Init() (*config.Config, bool, error) {
+	cfg, err := config.NewConfig()
 	if err != nil {
 		return nil, false, errors.Wrap(err, "Failed to build config")
 	}

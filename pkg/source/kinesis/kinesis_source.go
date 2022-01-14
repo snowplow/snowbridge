@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package source
+package kinesissource
 
 import (
 	"fmt"
@@ -21,20 +21,12 @@ import (
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
 
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
-
-// --- Kinsumer overrides
-
-// KinsumerLogrus adds a Logrus logger for Kinsumer
-type KinsumerLogrus struct{}
-
-// Log will print all Kinsumer logs as DEBUG lines
-func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
-	log.WithFields(log.Fields{"source": "KinesisSource.Kinsumer"}).Debugf(format, v...)
-}
 
 // --- Kinesis source
 
@@ -49,16 +41,63 @@ type KinesisSource struct {
 	log *log.Entry
 }
 
-// NewKinesisSource creates a new client for reading messages from kinesis
-func NewKinesisSource(concurrentWrites int, region string, streamName string, roleARN string, appName string, startTimestamp *time.Time) (*KinesisSource, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
+// -- Config
+
+// KinesisSourceConfigFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
+// to provide a Kinesis + DynamoDB client directly to allow for mocking and localstack usage
+func KinesisSourceConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
+	// Return a function which returns the source
+	return func(c *config.Config) (sourceiface.Source, error) {
+		// Handle iteratorTstamp if provided
+		var iteratorTstamp time.Time
+		var tstampParseErr error
+		if c.Sources.Kinesis.StartTimestamp != "" {
+			iteratorTstamp, tstampParseErr = time.Parse("2006-01-02 15:04:05.999", c.Sources.Kinesis.StartTimestamp)
+			if tstampParseErr != nil {
+				return nil, errors.Wrap(tstampParseErr, fmt.Sprintf("Failed to parse provided value for SOURCE_KINESIS_START_TIMESTAMP: %v", iteratorTstamp))
+			}
+		}
+
+		return NewKinesisSourceWithInterfaces(
+			kinesisClient,
+			dynamodbClient,
+			awsAccountID,
+			c.Sources.ConcurrentWrites,
+			c.Sources.Kinesis.Region,
+			c.Sources.Kinesis.StreamName,
+			c.Sources.Kinesis.AppName,
+			&iteratorTstamp)
+	}
+}
+
+// KinesisSourceConfigFunction returns a kinesis source from a config
+func KinesisSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Sources.Kinesis.Region, c.Sources.Kinesis.RoleARN)
 	if err != nil {
 		return nil, err
 	}
 	kinesisClient := kinesis.New(awsSession, awsConfig)
 	dynamodbClient := dynamodb.New(awsSession, awsConfig)
 
-	return NewKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, *awsAccountID, concurrentWrites, region, streamName, appName, startTimestamp)
+	sourceConfigFunction := KinesisSourceConfigFunctionGeneratorWithInterfaces(
+		kinesisClient,
+		dynamodbClient,
+		*awsAccountID)
+
+	return sourceConfigFunction(c)
+}
+
+// KinesisSourceConfigPair is passed to configuration to determine when to build a Kinesis source.
+var KinesisSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "kinesis", SourceConfigFunc: KinesisSourceConfigFunction}
+
+// --- Kinsumer overrides
+
+// KinsumerLogrus adds a Logrus logger for Kinsumer
+type KinsumerLogrus struct{}
+
+// Log will print all Kinsumer logs as DEBUG lines
+func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
+	log.WithFields(log.Fields{"source": "KinesisSource.Kinsumer"}).Debugf(format, v...)
 }
 
 // NewKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow

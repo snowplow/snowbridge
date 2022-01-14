@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package cmd
+package config
 
 import (
 	"os"
@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// The GetSource part needs to move anyway - causes circular dep.
 func TestNewConfig(t *testing.T) {
 	assert := assert.New(t)
 
@@ -25,9 +26,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal("none", c.Transformation)
 	assert.Equal("stdin", c.Source)
 
-	source, err := c.GetSource()
-	assert.NotNil(source)
-	assert.Nil(err)
+	// Tests on sources moved to the source package.
 
 	target, err := c.GetTarget()
 	assert.NotNil(target)
@@ -37,7 +36,7 @@ func TestNewConfig(t *testing.T) {
 	assert.NotNil(transformation)
 	assert.Nil(err)
 
-	failureTarget, err := c.GetFailureTarget()
+	failureTarget, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.NotNil(failureTarget)
 	assert.Nil(err)
 
@@ -76,23 +75,6 @@ func TestNewConfig_FromEnvInvalid(t *testing.T) {
 	c, err := NewConfig()
 	assert.Nil(c)
 	assert.NotNil(err)
-}
-
-func TestNewConfig_InvalidSource(t *testing.T) {
-	assert := assert.New(t)
-
-	defer os.Unsetenv("SOURCE")
-
-	os.Setenv("SOURCE", "fake")
-
-	c, err := NewConfig()
-	assert.NotNil(c)
-	assert.Nil(err)
-
-	source, err := c.GetSource()
-	assert.Nil(source)
-	assert.NotNil(err)
-	assert.Equal("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidTransformation(t *testing.T) {
@@ -157,7 +139,7 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	source, err := c.GetFailureTarget()
+	source, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.Nil(source)
 	assert.NotNil(err)
 	assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fake'", err.Error())
@@ -174,7 +156,7 @@ func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	source, err := c.GetFailureTarget()
+	source, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.Nil(source)
 	assert.NotNil(err)
 	assert.Equal("Invalid failure format found; expected one of 'snowplow' and got 'fake'", err.Error())

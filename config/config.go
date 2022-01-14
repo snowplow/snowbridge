@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package cmd
+package config
 
 import (
 	"fmt"
@@ -19,8 +19,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
-	"github.com/snowplow-devops/stream-replicator/pkg/source"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
@@ -287,48 +285,6 @@ func NewConfig() (*Config, error) {
 	return &cfg, nil
 }
 
-// GetSource builds and returns the source that is configured
-func (c *Config) GetSource() (sourceiface.Source, error) {
-	switch c.Source {
-	case "stdin":
-		return source.NewStdinSource(
-			c.Sources.ConcurrentWrites,
-		)
-	case "kinesis":
-		var iteratorTstamp time.Time
-		var tstampParseErr error
-		if c.Sources.Kinesis.StartTimestamp != "" {
-			iteratorTstamp, tstampParseErr = time.Parse("2006-01-02 15:04:05.999", c.Sources.Kinesis.StartTimestamp)
-			if tstampParseErr != nil {
-				return nil, errors.Wrap(tstampParseErr, fmt.Sprintf("Failed to parse provided value for SOURCE_KINESIS_START_TIMESTAMP: %v", iteratorTstamp))
-			}
-		}
-		return source.NewKinesisSource(
-			c.Sources.ConcurrentWrites,
-			c.Sources.Kinesis.Region,
-			c.Sources.Kinesis.StreamName,
-			c.Sources.Kinesis.RoleARN,
-			c.Sources.Kinesis.AppName,
-			&iteratorTstamp,
-		)
-	case "pubsub":
-		return source.NewPubSubSource(
-			c.Sources.ConcurrentWrites,
-			c.Sources.PubSub.ProjectID,
-			c.Sources.PubSub.SubscriptionID,
-		)
-	case "sqs":
-		return source.NewSQSSource(
-			c.Sources.ConcurrentWrites,
-			c.Sources.SQS.Region,
-			c.Sources.SQS.QueueName,
-			c.Sources.SQS.RoleARN,
-		)
-	default:
-		return nil, errors.New(fmt.Sprintf("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got '%s'", c.Source))
-	}
-}
-
 // GetTarget builds and returns the target that is configured
 func (c *Config) GetTarget() (targetiface.Target, error) {
 	switch c.Target {
@@ -405,7 +361,7 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 }
 
 // GetFailureTarget builds and returns the target that is configured
-func (c *Config) GetFailureTarget() (failureiface.Failure, error) {
+func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureiface.Failure, error) {
 	var t targetiface.Target
 	var err error
 

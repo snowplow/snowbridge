@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
 
-package source
+package stdinsource
 
 import (
 	"io/ioutil"
@@ -13,7 +13,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
@@ -55,4 +57,24 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 
 	err1 := source.Read(&sf)
 	assert.Nil(err1)
+}
+
+func TestGetSource_WithStdinSource(t *testing.T) {
+	assert := assert.New(t)
+
+	supportedSources := []sourceconfig.SourceConfigPair{StdinSourceConfigPair}
+
+	defer os.Unsetenv("SOURCE")
+
+	os.Setenv("SOURCE", "stdin")
+
+	stdinConfig, err := config.NewConfig()
+	assert.NotNil(stdinConfig)
+	assert.Nil(err)
+
+	stdinSource, err := sourceconfig.GetSource(stdinConfig, supportedSources)
+
+	assert.NotNil(stdinSource)
+	assert.Nil(err)
+	assert.Equal("stdin", stdinSource.GetID())
 }
