@@ -27,8 +27,8 @@ linux_out_dir   = $(output_dir)/linux
 darwin_out_dir  = $(output_dir)/darwin
 windows_out_dir = $(output_dir)/windows
 
-aws_container_name = snowplow/stream-replicator/aws
-gcp_container_name = snowplow/stream-replicator/gcp
+aws_container_name = snowplow/stream-replicator-aws
+gcp_container_name = snowplow/stream-replicator-gcp
 
 # -----------------------------------------------------------------------------
 #  BUILDING
