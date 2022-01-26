@@ -1,4 +1,4 @@
-package kinesissourceconfig
+package awssourceconfig
 
 import (
 	"os"

@@ -1,4 +1,4 @@
-package kinesissourceconfig
+package awssourceconfig
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 
 	config "github.com/snowplow-devops/stream-replicator/config/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
-	kinesisSource "github.com/snowplow-devops/stream-replicator/pkg/source/kinesis"
+	kinesissource "github.com/snowplow-devops/stream-replicator/pkg/source/kinesis"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
@@ -31,7 +31,7 @@ func SourceConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.Kine
 			}
 		}
 
-		return kinesisSource.NewKinesisSourceWithInterfaces(
+		return kinesissource.NewKinesisSourceWithInterfaces(
 			kinesisClient,
 			dynamodbClient,
 			awsAccountID,

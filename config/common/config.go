@@ -19,8 +19,10 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
-	source "github.com/snowplow-devops/stream-replicator/pkg/source/common"
+	pubsubsource "github.com/snowplow-devops/stream-replicator/pkg/source/pubsub"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
+	sqssource "github.com/snowplow-devops/stream-replicator/pkg/source/sqs"
+	stdinsource "github.com/snowplow-devops/stream-replicator/pkg/source/stdin"
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
@@ -300,19 +302,19 @@ func DefaultKinsesSourceConfigFunction(c *Config) (sourceiface.Source, error) {
 func (c *Config) GetSource(kinesisFunction SourceConfigFunction) (sourceiface.Source, error) {
 	switch c.Source {
 	case "stdin":
-		return source.NewStdinSource(
+		return stdinsource.NewStdinSource(
 			c.Sources.ConcurrentWrites,
 		)
 	case "kinesis":
 		return kinesisFunction(c)
 	case "pubsub":
-		return source.NewPubSubSource(
+		return pubsubsource.NewPubSubSource(
 			c.Sources.ConcurrentWrites,
 			c.Sources.PubSub.ProjectID,
 			c.Sources.PubSub.SubscriptionID,
 		)
 	case "sqs":
-		return source.NewSQSSource(
+		return sqssource.NewSQSSource(
 			c.Sources.ConcurrentWrites,
 			c.Sources.SQS.Region,
 			c.Sources.SQS.QueueName,

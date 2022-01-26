@@ -8,9 +8,10 @@ package main
 
 import (
 	"github.com/snowplow-devops/stream-replicator/cmd/cli"
-	kinesisSourceConfig "github.com/snowplow-devops/stream-replicator/config/kinesis_source"
+	awssourceconfig "github.com/snowplow-devops/stream-replicator/config/aws_source"
 )
 
 func main() {
-	cli.RunCli(kinesisSourceConfig.SourceConfigFunction)
+	// We pass awssourceconfig.SourceConfigFunction here to include kinsumer in the build, while other builds don't.
+	cli.RunCli(awssourceconfig.SourceConfigFunction)
 }
