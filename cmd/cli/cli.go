@@ -2,7 +2,7 @@
 //
 // Unauthorized copying of this file via any medium is strictly prohibited.
 //
-// Copyright (c) 2020-2021 Snowplow Analytics Ltd. All rights reserved.
+// Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 
 package cli
 
@@ -35,7 +35,7 @@ const (
 	appVersion   = cmd.AppVersion
 	appName      = cmd.AppName
 	appUsage     = "Replicates data streams to supported targets"
-	appCopyright = "(c) 2020 Snowplow Analytics, LTD"
+	appCopyright = "(c) 2020-2022 Snowplow Analytics, LTD"
 )
 
 // RunCli runs the app
