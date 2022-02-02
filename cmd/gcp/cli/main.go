@@ -8,9 +8,16 @@ package main
 
 import (
 	"github.com/snowplow-devops/stream-replicator/cmd/cli"
-	config "github.com/snowplow-devops/stream-replicator/config/common"
+	pubsubsource "github.com/snowplow-devops/stream-replicator/pkg/source/pubsub"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
+	sqssource "github.com/snowplow-devops/stream-replicator/pkg/source/sqs"
+	stdinsource "github.com/snowplow-devops/stream-replicator/pkg/source/stdin"
 )
 
 func main() {
-	cli.RunCli(config.DefaultKinsesSourceConfigFunction)
+	// Make a slice of SourceConfigPairs supported for this build
+	sourceConfigPairs := []sourceconfig.SourceConfigPair{stdinsource.StdinSourceConfigPair, sqssource.SQSSourceConfigPair, pubsubsource.PubsubSourceConfigPair}
+
+	// We pass awssourceconfig.SourceConfigFunction here to include kinsumer in the build, while other builds don't.
+	cli.RunCli(sourceConfigPairs)
 }

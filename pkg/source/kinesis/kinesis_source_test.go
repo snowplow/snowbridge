@@ -8,6 +8,7 @@ package kinesissource
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/stretchr/testify/assert"
 
+	config "github.com/snowplow-devops/stream-replicator/config/common"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
@@ -145,4 +148,52 @@ func putNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, stream
 		}
 	}
 	return nil
+}
+
+func TestGetSource_WithKinesisSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	assert := assert.New(t)
+
+	// Set up localstack resources
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+	streamName := "kinesis-source-config-integration-1"
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
+	if createErr != nil {
+		panic(createErr)
+	}
+	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName)
+
+	appName := "kinesisSourceIntegration"
+	testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+
+	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+
+	defer os.Unsetenv("SOURCE")
+
+	os.Setenv("SOURCE", "kinesis")
+
+	os.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
+	os.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
+	os.Setenv("SOURCE_KINESIS_APP_NAME", appName)
+
+	c, err := config.NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+
+	// Use our function generator to interact with localstack
+	kinesisSourceConfigFunctionWithLocalstack := KinesisSourceConfigFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
+
+	kinesisSourceConfigPairWithLocalstack := sourceconfig.SourceConfigPair{SourceName: "kinesis", SourceConfigFunc: kinesisSourceConfigFunctionWithLocalstack}
+	supportedSources := []sourceconfig.SourceConfigPair{kinesisSourceConfigPairWithLocalstack}
+
+	source, err := sourceconfig.GetSource(c, supportedSources)
+	assert.NotNil(source)
+	assert.Nil(err)
+
+	assert.IsType(&KinesisSource{}, source)
 }

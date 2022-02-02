@@ -22,10 +22,10 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"
-	config "github.com/snowplow-devops/stream-replicator/config/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
+	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
@@ -39,7 +39,7 @@ const (
 )
 
 // RunCli runs the app
-func RunCli(kinesisSourceConfFunc config.SourceConfigFunction) {
+func RunCli(supportedSourceConfigPairs []sourceconfig.SourceConfigPair) {
 	cfg, sentryEnabled, err := cmd.Init()
 	if err != nil {
 		exitWithError(err, sentryEnabled)
@@ -73,7 +73,7 @@ func RunCli(kinesisSourceConfFunc config.SourceConfigFunction) {
 			}()
 		}
 
-		s, err := cfg.GetSource(kinesisSourceConfFunc)
+		s, err := sourceconfig.GetSource(cfg, supportedSourceConfigPairs)
 		if err != nil {
 			return err
 		}

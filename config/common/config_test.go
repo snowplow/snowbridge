@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// The GetSource part needs to move anyway - causes circular dep.
 func TestNewConfig(t *testing.T) {
 	assert := assert.New(t)
 
@@ -25,9 +26,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal("none", c.Transformation)
 	assert.Equal("stdin", c.Source)
 
-	source, err := c.GetSource(DefaultKinsesSourceConfigFunction)
-	assert.NotNil(source)
-	assert.Nil(err)
+	// Tests on sources moved to the source package.
 
 	target, err := c.GetTarget()
 	assert.NotNil(target)
@@ -76,23 +75,6 @@ func TestNewConfig_FromEnvInvalid(t *testing.T) {
 	c, err := NewConfig()
 	assert.Nil(c)
 	assert.NotNil(err)
-}
-
-func TestNewConfig_InvalidSource(t *testing.T) {
-	assert := assert.New(t)
-
-	defer os.Unsetenv("SOURCE")
-
-	os.Setenv("SOURCE", "fake")
-
-	c, err := NewConfig()
-	assert.NotNil(c)
-	assert.Nil(err)
-
-	source, err := c.GetSource(DefaultKinsesSourceConfigFunction)
-	assert.Nil(source)
-	assert.NotNil(err)
-	assert.Equal("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got 'fake'", err.Error())
 }
 
 func TestNewConfig_InvalidTransformation(t *testing.T) {
@@ -316,20 +298,4 @@ func TestNewConfig_EventhubFailureTargetDefaults(t *testing.T) {
 	assert.Equal(target.ChunkMessageLimit, 500)
 	assert.Equal(target.ContextTimeoutInSeconds, 20)
 	assert.Equal(target.BatchByteLimit, 1048576)
-}
-
-func TestNewConfig_LicenceBlockedKinesisSource(t *testing.T) {
-	assert := assert.New(t)
-
-	defer os.Unsetenv("SOURCE")
-
-	os.Setenv("SOURCE", "kinesis")
-
-	c, err := NewConfig()
-	assert.NotNil(c)
-	assert.Nil(err)
-
-	source, err := c.GetSource(DefaultKinsesSourceConfigFunction)
-	assert.Nil(source)
-	assert.Equal("Kinesis source unavailable due to the kinsumer licence", err.Error())
 }

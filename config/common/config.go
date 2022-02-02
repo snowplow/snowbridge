@@ -19,10 +19,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
-	pubsubsource "github.com/snowplow-devops/stream-replicator/pkg/source/pubsub"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
-	sqssource "github.com/snowplow-devops/stream-replicator/pkg/source/sqs"
-	stdinsource "github.com/snowplow-devops/stream-replicator/pkg/source/stdin"
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
@@ -287,42 +283,6 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 	return &cfg, nil
-}
-
-// SourceConfigFunction is a function which returns a source config, when we wish to include a source that's excluded from other builds.
-// It likely will only ever be used to mitigate the issue with kinsumer's licence. When building an asset for GCP, we use the DefaultKinesisSourceConfigFunction.
-type SourceConfigFunction func(*Config) (sourceiface.Source, error)
-
-// DefaultKinsesSourceConfigFunction is used for non-AWS builds, where kinsumer is not permitted. It simply returns an error if the source is set to kinesis.
-func DefaultKinsesSourceConfigFunction(c *Config) (sourceiface.Source, error) {
-	return nil, errors.New("Kinesis source unavailable due to the kinsumer licence")
-}
-
-// GetSource builds and returns the source that is configured
-func (c *Config) GetSource(kinesisFunction SourceConfigFunction) (sourceiface.Source, error) {
-	switch c.Source {
-	case "stdin":
-		return stdinsource.NewStdinSource(
-			c.Sources.ConcurrentWrites,
-		)
-	case "kinesis":
-		return kinesisFunction(c)
-	case "pubsub":
-		return pubsubsource.NewPubSubSource(
-			c.Sources.ConcurrentWrites,
-			c.Sources.PubSub.ProjectID,
-			c.Sources.PubSub.SubscriptionID,
-		)
-	case "sqs":
-		return sqssource.NewSQSSource(
-			c.Sources.ConcurrentWrites,
-			c.Sources.SQS.Region,
-			c.Sources.SQS.QueueName,
-			c.Sources.SQS.RoleARN,
-		)
-	default:
-		return nil, errors.New(fmt.Sprintf("Invalid source found; expected one of 'stdin, kinesis, pubsub, sqs' and got '%s'", c.Source))
-	}
 }
 
 // GetTarget builds and returns the target that is configured
