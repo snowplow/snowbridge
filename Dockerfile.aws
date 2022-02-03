@@ -1,4 +1,4 @@
-FROM alpine:3.12
+FROM alpine:3.14
 MAINTAINER TechOps "tech-ops-team@snowplowanalytics.com"
 
 ADD build/output/linux/aws/cli/stream-replicator /root/
