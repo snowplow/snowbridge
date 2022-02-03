@@ -64,8 +64,8 @@ gcp-cloudfunctions: gox
 	cp ./cmd/init.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/init.go
 	cp ./cmd/serverless.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/serverless.go
 
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/config/common/
-	cp ./config/common/config.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/config/common/config.go
+	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/config/
+	cp ./config/config.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/config/config.go
 
 	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/
 	cp -R ./pkg/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/
@@ -75,7 +75,7 @@ gcp-cloudfunctions: gox
 	cp -R ./third_party/snowplow/iglu/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu
 
 	echo "# github.com/snowplow-devops/stream-replicator v$(version)" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/config/common" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
+	echo "github.com/snowplow-devops/stream-replicator/config" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 	echo "github.com/snowplow-devops/stream-replicator/cmd" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 	echo "github.com/snowplow-devops/stream-replicator/pkg" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
 	echo "github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt

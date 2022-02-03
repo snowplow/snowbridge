@@ -17,7 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/stretchr/testify/assert"
 
-	config "github.com/snowplow-devops/stream-replicator/config/common"
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )

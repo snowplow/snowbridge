@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	config "github.com/snowplow-devops/stream-replicator/config/common"
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/stretchr/testify/assert"
 )

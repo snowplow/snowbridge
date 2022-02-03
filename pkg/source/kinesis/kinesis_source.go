@@ -21,7 +21,7 @@ import (
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
 
-	config "github.com/snowplow-devops/stream-replicator/config/common"
+	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
