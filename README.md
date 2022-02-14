@@ -60,5 +60,5 @@ Unauthorized copying of this project via any medium is strictly prohibited.
 
 Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 
-[release-image]: http://img.shields.io/badge/golang-0.7.2-6ad7e5.svg?style=flat
+[release-image]: http://img.shields.io/badge/golang-0.7.3-6ad7e5.svg?style=flat
 [releases]: https://github.com/snowplow-devops/stream-replicator/releases/

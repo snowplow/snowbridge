@@ -1,3 +1,9 @@
+Version 0.7.3 (2022-02-22)
+--------------------------
+Split build to exclude kinsumer for GCP deployments (#71)
+Bump copyright for 2022 (#92)
+Unset executable mode on http_test.go (#100)
+
 Version 0.7.2 (2021-12-27)
 --------------------------
 Add hostname / pod_name tag to StatsD metrics (#90) 
