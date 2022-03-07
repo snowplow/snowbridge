@@ -428,8 +428,8 @@ github.com/snowplow-devops/go-retry v0.0.0-20210106090855-8989bbdbae1c h1:139vLp
 github.com/snowplow-devops/go-retry v0.0.0-20210106090855-8989bbdbae1c/go.mod h1:PWBCMlOb8I7TfC0DQFH+4xFSfTcW3iPPcDLHkklJa3A=
 github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a h1:9T2asgfkxijl85+wpKyCje4DgcjqAJH2czqEWk6+HI0=
 github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a/go.mod h1:7/jMxl0yrvgiUlv5L37fw6pql71aNh55sKQc4kBFj5s=
-github.com/snowplow-devops/kinsumer v1.2.0 h1:lj7aq+dKaLI0Kbt0Qp0XmZ4QeTivUayIOZWEPkpkCOU=
-github.com/snowplow-devops/kinsumer v1.2.0/go.mod h1:++IOOQNbqVZShJNWEqlPdDatgECxL0ixvX0Hru5rcY0=
+github.com/snowplow-devops/kinsumer v1.3.0 h1:uN8PPG8EffKjcfTcDqsHWnnsTFvYGMU39XlDPULIQcA=
+github.com/snowplow-devops/kinsumer v1.3.0/go.mod h1:SebvcasLweQnOygk9SOFkM/JjBtXFviUxoAq19CwrHQ=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0 h1:FA8xHSHzoshF3fJDK9tqUDnuBmyqTiGPRLvIaRQMk2I=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0/go.mod h1:Z8ZW805JGCYhnq1wnHe2PIiamUnvoNtAtXPWNyS0mV8=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
