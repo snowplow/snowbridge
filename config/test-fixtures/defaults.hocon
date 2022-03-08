@@ -1,0 +1,15 @@
+source_name = "stdin"
+source_config {
+        concurrent_writes = 50
+}
+
+target_name = "stdout"
+
+failure_target_name = "stdout"
+failure_target_config {
+        format = "snowplow"
+}
+
+message_transformation = "none"
+
+log_level = "info"

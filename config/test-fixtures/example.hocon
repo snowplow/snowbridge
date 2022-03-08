@@ -1,0 +1,60 @@
+source_name = "kinesis"
+source_config {
+        kinesis {
+                stream_name = "test_stream_name"
+                region = "test_region"
+                role_arn = "test_role_arn"
+                app_name = "test_app_name"
+                start_timestamp = "2020-01-01 01:01:01"
+        }
+}
+
+target_name = "pubsub"
+target_config {
+        pubsub {
+                project_id = "test_project_id"
+                topic_name = "test_topic_name"
+        }
+}
+
+failure_target_name = "kafka"
+failure_target_config {
+        kafka {
+                brokers = "test_brokers"
+                topic_name = "test_topic_name"
+                target_version = "0.0.0"
+                compress = true
+                wait_for_all = false
+                idempotent = true
+                enable_sasl = true
+                sasl_username = "test_username"
+                sasl_password = "test_password"
+                cert_file = "x.x"
+                key_file = "y.y"
+                ca_file = "z.z"
+                skip_verify_tls = true
+                force_sync_producer = false
+                flush_frequency = 1
+                flush_messages = 2
+                flush_bytes = 3
+        }
+}
+
+sentry {
+        dsn = "test_dsn"
+        tags = "{\"key\":\"sentry\"}"
+        debug = true
+}
+
+stats_receiver_name = "statsd"
+stats_receiver_config {
+        statsd {
+                address = "test_address"
+                prefix = "test_prefix"
+                tags = "{\"key\":\"statsd\"}"
+        }
+        timeout_sec = 2
+        buffer_sec = 20
+}
+
+google_application_credentials = "test_creds"
