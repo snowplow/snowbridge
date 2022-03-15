@@ -21,6 +21,21 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
+// HTTPTargetConfig configures the destination for records consumed
+type HTTPTargetConfig struct {
+	HTTPURL                 string `hcl:"url" env:"TARGET_HTTP_URL"`
+	ByteLimit               int    `hcl:"byte_limit,optional" env:"TARGET_HTTP_BYTE_LIMIT"`                         // defBytes
+	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional" env:"TARGET_HTTP_TIMEOUT_IN_SECONDS"` // def ???? Request timeout in seconds
+	ContentType             string `hcl:"content_type,optional" env:"TARGET_HTTP_CONTENT_TYPE"`                     // application/json
+	Headers                 string `hcl:"headers,optional" env:"TARGET_HTTP_HEADERS" `
+	BasicAuthUsername       string `hcl:"basic_auth_username,optional" env:"TARGET_HTTP_BASICAUTH_USERNAME"`
+	BasicAuthPassword       string `hcl:"basic_auth_password,optional" env:"TARGET_HTTP_BASICAUTH_PASSWORD"`
+	CertFile                string `hcl:"cert_file,optional" env:"TARGET_HTTP_TLS_CERT_FILE"`
+	KeyFile                 string `hcl:"key_file,optional" env:"TARGET_HTTP_TLS_KEY_FILE"`
+	CaFile                  string `hcl:"ca_file,optional" env:"TARGET_HTTP_TLS_CA_FILE"`
+	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional" env:"TARGET_HTTP_TLS_SKIP_VERIFY_TLS"` // false
+}
+
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
 type HTTPTarget struct {
 	client            *http.Client
@@ -99,6 +114,57 @@ func NewHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 		basicAuthPassword: basicAuthPassword,
 		log:               log.WithFields(log.Fields{"target": "http", "url": httpURL}),
 	}, nil
+}
+
+// HTTPTargetConfigFunction creates HTTPTarget from HTTPTargetConfig
+func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
+	return NewHTTPTarget(
+		c.HTTPURL,
+		c.RequestTimeoutInSeconds,
+		c.ByteLimit,
+		c.ContentType,
+		c.Headers,
+		c.BasicAuthUsername,
+		c.BasicAuthPassword,
+		c.CertFile,
+		c.KeyFile,
+		c.CaFile,
+		c.SkipVerifyTLS,
+	)
+}
+
+// The HTTPTargetAdapter type is an adapter for functions to be used as
+// pluggable components for HTTP Target. It implements the Pluggable interface.
+type HTTPTargetAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f HTTPTargetAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults for the optional parameters
+	// whose default is not their zero value.
+	cfg := &HTTPTargetConfig{
+		ByteLimit:               1048576,
+		RequestTimeoutInSeconds: 5,
+		ContentType:             "application/json",
+	}
+
+	return cfg, nil
+}
+
+// AdaptHTTPTargetFunc returns an HTTPTargetAdapter.
+func AdaptHTTPTargetFunc(f func(c *HTTPTargetConfig) (*HTTPTarget, error)) HTTPTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*HTTPTargetConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected HTTPTargetConfig")
+		}
+
+		return f(cfg)
+	}
 }
 
 func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {

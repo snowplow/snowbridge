@@ -25,6 +25,12 @@ const (
 	pubSubPublishMessageByteLimit = 10485760
 )
 
+// PubSubTargetConfig configures the destination for records consumed
+type PubSubTargetConfig struct {
+	ProjectID string `hcl:"project_id" env:"TARGET_PUBSUB_PROJECT_ID"`
+	TopicName string `hcl:"topic_name" env:"TARGET_PUBSUB_TOPIC_NAME"`
+}
+
 // PubSubTarget holds a new client for writing messages to Google PubSub
 type PubSubTarget struct {
 	projectID string
@@ -57,6 +63,40 @@ func NewPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) 
 		topicName: topicName,
 		log:       log.WithFields(log.Fields{"target": "pubsub", "cloud": "GCP", "project": projectID, "topic": topicName}),
 	}, nil
+}
+
+// PubSubTargetConfigFunction creates PubSubTarget from PubSubTargetConfig
+func PubSubTargetConfigFunction(c *PubSubTargetConfig) (*PubSubTarget, error) {
+	return NewPubSubTarget(c.ProjectID, c.TopicName)
+}
+
+// The PubSubTargetAdapter type is an adapter for functions to be used as
+// pluggable components for PubSub Target. It implements the Pluggable interface.
+type PubSubTargetAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f PubSubTargetAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f PubSubTargetAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults if any
+	cfg := &PubSubTargetConfig{}
+
+	return cfg, nil
+}
+
+// AdaptPubSubTargetFunc returns a PubSubTargetAdapter.
+func AdaptPubSubTargetFunc(f func(c *PubSubTargetConfig) (*PubSubTarget, error)) PubSubTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*PubSubTargetConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected PubSubTargetConfig")
+		}
+
+		return f(cfg)
+	}
 }
 
 // Write pushes all messages to the required target
