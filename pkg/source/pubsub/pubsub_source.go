@@ -16,13 +16,19 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// pubSubSource holds a new client for reading messages from PubSub
+// PubSubSourceConfig configures the source for records pulled
+type PubSubSourceConfig struct {
+	ProjectID        string `hcl:"project_id" env:"SOURCE_PUBSUB_PROJECT_ID"`
+	SubscriptionID   string `hcl:"subscription_id" env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
+	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+}
+
+// PubSubSource holds a new client for reading messages from PubSub
 type pubSubSource struct {
 	projectID        string
 	client           *pubsub.Client
@@ -35,17 +41,51 @@ type pubSubSource struct {
 	cancel context.CancelFunc
 }
 
-// configFunction returns a pubsub source from a config
-func configFunction(c *config.Config) (sourceiface.Source, error) {
+// PubsubSourceConfigFunction returns a pubsub source from a config
+func configFunction(c *PubSubSourceConfig) (sourceiface.Source, error) {
 	return newPubSubSource(
-		c.Sources.ConcurrentWrites,
-		c.Sources.PubSub.ProjectID,
-		c.Sources.PubSub.SubscriptionID,
+		c.ConcurrentWrites,
+		c.ProjectID,
+		c.SubscriptionID,
 	)
 }
 
-// ConfigPair is passed to configuration to determine when to build a Pubsub source.
-var ConfigPair = sourceconfig.ConfigPair{SourceName: "pubsub", SourceConfigFunc: configFunction}
+// The PubSubSourceAdapter type is an adapter for functions to be used as
+// pluggable components for PubSub Source. It implements the Pluggable interface.
+type PubSubSourceAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f PubSubSourceAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface
+func (f PubSubSourceAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults
+	cfg := &PubSubSourceConfig{
+		ConcurrentWrites: 50,
+	}
+
+	return cfg, nil
+}
+
+// AdaptPubSubSourceFunc returns a PubSubSourceAdapter.
+func AdaptPubSubSourceFunc(f func(c *PubSubSourceConfig) (sourceiface.Source, error)) PubSubSourceAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*PubSubSourceConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected PubSubSourceConfig")
+		}
+
+		return f(cfg)
+	}
+}
+
+// PubsubSourceConfigPair is passed to configuration to determine when to build a Pubsub source.
+var ConfigPair = sourceconfig.ConfigPair{
+	Name:   "pubsub",
+	Handle: AdaptPubSubSourceFunc(configFunction),
+}
 
 // newPubSubSource creates a new client for reading messages from PubSub
 func newPubSubSource(concurrentWrites int, projectID string, subscriptionID string) (*pubSubSource, error) {

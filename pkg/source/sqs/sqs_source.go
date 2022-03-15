@@ -19,14 +19,21 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// sqsSource holds a new client for reading messages from SQS
+// SQSSourceConfig configures the source for records pulled
+type SQSSourceConfig struct {
+	QueueName        string `hcl:"queue_name" env:"SOURCE_SQS_QUEUE_NAME"`
+	Region           string `hcl:"region" env:"SOURCE_SQS_REGION"`
+	RoleARN          string `hcl:"role_arn,optional" env:"SOURCE_SQS_ROLE_ARN"`
+	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+}
+
+// SQSSource holds a new client for reading messages from SQS
 type sqsSource struct {
 	client           sqsiface.SQSAPI
 	queueURL         string
@@ -47,15 +54,15 @@ type sqsSource struct {
 
 // configFunctionGeneratorWithInterfaces generates the SQS Source Config function, allowing you
 // to provide an SQS client directly to allow for mocking and localstack usage
-func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
-	return func(c *config.Config) (sourceiface.Source, error) {
-		return newSQSSourceWithInterfaces(client, awsAccountID, c.Sources.ConcurrentWrites, c.Sources.SQS.Region, c.Sources.SQS.QueueName)
+func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *SQSSourceConfig) (sourceiface.Source, error) {
+	return func(c *SQSSourceConfig) (sourceiface.Source, error) {
+		return newSQSSourceWithInterfaces(client, awsAccountID, c.ConcurrentWrites, c.Region, c.QueueName)
 	}
 }
 
-// configFunction returns an SQS source from a config
-func configFunction(c *config.Config) (sourceiface.Source, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Sources.SQS.Region, c.Sources.SQS.RoleARN)
+// SQSSourceConfigFunction returns an SQS source from a config.
+func configFunction(c *SQSSourceConfig) (sourceiface.Source, error) {
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN)
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +74,43 @@ func configFunction(c *config.Config) (sourceiface.Source, error) {
 	return sourceConfigFunc(c)
 }
 
-// ConfigPair is passed to configuration to determine when to build an SQS source.
-var ConfigPair = sourceconfig.ConfigPair{SourceName: "sqs", SourceConfigFunc: configFunction}
+// The SQSSourceAdapter type is an adapter for functions to be used as
+// pluggable components for SQS Source. It implements the Pluggable interface.
+type SQSSourceAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f SQSSourceAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f SQSSourceAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults
+	cfg := &SQSSourceConfig{
+		ConcurrentWrites: 50,
+	}
+
+	return cfg, nil
+}
+
+// AdaptSQSSourceFunc returns an SQSSourceAdapter.
+func AdaptSQSSourceFunc(f func(c *SQSSourceConfig) (sourceiface.Source, error)) SQSSourceAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*SQSSourceConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected SQSSourceConfig")
+		}
+
+		return f(cfg)
+	}
+}
+
+// SQSSourceConfigPair is passed to configuration to determine when and how to build
+// an SQS source.
+var ConfigPair = sourceconfig.ConfigPair{
+	Name:   "sqs",
+	Handle: AdaptSQSSourceFunc(configFunction),
+}
 
 // newSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage

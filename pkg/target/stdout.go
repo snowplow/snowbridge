@@ -7,6 +7,7 @@
 package target
 
 import (
+	"errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -24,6 +25,31 @@ func NewStdoutTarget() (*StdoutTarget, error) {
 	return &StdoutTarget{
 		log: log.WithFields(log.Fields{"target": "stdout"}),
 	}, nil
+}
+
+// The StdoutTargetAdapter type is an adapter for functions to be used as
+// pluggable components for Stdout Target. It implements the Pluggable interface.
+type StdoutTargetAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f StdoutTargetAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f StdoutTargetAdapter) ProvideDefault() (interface{}, error) {
+	return nil, nil
+}
+
+// AdaptStdoutTargetFunc returns StdoutTargetAdapter.
+func AdaptStdoutTargetFunc(f func() (*StdoutTarget, error)) StdoutTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		if i != nil {
+			return nil, errors.New("unexpected configuration input for Stdout target")
+		}
+
+		return f()
+	}
 }
 
 // Write pushes all messages to the required target
