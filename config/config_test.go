@@ -8,6 +8,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,10 +22,10 @@ func TestNewConfig(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	assert.Equal("info", c.LogLevel)
-	assert.Equal("stdout", c.Target)
-	assert.Equal("none", c.Transformation)
-	assert.Equal("stdin", c.Source)
+	assert.Equal("info", c.Data.LogLevel)
+	assert.Equal("stdout", c.Data.Target.Use.Name)
+	assert.Equal("none", c.Data.Transformation)
+	assert.Equal("stdin", c.Data.Source.Use.Name)
 
 	// Tests on sources moved to the source package.
 
@@ -49,20 +50,20 @@ func TestNewConfig_FromEnv(t *testing.T) {
 	assert := assert.New(t)
 
 	defer os.Unsetenv("LOG_LEVEL")
-	defer os.Unsetenv("TARGET")
-	defer os.Unsetenv("SOURCE")
+	defer os.Unsetenv("TARGET_NAME")
+	defer os.Unsetenv("SOURCE_NAME")
 
 	os.Setenv("LOG_LEVEL", "debug")
-	os.Setenv("TARGET", "kinesis")
-	os.Setenv("SOURCE", "kinesis")
+	os.Setenv("TARGET_NAME", "kinesis")
+	os.Setenv("SOURCE_NAME", "kinesis")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	assert.Equal("debug", c.LogLevel)
-	assert.Equal("kinesis", c.Target)
-	assert.Equal("kinesis", c.Source)
+	assert.Equal("debug", c.Data.LogLevel)
+	assert.Equal("kinesis", c.Data.Target.Use.Name)
+	assert.Equal("kinesis", c.Data.Source.Use.Name)
 }
 
 func TestNewConfig_FromEnvInvalid(t *testing.T) {
@@ -114,9 +115,9 @@ func TestNewConfig_FilterFailure(t *testing.T) {
 func TestNewConfig_InvalidTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("TARGET")
+	defer os.Unsetenv("TARGET_NAME")
 
-	os.Setenv("TARGET", "fake")
+	os.Setenv("TARGET_NAME", "fake")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -131,9 +132,9 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("FAILURE_TARGET")
+	defer os.Unsetenv("FAILURE_TARGET_NAME")
 
-	os.Setenv("FAILURE_TARGET", "fake")
+	os.Setenv("FAILURE_TARGET_NAME", "fake")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -165,9 +166,9 @@ func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 func TestNewConfig_InvalidStatsReceiver(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("STATS_RECEIVER")
+	defer os.Unsetenv("STATS_RECEIVER_NAME")
 
-	os.Setenv("STATS_RECEIVER", "fake")
+	os.Setenv("STATS_RECEIVER_NAME", "fake")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -198,104 +199,72 @@ func TestNewConfig_GetTags(t *testing.T) {
 	assert.True(ok)
 }
 
-func TestNewConfig_KafkaTargetDefaults(t *testing.T) {
+func TestNewConfig_Hcl_invalids(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("TARGET")
-
-	os.Setenv("TARGET", "kafka")
+	filename := filepath.Join("test-fixtures", "invalids.hcl")
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	target := c.Targets.Kafka
-	assert.NotNil(target)
-	assert.Equal(target.MaxRetries, 10)
-	assert.Equal(target.ByteLimit, 1048576)
-	assert.Equal(target.Compress, false)
-	assert.Equal(target.WaitForAll, false)
-	assert.Equal(target.Idempotent, false)
-	assert.Equal(target.EnableSASL, false)
-	assert.Equal(target.ForceSyncProducer, false)
-	assert.Equal(target.FlushFrequency, 0)
-	assert.Equal(target.FlushMessages, 0)
-	assert.Equal(target.FlushBytes, 0)
+	t.Run("invalid_transformation", func(t *testing.T) {
+		transformation, err := c.GetTransformations()
+		assert.Nil(transformation)
+		assert.NotNil(err)
+		assert.Equal("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}', spEnrichedFilter:{option} and got 'fakeHCL'", err.Error())
+	})
+
+	t.Run("invalid_target", func(t *testing.T) {
+		target, err := c.GetTarget()
+		assert.Nil(target)
+		assert.NotNil(err)
+		assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fakeHCL'", err.Error())
+	})
+
+	t.Run("invalid_failure_target", func(t *testing.T) {
+		ftarget, err := c.GetFailureTarget("testAppName", "0.0.0")
+		assert.Nil(ftarget)
+		assert.NotNil(err)
+		assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fakeHCL'", err.Error())
+	})
+
 }
 
-func TestNewConfig_KafkaFailureTargetDefaults(t *testing.T) {
+func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("FAILURE_TARGET")
-
-	os.Setenv("FAILURE_TARGET", "kafka")
+	filename := filepath.Join("test-fixtures", "empty.hcl")
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	target := c.FailureTargets.Kafka
-	assert.NotNil(target)
-	assert.Equal(target.MaxRetries, 10)
-	assert.Equal(target.ByteLimit, 1048576)
-	assert.Equal(target.Compress, false)
-	assert.Equal(target.WaitForAll, false)
-	assert.Equal(target.Idempotent, false)
-	assert.Equal(target.EnableSASL, false)
-	assert.Equal(target.ForceSyncProducer, false)
-	assert.Equal(target.FlushFrequency, 0)
-	assert.Equal(target.FlushMessages, 0)
-	assert.Equal(target.FlushBytes, 0)
+	assert.Equal(c.Data.Source.Use.Name, "stdin")
+	assert.Equal(c.Data.Target.Use.Name, "stdout")
+	assert.Equal(c.Data.FailureTarget.Target.Name, "stdout")
+	assert.Equal(c.Data.FailureTarget.Format, "snowplow")
+	assert.Equal(c.Data.Sentry.Tags, "{}")
+	assert.Equal(c.Data.Sentry.Debug, false)
+	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
+	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
+	assert.Equal(c.Data.Transformation, "none")
+	assert.Equal(c.Data.LogLevel, "info")
 }
 
-func TestNewConfig_EventhubTargetDefaults(t *testing.T) {
+func TestNewConfig_Hcl_sentry(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("TARGET")
-	defer os.Unsetenv("TARGET_EVENTHUB_NAMESPACE")
-	defer os.Unsetenv("TARGET_EVENTHUB_NAME")
-
-	os.Setenv("TARGET", "eventhub")
-	os.Setenv("TARGET_EVENTHUB_NAMESPACE", "fake")
-	os.Setenv("TARGET_EVENTHUB_NAME", "fake")
+	filename := filepath.Join("test-fixtures", "sentry.hcl")
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	target := c.Targets.EventHub
-	assert.NotNil(target)
-	assert.Equal(target.EventHubName, "fake")
-	assert.Equal(target.EventHubNamespace, "fake")
-	assert.Equal(target.MessageByteLimit, 1048576)
-	assert.Equal(target.ChunkByteLimit, 1048576)
-	assert.Equal(target.ChunkMessageLimit, 500)
-	assert.Equal(target.ContextTimeoutInSeconds, 20)
-	assert.Equal(target.BatchByteLimit, 1048576)
-}
-
-func TestNewConfig_EventhubFailureTargetDefaults(t *testing.T) {
-	assert := assert.New(t)
-
-	defer os.Unsetenv("FAILURE_TARGET")
-	defer os.Unsetenv("FAILURE_TARGET_EVENTHUB_NAMESPACE")
-	defer os.Unsetenv("FAILURE_TARGET_EVENTHUB_NAME")
-
-	os.Setenv("FAILURE_TARGET", "eventhub")
-	os.Setenv("FAILURE_TARGET_EVENTHUB_NAMESPACE", "fake")
-	os.Setenv("FAILURE_TARGET_EVENTHUB_NAME", "fake")
-
-	c, err := NewConfig()
-	assert.NotNil(c)
-	assert.Nil(err)
-
-	target := c.FailureTargets.EventHub
-	assert.NotNil(target)
-	assert.Equal(target.EventHubName, "fake")
-	assert.Equal(target.EventHubNamespace, "fake")
-	assert.Equal(target.MessageByteLimit, 1048576)
-	assert.Equal(target.ChunkByteLimit, 1048576)
-	assert.Equal(target.ChunkMessageLimit, 500)
-	assert.Equal(target.ContextTimeoutInSeconds, 20)
-	assert.Equal(target.BatchByteLimit, 1048576)
+	assert.Equal(c.Data.Sentry.Debug, true)
+	assert.Equal(c.Data.Sentry.Tags, "{\"testKey\":\"testValue\"}")
+	assert.Equal(c.Data.Sentry.Dsn, "testDsn")
 }

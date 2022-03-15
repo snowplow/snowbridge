@@ -16,11 +16,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
+
+// configuration configures the source for records pulled
+type configuration struct {
+	ConcurrentWrites int `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+}
 
 // stdinSource holds a new client for reading messages from stdin
 type stdinSource struct {
@@ -29,15 +33,49 @@ type stdinSource struct {
 	log *log.Entry
 }
 
-// configfunction returns an stdin source from a config
-func configfunction(c *config.Config) (sourceiface.Source, error) {
+// configFunction returns an stdin source from a config
+func configfunction(c *configuration) (sourceiface.Source, error) {
 	return newStdinSource(
-		c.Sources.ConcurrentWrites,
+		c.ConcurrentWrites,
 	)
 }
 
+// The adapter type is an adapter for functions to be used as
+// pluggable components for Stdin Source. It implements the Pluggable interface.
+type adapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f adapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f adapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults
+	cfg := &configuration{
+		ConcurrentWrites: 50,
+	}
+
+	return cfg, nil
+}
+
+// adapterGenerator returns a StdinSource adapter.
+func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*configuration)
+		if !ok {
+			return nil, errors.New("invalid input, expected StdinSourceConfig")
+		}
+
+		return f(cfg)
+	}
+}
+
 // ConfigPair is passed to configuration to determine when to build an stdin source.
-var ConfigPair = sourceconfig.ConfigPair{SourceName: "stdin", SourceConfigFunc: configfunction}
+var ConfigPair = sourceconfig.ConfigPair{
+	Name:   "stdin",
+	Handle: adapterGenerator(configfunction),
+}
 
 // newStdinSource creates a new client for reading messages from stdin
 func newStdinSource(concurrentWrites int) (*stdinSource, error) {
