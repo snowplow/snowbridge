@@ -7,14 +7,18 @@
 package kinesissource
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	config "github.com/snowplow-devops/stream-replicator/config"
@@ -173,9 +177,12 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
-	defer os.Unsetenv("SOURCE")
+	defer os.Unsetenv("SOURCE_NAME")
+	defer os.Unsetenv("SOURCE_KINESIS_STREAM_NAME")
+	defer os.Unsetenv("SOURCE_KINESIS_REGION")
+	defer os.Unsetenv("SOURCE_KINESIS_APP_NAME")
 
-	os.Setenv("SOURCE", "kinesis")
+	os.Setenv("SOURCE_NAME", "kinesis")
 
 	os.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
 	os.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
@@ -187,8 +194,9 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 
 	// Use our function generator to interact with localstack
 	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
+	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
 
-	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{SourceName: "kinesis", SourceConfigFunc: kinesisSourceConfigFunctionWithLocalstack}
+	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{Name: "kinesis", Handle: adaptedHandle}
 	supportedSources := []sourceconfig.ConfigPair{kinesisSourceConfigPairWithLocalstack}
 
 	source, err := sourceconfig.GetSource(c, supportedSources)
@@ -196,4 +204,84 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	assert.Nil(err)
 
 	assert.IsType(&kinesisSource{}, source)
+}
+
+func TestKinesisSourceHCL(t *testing.T) {
+	testFixPath := "../../../config/test-fixtures"
+	testCases := []struct {
+		File     string
+		Plug     config.Pluggable
+		Expected interface{}
+	}{
+		{
+			File: "source-kinesis-simple.hcl",
+			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
+			Expected: &configuration{
+				StreamName:       "testStream",
+				Region:           "us-test-1",
+				AppName:          "testApp",
+				RoleARN:          "",
+				StartTimestamp:   "",
+				ConcurrentWrites: 50,
+			},
+		},
+		{
+			File: "source-kinesis-extended.hcl",
+			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
+			Expected: &configuration{
+				StreamName:       "testStream",
+				Region:           "us-test-1",
+				AppName:          "testApp",
+				RoleARN:          "xxx-test-role-arn",
+				StartTimestamp:   "2022-03-15 07:52:53",
+				ConcurrentWrites: 51,
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.File, func(t *testing.T) {
+			assert := assert.New(t)
+
+			filename := filepath.Join(testFixPath, tt.File)
+			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+
+			c, err := config.NewConfig()
+			assert.NotNil(c)
+			assert.Nil(err)
+
+			use := c.Data.Source.Use
+			decoderOpts := &config.DecoderOptions{
+				Input: use.Body,
+			}
+
+			result, err := c.CreateComponent(tt.Plug, decoderOpts)
+			assert.NotNil(result)
+			assert.Nil(err)
+
+			if !reflect.DeepEqual(result, tt.Expected) {
+				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
+					spew.Sdump(result),
+					spew.Sdump(tt.Expected))
+			}
+		})
+	}
+}
+
+// Helpers
+func testKinesisSourceAdapter(f func(c *configuration) (*configuration, error)) adapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*configuration)
+		if !ok {
+			return nil, errors.New("invalid input, expected KinesisSourceConfig")
+		}
+
+		return f(cfg)
+	}
+
+}
+
+func testKinesisSourceFunc(c *configuration) (*configuration, error) {
+
+	return c, nil
 }

@@ -32,6 +32,13 @@ const (
 	sqsSendMessageBatchByteLimit = 262144
 )
 
+// SQSTargetConfig configures the destination for records consumed
+type SQSTargetConfig struct {
+	QueueName string `hcl:"queue_name" env:"TARGET_SQS_QUEUE_NAME"`
+	Region    string `hcl:"region" env:"TARGET_SQS_REGION"`
+	RoleARN   string `hcl:"role_arn,optional" env:"TARGET_SQS_ROLE_ARN"`
+}
+
 // SQSTarget holds a new client for writing messages to sqs
 type SQSTarget struct {
 	client    sqsiface.SQSAPI
@@ -64,6 +71,40 @@ func NewSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, reg
 		accountID: awsAccountID,
 		log:       log.WithFields(log.Fields{"target": "sqs", "cloud": "AWS", "region": region, "queue": queueName}),
 	}, nil
+}
+
+// SQSTargetConfigFunction creates an SQSTarget from an SQSTargetConfig
+func SQSTargetConfigFunction(c *SQSTargetConfig) (*SQSTarget, error) {
+	return NewSQSTarget(c.Region, c.QueueName, c.RoleARN)
+}
+
+// The SQSTargetAdapter type is an adapter for functions to be used as
+// pluggable components for SQS Target. It implements the Pluggable interface.
+type SQSTargetAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f SQSTargetAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f SQSTargetAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults if any
+	cfg := &SQSTargetConfig{}
+
+	return cfg, nil
+}
+
+// AdaptSQSTargetFunc returns a SQSTargetAdapter.
+func AdaptSQSTargetFunc(f func(c *SQSTargetConfig) (*SQSTarget, error)) SQSTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*SQSTargetConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected SQSTargetConfig")
+		}
+
+		return f(cfg)
+	}
 }
 
 // Write pushes all messages to the required target

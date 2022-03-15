@@ -24,26 +24,26 @@ import (
 
 // KafkaConfig contains configurable options for the kafka target
 type KafkaConfig struct {
-	Brokers        string
-	TopicName      string
-	TargetVersion  string
-	MaxRetries     int
-	ByteLimit      int
-	Compress       bool
-	WaitForAll     bool
-	Idempotent     bool
-	EnableSASL     bool
-	SASLUsername   string
-	SASLPassword   string
-	SASLAlgorithm  string
-	CertFile       string
-	KeyFile        string
-	CaFile         string
-	SkipVerifyTLS  bool
-	ForceSync      bool
-	FlushFrequency int
-	FlushMessages  int
-	FlushBytes     int
+	Brokers        string `hcl:"brokers" env:"TARGET_KAFKA_BROKERS"`
+	TopicName      string `hcl:"topic_name" env:"TARGET_KAFKA_TOPIC_NAME"`
+	TargetVersion  string `hcl:"target_version,optional" env:"TARGET_KAFKA_TARGET_VERSION"`
+	MaxRetries     int    `hcl:"max_retries,optional" env:"TARGET_KAFKA_MAX_RETRIES"`
+	ByteLimit      int    `hcl:"byte_limit,optional" env:"TARGET_KAFKA_BYTE_LIMIT"`
+	Compress       bool   `hcl:"compress,optional" env:"TARGET_KAFKA_COMPRESS"`
+	WaitForAll     bool   `hcl:"wait_for_all,optional" env:"TARGET_KAFKA_WAIT_FOR_ALL"`
+	Idempotent     bool   `hcl:"idempotent,optional" env:"TARGET_KAFKA_IDEMPOTENT"`
+	EnableSASL     bool   `hcl:"enable_sasl,optional" env:"TARGET_KAFKA_ENABLE_SASL"`
+	SASLUsername   string `hcl:"sasl_username,optional" env:"TARGET_KAFKA_SASL_USERNAME" `
+	SASLPassword   string `hcl:"sasl_password,optional" env:"TARGET_KAFKA_SASL_PASSWORD"`
+	SASLAlgorithm  string `hcl:"sasl_algorithm,optional" env:"TARGET_KAFKA_SASL_ALGORITHM"`
+	CertFile       string `hcl:"cert_file,optional" env:"TARGET_KAFKA_TLS_CERT_FILE"`
+	KeyFile        string `hcl:"key_file,optional" env:"TARGET_KAFKA_TLS_KEY_FILE"`
+	CaFile         string `hcl:"ca_file,optional" env:"TARGET_KAFKA_TLS_CA_FILE"`
+	SkipVerifyTLS  bool   `hcl:"skip_verify_tls,optional" env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`
+	ForceSync      bool   `hcl:"force_sync_producer,optional" env:"TARGET_KAFKA_FORCE_SYNC_PRODUCER"`
+	FlushFrequency int    `hcl:"flush_frequency,optional" env:"TARGET_KAFKA_FLUSH_FREQUENCY"`
+	FlushMessages  int    `hcl:"flush_messages,optional" env:"TARGET_KAFKA_FLUSH_MESSAGES"`
+	FlushBytes     int    `hcl:"flush_bytes,optional" env:"TARGET_KAFKA_FLUSH_BYTES"`
 }
 
 // KafkaTarget holds a new client for writing messages to Apache Kafka
@@ -173,6 +173,40 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		messageByteLimit: cfg.ByteLimit,
 		log:              logger,
 	}, producerError
+}
+
+// The KafkaTargetAdapter type is an adapter for functions to be used as
+// pluggable components for Kafka target. It implements the Pluggable interface.
+type KafkaTargetAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f KafkaTargetAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f KafkaTargetAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults for the optional parameters
+	// whose default is not their zero value.
+	cfg := &KafkaConfig{
+		MaxRetries:    10,
+		ByteLimit:     1048576,
+		SASLAlgorithm: "sha512",
+	}
+
+	return cfg, nil
+}
+
+// AdaptKafkaTargetFunc returns a KafkaTargetAdapter.
+func AdaptKafkaTargetFunc(f func(c *KafkaConfig) (*KafkaTarget, error)) KafkaTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*KafkaConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected KafkaConfig")
+		}
+
+		return f(cfg)
+	}
 }
 
 // Write pushes all messages to the required target
