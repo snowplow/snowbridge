@@ -21,14 +21,14 @@ import (
 
 // EventHubConfig holds a config object for Azure EventHub
 type EventHubConfig struct {
-	EventHubNamespace       string
-	EventHubName            string
-	MaxAutoRetries          int
-	MessageByteLimit        int
-	ChunkByteLimit          int
-	ChunkMessageLimit       int
-	ContextTimeoutInSeconds int
-	BatchByteLimit          int
+	EventHubNamespace       string `hcl:"namespace" env:"TARGET_EVENTHUB_NAMESPACE"`
+	EventHubName            string `hcl:"name" env:"TARGET_EVENTHUB_NAME"`
+	MaxAutoRetries          int    `hcl:"max_auto_retries,optional" env:"TARGET_EVENTHUB_MAX_AUTO_RETRY"`
+	MessageByteLimit        int    `hcl:"message_byte_limit,optional" env:"TARGET_EVENTHUB_MESSAGE_BYTE_LIMIT"`
+	ChunkByteLimit          int    `hcl:"chunk_byte_limit,optional" env:"TARGET_EVENTHUB_CHUNK_BYTE_LIMIT"`
+	ChunkMessageLimit       int    `hcl:"chunk_message_limit,optional" env:"TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT"`
+	ContextTimeoutInSeconds int    `hcl:"context_timeout_in_seconds,optional" env:"TARGET_EVENTHUB_CONTEXT_TIMEOUT_SECONDS"`
+	BatchByteLimit          int    `hcl:"batch_byte_limit,optional" env:"TARGET_EVENTHUB_BATCH_BYTE_LIMIT"`
 }
 
 // EventHubTarget holds a new client for writing messages to Azure EventHub
@@ -82,6 +82,43 @@ func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 
 		log: log.WithFields(log.Fields{"target": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
 	}, err
+}
+
+// The EventHubTargetAdapter type is an adapter for functions to be used as
+// pluggable components for EventHub target. Implements the Pluggable interface.
+type EventHubTargetAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f EventHubTargetAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f EventHubTargetAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults for the optional parameters
+	// whose default is not their zero value.
+	cfg := &EventHubConfig{
+		MaxAutoRetries:          1,
+		MessageByteLimit:        1048576,
+		ChunkByteLimit:          1048576,
+		ChunkMessageLimit:       500,
+		ContextTimeoutInSeconds: 20,
+		BatchByteLimit:          1048576,
+	}
+
+	return cfg, nil
+}
+
+// AdaptEventHubTargetFunc returns an EventHubTargetAdapter.
+func AdaptEventHubTargetFunc(f func(c *EventHubConfig) (*EventHubTarget, error)) EventHubTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*EventHubConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected EventHubConfig")
+		}
+
+		return f(cfg)
+	}
 }
 
 func (eht *EventHubTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {

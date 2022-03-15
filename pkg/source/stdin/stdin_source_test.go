@@ -64,15 +64,15 @@ func TestGetSource_WithStdinSource(t *testing.T) {
 
 	supportedSources := []sourceconfig.ConfigPair{ConfigPair}
 
-	defer os.Unsetenv("SOURCE")
+	defer os.Unsetenv("SOURCE_NAME")
 
-	os.Setenv("SOURCE", "stdin")
+	os.Setenv("SOURCE_NAME", "stdin")
 
-	stdinConfig, err := config.NewConfig()
-	assert.NotNil(stdinConfig)
+	c, err := config.NewConfig()
+	assert.NotNil(c)
 	assert.Nil(err)
 
-	stdinSource, err := sourceconfig.GetSource(stdinConfig, supportedSources)
+	stdinSource, err := sourceconfig.GetSource(c, supportedSources)
 
 	assert.NotNil(stdinSource)
 	assert.Nil(err)
