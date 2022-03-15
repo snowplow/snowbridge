@@ -17,9 +17,9 @@ import (
 func TestNewConfig_InvalidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("SOURCE")
+	defer os.Unsetenv("SOURCE_NAME")
 
-	os.Setenv("SOURCE", "fake")
+	os.Setenv("SOURCE_NAME", "fake")
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

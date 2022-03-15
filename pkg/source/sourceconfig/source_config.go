@@ -15,22 +15,36 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// SourceConfigFunction is a function which returns a source.
-type SourceConfigFunction func(*config.Config) (sourceiface.Source, error)
-
-// SourceConfigPair contains the name of a source and its sourceConfigFunction.
+// SourceConfigPair contains the name of a source and its handle that satisfies the
+// Pluggable interface.
 type SourceConfigPair struct {
-	SourceName       string
-	SourceConfigFunc SourceConfigFunction
+	Name   string
+	Handle config.Pluggable
 }
 
+// GetSource creates and returns the source that is configured.
 func GetSource(c *config.Config, supportedSources []SourceConfigPair) (sourceiface.Source, error) {
-	sourceList := make([]string, 0)
-	for _, configPair := range supportedSources {
-		if configPair.SourceName == c.Source {
-			return configPair.SourceConfigFunc(c)
-		}
-		sourceList = append(sourceList, configPair.SourceName)
+	useSource := c.Data.Source.Use
+	decoderOpts := &config.DecoderOptions{
+		Input: useSource.Body,
 	}
-	return nil, errors.New(fmt.Sprintf("Invalid source found: %s. Supported sources in this build: %s.", c.Source, strings.Join(sourceList, ", ")))
+
+	sourceList := make([]string, 0)
+	for _, pair := range supportedSources {
+		if pair.Name == useSource.Name {
+			plug := pair.Handle
+			component, err := c.CreateComponent(plug, decoderOpts)
+			if err != nil {
+				return nil, err
+			}
+
+			if s, ok := component.(sourceiface.Source); ok {
+				return s, nil
+			}
+
+			return nil, fmt.Errorf("could not interpret source configuration for %q", useSource.Name)
+		}
+		sourceList = append(sourceList, pair.Name)
+	}
+	return nil, errors.New(fmt.Sprintf("Invalid source found: %s. Supported sources in this build: %s.", useSource.Name, strings.Join(sourceList, ", ")))
 }

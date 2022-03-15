@@ -21,12 +21,21 @@ import (
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
+
+// KinesisSourceConfig configures the source for records pulled
+type KinesisSourceConfig struct {
+	StreamName       string `hcl:"stream_name" env:"SOURCE_KINESIS_STREAM_NAME"`
+	Region           string `hcl:"region" env:"SOURCE_KINESIS_REGION"`
+	AppName          string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
+	RoleARN          string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
+	StartTimestamp   string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
+	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+}
 
 // --- Kinesis source
 
@@ -45,14 +54,14 @@ type KinesisSource struct {
 
 // KinesisSourceConfigFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
 // to provide a Kinesis + DynamoDB client directly to allow for mocking and localstack usage
-func KinesisSourceConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
+func KinesisSourceConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *KinesisSourceConfig) (sourceiface.Source, error) {
 	// Return a function which returns the source
-	return func(c *config.Config) (sourceiface.Source, error) {
+	return func(c *KinesisSourceConfig) (sourceiface.Source, error) {
 		// Handle iteratorTstamp if provided
 		var iteratorTstamp time.Time
 		var tstampParseErr error
-		if c.Sources.Kinesis.StartTimestamp != "" {
-			iteratorTstamp, tstampParseErr = time.Parse("2006-01-02 15:04:05.999", c.Sources.Kinesis.StartTimestamp)
+		if c.StartTimestamp != "" {
+			iteratorTstamp, tstampParseErr = time.Parse("2006-01-02 15:04:05.999", c.StartTimestamp)
 			if tstampParseErr != nil {
 				return nil, errors.Wrap(tstampParseErr, fmt.Sprintf("Failed to parse provided value for SOURCE_KINESIS_START_TIMESTAMP: %v", iteratorTstamp))
 			}
@@ -62,17 +71,17 @@ func KinesisSourceConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisifa
 			kinesisClient,
 			dynamodbClient,
 			awsAccountID,
-			c.Sources.ConcurrentWrites,
-			c.Sources.Kinesis.Region,
-			c.Sources.Kinesis.StreamName,
-			c.Sources.Kinesis.AppName,
+			c.ConcurrentWrites,
+			c.Region,
+			c.StreamName,
+			c.AppName,
 			&iteratorTstamp)
 	}
 }
 
 // KinesisSourceConfigFunction returns a kinesis source from a config
-func KinesisSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Sources.Kinesis.Region, c.Sources.Kinesis.RoleARN)
+func KinesisSourceConfigFunction(c *KinesisSourceConfig) (sourceiface.Source, error) {
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +96,42 @@ func KinesisSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
 	return sourceConfigFunction(c)
 }
 
+// The KinesisSourceAdapter type is an adapter for functions to be used as
+// pluggable components for Kinesis Source. Implements the Pluggable interface.
+type KinesisSourceAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f KinesisSourceAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f KinesisSourceAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults
+	cfg := &KinesisSourceConfig{
+		ConcurrentWrites: 50,
+	}
+
+	return cfg, nil
+}
+
+// AdaptKinesisSourceFunc returns a KinesisSourceAdapter.
+func AdaptKinesisSourceFunc(f func(c *KinesisSourceConfig) (sourceiface.Source, error)) KinesisSourceAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*KinesisSourceConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected KinesisSourceConfig")
+		}
+
+		return f(cfg)
+	}
+}
+
 // KinesisSourceConfigPair is passed to configuration to determine when to build a Kinesis source.
-var KinesisSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "kinesis", SourceConfigFunc: KinesisSourceConfigFunction}
+var KinesisSourceConfigPair = sourceconfig.SourceConfigPair{
+	Name:   "kinesis",
+	Handle: AdaptKinesisSourceFunc(KinesisSourceConfigFunction),
+}
 
 // --- Kinsumer overrides
 

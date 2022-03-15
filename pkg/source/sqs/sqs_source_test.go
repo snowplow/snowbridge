@@ -7,10 +7,14 @@
 package sqssource
 
 import (
+	"errors"
 	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	config "github.com/snowplow-devops/stream-replicator/config"
@@ -108,9 +112,9 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName)
 
-	defer os.Unsetenv("SOURCE")
+	defer os.Unsetenv("SOURCE_NAME")
 
-	os.Setenv("SOURCE", "sqs")
+	os.Setenv("SOURCE_NAME", "sqs")
 	os.Setenv("SOURCE_SQS_QUEUE_NAME", queueName)
 
 	c, err := config.NewConfig()
@@ -118,7 +122,9 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	assert.Nil(err)
 
 	sqsSourceConfigFunctionWithLocalStack := SQSSourceConfigFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
-	sqsSourceConfigPairWithInterfaces := sourceconfig.SourceConfigPair{SourceName: "sqs", SourceConfigFunc: sqsSourceConfigFunctionWithLocalStack}
+	adaptedHandle := AdaptSQSSourceFunc(sqsSourceConfigFunctionWithLocalStack)
+
+	sqsSourceConfigPairWithInterfaces := sourceconfig.SourceConfigPair{Name: "sqs", Handle: adaptedHandle}
 	supportedSources := []sourceconfig.SourceConfigPair{sqsSourceConfigPairWithInterfaces}
 
 	source, err := sourceconfig.GetSource(c, supportedSources)
@@ -126,4 +132,70 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	assert.Nil(err)
 
 	assert.IsType(&SQSSource{}, source)
+}
+
+func TestKinesisSourceHCL(t *testing.T) {
+	testFixPath := "../../../config/test-fixtures"
+	testCases := []struct {
+		File     string
+		Plug     config.Pluggable
+		Expected interface{}
+	}{
+		{
+			File: "source-sqs.hcl",
+			Plug: testSQSSourceAdapter(testSQSSourceFunc),
+			Expected: &SQSSourceConfig{
+				QueueName:        "testQueue",
+				Region:           "us-test-1",
+				RoleARN:          "xxx-test-role-arn",
+				ConcurrentWrites: 50,
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.File, func(t *testing.T) {
+			assert := assert.New(t)
+
+			filename := filepath.Join(testFixPath, tt.File)
+			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+
+			c, err := config.NewConfig()
+			assert.NotNil(c)
+			assert.Nil(err)
+
+			use := c.Data.Source.Use
+			decoderOpts := &config.DecoderOptions{
+				Input: use.Body,
+			}
+
+			result, err := c.CreateComponent(tt.Plug, decoderOpts)
+			assert.NotNil(result)
+			assert.Nil(err)
+
+			if !reflect.DeepEqual(result, tt.Expected) {
+				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
+					spew.Sdump(result),
+					spew.Sdump(tt.Expected))
+			}
+		})
+	}
+}
+
+// Helpers
+func testSQSSourceAdapter(f func(c *SQSSourceConfig) (*SQSSourceConfig, error)) SQSSourceAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*SQSSourceConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected SQSSourceConfig")
+		}
+
+		return f(cfg)
+	}
+
+}
+
+func testSQSSourceFunc(c *SQSSourceConfig) (*SQSSourceConfig, error) {
+
+	return c, nil
 }

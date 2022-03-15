@@ -44,8 +44,8 @@ func Init() (*config.Config, bool, error) {
 	}
 
 	// Configure GCP Access (if set)
-	if cfg.GoogleServiceAccountB64 != "" {
-		targetFile, err := common.GetGCPServiceAccountFromBase64(cfg.GoogleServiceAccountB64)
+	if cfg.Data.GoogleServiceAccountB64 != "" {
+		targetFile, err := common.GetGCPServiceAccountFromBase64(cfg.Data.GoogleServiceAccountB64)
 		if err != nil {
 			return nil, false, errors.Wrap(err, "Failed to store GCP Service Account JSON file")
 		}
@@ -53,11 +53,11 @@ func Init() (*config.Config, bool, error) {
 	}
 
 	// Configure Sentry
-	sentryEnabled := cfg.Sentry.Dsn != ""
+	sentryEnabled := cfg.Data.Sentry.Dsn != ""
 	if sentryEnabled {
 		err := sentry.Init(sentry.ClientOptions{
-			Dsn:              cfg.Sentry.Dsn,
-			Debug:            cfg.Sentry.Debug,
+			Dsn:              cfg.Data.Sentry.Dsn,
+			Debug:            cfg.Data.Sentry.Debug,
 			AttachStacktrace: true,
 		})
 		if err != nil {
@@ -65,7 +65,7 @@ func Init() (*config.Config, bool, error) {
 		}
 
 		sentryTagsMap := map[string]string{}
-		err = json.Unmarshal([]byte(cfg.Sentry.Tags), &sentryTagsMap)
+		err = json.Unmarshal([]byte(cfg.Data.Sentry.Tags), &sentryTagsMap)
 		if err != nil {
 			return nil, false, errors.Wrap(err, "Failed to unmarshall SENTRY_TAGS to map")
 		}
@@ -79,10 +79,10 @@ func Init() (*config.Config, bool, error) {
 	}
 
 	// Configure logging level
-	if level, ok := logLevelsMap[cfg.LogLevel]; ok {
+	if level, ok := logLevelsMap[cfg.Data.LogLevel]; ok {
 		log.SetLevel(level)
 	} else {
-		return nil, sentryEnabled, fmt.Errorf("Supported log levels are 'debug, info, warning, error, fatal, panic'; provided %s", cfg.LogLevel)
+		return nil, sentryEnabled, fmt.Errorf("Supported log levels are 'debug, info, warning, error, fatal, panic'; provided %s", cfg.Data.LogLevel)
 	}
 
 	log.Debugf("Config: %+v", cfg)

@@ -31,6 +31,13 @@ const (
 	kinesisPutRecordsRequestByteLimit = kinesisPutRecordsMessageByteLimit * 5
 )
 
+// KinesisTargetConfig configures the destination for records consumed
+type KinesisTargetConfig struct {
+	StreamName string `hcl:"stream_name" env:"TARGET_KINESIS_STREAM_NAME"`
+	Region     string `hcl:"region" env:"TARGET_KINESIS_REGION"`
+	RoleARN    string `hcl:"role_arn,optional" env:"TARGET_KINESIS_ROLE_ARN"`
+}
+
 // KinesisTarget holds a new client for writing messages to kinesis
 type KinesisTarget struct {
 	client     kinesisiface.KinesisAPI
@@ -62,6 +69,40 @@ func NewKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID
 		accountID:  awsAccountID,
 		log:        log.WithFields(log.Fields{"target": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
 	}, nil
+}
+
+// KinesisTargetConfigFunction creates KinesisTarget from KinesisTargetConfig.
+func KinesisTargetConfigFunction(c *KinesisTargetConfig) (*KinesisTarget, error) {
+	return NewKinesisTarget(c.Region, c.StreamName, c.RoleARN)
+}
+
+// The KinesisTargetAdapter type is an adapter for functions to be used as
+// pluggable components for Kinesis Target. Implements the Pluggable interface.
+type KinesisTargetAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f KinesisTargetAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f KinesisTargetAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults if any
+	cfg := &KinesisTargetConfig{}
+
+	return cfg, nil
+}
+
+// AdaptKinesisTargetFunc returns a KinesisTargetAdapter.
+func AdaptKinesisTargetFunc(f func(c *KinesisTargetConfig) (*KinesisTarget, error)) KinesisTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*KinesisTargetConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected KinesisTargetConfig")
+		}
+
+		return f(cfg)
+	}
 }
 
 // Write pushes all messages to the required target

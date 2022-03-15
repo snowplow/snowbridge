@@ -17,6 +17,13 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
+// StatsDStatsReceiverConfig configures the stats metrics receiver
+type StatsDStatsReceiverConfig struct {
+	Address string `hcl:"address,optional" env:"STATS_RECEIVER_STATSD_ADDRESS"`
+	Prefix  string `hcl:"prefix,optional" env:"STATS_RECEIVER_STATSD_PREFIX"`
+	Tags    string `hcl:"tags,optional" env:"STATS_RECEIVER_STATSD_TAGS"`
+}
+
 // StatsDStatsReceiver holds a new client for writing statistics to a StatsD server
 type StatsDStatsReceiver struct {
 	client *statsd.Client
@@ -49,6 +56,53 @@ func NewStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsM
 	return &StatsDStatsReceiver{
 		client: client,
 	}, nil
+}
+
+// NewStatsDReceiverWithTags closes over a given tags map and returns a function
+// that creates a StatsDStatsReceiver given a StatsDStatsReceiverConfig.
+func NewStatsDReceiverWithTags(tags map[string]string) func(c *StatsDStatsReceiverConfig) (*StatsDStatsReceiver, error) {
+	return func(c *StatsDStatsReceiverConfig) (*StatsDStatsReceiver, error) {
+		return NewStatsDStatsReceiver(
+			c.Address,
+			c.Prefix,
+			c.Tags,
+			tags,
+		)
+	}
+}
+
+// The StatsDStatsReceiverAdapter type is an adapter for functions to be used as
+// pluggable components for StatsD Stats Receiver.
+// It implements the Pluggable interface.
+type StatsDStatsReceiverAdapter func(i interface{}) (interface{}, error)
+
+// Create implements the ComponentCreator interface.
+func (f StatsDStatsReceiverAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// ProvideDefault implements the ComponentConfigurable interface.
+func (f StatsDStatsReceiverAdapter) ProvideDefault() (interface{}, error) {
+	// Provide defaults for the optional parameters
+	// whose default is not their zero value.
+	cfg := &StatsDStatsReceiverConfig{
+		Prefix: "snowplow.stream-replicator",
+		Tags:   "{}",
+	}
+
+	return cfg, nil
+}
+
+// AdaptStatsDStatsReceiverFunc returns a StatsDStatsReceiverAdapter.
+func AdaptStatsDStatsReceiverFunc(f func(c *StatsDStatsReceiverConfig) (*StatsDStatsReceiver, error)) StatsDStatsReceiverAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*StatsDStatsReceiverConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected StatsDStatsReceiverConfig")
+		}
+
+		return f(cfg)
+	}
 }
 
 // Send emits the bufferred metrics to the receiver
