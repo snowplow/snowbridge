@@ -225,9 +225,27 @@ type SourcesConfig struct {
 	Kinesis KinesisSourceConfig
 	PubSub  PubSubSourceConfig
 	SQS     SQSSourceConfig
+	Kafka   KafkaSourceConfig
 
 	// ConcurrentWrites is how many go-routines a source can leverage to parallelise processing
 	ConcurrentWrites int `env:"SOURCE_CONCURRENT_WRITES" envDefault:"50"`
+}
+
+// KafkaSourceConfig configures the source for records
+type KafkaSourceConfig struct {
+	Brokers       string `env:"SOURCE_KAFKA_BROKERS"`                            // REQUIRED
+	TopicName     string `env:"SOURCE_KAFKA_TOPIC_NAME"`                         // REQUIRED
+	ConsumerName  string `env:"SOURCE_KAFKA_CONSUMER_NAME"`                      // REQUIRED
+	TargetVersion string `env:"SOURCE_KAFKA_TARGET_VERSION"`                     // The Kafka version we should target e.g. 2.7.0 or 0.11.0.2
+	Assignor      string `env:"SOURCE_KAFKA_ASSIGNOR" envDefault:"range"`        // The Kafka partition assignment strategy
+	EnableSASL    bool   `env:"SOURCE_KAFKA_ENABLE_SASL"`                        // Enables SASL Support
+	SASLUsername  string `env:"SOURCE_KAFKA_SASL_USERNAME"`                      // SASL auth
+	SASLPassword  string `env:"SOURCE_KAFKA_SASL_PASSWORD"`                      // SASL auth
+	SASLAlgorithm string `env:"SOURCE_KAFKA_SASL_ALGORITHM" envDefault:"sha512"` // sha256 or sha512
+	CertFile      string `env:"SOURCE_KAFKA_TLS_CERT_FILE"`                      // The optional certificate file for client authentication
+	KeyFile       string `env:"SOURCE_KAFKA_TLS_KEY_FILE"`                       // The optional key file for client authentication
+	CaFile        string `env:"SOURCE_KAFKA_TLS_CA_FILE"`                        // The optional certificate authority file for TLS client authentication
+	SkipVerifyTLS bool   `env:"SOURCE_KAFKA_TLS_SKIP_VERIFY_TLS"`                // Optional skip verifying ssl certificates chain
 }
 
 // ---------- [ OBSERVABILITY ] ----------
