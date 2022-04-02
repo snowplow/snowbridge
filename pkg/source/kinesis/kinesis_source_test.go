@@ -190,7 +190,9 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	// Use our function generator to interact with localstack
 	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
@@ -248,7 +250,9 @@ func TestKinesisSourceHCL(t *testing.T) {
 
 			c, err := config.NewConfig()
 			assert.NotNil(c)
-			assert.Nil(err)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
 
 			use := c.Data.Source.Use
 			decoderOpts := &config.DecoderOptions{

@@ -70,7 +70,9 @@ func TestGetSource_WithStdinSource(t *testing.T) {
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	stdinSource, err := sourceconfig.GetSource(c, supportedSources)
 
