@@ -119,7 +119,9 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	sqsSourceConfigFunctionWithLocalStack := configFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
 	adaptedHandle := adapterGenerator(sqsSourceConfigFunctionWithLocalStack)
@@ -134,7 +136,7 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	assert.IsType(&sqsSource{}, source)
 }
 
-func TestKinesisSourceHCL(t *testing.T) {
+func TestSQSSourceHCL(t *testing.T) {
 	testFixPath := "../../../config/test-fixtures"
 	testCases := []struct {
 		File     string
@@ -162,7 +164,9 @@ func TestKinesisSourceHCL(t *testing.T) {
 
 			c, err := config.NewConfig()
 			assert.NotNil(c)
-			assert.Nil(err)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
 
 			use := c.Data.Source.Use
 			decoderOpts := &config.DecoderOptions{

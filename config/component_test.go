@@ -181,7 +181,9 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 
 			c, err := NewConfig()
 			assert.NotNil(c)
-			assert.Nil(err)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
 
 			use := c.Data.Target.Use
 			decoderOpts := &DecoderOptions{
@@ -260,7 +262,9 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 
 		c, err := NewConfig()
 		assert.NotNil(c)
-		assert.Nil(err)
+		if err != nil {
+			t.Fatalf("function NewConfig failed with error: %q", err.Error())
+		}
 
 		assert.Equal(c.Data.FailureTarget.Target.Name, "kafka")
 		decoderOpts := &DecoderOptions{
@@ -305,7 +309,10 @@ func TestCreateObserverComponentHCL(t *testing.T) {
 
 			c, err := NewConfig()
 			assert.NotNil(c)
-			assert.Nil(err)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
+
 			assert.Equal(c.Data.StatsReceiver.TimeoutSec, 2)
 			assert.Equal(c.Data.StatsReceiver.BufferSec, 20)
 
