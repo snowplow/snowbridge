@@ -20,11 +20,13 @@ func TestNewConfig(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	assert.Equal("info", c.Data.LogLevel)
 	assert.Equal("stdout", c.Data.Target.Use.Name)
-	assert.Equal("none", c.Data.Transformation)
+	assert.Equal("none", c.Data.Transform.Transformation)
 	assert.Equal("stdin", c.Data.Source.Use.Name)
 
 	// Tests on sources moved to the source package.
@@ -60,7 +62,9 @@ func TestNewConfig_FromEnv(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	assert.Equal("debug", c.Data.LogLevel)
 	assert.Equal("kinesis", c.Data.Target.Use.Name)
@@ -88,7 +92,9 @@ func TestNewConfig_InvalidTransformation(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	transformation, err := c.GetTransformations()
 	assert.Nil(transformation)
@@ -105,7 +111,9 @@ func TestNewConfig_FilterFailure(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	transformation, err := c.GetTransformations()
 	assert.Nil(transformation)
@@ -122,7 +130,9 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	source, err := c.GetTarget()
 	assert.Nil(source)
@@ -139,7 +149,9 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	source, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.Nil(source)
@@ -156,7 +168,9 @@ func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	source, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.Nil(source)
@@ -173,7 +187,9 @@ func TestNewConfig_InvalidStatsReceiver(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	source, err := c.GetObserver(map[string]string{})
 	assert.Nil(source)
@@ -186,7 +202,9 @@ func TestNewConfig_GetTags(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	tags, err := c.GetTags()
 	assert.NotNil(tags)
@@ -208,7 +226,9 @@ func TestNewConfig_Hcl_invalids(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	t.Run("invalid_transformation", func(t *testing.T) {
 		transformation, err := c.GetTransformations()
@@ -241,7 +261,9 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	assert.Equal(c.Data.Source.Use.Name, "stdin")
 	assert.Equal(c.Data.Target.Use.Name, "stdout")
@@ -251,7 +273,7 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert.Equal(c.Data.Sentry.Debug, false)
 	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
 	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
-	assert.Equal(c.Data.Transformation, "none")
+	assert.Equal(c.Data.Transform.Transformation, "none")
 	assert.Equal(c.Data.LogLevel, "info")
 }
 
@@ -263,7 +285,9 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 
 	c, err := NewConfig()
 	assert.NotNil(c)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
 
 	assert.Equal(c.Data.Sentry.Debug, true)
 	assert.Equal(c.Data.Sentry.Tags, "{\"testKey\":\"testValue\"}")
