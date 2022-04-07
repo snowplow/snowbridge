@@ -24,7 +24,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.0 // indirect
-	github.com/mitchellh/mapstructure v1.4.1 // indirect
+	github.com/mitchellh/mapstructure v1.4.1
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
@@ -51,9 +51,14 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1
+	github.com/dop251/goja v0.0.0-20220405120441-9037c2b61cbf
+	github.com/goccy/go-json v0.9.7
 	github.com/hashicorp/hcl/v2 v2.11.1
 	github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1
+	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7
+	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9
 	github.com/zclconf/go-cty v1.10.0
+	layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
 )
 
 require (
@@ -66,9 +71,11 @@ require (
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/devigned/tab v0.1.1 // indirect
+	github.com/dlclark/regexp2 v1.4.1-0.20201116162257-a2a8dda75c91 // indirect
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
