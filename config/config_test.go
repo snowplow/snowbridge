@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,17 +27,13 @@ func TestNewConfig(t *testing.T) {
 
 	assert.Equal("info", c.Data.LogLevel)
 	assert.Equal("stdout", c.Data.Target.Use.Name)
-	assert.Equal("none", c.Data.Transform.Transformation)
+	assert.Equal("none", c.Data.Transform.Message)
 	assert.Equal("stdin", c.Data.Source.Use.Name)
 
 	// Tests on sources moved to the source package.
 
 	target, err := c.GetTarget()
 	assert.NotNil(target)
-	assert.Nil(err)
-
-	transformation, err := c.GetTransformations()
-	assert.NotNil(transformation)
 	assert.Nil(err)
 
 	failureTarget, err := c.GetFailureTarget("testAppName", "0.0.0")
@@ -81,44 +78,6 @@ func TestNewConfig_FromEnvInvalid(t *testing.T) {
 	c, err := NewConfig()
 	assert.Nil(c)
 	assert.NotNil(err)
-}
-
-func TestNewConfig_InvalidTransformation(t *testing.T) {
-	assert := assert.New(t)
-
-	defer os.Unsetenv("MESSAGE_TRANSFORMATION")
-
-	os.Setenv("MESSAGE_TRANSFORMATION", "fake")
-
-	c, err := NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-
-	transformation, err := c.GetTransformations()
-	assert.Nil(transformation)
-	assert.NotNil(err)
-	assert.Equal("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}', spEnrichedFilter:{option} and got 'fake'", err.Error())
-}
-
-func TestNewConfig_FilterFailure(t *testing.T) {
-	assert := assert.New(t)
-
-	defer os.Unsetenv("MESSAGE_TRANSFORMATION")
-
-	os.Setenv("MESSAGE_TRANSFORMATION", "spEnrichedFilter:incompatibleArg")
-
-	c, err := NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-
-	transformation, err := c.GetTransformations()
-	assert.Nil(transformation)
-	assert.NotNil(err)
-	assert.Equal(`invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`, err.Error())
 }
 
 func TestNewConfig_InvalidTarget(t *testing.T) {
@@ -230,13 +189,6 @@ func TestNewConfig_Hcl_invalids(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	t.Run("invalid_transformation", func(t *testing.T) {
-		transformation, err := c.GetTransformations()
-		assert.Nil(transformation)
-		assert.NotNil(err)
-		assert.Equal("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}', spEnrichedFilter:{option} and got 'fakeHCL'", err.Error())
-	})
-
 	t.Run("invalid_target", func(t *testing.T) {
 		target, err := c.GetTarget()
 		assert.Nil(target)
@@ -273,7 +225,7 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert.Equal(c.Data.Sentry.Debug, false)
 	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
 	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
-	assert.Equal(c.Data.Transform.Transformation, "none")
+	assert.Equal(c.Data.Transform.Message, "none")
 	assert.Equal(c.Data.LogLevel, "info")
 }
 
@@ -292,4 +244,67 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 	assert.Equal(c.Data.Sentry.Debug, true)
 	assert.Equal(c.Data.Sentry.Tags, "{\"testKey\":\"testValue\"}")
 	assert.Equal(c.Data.Sentry.Dsn, "testDsn")
+}
+
+func TestDefaultTransformation(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", "")
+	t.Setenv("MESSAGE_TRANSFORMATION", "")
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
+
+	assert.Equal("none", c.Data.Transform.Message)
+	assert.Equal("none", c.ProvideTransformMessage())
+	assert.Equal("", c.ProvideTransformLayerName())
+}
+
+func TestTransformationProviderImplementation(t *testing.T) {
+	testFixPath := "./test-fixtures"
+	testCases := []struct {
+		File      string
+		Plug      Pluggable
+		Message   string
+		LayerName string
+	}{
+		{
+			File:      "transform-lua-simple.hcl",
+			Plug:      transform.LuaLayer().(Pluggable),
+			Message:   "lua:fun",
+			LayerName: "lua",
+		},
+		{
+			File:      "transform-js-simple.hcl",
+			Plug:      transform.JSLayer().(Pluggable),
+			Message:   "js:fun",
+			LayerName: "js",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.File, func(t *testing.T) {
+			assert := assert.New(t)
+
+			configFile := filepath.Join(testFixPath, tt.File)
+			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", configFile)
+
+			c, err := NewConfig()
+			assert.NotNil(c)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
+
+			assert.Equal(tt.Message, c.ProvideTransformMessage())
+			assert.Equal(tt.LayerName, c.ProvideTransformLayerName())
+
+			component, err := c.ProvideTransformComponent(tt.Plug)
+			assert.Nil(err)
+			assert.NotNil(component)
+
+		})
+	}
 }

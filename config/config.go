@@ -25,7 +25,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
 // Config holds the configuration data along with the decoder to decode them
@@ -36,15 +35,15 @@ type Config struct {
 
 // ConfigurationData for holding all configuration options
 type ConfigurationData struct {
-	Source                  *Component     `hcl:"source,block" envPrefix:"SOURCE_"`
-	Target                  *Component     `hcl:"target,block" envPrefix:"TARGET_"`
-	FailureTarget           *FailureConfig `hcl:"failure_target,block"`
-	Sentry                  *SentryConfig  `hcl:"sentry,block"`
-	StatsReceiver           *StatsConfig   `hcl:"stats_receiver,block"`
-	Transformation          string         `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
-	LogLevel                string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
-	GoogleServiceAccountB64 string         `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
-	UserProvidedID          string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
+	Source                  *Component       `hcl:"source,block" envPrefix:"SOURCE_"`
+	Target                  *Component       `hcl:"target,block" envPrefix:"TARGET_"`
+	FailureTarget           *FailureConfig   `hcl:"failure_target,block"`
+	Sentry                  *SentryConfig    `hcl:"sentry,block"`
+	StatsReceiver           *StatsConfig     `hcl:"stats_receiver,block"`
+	Transform               *TransformConfig `hcl:"transform,block"`
+	LogLevel                string           `hcl:"log_level,optional" env:"LOG_LEVEL"`
+	GoogleServiceAccountB64 string           `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
+	UserProvidedID          string           `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
 }
 
 // Component is a type to abstract over configuration blocks.
@@ -80,6 +79,12 @@ type StatsConfig struct {
 	BufferSec  int  `hcl:"buffer_sec,optional" env:"STATS_RECEIVER_BUFFER_SEC"`
 }
 
+// TransformConfig holds configuration for tranformations.
+type TransformConfig struct {
+	Message string `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
+	Layer   *Use   `hcl:"use,block" envPrefix:"TRANSFORMATION_LAYER_"`
+}
+
 // defaultConfigData returns the initial main configuration target.
 func defaultConfigData() *ConfigurationData {
 	return &ConfigurationData{
@@ -98,8 +103,11 @@ func defaultConfigData() *ConfigurationData {
 			TimeoutSec: 1,
 			BufferSec:  15,
 		},
-		Transformation: "none",
-		LogLevel:       "info",
+		Transform: &TransformConfig{
+			Message: "none",
+			Layer:   &Use{},
+		},
+		LogLevel: "info",
 	}
 }
 
@@ -299,48 +307,6 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 	return nil, fmt.Errorf("could not interpret failure target configuration for %q", useFailureTarget.Name)
 }
 
-// GetTransformations builds and returns transformationApplyFunction from the transformations configured
-func (c *Config) GetTransformations() (transform.TransformationApplyFunction, error) {
-	funcs := make([]transform.TransformationFunction, 0, 0)
-
-	// Parse list of transformations
-	transformations := strings.Split(c.Data.Transformation, ",")
-
-	for _, transformation := range transformations {
-		// Parse function name-option sets
-		funcOpts := strings.Split(transformation, ":")
-
-		switch funcOpts[0] {
-		case "spEnrichedToJson":
-			funcs = append(funcs, transform.SpEnrichedToJSON)
-		case "spEnrichedSetPk":
-			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(funcOpts[1]))
-		case "spEnrichedFilter":
-			filterFunc, err := transform.NewSpEnrichedFilterFunction(funcOpts[1])
-			if err != nil {
-				return nil, err
-			}
-			funcs = append(funcs, filterFunc)
-		case "spEnrichedFilterContext":
-			filterFunc, err := transform.NewSpEnrichedFilterFunctionContext(funcOpts[1])
-			if err != nil {
-				return nil, err
-			}
-			funcs = append(funcs, filterFunc)
-		case "spEnrichedFilterUnstructEvent":
-			filterFunc, err := transform.NewSpEnrichedFilterFunctionUnstructEvent(funcOpts[1])
-			if err != nil {
-				return nil, err
-			}
-			funcs = append(funcs, filterFunc)
-		case "none":
-		default:
-			return nil, errors.New(fmt.Sprintf("Invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk:{option}', spEnrichedFilter:{option} and got '%s'", c.Data.Transformation))
-		}
-	}
-	return transform.NewTransformation(funcs...), nil
-}
-
 // GetTags returns a list of tags to use in identifying this instance of stream-replicator with enough
 // entropy so as to avoid collisions as it should not be possible to have both the host and process_id be
 // the same.
@@ -397,4 +363,23 @@ func (c *Config) GetStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid stats receiver found; expected one of 'statsd' and got '%s'", useReceiver.Name))
 	}
+}
+
+// ProvideTransformMessage implements transformconfig.configProvider
+func (c *Config) ProvideTransformMessage() string {
+	return c.Data.Transform.Message
+}
+
+// ProvideTransformLayerName implements transformconfig.configProvider
+func (c *Config) ProvideTransformLayerName() string {
+	return c.Data.Transform.Layer.Name
+}
+
+// ProvideTransformComponent implements transformconfig.configProvider
+func (c *Config) ProvideTransformComponent(p Pluggable) (interface{}, error) {
+	decoderOpts := &DecoderOptions{
+		Input: c.Data.Transform.Layer.Body,
+	}
+
+	return c.CreateComponent(p, decoderOpts)
 }

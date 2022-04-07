@@ -49,8 +49,11 @@ stats_receiver {
 // block for configuring sentry
 sentry {}
 
-// string to configure message transformation (default: "none")
-message_transformation = "none"
+// block for configuring transformations
+transform {
+  // string to configure message transformation (default: "none")
+  message_transformation = "none"
+}
 
 // log level configuration (default: "info")
 log_level = "info"
@@ -97,6 +100,17 @@ stats_receiver {
 sentry {
   dsn   = "https://acme.com/1"
   debug = true
+}
+
+transform {
+  message_transformation = "spEnrichedFilter:app_id==myApp,js:customFunction"
+
+  use "js" {
+    source_b64          = "CmZ1bmN0aW9uIGN1c3RvbUZ1bmN0aW9uKGlucHV0KSB7CiAgICByZXR1cm4gaW5wdXQ7Cn0K"
+    timeout_sec         = 2
+    disable_source_maps = false
+    snowplow_mode       = true
+  }
 }
 
 log_level = "debug"

@@ -192,23 +192,43 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 }
 
 func TestNewSpEnrichedFilterFunction_Error(t *testing.T) {
-	assert := assert.New(t)
-	error := `invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`
+	filterError := `invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`
 
-	filterFunc, err1 := NewSpEnrichedFilterFunction("")
+	testCases := []struct {
+		Name string
+		Arg  string
+	}{
+		{
+			Name: "incompatible_arg",
+			Arg:  "incompatibleArg",
+		},
+		{
+			Name: "empty_arg",
+			Arg:  "",
+		},
+		{
+			Name: "wrong_arg_pipe",
+			Arg:  "app_id==abc|",
+		},
+		{
+			Name: "wrong_arg_syntax",
+			Arg:  "!=abc",
+		},
+	}
 
-	assert.Nil(filterFunc)
-	assert.Equal(error, err1.Error())
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
 
-	filterFunc, err2 := NewSpEnrichedFilterFunction("app_id==abc|")
+			filterFunc, err := NewSpEnrichedFilterFunction(tt.Arg)
 
-	assert.Nil(filterFunc)
-	assert.Equal(error, err2.Error())
-
-	filterFunc, err3 := NewSpEnrichedFilterFunction("!=abc")
-
-	assert.Nil(filterFunc)
-	assert.Equal(error, err3.Error())
+			assert.Nil(filterFunc)
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			assert.Equal(filterError, err.Error())
+		})
+	}
 }
 
 func TestSpEnrichedFilterFunction_Slice(t *testing.T) {

@@ -1,6 +1,8 @@
 # configuration with various invalid options
 
-message_transformation = "fakeHCL"
+transform {
+  message_transformation = "fakeHCL"
+}
 
 target {
   use "fakeHCL" {}
