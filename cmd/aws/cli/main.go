@@ -8,6 +8,7 @@ package main
 
 import (
 	"github.com/snowplow-devops/stream-replicator/cmd/cli"
+	kafkasource "github.com/snowplow-devops/stream-replicator/pkg/source/kafka"
 	kinesissource "github.com/snowplow-devops/stream-replicator/pkg/source/kinesis"
 	pubsubsource "github.com/snowplow-devops/stream-replicator/pkg/source/pubsub"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
@@ -17,7 +18,13 @@ import (
 
 func main() {
 	// Make a slice of SourceConfigPairs supported for this build
-	sourceConfigPairs := []sourceconfig.ConfigPair{stdinsource.ConfigPair, sqssource.ConfigPair, pubsubsource.ConfigPair, kinesissource.ConfigPair}
+	sourceConfigPairs := []sourceconfig.ConfigPair{
+		stdinsource.ConfigPair,
+		sqssource.ConfigPair,
+		pubsubsource.ConfigPair,
+		kinesissource.ConfigPair,
+		kafkasource.KafkaSourceConfigPair,
+	}
 
 	cli.RunCli(sourceConfigPairs)
 }
