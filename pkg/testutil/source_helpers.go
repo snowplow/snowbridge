@@ -26,6 +26,7 @@ func ReadAndReturnMessages(source sourceiface.Source) []*models.Message {
 	}
 	go runRead(hitError, source, &sf)
 
+	timer := time.After(3 * time.Second)
 resultLoop:
 	for {
 		select {
@@ -34,7 +35,7 @@ resultLoop:
 		case msg := <-msgRecieved:
 			// Append messages to the result slice
 			successfulReads = append(successfulReads, msg)
-		case <-time.After(3 * time.Second):
+		case <-timer:
 			// Stop source after 3s, and return the result slice
 			fmt.Println("Stopping source.")
 			source.Stop()
