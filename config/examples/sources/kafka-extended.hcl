@@ -30,13 +30,13 @@ target {
     sasl_algorithm      = "sha256"
 
     # The optional certificate file for client authentication
-    cert_file           = "myLocalhost.crt"
+    tls_cert           = "dGVzdCBzdHJpbmc="
 
     # The optional key file for client authentication
-    key_file            = "MyLocalhost.key"
+    tls_key            = "c29tZSBzdHJpbmc="
 
     # The optional certificate authority file for TLS client authentication
-    ca_file             = "myRootCA.crt"
+    tls_ca             = "b3RoZXIgc3RyaW5ncw=="
 
     # Whether to skip verifying ssl certificates chain (default: false)
     skip_verify_tls     = true

@@ -16,9 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 
 	"github.com/Shopify/sarama"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"github.com/xdg/scram"
@@ -26,7 +27,10 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/target"
+)
+
+const (
+	kafkaSourceName = `kafka_source`
 )
 
 // configuration configures the source for records
@@ -42,9 +46,9 @@ type configuration struct {
 	SASLUsername     string `hcl:"sasl_username,optional" env:"SOURCE_KAFKA_SASL_USERNAME" `
 	SASLPassword     string `hcl:"sasl_password,optional" env:"SOURCE_KAFKA_SASL_PASSWORD"`
 	SASLAlgorithm    string `hcl:"sasl_algorithm,optional" env:"SOURCE_KAFKA_SASL_ALGORITHM"`
-	CertFile         string `hcl:"cert_file,optional" env:"SOURCE_KAFKA_TLS_CERT_FILE"`
-	KeyFile          string `hcl:"key_file,optional" env:"SOURCE_KAFKA_TLS_KEY_FILE"`
-	CaFile           string `hcl:"ca_file,optional" env:"SOURCE_KAFKA_TLS_CA_FILE"`
+	TLSCert          string `hcl:"tls_cert,optional" env:"SOURCE_KAFKA_TLS_CERT_B64"`
+	TLSKey           string `hcl:"tls_key,optional" env:"SOURCE_KAFKA_TLS_KEY_B64"`
+	TLSCa            string `hcl:"tls_ca,optional" env:"SOURCE_KAFKA_TLS_CA_B64"`
 	SkipVerifyTLS    bool   `hcl:"skip_verify_tls,optional" env:"SOURCE_KAFKA_TLS_SKIP_VERIFY_TLS"`
 }
 
@@ -248,7 +252,7 @@ func newKafkaSource(cfg *configuration) (*kafkaSource, error) {
 	}
 
 	// validate TLS if required
-	tlsConfig, err := target.CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
+	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, kafkaSourceName, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
