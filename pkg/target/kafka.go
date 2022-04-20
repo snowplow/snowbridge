@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"hash"
 	"strings"
 	"time"
@@ -18,8 +19,13 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/xdg/scram"
+
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
+)
+
+const (
+	kafkaTarget = `kafka_target`
 )
 
 // KafkaConfig contains configurable options for the kafka target
@@ -36,9 +42,9 @@ type KafkaConfig struct {
 	SASLUsername   string `hcl:"sasl_username,optional" env:"TARGET_KAFKA_SASL_USERNAME" `
 	SASLPassword   string `hcl:"sasl_password,optional" env:"TARGET_KAFKA_SASL_PASSWORD"`
 	SASLAlgorithm  string `hcl:"sasl_algorithm,optional" env:"TARGET_KAFKA_SASL_ALGORITHM"`
-	CertFile       string `hcl:"cert_file,optional" env:"TARGET_KAFKA_TLS_CERT_FILE"`
-	KeyFile        string `hcl:"key_file,optional" env:"TARGET_KAFKA_TLS_KEY_FILE"`
-	CaFile         string `hcl:"ca_file,optional" env:"TARGET_KAFKA_TLS_CA_FILE"`
+	TLSCert        string `hcl:"tls_cert,optional" env:"TARGET_KAFKA_TLS_CERT_B64"`
+	TLSKey         string `hcl:"tls_key,optional" env:"TARGET_KAFKA_TLS_KEY_B64"`
+	TLSCa          string `hcl:"tls_ca,optional" env:"TARGET_KAFKA_TLS_CA_B64"`
 	SkipVerifyTLS  bool   `hcl:"skip_verify_tls,optional" env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`
 	ForceSync      bool   `hcl:"force_sync_producer,optional" env:"TARGET_KAFKA_FORCE_SYNC_PRODUCER"`
 	FlushFrequency int    `hcl:"flush_frequency,optional" env:"TARGET_KAFKA_FLUSH_FREQUENCY"`
@@ -116,7 +122,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		}
 	}
 
-	tlsConfig, err := CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
+	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, kafkaTarget, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}

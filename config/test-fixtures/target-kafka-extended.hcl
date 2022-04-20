@@ -14,9 +14,9 @@ target {
     sasl_username       = "testUsername"
     sasl_password       = "testPass"
     sasl_algorithm      = "sha256"
-    cert_file           = "test.cert"
-    key_file            = "test.key"
-    ca_file             = "test.ca"
+    tls_cert            = "dGVzdC5jZXJ0"
+    tls_key             = "dGVzdC5rZXkK"
+    tls_ca              = "dGVzdC5jYQ=="
     skip_verify_tls     = true
     force_sync_producer = true
     flush_frequency     = 2
