@@ -11,8 +11,6 @@ go_dirs = `go list ./... | grep -v /build/ | grep -v /vendor/`
 build_dir       = build
 vendor_dir      = vendor
 integration_dir = integration
-cert_dir 		= $(integration_dir)/http
-abs_cert_dir	= $$(pwd)/$(cert_dir)
 ngrok_path		= ${NGROK_DIR}ngrok # Set NGROK_DIR to `/path/to/directory/` for local setup
 
 coverage_dir  = $(build_dir)/coverage
@@ -144,7 +142,6 @@ test: test-setup
 	GO111MODULE=on go tool cover -func=$(coverage_out)
 
 integration-test: test-setup
-	export CERT_DIR=$(abs_cert_dir); \
 	GO111MODULE=on go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
 	GO111MODULE=on go tool cover -func=$(coverage_out)

@@ -22,6 +22,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
@@ -117,6 +118,11 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.SourceConfigPair) {
 				s.Stop()
 				stop <- struct{}{}
 			}()
+
+			err := common.DeleteTemporaryDir()
+			if err != nil {
+				log.Debugf(`error deleting tmp directory: %v`, err)
+			}
 
 			select {
 			case <-stop:
