@@ -29,7 +29,7 @@ func TestSQSSource_ReadFailure(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	source, err := NewSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
+	source, err := newSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:sqs:us-east-1:00000000000:not-exists", source.GetID())
@@ -51,7 +51,7 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
 	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 
-	source, err := NewSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
+	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
 	assert.NotNil(source)
 
@@ -117,7 +117,7 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	sqsSourceConfigFunctionWithLocalStack := ConfigFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
+	sqsSourceConfigFunctionWithLocalStack := configFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
 	sqsSourceConfigPairWithInterfaces := sourceconfig.ConfigPair{SourceName: "sqs", SourceConfigFunc: sqsSourceConfigFunctionWithLocalStack}
 	supportedSources := []sourceconfig.ConfigPair{sqsSourceConfigPairWithInterfaces}
 
@@ -125,5 +125,5 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	assert.NotNil(source)
 	assert.Nil(err)
 
-	assert.IsType(&SQSSource{}, source)
+	assert.IsType(&sqsSource{}, source)
 }

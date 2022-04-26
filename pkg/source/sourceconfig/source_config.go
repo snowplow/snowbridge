@@ -14,13 +14,13 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// ConfigFunction is a function which returns a source.
-type ConfigFunction func(*config.Config) (sourceiface.Source, error)
+// configFunction is a function which returns a source.
+type configFunction func(*config.Config) (sourceiface.Source, error)
 
 // ConfigPair contains the name of a source and its ConfigFunction.
 type ConfigPair struct {
 	SourceName       string
-	SourceConfigFunc ConfigFunction
+	SourceConfigFunc configFunction
 }
 
 // GetSource iterates the list of supported sources, matches the provided config for source, and returns a source.
