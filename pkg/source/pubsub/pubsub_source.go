@@ -22,8 +22,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// PubSubSource holds a new client for reading messages from PubSub
-type PubSubSource struct {
+// pubSubSource holds a new client for reading messages from PubSub
+type pubSubSource struct {
 	projectID        string
 	client           *pubsub.Client
 	subscriptionID   string
@@ -35,20 +35,20 @@ type PubSubSource struct {
 	cancel context.CancelFunc
 }
 
-// ConfigFunction returns a pubsub source from a config
-func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
-	return NewPubSubSource(
+// configFunction returns a pubsub source from a config
+func configFunction(c *config.Config) (sourceiface.Source, error) {
+	return newPubSubSource(
 		c.Sources.ConcurrentWrites,
 		c.Sources.PubSub.ProjectID,
 		c.Sources.PubSub.SubscriptionID,
 	)
 }
 
-// PubsubSourceConfigPair is passed to configuration to determine when to build a Pubsub source.
-var PubsubSourceConfigPair = sourceconfig.ConfigPair{SourceName: "pubsub", SourceConfigFunc: ConfigFunction}
+// ConfigPair is passed to configuration to determine when to build a Pubsub source.
+var ConfigPair = sourceconfig.ConfigPair{SourceName: "pubsub", SourceConfigFunc: configFunction}
 
-// NewPubSubSource creates a new client for reading messages from PubSub
-func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID string) (*PubSubSource, error) {
+// newPubSubSource creates a new client for reading messages from PubSub
+func newPubSubSource(concurrentWrites int, projectID string, subscriptionID string) (*pubSubSource, error) {
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectID)
@@ -56,7 +56,7 @@ func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID stri
 		return nil, errors.Wrap(err, "Failed to create PubSub client")
 	}
 
-	return &PubSubSource{
+	return &pubSubSource{
 		projectID:        projectID,
 		client:           client,
 		subscriptionID:   subscriptionID,
@@ -66,7 +66,7 @@ func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID stri
 }
 
 // Read will pull messages from the noted PubSub topic forever
-func (ps *PubSubSource) Read(sf *sourceiface.SourceFunctions) error {
+func (ps *pubSubSource) Read(sf *sourceiface.SourceFunctions) error {
 	ctx := context.Background()
 
 	ps.log.Info("Reading messages from subscription ...")
@@ -111,7 +111,7 @@ func (ps *PubSubSource) Read(sf *sourceiface.SourceFunctions) error {
 }
 
 // Stop will halt the reader processing more events
-func (ps *PubSubSource) Stop() {
+func (ps *pubSubSource) Stop() {
 	if ps.cancel != nil {
 		ps.log.Warn("Cancelling PubSub receive ...")
 		ps.cancel()
@@ -120,6 +120,6 @@ func (ps *PubSubSource) Stop() {
 }
 
 // GetID returns the identifier for this source
-func (ps *PubSubSource) GetID() string {
+func (ps *pubSubSource) GetID() string {
 	return fmt.Sprintf("projects/%s/subscriptions/%s", ps.projectID, ps.subscriptionID)
 }

@@ -26,8 +26,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// SQSSource holds a new client for reading messages from SQS
-type SQSSource struct {
+// sqsSource holds a new client for reading messages from SQS
+type sqsSource struct {
 	client           sqsiface.SQSAPI
 	queueURL         string
 	queueName        string
@@ -45,16 +45,16 @@ type SQSSource struct {
 	processErrorSignal chan error
 }
 
-// ConfigFunctionGeneratorWithInterfaces generates the SQS Source Config function, allowing you
+// configFunctionGeneratorWithInterfaces generates the SQS Source Config function, allowing you
 // to provide an SQS client directly to allow for mocking and localstack usage
-func ConfigFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
+func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
 	return func(c *config.Config) (sourceiface.Source, error) {
-		return NewSQSSourceWithInterfaces(client, awsAccountID, c.Sources.ConcurrentWrites, c.Sources.SQS.Region, c.Sources.SQS.QueueName)
+		return newSQSSourceWithInterfaces(client, awsAccountID, c.Sources.ConcurrentWrites, c.Sources.SQS.Region, c.Sources.SQS.QueueName)
 	}
 }
 
-// ConfigFunction returns an SQS source from a config
-func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
+// configFunction returns an SQS source from a config
+func configFunction(c *config.Config) (sourceiface.Source, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Sources.SQS.Region, c.Sources.SQS.RoleARN)
 	if err != nil {
 		return nil, err
@@ -62,18 +62,18 @@ func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
 
 	sqsClient := sqs.New(awsSession, awsConfig)
 
-	sourceConfigFunc := ConfigFunctionGeneratorWithInterfaces(sqsClient, *awsAccountID)
+	sourceConfigFunc := configFunctionGeneratorWithInterfaces(sqsClient, *awsAccountID)
 
 	return sourceConfigFunc(c)
 }
 
-// SQSSourceConfigPair is passed to configuration to determine when to build an SQS source.
-var SQSSourceConfigPair = sourceconfig.ConfigPair{SourceName: "sqs", SourceConfigFunc: ConfigFunction}
+// ConfigPair is passed to configuration to determine when to build an SQS source.
+var ConfigPair = sourceconfig.ConfigPair{SourceName: "sqs", SourceConfigFunc: configFunction}
 
-// NewSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
+// newSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
-func NewSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*SQSSource, error) {
-	return &SQSSource{
+func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
+	return &sqsSource{
 		client:             client,
 		queueName:          queueName,
 		concurrentWrites:   concurrentWrites,
@@ -86,7 +86,7 @@ func NewSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, con
 }
 
 // Read will pull messages from the noted SQS queue forever
-func (ss *SQSSource) Read(sf *sourceiface.SourceFunctions) error {
+func (ss *sqsSource) Read(sf *sourceiface.SourceFunctions) error {
 	ss.log.Info("Reading messages from queue ...")
 
 	urlResult, err := ss.client.GetQueueUrl(&sqs.GetQueueUrlInput{
@@ -127,7 +127,7 @@ ProcessLoop:
 	return processErr
 }
 
-func (ss *SQSSource) process(sf *sourceiface.SourceFunctions) error {
+func (ss *sqsSource) process(sf *sourceiface.SourceFunctions) error {
 	msgRes, err := ss.client.ReceiveMessage(&sqs.ReceiveMessageInput{
 		AttributeNames: []*string{
 			aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
@@ -195,12 +195,12 @@ func (ss *SQSSource) process(sf *sourceiface.SourceFunctions) error {
 }
 
 // Stop will halt the reader processing more events
-func (ss *SQSSource) Stop() {
+func (ss *sqsSource) Stop() {
 	ss.log.Warn("Cancelling SQS receive ...")
 	ss.exitSignal <- struct{}{}
 }
 
 // GetID returns the identifier for this source
-func (ss *SQSSource) GetID() string {
+func (ss *sqsSource) GetID() string {
 	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", ss.region, ss.accountID, ss.queueName)
 }

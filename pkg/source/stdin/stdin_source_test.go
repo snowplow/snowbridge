@@ -38,7 +38,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	os.Stdin = tmpfile
 
 	// Read from test input
-	source, err := NewStdinSource(1)
+	source, err := newStdinSource(1)
 	assert.NotNil(source)
 	assert.Nil(err)
 	assert.Equal("stdin", source.GetID())
@@ -62,7 +62,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 func TestGetSource_WithStdinSource(t *testing.T) {
 	assert := assert.New(t)
 
-	supportedSources := []sourceconfig.ConfigPair{StdinSourceConfigPair}
+	supportedSources := []sourceconfig.ConfigPair{ConfigPair}
 
 	defer os.Unsetenv("SOURCE")
 

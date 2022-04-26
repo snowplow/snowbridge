@@ -30,8 +30,8 @@ import (
 
 // --- Kinesis source
 
-// KinesisSource holds a new client for reading messages from kinesis
-type KinesisSource struct {
+// kinesisSource holds a new client for reading messages from kinesis
+type kinesisSource struct {
 	client           *kinsumer.Kinsumer
 	streamName       string
 	concurrentWrites int
@@ -43,9 +43,9 @@ type KinesisSource struct {
 
 // -- Config
 
-// ConfigFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
+// configFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
 // to provide a Kinesis + DynamoDB client directly to allow for mocking and localstack usage
-func ConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
+func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
 	// Return a function which returns the source
 	return func(c *config.Config) (sourceiface.Source, error) {
 		// Handle iteratorTstamp if provided
@@ -58,7 +58,7 @@ func ConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 			}
 		}
 
-		return NewKinesisSourceWithInterfaces(
+		return newKinesisSourceWithInterfaces(
 			kinesisClient,
 			dynamodbClient,
 			awsAccountID,
@@ -70,8 +70,8 @@ func ConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 	}
 }
 
-// ConfigFunction returns a kinesis source from a config
-func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
+// configFunction returns a kinesis source from a config
+func configFunction(c *config.Config) (sourceiface.Source, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Sources.Kinesis.Region, c.Sources.Kinesis.RoleARN)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
 	kinesisClient := kinesis.New(awsSession, awsConfig)
 	dynamodbClient := dynamodb.New(awsSession, awsConfig)
 
-	sourceConfigFunction := ConfigFunctionGeneratorWithInterfaces(
+	sourceConfigFunction := configFunctionGeneratorWithInterfaces(
 		kinesisClient,
 		dynamodbClient,
 		*awsAccountID)
@@ -87,8 +87,8 @@ func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
 	return sourceConfigFunction(c)
 }
 
-// KinesisSourceConfigPair is passed to configuration to determine when to build a Kinesis source.
-var KinesisSourceConfigPair = sourceconfig.ConfigPair{SourceName: "kinesis", SourceConfigFunc: ConfigFunction}
+// ConfigPair is passed to configuration to determine when to build a Kinesis source.
+var ConfigPair = sourceconfig.ConfigPair{SourceName: "kinesis", SourceConfigFunc: configFunction}
 
 // --- Kinsumer overrides
 
@@ -100,9 +100,9 @@ func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
 	log.WithFields(log.Fields{"source": "KinesisSource.Kinsumer"}).Debugf(format, v...)
 }
 
-// NewKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
+// newKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
 // for mocking and localstack usage
-func NewKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string, concurrentWrites int, region string, streamName string, appName string, startTimestamp *time.Time) (*KinesisSource, error) {
+func newKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string, concurrentWrites int, region string, streamName string, appName string, startTimestamp *time.Time) (*kinesisSource, error) {
 	// TODO: Add statistics monitoring to be able to report on consumer latency
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(10 * time.Second).
@@ -119,7 +119,7 @@ func NewKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynam
 		return nil, errors.Wrap(err, "Failed to create Kinsumer client")
 	}
 
-	return &KinesisSource{
+	return &kinesisSource{
 		client:           k,
 		streamName:       streamName,
 		concurrentWrites: concurrentWrites,
@@ -130,7 +130,7 @@ func NewKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynam
 }
 
 // Read will pull messages from the noted Kinesis stream forever
-func (ks *KinesisSource) Read(sf *sourceiface.SourceFunctions) error {
+func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 	ks.log.Infof("Reading messages from stream ...")
 
 	err := ks.client.Run()
@@ -212,12 +212,12 @@ func (ks *KinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 }
 
 // Stop will halt the reader processing more events
-func (ks *KinesisSource) Stop() {
+func (ks *kinesisSource) Stop() {
 	ks.log.Warn("Cancelling Kinesis receive ...")
 	ks.client.Stop()
 }
 
 // GetID returns the identifier for this source
-func (ks *KinesisSource) GetID() string {
+func (ks *kinesisSource) GetID() string {
 	return fmt.Sprintf("arn:aws:kinesis:%s:%s:stream/%s", ks.region, ks.accountID, ks.streamName)
 }
