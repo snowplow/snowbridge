@@ -43,9 +43,9 @@ type KinesisSource struct {
 
 // -- Config
 
-// KinesisSourceConfigFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
+// ConfigFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
 // to provide a Kinesis + DynamoDB client directly to allow for mocking and localstack usage
-func KinesisSourceConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
+func ConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
 	// Return a function which returns the source
 	return func(c *config.Config) (sourceiface.Source, error) {
 		// Handle iteratorTstamp if provided
@@ -70,8 +70,8 @@ func KinesisSourceConfigFunctionGeneratorWithInterfaces(kinesisClient kinesisifa
 	}
 }
 
-// KinesisSourceConfigFunction returns a kinesis source from a config
-func KinesisSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
+// ConfigFunction returns a kinesis source from a config
+func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Sources.Kinesis.Region, c.Sources.Kinesis.RoleARN)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func KinesisSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
 	kinesisClient := kinesis.New(awsSession, awsConfig)
 	dynamodbClient := dynamodb.New(awsSession, awsConfig)
 
-	sourceConfigFunction := KinesisSourceConfigFunctionGeneratorWithInterfaces(
+	sourceConfigFunction := ConfigFunctionGeneratorWithInterfaces(
 		kinesisClient,
 		dynamodbClient,
 		*awsAccountID)
@@ -88,7 +88,7 @@ func KinesisSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
 }
 
 // KinesisSourceConfigPair is passed to configuration to determine when to build a Kinesis source.
-var KinesisSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "kinesis", SourceConfigFunc: KinesisSourceConfigFunction}
+var KinesisSourceConfigPair = sourceconfig.ConfigPair{SourceName: "kinesis", SourceConfigFunc: ConfigFunction}
 
 // --- Kinsumer overrides
 

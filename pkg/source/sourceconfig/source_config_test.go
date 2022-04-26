@@ -25,10 +25,10 @@ func TestNewConfig_InvalidSource(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	supportedSources := []SourceConfigPair{}
+	supportedSources := []ConfigPair{}
 
 	source, err := GetSource(c, supportedSources)
 	assert.Nil(source)
 	assert.NotNil(err)
-	assert.Equal("Invalid source found: fake. Supported sources in this build: .", err.Error())
+	assert.Equal("Invalid source found: fake. Supported sources in this build: ", err.Error())
 }

@@ -7,7 +7,6 @@
 package sourceconfig
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -15,16 +14,17 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// SourceConfigFunction is a function which returns a source.
-type SourceConfigFunction func(*config.Config) (sourceiface.Source, error)
+// ConfigFunction is a function which returns a source.
+type ConfigFunction func(*config.Config) (sourceiface.Source, error)
 
-// SourceConfigPair contains the name of a source and its sourceConfigFunction.
-type SourceConfigPair struct {
+// ConfigPair contains the name of a source and its ConfigFunction.
+type ConfigPair struct {
 	SourceName       string
-	SourceConfigFunc SourceConfigFunction
+	SourceConfigFunc ConfigFunction
 }
 
-func GetSource(c *config.Config, supportedSources []SourceConfigPair) (sourceiface.Source, error) {
+// GetSource iterates the list of supported sources, matches the provided config for source, and returns a source.
+func GetSource(c *config.Config, supportedSources []ConfigPair) (sourceiface.Source, error) {
 	sourceList := make([]string, 0)
 	for _, configPair := range supportedSources {
 		if configPair.SourceName == c.Source {
@@ -32,5 +32,5 @@ func GetSource(c *config.Config, supportedSources []SourceConfigPair) (sourceifa
 		}
 		sourceList = append(sourceList, configPair.SourceName)
 	}
-	return nil, errors.New(fmt.Sprintf("Invalid source found: %s. Supported sources in this build: %s.", c.Source, strings.Join(sourceList, ", ")))
+	return nil, fmt.Errorf("Invalid source found: %s. Supported sources in this build: %s", c.Source, strings.Join(sourceList, ", "))
 }

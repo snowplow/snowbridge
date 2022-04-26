@@ -35,8 +35,8 @@ type PubSubSource struct {
 	cancel context.CancelFunc
 }
 
-// PubsubSourceConfigFunction returns a pubsub source from a config
-func PubsubSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
+// ConfigFunction returns a pubsub source from a config
+func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
 	return NewPubSubSource(
 		c.Sources.ConcurrentWrites,
 		c.Sources.PubSub.ProjectID,
@@ -45,7 +45,7 @@ func PubsubSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
 }
 
 // PubsubSourceConfigPair is passed to configuration to determine when to build a Pubsub source.
-var PubsubSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "pubsub", SourceConfigFunc: PubsubSourceConfigFunction}
+var PubsubSourceConfigPair = sourceconfig.ConfigPair{SourceName: "pubsub", SourceConfigFunc: ConfigFunction}
 
 // NewPubSubSource creates a new client for reading messages from PubSub
 func NewPubSubSource(concurrentWrites int, projectID string, subscriptionID string) (*PubSubSource, error) {

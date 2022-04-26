@@ -39,7 +39,7 @@ const (
 )
 
 // RunCli runs the app
-func RunCli(supportedSourceConfigPairs []sourceconfig.SourceConfigPair) {
+func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 	cfg, sentryEnabled, err := cmd.Init()
 	if err != nil {
 		exitWithError(err, sentryEnabled)
