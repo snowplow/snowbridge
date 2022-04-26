@@ -125,7 +125,7 @@ format:
 
 lint:
 	GO111MODULE=on go install golang.org/x/lint/golint@latest
-	GO111MODULE=on golint $(go_dirs)
+	LINTRESULT=$$(golint $(go_dirs)); echo "$$LINTRESULT"; [ -z "$$LINTRESULT" ];
 
 tidy:
 	GO111MODULE=on go mod tidy
