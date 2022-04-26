@@ -117,9 +117,9 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	sqsSourceConfigFunctionWithLocalStack := SQSSourceConfigFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
-	sqsSourceConfigPairWithInterfaces := sourceconfig.SourceConfigPair{SourceName: "sqs", SourceConfigFunc: sqsSourceConfigFunctionWithLocalStack}
-	supportedSources := []sourceconfig.SourceConfigPair{sqsSourceConfigPairWithInterfaces}
+	sqsSourceConfigFunctionWithLocalStack := ConfigFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
+	sqsSourceConfigPairWithInterfaces := sourceconfig.ConfigPair{SourceName: "sqs", SourceConfigFunc: sqsSourceConfigFunctionWithLocalStack}
+	supportedSources := []sourceconfig.ConfigPair{sqsSourceConfigPairWithInterfaces}
 
 	source, err := sourceconfig.GetSource(c, supportedSources)
 	assert.NotNil(source)

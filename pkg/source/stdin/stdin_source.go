@@ -29,15 +29,15 @@ type StdinSource struct {
 	log *log.Entry
 }
 
-// StdinSourceConfigfunction returns an stdin source from a config
-func StdinSourceConfigfunction(c *config.Config) (sourceiface.Source, error) {
+// Configfunction returns an stdin source from a config
+func Configfunction(c *config.Config) (sourceiface.Source, error) {
 	return NewStdinSource(
 		c.Sources.ConcurrentWrites,
 	)
 }
 
-// StdinSourceConfigfunction is passed to configuration to determine when to build an stdin source.
-var StdinSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "stdin", SourceConfigFunc: StdinSourceConfigfunction}
+// StdinSourceConfigPair is passed to configuration to determine when to build an stdin source.
+var StdinSourceConfigPair = sourceconfig.ConfigPair{SourceName: "stdin", SourceConfigFunc: Configfunction}
 
 // NewStdinSource creates a new client for reading messages from stdin
 func NewStdinSource(concurrentWrites int) (*StdinSource, error) {
