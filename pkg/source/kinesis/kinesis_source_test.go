@@ -186,10 +186,10 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	assert.Nil(err)
 
 	// Use our function generator to interact with localstack
-	kinesisSourceConfigFunctionWithLocalstack := KinesisSourceConfigFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
+	kinesisSourceConfigFunctionWithLocalstack := ConfigFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
 
-	kinesisSourceConfigPairWithLocalstack := sourceconfig.SourceConfigPair{SourceName: "kinesis", SourceConfigFunc: kinesisSourceConfigFunctionWithLocalstack}
-	supportedSources := []sourceconfig.SourceConfigPair{kinesisSourceConfigPairWithLocalstack}
+	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{SourceName: "kinesis", SourceConfigFunc: kinesisSourceConfigFunctionWithLocalstack}
+	supportedSources := []sourceconfig.ConfigPair{kinesisSourceConfigPairWithLocalstack}
 
 	source, err := sourceconfig.GetSource(c, supportedSources)
 	assert.NotNil(source)

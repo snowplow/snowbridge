@@ -45,16 +45,16 @@ type SQSSource struct {
 	processErrorSignal chan error
 }
 
-// SQSSourceConfigFunctionGeneratorWithInterfaces generates the SQS Source Config function, allowing you
+// ConfigFunctionGeneratorWithInterfaces generates the SQS Source Config function, allowing you
 // to provide an SQS client directly to allow for mocking and localstack usage
-func SQSSourceConfigFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
+func ConfigFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *config.Config) (sourceiface.Source, error) {
 	return func(c *config.Config) (sourceiface.Source, error) {
 		return NewSQSSourceWithInterfaces(client, awsAccountID, c.Sources.ConcurrentWrites, c.Sources.SQS.Region, c.Sources.SQS.QueueName)
 	}
 }
 
-// SQSSourceConfigFunction returns an SQS source from a config
-func SQSSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
+// ConfigFunction returns an SQS source from a config
+func ConfigFunction(c *config.Config) (sourceiface.Source, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Sources.SQS.Region, c.Sources.SQS.RoleARN)
 	if err != nil {
 		return nil, err
@@ -62,13 +62,13 @@ func SQSSourceConfigFunction(c *config.Config) (sourceiface.Source, error) {
 
 	sqsClient := sqs.New(awsSession, awsConfig)
 
-	sourceConfigFunc := SQSSourceConfigFunctionGeneratorWithInterfaces(sqsClient, *awsAccountID)
+	sourceConfigFunc := ConfigFunctionGeneratorWithInterfaces(sqsClient, *awsAccountID)
 
 	return sourceConfigFunc(c)
 }
 
 // SQSSourceConfigPair is passed to configuration to determine when to build an SQS source.
-var SQSSourceConfigPair = sourceconfig.SourceConfigPair{SourceName: "sqs", SourceConfigFunc: SQSSourceConfigFunction}
+var SQSSourceConfigPair = sourceconfig.ConfigPair{SourceName: "sqs", SourceConfigFunc: ConfigFunction}
 
 // NewSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage

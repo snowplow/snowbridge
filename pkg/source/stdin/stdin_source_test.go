@@ -62,7 +62,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 func TestGetSource_WithStdinSource(t *testing.T) {
 	assert := assert.New(t)
 
-	supportedSources := []sourceconfig.SourceConfigPair{StdinSourceConfigPair}
+	supportedSources := []sourceconfig.ConfigPair{StdinSourceConfigPair}
 
 	defer os.Unsetenv("SOURCE")
 
