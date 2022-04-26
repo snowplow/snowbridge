@@ -1,3 +1,10 @@
+Version 0.8.0 (2022-05-05)
+--------------------------
+Make source functions & objects private (#113)
+Fix linter issues (#103)
+Fail CI on lint failure (#107)
+Update kinsumer fork to 1.3.0 (#73)
+
 Version 0.7.3 (2022-02-22)
 --------------------------
 Split build to exclude kinsumer for GCP deployments (#71)
