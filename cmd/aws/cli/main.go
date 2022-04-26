@@ -17,7 +17,7 @@ import (
 
 func main() {
 	// Make a slice of SourceConfigPairs supported for this build
-	sourceConfigPairs := []sourceconfig.ConfigPair{stdinsource.StdinSourceConfigPair, sqssource.SQSSourceConfigPair, pubsubsource.PubsubSourceConfigPair, kinesissource.KinesisSourceConfigPair}
+	sourceConfigPairs := []sourceconfig.ConfigPair{stdinsource.ConfigPair, sqssource.ConfigPair, pubsubsource.ConfigPair, kinesissource.ConfigPair}
 
 	cli.RunCli(sourceConfigPairs)
 }

@@ -22,33 +22,33 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// StdinSource holds a new client for reading messages from stdin
-type StdinSource struct {
+// stdinSource holds a new client for reading messages from stdin
+type stdinSource struct {
 	concurrentWrites int
 
 	log *log.Entry
 }
 
-// Configfunction returns an stdin source from a config
-func Configfunction(c *config.Config) (sourceiface.Source, error) {
-	return NewStdinSource(
+// configfunction returns an stdin source from a config
+func configfunction(c *config.Config) (sourceiface.Source, error) {
+	return newStdinSource(
 		c.Sources.ConcurrentWrites,
 	)
 }
 
-// StdinSourceConfigPair is passed to configuration to determine when to build an stdin source.
-var StdinSourceConfigPair = sourceconfig.ConfigPair{SourceName: "stdin", SourceConfigFunc: Configfunction}
+// ConfigPair is passed to configuration to determine when to build an stdin source.
+var ConfigPair = sourceconfig.ConfigPair{SourceName: "stdin", SourceConfigFunc: configfunction}
 
-// NewStdinSource creates a new client for reading messages from stdin
-func NewStdinSource(concurrentWrites int) (*StdinSource, error) {
-	return &StdinSource{
+// newStdinSource creates a new client for reading messages from stdin
+func newStdinSource(concurrentWrites int) (*stdinSource, error) {
+	return &stdinSource{
 		concurrentWrites: concurrentWrites,
 		log:              log.WithFields(log.Fields{"source": "stdin"}),
 	}, nil
 }
 
 // Read will execute until CTRL + D is pressed or until EOF is passed
-func (ss *StdinSource) Read(sf *sourceiface.SourceFunctions) error {
+func (ss *stdinSource) Read(sf *sourceiface.SourceFunctions) error {
 	ss.log.Infof("Reading messages from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
 
 	throttle := make(chan struct{}, ss.concurrentWrites)
@@ -86,11 +86,11 @@ func (ss *StdinSource) Read(sf *sourceiface.SourceFunctions) error {
 }
 
 // Stop will halt the reader processing more events
-func (ss *StdinSource) Stop() {
+func (ss *stdinSource) Stop() {
 	ss.log.Warn("Press CTRL + D to exit!")
 }
 
 // GetID returns the identifier for this source
-func (ss *StdinSource) GetID() string {
+func (ss *stdinSource) GetID() string {
 	return "stdin"
 }
