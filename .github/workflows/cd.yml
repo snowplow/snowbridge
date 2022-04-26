@@ -34,6 +34,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
+    - name: Run linter
+      run: make lint
+
     - name: Extract tag version from ref, and project version from file
       id: version
       run: |
