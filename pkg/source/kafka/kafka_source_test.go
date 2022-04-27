@@ -113,7 +113,7 @@ func (c Client) Consume(ctx context.Context, topics []string, handler sarama.Con
 }
 
 // initKafkaSource initializes a Kafka source with a mocked client
-func initKafkaSource(t *testing.T, c *KafkaSourceConfig, targetErr, closeErr error) (*kafkaSource, error) {
+func initKafkaSource(t *testing.T, c *configuration, targetErr, closeErr error) (*kafkaSource, error) {
 	client := Client{
 		targetErr: targetErr,
 		closeErr:  closeErr,
@@ -150,7 +150,7 @@ func initKafkaSource(t *testing.T, c *KafkaSourceConfig, targetErr, closeErr err
 }
 
 func TestKafkaSource_ReadSuccess(t *testing.T) {
-	s, _ := initKafkaSource(t, &KafkaSourceConfig{
+	s, _ := initKafkaSource(t, &configuration{
 		Brokers:          "brokers:9092",
 		ConcurrentWrites: 15,
 		TopicName:        "testTopic",
@@ -168,7 +168,7 @@ func TestKafkaSource_ReadSuccess(t *testing.T) {
 }
 
 func TestKafkaSource_WriteToTargetError(t *testing.T) {
-	s, _ := initKafkaSource(t, &KafkaSourceConfig{
+	s, _ := initKafkaSource(t, &configuration{
 		Brokers:          "brokers:9092",
 		ConcurrentWrites: 15,
 		TopicName:        "testTopic",
@@ -186,7 +186,7 @@ func TestKafkaSource_WriteToTargetError(t *testing.T) {
 }
 
 func TestKafkaSource_CloseErr(t *testing.T) {
-	s, _ := initKafkaSource(t, &KafkaSourceConfig{
+	s, _ := initKafkaSource(t, &configuration{
 		Brokers:          "brokers:9092",
 		ConcurrentWrites: 15,
 		TopicName:        "testTopic",

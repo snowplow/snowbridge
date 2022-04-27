@@ -29,8 +29,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 )
 
-// KafkaSourceConfig configures the source for records
-type KafkaSourceConfig struct {
+// configuration configures the source for records
+type configuration struct {
 	Brokers      string `hcl:"brokers" env:"SOURCE_KAFKA_BROKERS"`
 	TopicName    string `hcl:"topic_name" env:"SOURCE_KAFKA_TOPIC_NAME"`
 	ConsumerName string `hcl:"consumer_name" env:"SOURCE_KAFKA_CONSUMER_NAME"`
@@ -156,10 +156,10 @@ func (ks *kafkaSource) Stop() {
 	ks.cancel = nil
 }
 
-// AdaptKafkaSourceFunc returns a KafkaSourceAdapter.
-func AdaptKafkaSourceFunc(f func(c *KafkaSourceConfig) (sourceiface.Source, error)) KafkaSourceAdapter {
+// adapterGenerator returns a Kafka Source adapter.
+func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*KafkaSourceConfig)
+		cfg, ok := i.(*configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected KafkaSourceConfig")
 		}
@@ -171,27 +171,27 @@ func AdaptKafkaSourceFunc(f func(c *KafkaSourceConfig) (sourceiface.Source, erro
 // KafkaSourceConfigPair is passed to configuration to determine when to build a Kafka source.
 var KafkaSourceConfigPair = sourceconfig.ConfigPair{
 	Name:   "kafka",
-	Handle: AdaptKafkaSourceFunc(configFunction),
+	Handle: adapterGenerator(configFunction),
 }
 
 // configFunction returns a kafka source from a config
-func configFunction(c *KafkaSourceConfig) (sourceiface.Source, error) {
+func configFunction(c *configuration) (sourceiface.Source, error) {
 	return newKafkaSource(c)
 }
 
-// The KafkaSourceAdapter type is an adapter for functions to be used as
+// The adapter type is an adapter for functions to be used as
 // pluggable components for Kafka Source. It implements the Pluggable interface.
-type KafkaSourceAdapter func(i interface{}) (interface{}, error)
+type adapter func(i interface{}) (interface{}, error)
 
 // Create implements the ComponentCreator interface.
-func (f KafkaSourceAdapter) Create(i interface{}) (interface{}, error) {
+func (f adapter) Create(i interface{}) (interface{}, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f KafkaSourceAdapter) ProvideDefault() (interface{}, error) {
+func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &KafkaSourceConfig{
+	cfg := &configuration{
 		Assignor:         "range",
 		SASLAlgorithm:    "sha512",
 		ConcurrentWrites: 15,
@@ -201,7 +201,7 @@ func (f KafkaSourceAdapter) ProvideDefault() (interface{}, error) {
 }
 
 // newKafkaSource creates a new source for reading messages from Apache Kafka
-func newKafkaSource(cfg *KafkaSourceConfig) (*kafkaSource, error) {
+func newKafkaSource(cfg *configuration) (*kafkaSource, error) {
 	kafkaVersion, err := getKafkaVersion(cfg.TargetVersion)
 	if err != nil {
 		return nil, err
