@@ -194,7 +194,7 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 
 	// Use our function generator to interact with localstack
 	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
-	adaptedHandle := AdaptKinesisSourceFunc(kinesisSourceConfigFunctionWithLocalstack)
+	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
 
 	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{Name: "kinesis", Handle: adaptedHandle}
 	supportedSources := []sourceconfig.ConfigPair{kinesisSourceConfigPairWithLocalstack}
@@ -216,7 +216,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 		{
 			File: "source-kinesis-simple.hcl",
 			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
-			Expected: &KinesisSourceConfig{
+			Expected: &configuration{
 				StreamName:       "testStream",
 				Region:           "us-test-1",
 				AppName:          "testApp",
@@ -228,7 +228,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 		{
 			File: "source-kinesis-extended.hcl",
 			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
-			Expected: &KinesisSourceConfig{
+			Expected: &configuration{
 				StreamName:       "testStream",
 				Region:           "us-test-1",
 				AppName:          "testApp",
@@ -269,9 +269,9 @@ func TestKinesisSourceHCL(t *testing.T) {
 }
 
 // Helpers
-func testKinesisSourceAdapter(f func(c *KinesisSourceConfig) (*KinesisSourceConfig, error)) KinesisSourceAdapter {
+func testKinesisSourceAdapter(f func(c *configuration) (*configuration, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*KinesisSourceConfig)
+		cfg, ok := i.(*configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected KinesisSourceConfig")
 		}
@@ -281,7 +281,7 @@ func testKinesisSourceAdapter(f func(c *KinesisSourceConfig) (*KinesisSourceConf
 
 }
 
-func testKinesisSourceFunc(c *KinesisSourceConfig) (*KinesisSourceConfig, error) {
+func testKinesisSourceFunc(c *configuration) (*configuration, error) {
 
 	return c, nil
 }

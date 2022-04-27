@@ -21,8 +21,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// StdinSourceConfig configures the source for records pulled
-type StdinSourceConfig struct {
+// configuration configures the source for records pulled
+type configuration struct {
 	ConcurrentWrites int `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
 }
 
@@ -34,35 +34,35 @@ type stdinSource struct {
 }
 
 // configFunction returns an stdin source from a config
-func configfunction(c *StdinSourceConfig) (sourceiface.Source, error) {
+func configfunction(c *configuration) (sourceiface.Source, error) {
 	return newStdinSource(
 		c.ConcurrentWrites,
 	)
 }
 
-// The StdinSourceAdapter type is an adapter for functions to be used as
+// The adapter type is an adapter for functions to be used as
 // pluggable components for Stdin Source. It implements the Pluggable interface.
-type StdinSourceAdapter func(i interface{}) (interface{}, error)
+type adapter func(i interface{}) (interface{}, error)
 
 // Create implements the ComponentCreator interface.
-func (f StdinSourceAdapter) Create(i interface{}) (interface{}, error) {
+func (f adapter) Create(i interface{}) (interface{}, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f StdinSourceAdapter) ProvideDefault() (interface{}, error) {
+func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &StdinSourceConfig{
+	cfg := &configuration{
 		ConcurrentWrites: 50,
 	}
 
 	return cfg, nil
 }
 
-// AdaptStdinSourceFunc returns a StdinSourceAdapter.
-func AdaptStdinSourceFunc(f func(c *StdinSourceConfig) (sourceiface.Source, error)) StdinSourceAdapter {
+// adapterGenerator returns a StdinSource adapter.
+func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*StdinSourceConfig)
+		cfg, ok := i.(*configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected StdinSourceConfig")
 		}
@@ -74,7 +74,7 @@ func AdaptStdinSourceFunc(f func(c *StdinSourceConfig) (sourceiface.Source, erro
 // ConfigPair is passed to configuration to determine when to build an stdin source.
 var ConfigPair = sourceconfig.ConfigPair{
 	Name:   "stdin",
-	Handle: AdaptStdinSourceFunc(configfunction),
+	Handle: adapterGenerator(configfunction),
 }
 
 // newStdinSource creates a new client for reading messages from stdin

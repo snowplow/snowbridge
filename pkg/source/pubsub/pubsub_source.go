@@ -21,8 +21,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// PubSubSourceConfig configures the source for records pulled
-type PubSubSourceConfig struct {
+// configuration configures the source for records pulled
+type configuration struct {
 	ProjectID        string `hcl:"project_id" env:"SOURCE_PUBSUB_PROJECT_ID"`
 	SubscriptionID   string `hcl:"subscription_id" env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
 	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
@@ -42,7 +42,7 @@ type pubSubSource struct {
 }
 
 // configFunction returns a pubsub source from a config
-func configFunction(c *PubSubSourceConfig) (sourceiface.Source, error) {
+func configFunction(c *configuration) (sourceiface.Source, error) {
 	return newPubSubSource(
 		c.ConcurrentWrites,
 		c.ProjectID,
@@ -50,29 +50,29 @@ func configFunction(c *PubSubSourceConfig) (sourceiface.Source, error) {
 	)
 }
 
-// The PubSubSourceAdapter type is an adapter for functions to be used as
+// The adapter type is an adapter for functions to be used as
 // pluggable components for PubSub Source. It implements the Pluggable interface.
-type PubSubSourceAdapter func(i interface{}) (interface{}, error)
+type adapter func(i interface{}) (interface{}, error)
 
 // Create implements the ComponentCreator interface.
-func (f PubSubSourceAdapter) Create(i interface{}) (interface{}, error) {
+func (f adapter) Create(i interface{}) (interface{}, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f PubSubSourceAdapter) ProvideDefault() (interface{}, error) {
+func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &PubSubSourceConfig{
+	cfg := &configuration{
 		ConcurrentWrites: 50,
 	}
 
 	return cfg, nil
 }
 
-// AdaptPubSubSourceFunc returns a PubSubSourceAdapter.
-func AdaptPubSubSourceFunc(f func(c *PubSubSourceConfig) (sourceiface.Source, error)) PubSubSourceAdapter {
+// adapterGenerator returns a PubSub Source adapter.
+func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*PubSubSourceConfig)
+		cfg, ok := i.(*configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected PubSubSourceConfig")
 		}
@@ -84,7 +84,7 @@ func AdaptPubSubSourceFunc(f func(c *PubSubSourceConfig) (sourceiface.Source, er
 // ConfigPair is passed to configuration to determine when to build a Pubsub source.
 var ConfigPair = sourceconfig.ConfigPair{
 	Name:   "pubsub",
-	Handle: AdaptPubSubSourceFunc(configFunction),
+	Handle: adapterGenerator(configFunction),
 }
 
 // newPubSubSource creates a new client for reading messages from PubSub

@@ -122,7 +122,7 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	assert.Nil(err)
 
 	sqsSourceConfigFunctionWithLocalStack := configFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
-	adaptedHandle := AdaptSQSSourceFunc(sqsSourceConfigFunctionWithLocalStack)
+	adaptedHandle := adapterGenerator(sqsSourceConfigFunctionWithLocalStack)
 
 	sqsSourceConfigPairWithInterfaces := sourceconfig.ConfigPair{Name: "sqs", Handle: adaptedHandle}
 	supportedSources := []sourceconfig.ConfigPair{sqsSourceConfigPairWithInterfaces}
@@ -144,7 +144,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 		{
 			File: "source-sqs.hcl",
 			Plug: testSQSSourceAdapter(testSQSSourceFunc),
-			Expected: &SQSSourceConfig{
+			Expected: &configuration{
 				QueueName:        "testQueue",
 				Region:           "us-test-1",
 				RoleARN:          "xxx-test-role-arn",
@@ -183,9 +183,9 @@ func TestKinesisSourceHCL(t *testing.T) {
 }
 
 // Helpers
-func testSQSSourceAdapter(f func(c *SQSSourceConfig) (*SQSSourceConfig, error)) SQSSourceAdapter {
+func testSQSSourceAdapter(f func(c *configuration) (*configuration, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*SQSSourceConfig)
+		cfg, ok := i.(*configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected SQSSourceConfig")
 		}
@@ -195,7 +195,7 @@ func testSQSSourceAdapter(f func(c *SQSSourceConfig) (*SQSSourceConfig, error)) 
 
 }
 
-func testSQSSourceFunc(c *SQSSourceConfig) (*SQSSourceConfig, error) {
+func testSQSSourceFunc(c *configuration) (*configuration, error) {
 
 	return c, nil
 }
