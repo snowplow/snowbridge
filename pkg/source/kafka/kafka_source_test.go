@@ -113,7 +113,7 @@ func (c Client) Consume(ctx context.Context, topics []string, handler sarama.Con
 }
 
 // initKafkaSource initializes a Kafka source with a mocked client
-func initKafkaSource(t *testing.T, c *KafkaSourceConfig, targetErr, closeErr error) (*KafkaSource, error) {
+func initKafkaSource(t *testing.T, c *KafkaSourceConfig, targetErr, closeErr error) (*kafkaSource, error) {
 	client := Client{
 		targetErr: targetErr,
 		closeErr:  closeErr,
@@ -129,9 +129,9 @@ func initKafkaSource(t *testing.T, c *KafkaSourceConfig, targetErr, closeErr err
 		Partition:      0,
 		Offset:         0,
 	}
-	s, err := NewKafkaSourceWithInterfaces(
+	s, err := newKafkaSourceWithInterfaces(
 		client,
-		&KafkaSource{
+		&kafkaSource{
 			config:           sarama.NewConfig(),
 			concurrentWrites: 15,
 			topic:            c.TopicName,

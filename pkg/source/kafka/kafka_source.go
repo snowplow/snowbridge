@@ -48,8 +48,8 @@ type KafkaSourceConfig struct {
 	SkipVerifyTLS    bool   `hcl:"skip_verify_tls,optional" env:"SOURCE_KAFKA_TLS_SKIP_VERIFY_TLS"`
 }
 
-// KafkaSource holds a new client for reading messages from Apache Kafka
-type KafkaSource struct {
+// kafkaSource holds a new client for reading messages from Apache Kafka
+type kafkaSource struct {
 	config           *sarama.Config
 	concurrentWrites int
 	topic            string
@@ -124,7 +124,7 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 }
 
 // Read initializes the Kafka consumer group and starts the message consumption loop
-func (ks *KafkaSource) Read(sf *sourceiface.SourceFunctions) error {
+func (ks *kafkaSource) Read(sf *sourceiface.SourceFunctions) error {
 	consumer := consumer{
 		throttle:         make(chan struct{}, ks.concurrentWrites),
 		concurrentWrites: ks.concurrentWrites,
@@ -148,7 +148,7 @@ func (ks *KafkaSource) Read(sf *sourceiface.SourceFunctions) error {
 }
 
 // Stop cancels the source receiver
-func (ks *KafkaSource) Stop() {
+func (ks *kafkaSource) Stop() {
 	if ks.cancel != nil {
 		ks.log.Warn("Cancelling Kafka receiver...")
 		ks.cancel()
@@ -171,12 +171,12 @@ func AdaptKafkaSourceFunc(f func(c *KafkaSourceConfig) (sourceiface.Source, erro
 // KafkaSourceConfigPair is passed to configuration to determine when to build a Kafka source.
 var KafkaSourceConfigPair = sourceconfig.ConfigPair{
 	Name:   "kafka",
-	Handle: AdaptKafkaSourceFunc(KafkaSourceConfigFunction),
+	Handle: AdaptKafkaSourceFunc(configFunction),
 }
 
-// KafkaSourceConfigFunction returns a kafka source from a config
-func KafkaSourceConfigFunction(c *KafkaSourceConfig) (sourceiface.Source, error) {
-	return NewKafkaSource(c)
+// configFunction returns a kafka source from a config
+func configFunction(c *KafkaSourceConfig) (sourceiface.Source, error) {
+	return newKafkaSource(c)
 }
 
 // The KafkaSourceAdapter type is an adapter for functions to be used as
@@ -200,8 +200,8 @@ func (f KafkaSourceAdapter) ProvideDefault() (interface{}, error) {
 	return cfg, nil
 }
 
-// NewKafkaSource creates a new source for reading messages from Apache Kafka
-func NewKafkaSource(cfg *KafkaSourceConfig) (*KafkaSource, error) {
+// newKafkaSource creates a new source for reading messages from Apache Kafka
+func newKafkaSource(cfg *KafkaSourceConfig) (*kafkaSource, error) {
 	kafkaVersion, err := getKafkaVersion(cfg.TargetVersion)
 	if err != nil {
 		return nil, err
@@ -262,7 +262,7 @@ func NewKafkaSource(cfg *KafkaSourceConfig) (*KafkaSource, error) {
 		return nil, errors.Wrap(err, "Failed to create Kafka client")
 	}
 
-	return NewKafkaSourceWithInterfaces(client, &KafkaSource{
+	return newKafkaSourceWithInterfaces(client, &kafkaSource{
 		brokers:          cfg.Brokers,
 		topic:            cfg.TopicName,
 		consumerName:     cfg.ConsumerName,
@@ -272,13 +272,13 @@ func NewKafkaSource(cfg *KafkaSourceConfig) (*KafkaSource, error) {
 }
 
 // NewKafkaSource creates a new source for reading messages from Apache Kafka
-func NewKafkaSourceWithInterfaces(client sarama.ConsumerGroup, s *KafkaSource) (*KafkaSource, error) {
+func newKafkaSourceWithInterfaces(client sarama.ConsumerGroup, s *kafkaSource) (*kafkaSource, error) {
 	s.client = client
 	return s, nil
 }
 
 // GetID returns the identifier for this target
-func (ks *KafkaSource) GetID() string {
+func (ks *kafkaSource) GetID() string {
 	return fmt.Sprintf("brokers:%s:topic:%s", ks.brokers, ks.topic)
 }
 
