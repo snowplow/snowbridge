@@ -60,7 +60,7 @@ func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID 
 	}
 }
 
-// SQSSourceConfigFunction returns an SQS source from a config.
+// configFunction returns an SQS source from a config.
 func configFunction(c *SQSSourceConfig) (sourceiface.Source, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN)
 	if err != nil {
@@ -105,7 +105,7 @@ func AdaptSQSSourceFunc(f func(c *SQSSourceConfig) (sourceiface.Source, error)) 
 	}
 }
 
-// SQSSourceConfigPair is passed to configuration to determine when and how to build
+// ConfigPair is passed to configuration to determine when and how to build
 // an SQS source.
 var ConfigPair = sourceconfig.ConfigPair{
 	Name:   "sqs",

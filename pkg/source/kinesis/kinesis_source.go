@@ -79,7 +79,7 @@ func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 	}
 }
 
-// KinesisSourceConfigFunction returns a kinesis source from a config
+// configFunction returns a kinesis source from a config
 func configFunction(c *KinesisSourceConfig) (sourceiface.Source, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN)
 	if err != nil {
@@ -127,7 +127,7 @@ func AdaptKinesisSourceFunc(f func(c *KinesisSourceConfig) (sourceiface.Source, 
 	}
 }
 
-// KinesisSourceConfigPair is passed to configuration to determine when to build a Kinesis source.
+// ConfigPair is passed to configuration to determine when to build a Kinesis source.
 var ConfigPair = sourceconfig.ConfigPair{
 	Name:   "kinesis",
 	Handle: AdaptKinesisSourceFunc(configFunction),

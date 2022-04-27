@@ -33,7 +33,7 @@ type stdinSource struct {
 	log *log.Entry
 }
 
-// StdinSourceConfigfunction returns an stdin source from a config
+// configFunction returns an stdin source from a config
 func configfunction(c *StdinSourceConfig) (sourceiface.Source, error) {
 	return newStdinSource(
 		c.ConcurrentWrites,
@@ -71,7 +71,7 @@ func AdaptStdinSourceFunc(f func(c *StdinSourceConfig) (sourceiface.Source, erro
 	}
 }
 
-// StdinSourceConfigPair is passed to configuration to determine when to build an stdin source.
+// ConfigPair is passed to configuration to determine when to build an stdin source.
 var ConfigPair = sourceconfig.ConfigPair{
 	Name:   "stdin",
 	Handle: AdaptStdinSourceFunc(configfunction),

@@ -14,7 +14,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// SourceConfigPair contains the name of a source and its handle that satisfies the
+// ConfigPair contains the name of a source and its handle that satisfies the
 // Pluggable interface.
 type ConfigPair struct {
 	Name   string

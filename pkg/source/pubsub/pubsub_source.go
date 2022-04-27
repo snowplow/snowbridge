@@ -41,7 +41,7 @@ type pubSubSource struct {
 	cancel context.CancelFunc
 }
 
-// PubsubSourceConfigFunction returns a pubsub source from a config
+// configFunction returns a pubsub source from a config
 func configFunction(c *PubSubSourceConfig) (sourceiface.Source, error) {
 	return newPubSubSource(
 		c.ConcurrentWrites,
@@ -81,7 +81,7 @@ func AdaptPubSubSourceFunc(f func(c *PubSubSourceConfig) (sourceiface.Source, er
 	}
 }
 
-// PubsubSourceConfigPair is passed to configuration to determine when to build a Pubsub source.
+// ConfigPair is passed to configuration to determine when to build a Pubsub source.
 var ConfigPair = sourceconfig.ConfigPair{
 	Name:   "pubsub",
 	Handle: AdaptPubSubSourceFunc(configFunction),
