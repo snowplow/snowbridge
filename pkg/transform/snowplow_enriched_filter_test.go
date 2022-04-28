@@ -21,6 +21,16 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 		PartitionKey: "some-key",
 	}
 
+	var messageGoodInt = models.Message{
+		Data:         snowplowTsv4,
+		PartitionKey: "some-key",
+	}
+
+	var messageWithUnstructEvent = models.Message{
+		Data:         snowplowTsv1,
+		PartitionKey: "some-key",
+	}
+
 	// Single value cases
 	aidFilterFuncKeep, _ := NewSpEnrichedFilterFunction("app_id==test-data3")
 
@@ -116,11 +126,74 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Equal(snowplowTsv3, nilNegationIn.Data)
 	assert.Nil(nilNegationOut)
 	assert.Nil(fail8)
+
+	// context filter success
+	contextFuncKeep, _ := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1.test1.test2[0].test3==testValue")
+
+	contextKeepIn, contextKeepOut, fail9, _ := contextFuncKeep(&messageGood, nil)
+
+	assert.Equal(snowplowTsv3, contextKeepIn.Data)
+	assert.Nil(contextKeepOut)
+	assert.Nil(fail9)
+
+	// context filter success (integer value)
+	contextFuncKeep, _ = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1.test1.test2[0].test3==1")
+
+	contextKeepIn, contextKeepOut, fail9, _ = contextFuncKeep(&messageGoodInt, nil)
+
+	assert.Equal(snowplowTsv4, contextKeepIn.Data)
+	assert.Nil(contextKeepOut)
+	assert.Nil(fail9)
+
+	// context filter failure
+	contextFuncKeep, _ = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_2.test1.test2[0].test3==testValue")
+
+	contextKeepIn, contextKeepOut, fail9, _ = contextFuncKeep(&messageGood, nil)
+
+	assert.Nil(contextKeepIn)
+	assert.Equal(snowplowTsv3, contextKeepOut.Data)
+	assert.Nil(fail9)
+
+	// event filter success, filtered event name
+	eventFilterFunCkeep, _ := NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart_1.sku==item41")
+
+	eventKeepIn, eventKeepOut, fail10, _ := eventFilterFunCkeep(&messageWithUnstructEvent, nil)
+
+	assert.Equal(snowplowTsv1, eventKeepIn.Data)
+	assert.Nil(eventKeepOut)
+	assert.Nil(fail10)
+
+	// event filter success, filtered event name, no event ver
+	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart.sku==item41")
+
+	eventKeepIn, eventKeepOut, fail10, _ = eventFilterFunCkeep(&messageWithUnstructEvent, nil)
+
+	assert.Equal(snowplowTsv1, eventKeepIn.Data)
+	assert.Nil(eventKeepOut)
+	assert.Nil(fail10)
+
+	// event filter failure, wrong event name
+	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_wrong_name.sku==item41")
+
+	eventKeepIn, eventKeepOut, fail11, _ := eventFilterFunCkeep(&messageWithUnstructEvent, nil)
+
+	assert.Nil(eventKeepIn)
+	assert.Equal(snowplowTsv1, eventKeepOut.Data)
+	assert.Nil(fail11)
+
+	// event filter failure, field not found
+	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart.ska==item41")
+
+	eventNoFieldIn, eventNoFieldOut, fail12, _ := eventFilterFunCkeep(&messageWithUnstructEvent, nil)
+
+	assert.Nil(eventNoFieldIn)
+	assert.Nil(eventNoFieldOut)
+	assert.NotNil(fail12)
 }
 
 func TestNewSpEnrichedFilterFunction_Error(t *testing.T) {
 	assert := assert.New(t)
-	error := `Invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`
+	error := `invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`
 
 	filterFunc, err1 := NewSpEnrichedFilterFunction("")
 
