@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
 // NewSpEnrichedFilterFunction returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event.
@@ -23,11 +24,12 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 
 	// This regex prevents whitespace characters in the value provided
 	regex := `\S+(!=|==)[^\s\|]+((?:\|[^\s|]+)*)$`
+
 	re := regexp.MustCompile(regex)
 
 	if !(re.MatchString(filterConfig)) {
 		// If invalid, return an error which will be returned by the main function
-		return nil, errors.New("Invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]")
+		return nil, errors.New("invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]")
 	}
 
 	// Check for a negation condition first
@@ -55,10 +57,44 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 			return nil, nil, message, nil
 		}
 
-		valueFound, err := parsedMessage.GetValue(keyValues[0])
+		// This regex retrieves the path fields (e.g. field1.field2[0].field3)
+		regex = `\w+`
+		re = regexp.MustCompile(regex)
+
+		var valueFound interface{}
+		var err error
+
+		path := re.FindAllString(keyValues[0], -1)
+		p := make([]string, len(path)-1)
+		for idx, pathField := range path[1:] {
+			p[idx] = pathField
+		}
+		if strings.HasPrefix(path[0], `contexts_`) {
+			valueFound, err = parsedMessage.GetContextValue(path[0], extractInterfacePath(p)...)
+		} else if strings.HasPrefix(path[0], `unstruct_event`) {
+			// unstruct_event name is irrelevant
+			if path[0] == `unstruct_event` {
+				valueFound, err = parsedMessage.GetUnstructEventValue(extractInterfacePath(p)...)
+			} else {
+				// check if event name is correct
+				eventName := strings.TrimPrefix(path[0], `unstruct_event_`)
+				parsedEventName, err := parsedMessage.GetValue(`event_name`)
+				if err != nil {
+					message.SetError(err)
+					return nil, nil, message, nil
+				}
+				if eventName == parsedEventName {
+					valueFound, err = parsedMessage.GetUnstructEventValue(extractInterfacePath(p)...)
+				} else {
+					valueFound = nil
+				}
+			}
+		} else {
+			valueFound, err = parsedMessage.GetValue(keyValues[0])
+		}
 
 		// GetValue returns an error if the field requested is empty. Check for that particular error before failing the message.
-		if err != nil && err.Error() == fmt.Sprintf("Field %s is empty", keyValues[0]) {
+		if err != nil && err.Error() == analytics.EmptyFieldErr {
 			valueFound = nil
 		} else if err != nil {
 			message.SetError(err)
@@ -67,20 +103,32 @@ func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, e
 
 	evaluation:
 		for _, valueToMatch := range strings.Split(keyValues[1], "|") {
-			if valueToMatch == fmt.Sprintf("%v", valueFound) { // coerce to string as valueFound may be any type found in a Snowplow event
-				if isNegationFilter {
-					shouldKeepMessage = false
-				} else {
-					shouldKeepMessage = true
+			if strings.HasPrefix(path[0], `contexts_`) {
+				for _, v := range valueFound.([]interface{}) {
+					if fmt.Sprintf("%v", v) == valueToMatch {
+						if isNegationFilter {
+							shouldKeepMessage = false
+						} else {
+							shouldKeepMessage = true
+						}
+						break evaluation
+					}
 				}
-				break evaluation
-				// Once config value is matched once, change shouldKeepMessage, and stop looking for matches
+			} else {
+				if valueToMatch == fmt.Sprintf("%v", valueFound) { // coerce to string as valueFound may be any type found in a Snowplow event
+					if isNegationFilter {
+						shouldKeepMessage = false
+					} else {
+						shouldKeepMessage = true
+					}
+					break evaluation
+					// Once config value is matched once, change shouldKeepMessage, and stop looking for matches
+				}
 			}
 		}
 
 		// If message is not to be kept, return it as a filtered message to be acked in the main function
 		if !shouldKeepMessage {
-
 			return nil, message, nil, nil
 		}
 

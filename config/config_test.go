@@ -109,7 +109,7 @@ func TestNewConfig_FilterFailure(t *testing.T) {
 	transformation, err := c.GetTransformations()
 	assert.Nil(transformation)
 	assert.NotNil(err)
-	assert.Equal(`Invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`, err.Error())
+	assert.Equal(`invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`, err.Error())
 }
 
 func TestNewConfig_InvalidTarget(t *testing.T) {
