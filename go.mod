@@ -33,7 +33,6 @@ require (
 	github.com/smira/go-statsd v1.3.2
 	github.com/snowplow-devops/go-retry v0.0.0-20210106090855-8989bbdbae1c
 	github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a
-	github.com/snowplow/snowplow-golang-analytics-sdk v0.1.0
 	github.com/stretchr/testify v1.7.0
 	github.com/twinj/uuid v1.0.0
 	github.com/twitchscience/kinsumer v0.0.0-20210611163023-da24975e2c91
@@ -54,6 +53,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/hashicorp/hcl/v2 v2.11.1
+	github.com/snowplow/snowplow-golang-analytics-sdk v0.2.2
 	github.com/zclconf/go-cty v1.10.0
 )
 
