@@ -46,6 +46,14 @@ jobs:
         echo "VERSION file ${{steps.version.outputs.VERSION_FILE}} does not match tagged version ${{ github.ref }}"
         exit 1
 
+    - name: Snyk Setup
+      uses: snyk/actions/setup@master
+
+    - name: Run Snyk to check for vulnerabilities
+      run: snyk test --project-name=stream-replicator --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
     - name: Compile
       run: make all
 
