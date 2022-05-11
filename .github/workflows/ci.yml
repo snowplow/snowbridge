@@ -27,6 +27,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
+    - name: Snyk Setup
+      uses: snyk/actions/setup@master
+
+    - name: Run Snyk to check for vulnerabilities
+      run: snyk test --project-name=stream-replicator --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
     - name: Cache go modules
       uses: actions/cache@v2
       with:
