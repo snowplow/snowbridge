@@ -37,11 +37,13 @@ func GetGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
 	return targetFile, nil
 }
 
+// DeleteTemporaryDir deletes the temp directory we created to store credentials
 func DeleteTemporaryDir() error {
 	err := os.RemoveAll(`tmp_replicator`)
 	return err
 }
 
+// DecodeB64ToFile takes a B64-encoded credential, decodes it, and writes it to a file
 func DecodeB64ToFile(b64String, filename string) error {
 	tls, decodeErr := base64.StdEncoding.DecodeString(b64String)
 	if decodeErr != nil {
