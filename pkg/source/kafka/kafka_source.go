@@ -18,8 +18,6 @@ import (
 
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 
-	"github.com/pkg/errors"
-
 	"github.com/Shopify/sarama"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -32,7 +30,7 @@ import (
 )
 
 const (
-	kafkaSource = `kafka_source`
+	kafkaSourceName = `kafka_source`
 )
 
 // configuration configures the source for records
@@ -254,7 +252,7 @@ func newKafkaSource(cfg *configuration) (*kafkaSource, error) {
 	}
 
 	// validate TLS if required
-	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, kafkaSource, cfg.SkipVerifyTLS)
+	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, kafkaSourceName, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
