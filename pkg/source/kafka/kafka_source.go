@@ -275,7 +275,7 @@ func newKafkaSource(cfg *configuration) (*kafkaSource, error) {
 	})
 }
 
-// NewKafkaSource creates a new source for reading messages from Apache Kafka
+// newKafkaSourceWithInterfaces creates a new source for reading messages from Apache Kafka, allowing the user to provide a mocked client.
 func newKafkaSourceWithInterfaces(client sarama.ConsumerGroup, s *kafkaSource) (*kafkaSource, error) {
 	s.client = client
 	return s, nil
