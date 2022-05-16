@@ -26,7 +26,7 @@ type configuration struct {
 	ConcurrentWrites int `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
 }
 
-// StdinSource holds a new client for reading messages from stdin
+// stdinSource holds a new client for reading messages from stdin
 type stdinSource struct {
 	concurrentWrites int
 

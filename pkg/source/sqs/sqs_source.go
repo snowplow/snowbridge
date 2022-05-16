@@ -33,7 +33,7 @@ type configuration struct {
 	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
 }
 
-// SQSSource holds a new client for reading messages from SQS
+// sqsSource holds a new client for reading messages from SQS
 type sqsSource struct {
 	client           sqsiface.SQSAPI
 	queueURL         string

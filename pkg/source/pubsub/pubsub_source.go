@@ -28,7 +28,7 @@ type configuration struct {
 	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
 }
 
-// PubSubSource holds a new client for reading messages from PubSub
+// pubSubSource holds a new client for reading messages from PubSub
 type pubSubSource struct {
 	projectID        string
 	client           *pubsub.Client
