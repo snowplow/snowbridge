@@ -23,7 +23,7 @@ func main() {
 		sqssource.ConfigPair,
 		pubsubsource.ConfigPair,
 		kinesissource.ConfigPair,
-		kafkasource.KafkaSourceConfigPair,
+		kafkasource.ConfigPair,
 	}
 
 	cli.RunCli(sourceConfigPairs)

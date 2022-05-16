@@ -21,7 +21,7 @@ func main() {
 		stdinsource.ConfigPair,
 		sqssource.ConfigPair,
 		pubsubsource.ConfigPair,
-		kafkasource.KafkaSourceConfigPair,
+		kafkasource.ConfigPair,
 	}
 
 	cli.RunCli(sourceConfigPairs)

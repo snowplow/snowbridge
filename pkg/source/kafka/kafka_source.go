@@ -172,8 +172,8 @@ func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adap
 	}
 }
 
-// KafkaSourceConfigPair is passed to configuration to determine when to build a Kafka source.
-var KafkaSourceConfigPair = sourceconfig.ConfigPair{
+// ConfigPair is passed to configuration to determine when to build a Kafka source.
+var ConfigPair = sourceconfig.ConfigPair{
 	Name:   "kafka",
 	Handle: adapterGenerator(configFunction),
 }
