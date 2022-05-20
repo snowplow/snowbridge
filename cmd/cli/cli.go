@@ -29,6 +29,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/telemetry"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
@@ -106,6 +107,8 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 		}
 		o.Start()
 
+		stopTelemetry := telemetry.InitTelemetryWithCollector(cfg)
+
 		// Handle SIGTERM
 		sig := make(chan os.Signal)
 		signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
@@ -122,7 +125,8 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 			select {
 			case <-stop:
 				log.Debug("source.Stop() finished successfully!")
-				
+
+				stopTelemetry()
 				err := common.DeleteTemporaryDir()
 				if err != nil {
 					log.Debugf(`error deleting tmp directory: %v`, err)
@@ -133,6 +137,7 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 				t.Close()
 				ft.Close()
 				o.Stop()
+				stopTelemetry()
 
 				err := common.DeleteTemporaryDir()
 				if err != nil {
