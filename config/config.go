@@ -44,6 +44,8 @@ type ConfigurationData struct {
 	Transformation          string         `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
 	LogLevel                string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
 	GoogleServiceAccountB64 string         `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
+	UserProvidedID          string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
+	DisableTelemetry        bool           `hcl:"disable_telemetry,optional" env:"DISABLE_TELEMETRY"`
 }
 
 // Component is a type to abstract over configuration blocks.
@@ -97,8 +99,9 @@ func defaultConfigData() *ConfigurationData {
 			TimeoutSec: 1,
 			BufferSec:  15,
 		},
-		Transformation: "none",
-		LogLevel:       "info",
+		Transformations:  nil,
+		LogLevel:         "info",
+		DisableTelemetry: false,
 	}
 }
 
