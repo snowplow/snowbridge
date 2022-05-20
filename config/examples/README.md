@@ -57,6 +57,9 @@ log_level = "info"
 
 // Ability to provide a GCP service account (b64) to the application directly
 google_application_credentials = ""
+
+// Optional parameter that helps us categorise telemetry events
+user_provided_id = ""
 ```
 
 So, a complete example could be:
@@ -97,6 +100,8 @@ sentry {
 }
 
 log_level = "debug"
+
+user_provided_id = "my-example-id"
 ```
 
 In the example files in this directory, there is a simple and extended version for configuring each:
