@@ -29,6 +29,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/telemetry"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
@@ -105,6 +106,8 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 			return err
 		}
 		o.Start()
+
+		telemetry.InitTelemetryWithCollector(cfg)
 
 		// Handle SIGTERM
 		sig := make(chan os.Signal)

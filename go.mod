@@ -27,12 +27,12 @@ require (
 	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
-	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/smira/go-statsd v1.3.2
 	github.com/snowplow-devops/go-retry v0.0.0-20210106090855-8989bbdbae1c
 	github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a
+	github.com/snowplow/snowplow-golang-analytics-sdk v0.2.2
 	github.com/stretchr/testify v1.7.0
 	github.com/twinj/uuid v1.0.0
 	github.com/twitchscience/kinsumer v0.0.0-20210611163023-da24975e2c91
@@ -53,7 +53,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/hashicorp/hcl/v2 v2.11.1
-	github.com/snowplow/snowplow-golang-analytics-sdk v0.2.2
+	github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1
 	github.com/zclconf/go-cty v1.10.0
 )
 
@@ -73,7 +73,10 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
+	github.com/hashicorp/go-immutable-radix v1.1.0 // indirect
+	github.com/hashicorp/go-memdb v1.0.4 // indirect
 	github.com/hashicorp/go-uuid v1.0.2 // indirect
+	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.0.0 // indirect
@@ -82,6 +85,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
+	github.com/mattn/go-sqlite3 v2.0.2+incompatible // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
