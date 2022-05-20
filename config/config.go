@@ -44,6 +44,7 @@ type ConfigurationData struct {
 	Transformation          string         `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
 	LogLevel                string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
 	GoogleServiceAccountB64 string         `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
+	UserProvidedID          string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
 }
 
 // Component is a type to abstract over configuration blocks.
