@@ -11,7 +11,7 @@ require (
 	github.com/Azure/go-amqp v0.13.11 // indirect
 	github.com/Azure/go-autorest/autorest v0.11.19 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.14 // indirect
-	github.com/Shopify/sarama v1.29.1
+	github.com/Shopify/sarama v1.34.0
 	github.com/aws/aws-lambda-go v1.26.0
 	github.com/aws/aws-sdk-go v1.40.22
 	github.com/caarlos0/env/v6 v6.6.2
@@ -24,7 +24,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jpillora/backoff v1.0.0 // indirect
-	github.com/klauspost/compress v1.13.4 // indirect
+	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
@@ -39,11 +39,11 @@ require (
 	github.com/twitchscience/kinsumer v0.0.0-20210611163023-da24975e2c91
 	github.com/urfave/cli v1.22.5
 	github.com/xdg/scram v1.0.3
-	golang.org/x/crypto v0.0.0-20210812204632-0ba0e8f03122 // indirect
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/mod v0.5.0 // indirect
-	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
+	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
 	golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5 // indirect
-	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/api v0.54.0 // indirect
 	google.golang.org/genproto v0.0.0-20210813162853-db860fec028c // indirect
@@ -77,6 +77,7 @@ require (
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
+	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
