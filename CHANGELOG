@@ -1,3 +1,7 @@
+Version 0.8.1 (2022-06-07)
+--------------------------
+Update Sarama package to 1.34 for kafka v3 (#133)
+
 Version 0.8.0 (2022-05-05)
 --------------------------
 Make source functions & objects private (#113)
