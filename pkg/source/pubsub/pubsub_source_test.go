@@ -15,9 +15,9 @@ func TestGetSource_WithPubsubSource(t *testing.T) {
 
 	supportedSources := []sourceconfig.SourceConfigPair{PubsubSourceConfigPair}
 
-	defer os.Unsetenv("SOURCE")
+	defer os.Unsetenv("SOURCE_NAME")
 
-	os.Setenv("SOURCE", "pubsub")
+	t.Setenv("SOURCE_NAME", "pubsub")
 
 	pubsubConfig, err := config.NewConfig()
 	assert.NotNil(pubsubConfig)
