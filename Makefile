@@ -156,6 +156,7 @@ integration-down: http-down
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml down)
 	rm -rf $(integration_dir)/.localstack
 
+# ngrok needs to be installed and auth token must be configured for this if running locally
 http-up:
 	(cd "$(integration_dir)/http/server" && go run server.go &)
 	sleep 5

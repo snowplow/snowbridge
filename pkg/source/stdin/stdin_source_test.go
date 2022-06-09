@@ -60,13 +60,12 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 }
 
 func TestGetSource_WithStdinSource(t *testing.T) {
+	os.Clearenv()
+	t.Setenv("SOURCE_NAME", "stdin")
+
 	assert := assert.New(t)
 
 	supportedSources := []sourceconfig.ConfigPair{ConfigPair}
-
-	defer os.Unsetenv("SOURCE_NAME")
-
-	os.Setenv("SOURCE_NAME", "stdin")
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
