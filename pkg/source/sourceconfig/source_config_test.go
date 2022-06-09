@@ -14,12 +14,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMain(m *testing.M) {
+	os.Clearenv()
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
 func TestNewConfig_InvalidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("SOURCE_NAME")
-
-	os.Setenv("SOURCE_NAME", "fake")
+	t.Setenv("SOURCE_NAME", "fake")
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

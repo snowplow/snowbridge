@@ -39,11 +39,8 @@ func TestNewEventHubTarget_KeyValue(t *testing.T) {
 	unsetEverything()
 
 	// Test that we can initialise a client with Key and Value
-	defer os.Unsetenv("EVENTHUB_KEY_NAME")
-	defer os.Unsetenv("EVENTHUB_KEY_VALUE")
-
-	os.Setenv("EVENTHUB_KEY_NAME", "fake")
-	os.Setenv("EVENTHUB_KEY_VALUE", "fake")
+	t.Setenv("EVENTHUB_KEY_NAME", "fake")
+	t.Setenv("EVENTHUB_KEY_VALUE", "fake")
 
 	tgt, err := NewEventHubTarget(&cfg)
 	assert.Nil(err)
@@ -56,9 +53,8 @@ func TestNewEventHubTarget_ConnString(t *testing.T) {
 	unsetEverything()
 
 	// Test that we can initialise a client with Connection String
-	defer os.Unsetenv("EVENTHUB_CONNECTION_STRING")
 
-	os.Setenv("EVENTHUB_CONNECTION_STRING", "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=fake;SharedAccessKey=fake")
+	t.Setenv("EVENTHUB_CONNECTION_STRING", "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=fake;SharedAccessKey=fake")
 
 	tgt, err := NewEventHubTarget(&cfg)
 	assert.Nil(err)

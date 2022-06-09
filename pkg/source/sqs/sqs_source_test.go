@@ -24,6 +24,12 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
+func TestMain(m *testing.M) {
+	os.Clearenv()
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
 func TestSQSSource_ReadFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -112,10 +118,8 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName)
 
-	defer os.Unsetenv("SOURCE_NAME")
-
-	os.Setenv("SOURCE_NAME", "sqs")
-	os.Setenv("SOURCE_SQS_QUEUE_NAME", queueName)
+	t.Setenv("SOURCE_NAME", "sqs")
+	t.Setenv("SOURCE_SQS_QUEUE_NAME", queueName)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

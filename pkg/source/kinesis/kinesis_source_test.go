@@ -26,6 +26,12 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
+func TestMain(m *testing.M) {
+	os.Clearenv()
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
 func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -74,6 +80,8 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	if putErr != nil {
 		panic(putErr)
 	}
+
+	time.Sleep(1 * time.Second)
 
 	// Create the source and assert that it's there
 	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil)
@@ -177,16 +185,11 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
-	defer os.Unsetenv("SOURCE_NAME")
-	defer os.Unsetenv("SOURCE_KINESIS_STREAM_NAME")
-	defer os.Unsetenv("SOURCE_KINESIS_REGION")
-	defer os.Unsetenv("SOURCE_KINESIS_APP_NAME")
+	t.Setenv("SOURCE_NAME", "kinesis")
 
-	os.Setenv("SOURCE_NAME", "kinesis")
-
-	os.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
-	os.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
-	os.Setenv("SOURCE_KINESIS_APP_NAME", appName)
+	t.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
+	t.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
+	t.Setenv("SOURCE_KINESIS_APP_NAME", appName)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
