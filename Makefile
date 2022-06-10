@@ -1,4 +1,4 @@
-.PHONY: all gox aws-lambda gcp-cloudfunctions cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test integration-reset integration-up integration-down integration-test container-release clean
+.PHONY: all gox cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test integration-reset integration-up integration-down integration-test container-release clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -32,56 +32,11 @@ gcp_container_name = snowplow/stream-replicator-gcp
 #  BUILDING
 # -----------------------------------------------------------------------------
 
-all: aws-lambda gcp-cloudfunctions cli container
+all: cli container
 
 gox:
 	GO111MODULE=on go install github.com/mitchellh/gox@latest
 	mkdir -p $(compiled_dir)
-
-aws-lambda: gox
-	# WARNING: Binary must be called 'main' to work in Lambda
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/lambda/main ./cmd/aws/lambda/
-
-	# Create ZIP file for upload to Lambda
-	(cd $(linux_out_dir)/aws/lambda/ && zip -r staging.zip main)
-	mv $(linux_out_dir)/aws/lambda/staging.zip $(compiled_dir)/aws_lambda_stream_replicator_$(version)_linux_amd64.zip
-
-gcp-cloudfunctions: gox
-	mkdir -p $(staging_dir)/gcp/cloudfunctions
-
-	# Copy dependencies into staging area
-	cp ./cmd/gcp/cloudfunctions/function.go $(staging_dir)/gcp/cloudfunctions/function.go
-
-	# Get module dependencies in a vendor directory
-	GO111MODULE=on go mod vendor
-	cp -R ./$(vendor_dir)/ $(staging_dir)/gcp/cloudfunctions/vendor/
-
-	# Copy local packages into staging area
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/
-	cp ./cmd/constants.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/constants.go
-	cp ./cmd/init.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/init.go
-	cp ./cmd/serverless.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/cmd/serverless.go
-
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/config/
-	cp ./config/config.go $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/config/config.go
-
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/
-	cp -R ./pkg/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/pkg/
-
-	mkdir -p $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/
-	cp -R ./third_party/snowplow/badrows/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows
-	cp -R ./third_party/snowplow/iglu/ $(staging_dir)/gcp/cloudfunctions/vendor/github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu
-
-	echo "# github.com/snowplow-devops/stream-replicator v$(version)" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/config" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/cmd" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/pkg" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-	echo "github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu" >> $(staging_dir)/gcp/cloudfunctions/vendor/modules.txt
-
-	# Create ZIP file for upload to CloudFunctions
-	(cd $(staging_dir)/gcp/cloudfunctions/ && zip -r staging.zip .)
-	mv $(staging_dir)/gcp/cloudfunctions/staging.zip $(compiled_dir)/gcp_cloudfunctions_stream_replicator_$(version)_linux_amd64.zip
 
 cli: gox cli-linux cli-darwin cli-windows
 	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip stream-replicator)

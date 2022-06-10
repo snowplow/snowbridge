@@ -12,7 +12,6 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.19 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.14 // indirect
 	github.com/Shopify/sarama v1.34.0
-	github.com/aws/aws-lambda-go v1.26.0
 	github.com/aws/aws-sdk-go v1.40.22
 	github.com/caarlos0/env/v6 v6.9.1
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
