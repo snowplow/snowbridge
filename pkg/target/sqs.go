@@ -50,20 +50,20 @@ type SQSTarget struct {
 	log *log.Entry
 }
 
-// NewSQSTarget creates a new client for writing messages to sqs
-func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, error) {
+// newSQSTarget creates a new client for writing messages to sqs
+func newSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
 	if err != nil {
 		return nil, err
 	}
 	sqsClient := sqs.New(awsSession, awsConfig)
 
-	return NewSQSTargetWithInterfaces(sqsClient, *awsAccountID, region, queueName)
+	return newSQSTargetWithInterfaces(sqsClient, *awsAccountID, region, queueName)
 }
 
-// NewSQSTargetWithInterfaces allows you to provide an SQS client directly to allow
+// newSQSTargetWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
-func NewSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, region string, queueName string) (*SQSTarget, error) {
+func newSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, region string, queueName string) (*SQSTarget, error) {
 	return &SQSTarget{
 		client:    client,
 		queueName: queueName,
@@ -75,7 +75,7 @@ func NewSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, reg
 
 // SQSTargetConfigFunction creates an SQSTarget from an SQSTargetConfig
 func SQSTargetConfigFunction(c *SQSTargetConfig) (*SQSTarget, error) {
-	return NewSQSTarget(c.Region, c.QueueName, c.RoleARN)
+	return newSQSTarget(c.Region, c.QueueName, c.RoleARN)
 }
 
 // The SQSTargetAdapter type is an adapter for functions to be used as

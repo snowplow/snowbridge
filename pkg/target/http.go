@@ -24,10 +24,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
-const (
-	httpTarget = `http_target`
-)
-
 // HTTPTargetConfig configures the destination for records consumed
 type HTTPTargetConfig struct {
 	HTTPURL                 string `hcl:"url" env:"TARGET_HTTP_URL"`
@@ -61,7 +57,7 @@ func checkURL(str string) error {
 		return err
 	}
 	if u.Scheme == "" || u.Host == "" {
-		return errors.New(fmt.Sprintf("Invalid url for Http target: '%s'", str))
+		return errors.New(fmt.Sprintf("Invalid url for HTTP target: '%s'", str))
 	}
 	return nil
 }
@@ -92,8 +88,8 @@ func addHeadersToRequest(request *http.Request, headers map[string]string) {
 
 }
 
-// NewHTTPTarget creates a client for writing events to HTTP
-func NewHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentType string, headers string, basicAuthUsername string, basicAuthPassword string,
+// newHTTPTarget creates a client for writing events to HTTP
+func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentType string, headers string, basicAuthUsername string, basicAuthPassword string,
 	certFile string, keyFile string, caFile string, skipVerifyTLS bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
@@ -130,7 +126,7 @@ func NewHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 
 // HTTPTargetConfigFunction creates HTTPTarget from HTTPTargetConfig
 func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
-	return NewHTTPTarget(
+	return newHTTPTarget(
 		c.HTTPURL,
 		c.RequestTimeoutInSeconds,
 		c.ByteLimit,
