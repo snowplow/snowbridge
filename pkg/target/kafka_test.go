@@ -23,17 +23,17 @@ func SetUpMockAsyncProducer(t *testing.T) (*mocks.AsyncProducer, *KafkaTarget) {
 	config.Producer.Return.Errors = true
 	mp := mocks.NewAsyncProducer(t, config)
 
-	asyncResults := make(chan *SaramaResult)
+	asyncResults := make(chan *saramaResult)
 
 	go func() {
 		for err := range mp.Errors() {
-			asyncResults <- &SaramaResult{Msg: err.Msg, Err: err.Err}
+			asyncResults <- &saramaResult{Msg: err.Msg, Err: err.Err}
 		}
 	}()
 
 	go func() {
 		for success := range mp.Successes() {
-			asyncResults <- &SaramaResult{Msg: success}
+			asyncResults <- &saramaResult{Msg: success}
 		}
 	}()
 

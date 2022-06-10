@@ -48,20 +48,20 @@ type KinesisTarget struct {
 	log *log.Entry
 }
 
-// NewKinesisTarget creates a new client for writing messages to kinesis
-func NewKinesisTarget(region string, streamName string, roleARN string) (*KinesisTarget, error) {
+// newKinesisTarget creates a new client for writing messages to kinesis
+func newKinesisTarget(region string, streamName string, roleARN string) (*KinesisTarget, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
 	if err != nil {
 		return nil, err
 	}
 	kinesisClient := kinesis.New(awsSession, awsConfig)
 
-	return NewKinesisTargetWithInterfaces(kinesisClient, *awsAccountID, region, streamName)
+	return newKinesisTargetWithInterfaces(kinesisClient, *awsAccountID, region, streamName)
 }
 
-// NewKinesisTargetWithInterfaces allows you to provide a Kinesis client directly to allow
+// newKinesisTargetWithInterfaces allows you to provide a Kinesis client directly to allow
 // for mocking and localstack usage
-func NewKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID string, region string, streamName string) (*KinesisTarget, error) {
+func newKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID string, region string, streamName string) (*KinesisTarget, error) {
 	return &KinesisTarget{
 		client:     client,
 		streamName: streamName,
@@ -73,7 +73,7 @@ func NewKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID
 
 // KinesisTargetConfigFunction creates KinesisTarget from KinesisTargetConfig.
 func KinesisTargetConfigFunction(c *KinesisTargetConfig) (*KinesisTarget, error) {
-	return NewKinesisTarget(c.Region, c.StreamName, c.RoleARN)
+	return newKinesisTarget(c.Region, c.StreamName, c.RoleARN)
 }
 
 // The KinesisTargetAdapter type is an adapter for functions to be used as
