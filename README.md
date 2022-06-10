@@ -4,7 +4,7 @@
 
 ## Overview
 
-Easily replicate data streams wherever you need them to be!  This application is available in three different runtimes to facilitate different needs - AWS Lambda, GCP CloudFunctions and as a standalone application.
+Easily replicate data streams wherever you need them to be!  This application is available as a standalone application.
 
 See the [wiki documention](https://github.com/snowplow-devops/stream-replicator/wiki) for details on how to configure and run the application.
 
