@@ -20,11 +20,16 @@ type StdoutTarget struct {
 	log *log.Entry
 }
 
-// NewStdoutTarget creates a new client for writing messages to stdout
-func NewStdoutTarget() (*StdoutTarget, error) {
+// newStdoutTarget creates a new client for writing messages to stdout
+func newStdoutTarget() (*StdoutTarget, error) {
 	return &StdoutTarget{
 		log: log.WithFields(log.Fields{"target": "stdout"}),
 	}, nil
+}
+
+// StdoutTargetConfigFunction creates an StdoutTarget
+func StdoutTargetConfigFunction() (*StdoutTarget, error) {
+	return newStdoutTarget()
 }
 
 // The StdoutTargetAdapter type is an adapter for functions to be used as

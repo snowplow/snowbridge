@@ -40,7 +40,7 @@ func NewSizeViolation(input *SizeViolationInput, targetByteLimit int) (*BadRow, 
 		},
 	}
 
-	return NewBadRow(
+	return newBadRow(
 		sizeViolationSchema,
 		data,
 		input.Payload,

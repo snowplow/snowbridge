@@ -113,18 +113,18 @@ func TestAddHeadersToRequest(t *testing.T) {
 func TestNewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := NewHTTPTarget("http://something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	httpTarget, err := newHTTPTarget("http://something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
 
 	assert.Nil(err)
 	assert.NotNil(httpTarget)
 
-	failedHTTPTarget, err1 := NewHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
 
-	assert.Equal("Invalid url for Http target: 'something'", err1.Error())
+	assert.Equal("Invalid url for HTTP target: 'something'", err1.Error())
 	assert.Nil(failedHTTPTarget)
 
-	failedHTTPTarget2, err2 := NewHTTPTarget("", 5, 1048576, "application/json", "", "", "", "", "", "", true)
-	assert.Equal("Invalid url for Http target: ''", err2.Error())
+	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	assert.Equal("Invalid url for HTTP target: ''", err2.Error())
 	assert.Nil(failedHTTPTarget2)
 }
 
@@ -136,7 +136,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := NewHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
 		panic(err)
 	}
@@ -170,7 +170,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := NewHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
 		panic(err)
 	}
@@ -213,7 +213,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := NewHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
 		panic(err)
 	}
@@ -244,7 +244,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := NewHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
 		panic(err)
 	}
@@ -307,7 +307,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 	encodedCa := base64.StdEncoding.EncodeToString(ca)
 
 	// Test that https requests work with manually provided certs
-	target, err := NewHTTPTarget("https://localhost:8999/hello",
+	target, err := newHTTPTarget("https://localhost:8999/hello",
 		5,
 		1048576,
 		"application/json",
@@ -341,7 +341,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 	os.RemoveAll(`tmp_replicator`)
 
 	// Test that https requests work for different endpoints when different certs are provided manually
-	target2, err2 := NewHTTPTarget(ngrokAddress,
+	target2, err2 := newHTTPTarget(ngrokAddress,
 		5,
 		1048576,
 		"application/json",
@@ -369,7 +369,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 	// Test that https works when certs aren't manually provided
 
 	// Test that https requests work for different endpoints when different certs are provided manually
-	target3, err4 := NewHTTPTarget(ngrokAddress,
+	target3, err4 := newHTTPTarget(ngrokAddress,
 		5,
 		1048576,
 		"application/json",

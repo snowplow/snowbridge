@@ -18,7 +18,7 @@ import (
 func TestStdoutTarget_WriteSuccess(t *testing.T) {
 	assert := assert.New(t)
 
-	target, err := NewStdoutTarget()
+	target, err := newStdoutTarget()
 	assert.NotNil(target)
 	assert.Nil(err)
 	assert.Equal("stdout", target.GetID())
