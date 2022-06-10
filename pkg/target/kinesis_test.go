@@ -24,7 +24,7 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackKinesisClient()
 
-	target, err := NewKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists")
+	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists")
 	assert.Nil(err)
 	assert.NotNil(target)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", target.GetID())
@@ -52,14 +52,14 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackKinesisClient()
 
-	streamName := "kinesis-stream-target-1"
+	streamName := "kinesis-stream-targetHTTP-1"
 	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
 	if err != nil {
 		panic(err)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 
-	target, err := NewKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
+	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
 	assert.Nil(err)
 	assert.NotNil(target)
 
@@ -94,14 +94,14 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackKinesisClient()
 
-	streamName := "kinesis-stream-target-2"
+	streamName := "kinesis-stream-targetHTTP-2"
 	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
 	if err != nil {
 		panic(err)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 
-	target, err := NewKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
+	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
 	assert.Nil(err)
 	assert.NotNil(target)
 
@@ -137,14 +137,14 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackKinesisClient()
 
-	streamName := "kinesis-stream-target-3"
+	streamName := "kinesis-stream-targetHTTP-3"
 	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
 	if err != nil {
 		panic(err)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 
-	target, err := NewKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
+	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
 	assert.Nil(err)
 	assert.NotNil(target)
 

@@ -139,23 +139,23 @@ func (b *ObserverBuffer) GetSumResults() int64 {
 	return b.TargetResults + b.OversizedTargetResults + b.InvalidTargetResults
 }
 
-// GetAvgProcLatency calculates average processing latency
-func (b *ObserverBuffer) GetAvgProcLatency() time.Duration {
+// getAvgProcLatency calculates average processing latency
+func (b *ObserverBuffer) getAvgProcLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumProcLatency, b.GetSumResults())
 }
 
-// GetAvgMsgLatency calculates average message latency
-func (b *ObserverBuffer) GetAvgMsgLatency() time.Duration {
+// getAvgMsgLatency calculates average message latency
+func (b *ObserverBuffer) getAvgMsgLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumMsgLatency, b.GetSumResults())
 }
 
-// GetAvgTransformLatency calculates average transformation latency
-func (b *ObserverBuffer) GetAvgTransformLatency() time.Duration {
+// getAvgTransformLatency calculates average transformation latency
+func (b *ObserverBuffer) getAvgTransformLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumTransformLatency, b.MsgTotal)
 }
 
-// GetAvgFilterLatency calculates average filter latency
-func (b *ObserverBuffer) GetAvgFilterLatency() time.Duration {
+// getAvgFilterLatency calculates average filter latency
+func (b *ObserverBuffer) getAvgFilterLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumFilterLatency, b.MsgFiltered)
 }
 

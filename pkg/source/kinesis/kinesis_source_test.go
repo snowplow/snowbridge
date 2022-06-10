@@ -192,7 +192,7 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	assert.NotNil(c)
 	assert.Nil(err)
 
-	// Use our function generator to interact with localstack
+	// use our function generator to interact with localstack
 	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
 	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
 

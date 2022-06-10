@@ -6,15 +6,15 @@
 
 package config
 
-// ComponentConfigurable is the interface that wraps the ProvideDefault method.
-type ComponentConfigurable interface {
+// componentConfigurable is the interface that wraps the ProvideDefault method.
+type componentConfigurable interface {
 	// ProvideDefault returns a pointer to a structure that will be
 	// written with the decoded configuration.
 	ProvideDefault() (interface{}, error)
 }
 
-// ComponentCreator is the interface that wraps the Create method.
-type ComponentCreator interface {
+// componentCreator is the interface that wraps the Create method.
+type componentCreator interface {
 	// Create returns a pointer to an output structure given a pointer
 	// to an input structure. This interface is expected to be implemented
 	// by components that are creatable through a configuration.
@@ -22,31 +22,31 @@ type ComponentCreator interface {
 }
 
 // Pluggable is the interface that groups
-// ComponentConfigurable and ComponentCreator.
+// componentConfigurable and componentCreator.
 type Pluggable interface {
-	ComponentConfigurable
-	ComponentCreator
+	componentConfigurable
+	componentCreator
 }
 
-// DecodingHandler is the type of any function that, given a ComponentConfigurable
-// and a Decoder, returns a pointer to a structure that was decoded.
-type DecodingHandler func(c ComponentConfigurable, d Decoder) (interface{}, error)
+// decodingHandler is the type of any function that, given a componentConfigurable
+// and a decoder, returns a pointer to a structure that was decoded.
+type decodingHandler func(c componentConfigurable, d decoder) (interface{}, error)
 
-// WithDecoderOptions returns a DecodingHandler closed over some DecoderOptions.
-func WithDecoderOptions(opts *DecoderOptions) DecodingHandler {
-	return func(c ComponentConfigurable, d Decoder) (interface{}, error) {
-		return Configure(c, d, opts)
+// withDecoderOptions returns a decodingHandler closed over some DecoderOptions.
+func withDecoderOptions(opts *DecoderOptions) decodingHandler {
+	return func(c componentConfigurable, d decoder) (interface{}, error) {
+		return configure(c, d, opts)
 	}
 }
 
 // Configure returns the decoded target.
-func Configure(c ComponentConfigurable, d Decoder, opts *DecoderOptions) (interface{}, error) {
+func configure(c componentConfigurable, d decoder, opts *DecoderOptions) (interface{}, error) {
 	target, err := c.ProvideDefault() // target is ptr
 	if err != nil {
 		return nil, err
 	}
 
-	if err = d.Decode(opts, target); err != nil {
+	if err = d.decode(opts, target); err != nil {
 		return nil, err
 	}
 

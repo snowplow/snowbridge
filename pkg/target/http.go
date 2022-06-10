@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	httpTarget = `http_target`
+	targetHTTP = `http_target`
 )
 
 // HTTPTargetConfig configures the destination for records consumed
@@ -60,7 +60,7 @@ func checkURL(str string) error {
 		return err
 	}
 	if u.Scheme == "" || u.Host == "" {
-		return errors.New(fmt.Sprintf("Invalid url for Http target: '%s'", str))
+		return errors.New(fmt.Sprintf("Invalid url for Http targetHTTP: '%s'", str))
 	}
 	return nil
 }
@@ -91,8 +91,8 @@ func addHeadersToRequest(request *http.Request, headers map[string]string) {
 
 }
 
-// NewHTTPTarget creates a client for writing events to HTTP
-func NewHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentType string, headers string, basicAuthUsername string, basicAuthPassword string,
+// newHTTPTarget creates a client for writing events to HTTP
+func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentType string, headers string, basicAuthUsername string, basicAuthPassword string,
 	certFile string, keyFile string, caFile string, skipVerifyTLS bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
@@ -104,14 +104,14 @@ func NewHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 	}
 	transport := &http.Transport{}
 
-	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, httpTarget, skipVerifyTLS)
+	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, targetHTTP, skipVerifyTLS)
 	if err2 != nil {
 		return nil, err2
 	}
 	if tlsConfig != nil {
 		transport.TLSClientConfig = tlsConfig
 	}
-	
+
 	return &HTTPTarget{
 		client: &http.Client{
 			Transport: transport,
@@ -123,13 +123,13 @@ func NewHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 		headers:           parsedHeaders,
 		basicAuthUsername: basicAuthUsername,
 		basicAuthPassword: basicAuthPassword,
-		log:               log.WithFields(log.Fields{"target": "http", "url": httpURL}),
+		log:               log.WithFields(log.Fields{"targetHTTP": "http", "url": httpURL}),
 	}, nil
 }
 
 // HTTPTargetConfigFunction creates HTTPTarget from HTTPTargetConfig
 func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
-	return NewHTTPTarget(
+	return newHTTPTarget(
 		c.HTTPURL,
 		c.RequestTimeoutInSeconds,
 		c.ByteLimit,
@@ -236,19 +236,19 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	), errResult
 }
 
-// Open does nothing for this target
+// Open does nothing for this targetHTTP
 func (ht *HTTPTarget) Open() {}
 
-// Close does nothing for this target
+// Close does nothing for this targetHTTP
 func (ht *HTTPTarget) Close() {}
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
-// per message for this target
+// per message for this targetHTTP
 func (ht *HTTPTarget) MaximumAllowedMessageSizeBytes() int {
 	return ht.byteLimit
 }
 
-// GetID returns an identifier for this target
+// GetID returns an identifier for this targetHTTP
 func (ht *HTTPTarget) GetID() string {
 	return ht.httpURL
 }

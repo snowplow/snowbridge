@@ -24,7 +24,7 @@ func TestSQSTarget_WriteFailure(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	target, err := NewSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists")
+	target, err := newSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists")
 	assert.Nil(err)
 	assert.NotNil(target)
 	assert.Equal("arn:aws:sqs:us-east-1:00000000000:not-exists", target.GetID())
@@ -43,7 +43,7 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	queueName := "sqs-queue-target-1"
+	queueName := "sqs-queue-targetHTTP-1"
 	queueRes, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
 	if err != nil {
 		panic(err)
@@ -51,7 +51,7 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 	queueURL := queueRes.QueueUrl
 	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 
-	target, err := NewSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, queueName)
+	target, err := newSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
 	assert.NotNil(target)
 
@@ -86,7 +86,7 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	queueName := "sqs-queue-target-2"
+	queueName := "sqs-queue-targetHTTP-2"
 	queueRes, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
 	if err != nil {
 		panic(err)
@@ -94,7 +94,7 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 	queueURL := queueRes.QueueUrl
 	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 
-	target, err := NewSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, queueName)
+	target, err := newSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
 	assert.NotNil(target)
 

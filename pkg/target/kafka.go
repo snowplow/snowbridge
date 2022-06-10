@@ -25,10 +25,10 @@ import (
 )
 
 const (
-	kafkaTarget = `kafka_target`
+	targetKafka = `kafka_target`
 )
 
-// KafkaConfig contains configurable options for the kafka target
+// KafkaConfig contains configurable options for the kafka targetHTTP
 type KafkaConfig struct {
 	Brokers        string `hcl:"brokers" env:"TARGET_KAFKA_BROKERS"`
 	TopicName      string `hcl:"topic_name" env:"TARGET_KAFKA_TOPIC_NAME"`
@@ -56,7 +56,7 @@ type KafkaConfig struct {
 type KafkaTarget struct {
 	syncProducer     sarama.SyncProducer
 	asyncProducer    sarama.AsyncProducer
-	asyncResults     chan *SaramaResult
+	asyncResults     chan *saramaResult
 	topicName        string
 	brokers          string
 	messageByteLimit int
@@ -64,8 +64,8 @@ type KafkaTarget struct {
 	log *log.Entry
 }
 
-// SaramaResult holds the result of a Sarama request
-type SaramaResult struct {
+// saramaResult holds the result of a Sarama request
+type saramaResult struct {
 	Msg *sarama.ProducerMessage
 	Err error
 }
@@ -77,7 +77,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		return nil, err
 	}
 
-	logger := log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion})
+	logger := log.WithFields(log.Fields{"targetHTTP": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion})
 	sarama.Logger = logger
 
 	saramaConfig := sarama.NewConfig()
@@ -122,7 +122,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		}
 	}
 
-	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, kafkaTarget, cfg.SkipVerifyTLS)
+	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, targetKafka, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		saramaConfig.Net.TLS.Enable = true
 	}
 
-	var asyncResults chan *SaramaResult = nil
+	var asyncResults chan *saramaResult = nil
 	var asyncProducer sarama.AsyncProducer = nil
 	var syncProducer sarama.SyncProducer = nil
 	var producerError error = nil
@@ -153,17 +153,17 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 			return nil, producerError
 		}
 
-		asyncResults = make(chan *SaramaResult)
+		asyncResults = make(chan *saramaResult)
 
 		go func() {
 			for err := range asyncProducer.Errors() {
-				asyncResults <- &SaramaResult{Msg: err.Msg, Err: err.Err}
+				asyncResults <- &saramaResult{Msg: err.Msg, Err: err.Err}
 			}
 		}()
 
 		go func() {
 			for success := range asyncProducer.Successes() {
-				asyncResults <- &SaramaResult{Msg: success}
+				asyncResults <- &saramaResult{Msg: success}
 			}
 		}()
 	} else {
@@ -182,7 +182,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 }
 
 // The KafkaTargetAdapter type is an adapter for functions to be used as
-// pluggable components for Kafka target. It implements the Pluggable interface.
+// pluggable components for Kafka targetHTTP. It implements the Pluggable interface.
 type KafkaTargetAdapter func(i interface{}) (interface{}, error)
 
 // Create implements the ComponentCreator interface.
@@ -215,7 +215,7 @@ func AdaptKafkaTargetFunc(f func(c *KafkaConfig) (*KafkaTarget, error)) KafkaTar
 	}
 }
 
-// Write pushes all messages to the required target
+// Write pushes all messages to the required targetHTTP
 func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	kt.log.Debugf("Writing %d messages to topic ...", len(messages))
 
@@ -291,12 +291,12 @@ func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteRes
 	), errResult
 }
 
-// Open does not do anything for this target
+// Open does not do anything for this targetHTTP
 func (kt *KafkaTarget) Open() {}
 
 // Close stops the producer
 func (kt *KafkaTarget) Close() {
-	kt.log.Warnf("Closing Kafka target for topic '%s'", kt.topicName)
+	kt.log.Warnf("Closing Kafka targetHTTP for topic '%s'", kt.topicName)
 
 	if kt.asyncProducer != nil {
 		if err := kt.asyncProducer.Close(); err != nil {
@@ -312,12 +312,12 @@ func (kt *KafkaTarget) Close() {
 }
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
-// per message for this target
+// per message for this targetHTTP
 func (kt *KafkaTarget) MaximumAllowedMessageSizeBytes() int {
 	return kt.messageByteLimit
 }
 
-// GetID returns the identifier for this target
+// GetID returns the identifier for this targetHTTP
 func (kt *KafkaTarget) GetID() string {
 	return fmt.Sprintf("brokers:%s:topic:%s", kt.brokers, kt.topicName)
 }

@@ -27,6 +27,6 @@ func TestGetSource_WithPubsubSource(t *testing.T) {
 
 	assert.NotNil(pubsubSource)
 	assert.Nil(err)
-	assert.Equal("projects//subscriptions/", pubsubSource.GetID())
+	assert.Equal("projects//subscriptions/", pubsubSource.getID())
 }
 */

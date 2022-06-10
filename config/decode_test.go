@@ -21,7 +21,7 @@ type testStruct struct {
 }
 
 func TestEnvDecode(t *testing.T) {
-	envDecoder := EnvDecoder{}
+	envDecoder := envDecoder{}
 
 	testCases := []struct {
 		TestName    string
@@ -61,7 +61,7 @@ func TestEnvDecode(t *testing.T) {
 			t.Setenv("TEST_STRING", "ateststring")
 			t.Setenv("PREFIX_TEST_STRING", "ateststringprefixed")
 
-			err := envDecoder.Decode(tt.DecoderOpts, tt.Target)
+			err := envDecoder.decode(tt.DecoderOpts, tt.Target)
 			assert.Nil(err)
 
 			if !reflect.DeepEqual(tt.Target, tt.Expected) {
@@ -76,7 +76,7 @@ func TestEnvDecode(t *testing.T) {
 
 func TestHclDecode(t *testing.T) {
 	evalCtx := &hcl.EvalContext{}
-	hclDecoder := HclDecoder{evalCtx}
+	hclDecoder := hclDecoder{evalCtx}
 	hclSrc := `
 test_string = "ateststring"
 `
@@ -124,7 +124,7 @@ test_string = "ateststring"
 	for _, tt := range testCases {
 		t.Run(tt.TestName, func(t *testing.T) {
 			assert := assert.New(t)
-			err := hclDecoder.Decode(tt.DecoderOpts, tt.Target)
+			err := hclDecoder.decode(tt.DecoderOpts, tt.Target)
 			if err != nil {
 				t.Errorf("decoding failed")
 			}
@@ -147,8 +147,8 @@ func TestCreateHclContext(t *testing.T) {
 		TestInt int    `hcl:"test_int"`
 	}
 
-	evalCtx := CreateHclContext()
-	hclDecoder := HclDecoder{evalCtx}
+	evalCtx := createHclContext()
+	hclDecoder := hclDecoder{evalCtx}
 	hclSrc := `
 test_string = env.TEST_STRING
 test_int = env("TEST_INT")
@@ -183,7 +183,7 @@ test_int = env("TEST_INT")
 		t.Run(tt.TestName, func(t *testing.T) {
 			assert := assert.New(t)
 
-			err := hclDecoder.Decode(tt.DecoderOpts, tt.Target)
+			err := hclDecoder.decode(tt.DecoderOpts, tt.Target)
 			if err != nil {
 				t.Errorf(err.Error())
 			}

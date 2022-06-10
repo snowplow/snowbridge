@@ -17,14 +17,14 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-// Decoder is the interface that wraps the Decode method.
-type Decoder interface {
+// decoder is the interface that wraps the Decode method.
+type decoder interface {
 	// Decode decodes onto target given DecoderOptions.
 	// The target argument must be a pointer to an allocated structure.
-	Decode(opts *DecoderOptions, target interface{}) error
+	decode(opts *DecoderOptions, target interface{}) error
 }
 
-// DecoderOptions represent the options for a Decoder.
+// DecoderOptions represent the options for a decoder.
 // The purpose of this type is to unify the input to the different available
 // Decoders. The zero value of DecoderOptions means no-prefix/nil-input,
 // which should be usable by the Decoders.
@@ -33,15 +33,15 @@ type DecoderOptions struct {
 	Input  hcl.Body
 }
 
-// EnvDecoder implements Decoder.
-type EnvDecoder struct{}
+// envDecoder implements decoder.
+type envDecoder struct{}
 
 // Decode populates target from the environment.
 // The target argument must be a pointer to a struct type value.
-func (e *EnvDecoder) Decode(opts *DecoderOptions, target interface{}) error {
-	// Decoder Options cannot be missing
+func (e *envDecoder) decode(opts *DecoderOptions, target interface{}) error {
+	// decoder Options cannot be missing
 	if opts == nil {
-		return errors.New("missing DecoderOptions for EnvDecoder")
+		return errors.New("missing DecoderOptions for envDecoder")
 	}
 
 	// If target is nil then we assume that target is not decodable.
@@ -56,8 +56,8 @@ func (e *EnvDecoder) Decode(opts *DecoderOptions, target interface{}) error {
 	return env.Parse(target, envOpts)
 }
 
-// HclDecoder implements Decoder.
-type HclDecoder struct {
+// hclDecoder implements decoder.
+type hclDecoder struct {
 	EvalContext *hcl.EvalContext
 }
 
@@ -65,10 +65,10 @@ type HclDecoder struct {
 // The target argument must be a pointer to an allocated structure.
 // If the HCL input is nil, we assume there is nothing to do and the target
 // stays unaffected. If the target is nil, we assume is not decodable.
-func (h *HclDecoder) Decode(opts *DecoderOptions, target interface{}) error {
-	// Decoder Options cannot be missing
+func (h *hclDecoder) decode(opts *DecoderOptions, target interface{}) error {
+	// decoder Options cannot be missing
 	if opts == nil {
-		return errors.New("missing DecoderOptions for HclDecoder")
+		return errors.New("missing DecoderOptions for hclDecoder")
 	}
 
 	src := opts.Input
@@ -81,7 +81,7 @@ func (h *HclDecoder) Decode(opts *DecoderOptions, target interface{}) error {
 		return nil
 	}
 
-	// Decode
+	// decode
 	diag := gohcl.DecodeBody(src, h.EvalContext, target)
 	if len(diag) > 0 {
 		return diag
@@ -90,12 +90,12 @@ func (h *HclDecoder) Decode(opts *DecoderOptions, target interface{}) error {
 	return nil
 }
 
-// CreateHclContext creates an *hcl.EvalContext that is used in decoding HCL.
+// createHclContext creates an *hcl.EvalContext that is used in decoding HCL.
 // Here we can add the evaluation features available for the HCL configuration
 // users.
 // For now, below is an example of 2 different ways users can reference
 // environment variables in their HCL configuration file.
-func CreateHclContext() *hcl.EvalContext {
+func createHclContext() *hcl.EvalContext {
 	evalCtx := &hcl.EvalContext{
 		Functions: hclCtxFunctions(),
 		Variables: hclCtxVariables(),

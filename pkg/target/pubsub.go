@@ -41,15 +41,15 @@ type PubSubTarget struct {
 	log *log.Entry
 }
 
-// PubSubPublishResult contains the publish result and the function to execute
+// pubSubPublishResult contains the publish result and the function to execute
 // on success to ack the send
-type PubSubPublishResult struct {
+type pubSubPublishResult struct {
 	Result  *pubsub.PublishResult
 	Message *models.Message
 }
 
-// NewPubSubTarget creates a new client for writing messages to Google PubSub
-func NewPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) {
+// newPubSubTarget creates a new client for writing messages to Google PubSub
+func newPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) {
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectID)
@@ -61,13 +61,13 @@ func NewPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) 
 		projectID: projectID,
 		client:    client,
 		topicName: topicName,
-		log:       log.WithFields(log.Fields{"target": "pubsub", "cloud": "GCP", "project": projectID, "topic": topicName}),
+		log:       log.WithFields(log.Fields{"targetHTTP": "pubsub", "cloud": "GCP", "project": projectID, "topic": topicName}),
 	}, nil
 }
 
 // PubSubTargetConfigFunction creates PubSubTarget from PubSubTargetConfig
 func PubSubTargetConfigFunction(c *PubSubTargetConfig) (*PubSubTarget, error) {
-	return NewPubSubTarget(c.ProjectID, c.TopicName)
+	return newPubSubTarget(c.ProjectID, c.TopicName)
 }
 
 // The PubSubTargetAdapter type is an adapter for functions to be used as
@@ -99,7 +99,7 @@ func AdaptPubSubTargetFunc(f func(c *PubSubTargetConfig) (*PubSubTarget, error))
 	}
 }
 
-// Write pushes all messages to the required target
+// Write pushes all messages to the required targetHTTP
 func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	ps.log.Debugf("Writing %d messages to topic ...", len(messages))
 
@@ -117,7 +117,7 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		), err
 	}
 
-	var results []*PubSubPublishResult
+	var results []*pubSubPublishResult
 
 	safeMessages, oversized := models.FilterOversizedMessages(
 		messages,
@@ -139,7 +139,7 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		}
 
 		r := ps.topic.Publish(ctx, pubSubMsg)
-		results = append(results, &PubSubPublishResult{
+		results = append(results, &pubSubPublishResult{
 			Result:  r,
 			Message: msg,
 		})
@@ -180,24 +180,24 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 
 // Open opens a pipe to the topic
 func (ps *PubSubTarget) Open() {
-	ps.log.Warnf("Opening target for topic '%s' in project %s", ps.topicName, ps.projectID)
+	ps.log.Warnf("Opening targetHTTP for topic '%s' in project %s", ps.topicName, ps.projectID)
 	ps.topic = ps.client.Topic(ps.topicName)
 }
 
 // Close stops the topic
 func (ps *PubSubTarget) Close() {
-	ps.log.Warnf("Closing target for topic '%s' in project %s", ps.topicName, ps.projectID)
+	ps.log.Warnf("Closing targetHTTP for topic '%s' in project %s", ps.topicName, ps.projectID)
 	ps.topic.Stop()
 	ps.topic = nil
 }
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
-// per message for this target
+// per message for this targetHTTP
 func (ps *PubSubTarget) MaximumAllowedMessageSizeBytes() int {
 	return pubSubPublishMessageByteLimit
 }
 
-// GetID returns the identifier for this target
+// GetID returns the identifier for this targetHTTP
 func (ps *PubSubTarget) GetID() string {
 	return fmt.Sprintf("projects/%s/topics/%s", ps.projectID, ps.topicName)
 }

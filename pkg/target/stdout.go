@@ -23,36 +23,36 @@ type StdoutTarget struct {
 // NewStdoutTarget creates a new client for writing messages to stdout
 func NewStdoutTarget() (*StdoutTarget, error) {
 	return &StdoutTarget{
-		log: log.WithFields(log.Fields{"target": "stdout"}),
+		log: log.WithFields(log.Fields{"targetHTTP": "stdout"}),
 	}, nil
 }
 
-// The StdoutTargetAdapter type is an adapter for functions to be used as
+// The stdoutTargetAdapter type is an adapter for functions to be used as
 // pluggable components for Stdout Target. It implements the Pluggable interface.
-type StdoutTargetAdapter func(i interface{}) (interface{}, error)
+type stdoutTargetAdapter func(i interface{}) (interface{}, error)
 
 // Create implements the ComponentCreator interface.
-func (f StdoutTargetAdapter) Create(i interface{}) (interface{}, error) {
+func (f stdoutTargetAdapter) Create(i interface{}) (interface{}, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f StdoutTargetAdapter) ProvideDefault() (interface{}, error) {
+func (f stdoutTargetAdapter) ProvideDefault() (interface{}, error) {
 	return nil, nil
 }
 
-// AdaptStdoutTargetFunc returns StdoutTargetAdapter.
-func AdaptStdoutTargetFunc(f func() (*StdoutTarget, error)) StdoutTargetAdapter {
+// AdaptStdoutTargetFunc returns stdoutTargetAdapter.
+func AdaptStdoutTargetFunc(f func() (*StdoutTarget, error)) stdoutTargetAdapter {
 	return func(i interface{}) (interface{}, error) {
 		if i != nil {
-			return nil, errors.New("unexpected configuration input for Stdout target")
+			return nil, errors.New("unexpected configuration input for Stdout targetHTTP")
 		}
 
 		return f()
 	}
 }
 
-// Write pushes all messages to the required target
+// Write pushes all messages to the required targetHTTP
 func (st *StdoutTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	st.log.Debugf("Writing %d messages to stdout ...", len(messages))
 
@@ -81,14 +81,14 @@ func (st *StdoutTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 	), nil
 }
 
-// Open does not do anything for this target
+// Open does not do anything for this targetHTTP
 func (st *StdoutTarget) Open() {}
 
-// Close does not do anything for this target
+// Close does not do anything for this targetHTTP
 func (st *StdoutTarget) Close() {}
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
-// per message for this target
+// per message for this targetHTTP
 //
 // Note: Technically no limit but we are putting in a limit of 10 MiB here
 //       to avoid trying to print out huge payloads
@@ -96,7 +96,7 @@ func (st *StdoutTarget) MaximumAllowedMessageSizeBytes() int {
 	return 10485760
 }
 
-// GetID returns the identifier for this target
+// GetID returns the identifier for this targetHTTP
 func (st *StdoutTarget) GetID() string {
 	return "stdout"
 }

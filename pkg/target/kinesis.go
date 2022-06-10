@@ -48,32 +48,32 @@ type KinesisTarget struct {
 	log *log.Entry
 }
 
-// NewKinesisTarget creates a new client for writing messages to kinesis
-func NewKinesisTarget(region string, streamName string, roleARN string) (*KinesisTarget, error) {
+// newKinesisTarget creates a new client for writing messages to kinesis
+func newKinesisTarget(region string, streamName string, roleARN string) (*KinesisTarget, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
 	if err != nil {
 		return nil, err
 	}
 	kinesisClient := kinesis.New(awsSession, awsConfig)
 
-	return NewKinesisTargetWithInterfaces(kinesisClient, *awsAccountID, region, streamName)
+	return newKinesisTargetWithInterfaces(kinesisClient, *awsAccountID, region, streamName)
 }
 
-// NewKinesisTargetWithInterfaces allows you to provide a Kinesis client directly to allow
+// newKinesisTargetWithInterfaces allows you to provide a Kinesis client directly to allow
 // for mocking and localstack usage
-func NewKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID string, region string, streamName string) (*KinesisTarget, error) {
+func newKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID string, region string, streamName string) (*KinesisTarget, error) {
 	return &KinesisTarget{
 		client:     client,
 		streamName: streamName,
 		region:     region,
 		accountID:  awsAccountID,
-		log:        log.WithFields(log.Fields{"target": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
+		log:        log.WithFields(log.Fields{"targetHTTP": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
 	}, nil
 }
 
 // KinesisTargetConfigFunction creates KinesisTarget from KinesisTargetConfig.
 func KinesisTargetConfigFunction(c *KinesisTargetConfig) (*KinesisTarget, error) {
-	return NewKinesisTarget(c.Region, c.StreamName, c.RoleARN)
+	return newKinesisTarget(c.Region, c.StreamName, c.RoleARN)
 }
 
 // The KinesisTargetAdapter type is an adapter for functions to be used as
@@ -105,7 +105,7 @@ func AdaptKinesisTargetFunc(f func(c *KinesisTargetConfig) (*KinesisTarget, erro
 	}
 }
 
-// Write pushes all messages to the required target
+// Write pushes all messages to the required targetHTTP
 // TODO: Should each put be in its own goroutine?
 func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	kt.log.Debugf("Writing %d messages to stream ...", len(messages))
@@ -197,19 +197,19 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 	), nil
 }
 
-// Open does not do anything for this target
+// Open does not do anything for this targetHTTP
 func (kt *KinesisTarget) Open() {}
 
-// Close does not do anything for this target
+// Close does not do anything for this targetHTTP
 func (kt *KinesisTarget) Close() {}
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
-// per message for this target
+// per message for this targetHTTP
 func (kt *KinesisTarget) MaximumAllowedMessageSizeBytes() int {
 	return kinesisPutRecordsMessageByteLimit
 }
 
-// GetID returns the identifier for this target
+// GetID returns the identifier for this targetHTTP
 func (kt *KinesisTarget) GetID() string {
 	return fmt.Sprintf("arn:aws:kinesis:%s:%s:stream/%s", kt.region, kt.accountID, kt.streamName)
 }

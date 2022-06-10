@@ -80,12 +80,12 @@ func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 		contextTimeoutInSeconds: cfg.ContextTimeoutInSeconds,
 		batchByteLimit:          cfg.BatchByteLimit,
 
-		log: log.WithFields(log.Fields{"target": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
+		log: log.WithFields(log.Fields{"targetHTTP": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
 	}, err
 }
 
 // The EventHubTargetAdapter type is an adapter for functions to be used as
-// pluggable components for EventHub target. Implements the Pluggable interface.
+// pluggable components for EventHub targetHTTP. Implements the Pluggable interface.
 type EventHubTargetAdapter func(i interface{}) (interface{}, error)
 
 // Create implements the ComponentCreator interface.
@@ -197,7 +197,7 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 	), nil
 }
 
-// Open does not do anything for this target
+// Open does not do anything for this targetHTTP
 func (eht *EventHubTarget) Open() {}
 
 // Close closes the eventhub client.
@@ -208,12 +208,12 @@ func (eht *EventHubTarget) Close() {
 }
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
-// per message for this target
+// per message for this targetHTTP
 func (eht *EventHubTarget) MaximumAllowedMessageSizeBytes() int {
 	return eht.messageByteLimit
 }
 
-// GetID returns an identifier for this target
+// GetID returns an identifier for this targetHTTP
 func (eht *EventHubTarget) GetID() string {
 	return fmt.Sprintf("sb://%s.servicebus.windows.net/;EntityPath=%s", eht.eventHubNamespace, eht.eventHubName)
 }

@@ -42,7 +42,7 @@ func NewGenericError(input *GenericErrorInput, targetByteLimit int) (*BadRow, er
 		},
 	}
 
-	return NewBadRow(
+	return newBadRow(
 		genericErrorSchema,
 		data,
 		input.Payload,

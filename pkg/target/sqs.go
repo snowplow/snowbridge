@@ -50,32 +50,32 @@ type SQSTarget struct {
 	log *log.Entry
 }
 
-// NewSQSTarget creates a new client for writing messages to sqs
-func NewSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, error) {
+// newSQSTarget creates a new client for writing messages to sqs
+func newSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
 	if err != nil {
 		return nil, err
 	}
 	sqsClient := sqs.New(awsSession, awsConfig)
 
-	return NewSQSTargetWithInterfaces(sqsClient, *awsAccountID, region, queueName)
+	return newSQSTargetWithInterfaces(sqsClient, *awsAccountID, region, queueName)
 }
 
-// NewSQSTargetWithInterfaces allows you to provide an SQS client directly to allow
+// newSQSTargetWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
-func NewSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, region string, queueName string) (*SQSTarget, error) {
+func newSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, region string, queueName string) (*SQSTarget, error) {
 	return &SQSTarget{
 		client:    client,
 		queueName: queueName,
 		region:    region,
 		accountID: awsAccountID,
-		log:       log.WithFields(log.Fields{"target": "sqs", "cloud": "AWS", "region": region, "queue": queueName}),
+		log:       log.WithFields(log.Fields{"targetHTTP": "sqs", "cloud": "AWS", "region": region, "queue": queueName}),
 	}, nil
 }
 
 // SQSTargetConfigFunction creates an SQSTarget from an SQSTargetConfig
 func SQSTargetConfigFunction(c *SQSTargetConfig) (*SQSTarget, error) {
-	return NewSQSTarget(c.Region, c.QueueName, c.RoleARN)
+	return newSQSTarget(c.Region, c.QueueName, c.RoleARN)
 }
 
 // The SQSTargetAdapter type is an adapter for functions to be used as
@@ -107,10 +107,10 @@ func AdaptSQSTargetFunc(f func(c *SQSTargetConfig) (*SQSTarget, error)) SQSTarge
 	}
 }
 
-// Write pushes all messages to the required target
+// Write pushes all messages to the required targetHTTP
 // TODO: Should each put be in its own goroutine?
 func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	st.log.Debugf("Writing %d messages to target queue ...", len(messages))
+	st.log.Debugf("Writing %d messages to targetHTTP queue ...", len(messages))
 
 	chunks, oversized := models.GetChunkedMessages(
 		messages,
@@ -144,7 +144,7 @@ func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResul
 
 func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteResult, error) {
 	messageCount := int64(len(messages))
-	st.log.Debugf("Writing chunk of %d messages to target queue ...", messageCount)
+	st.log.Debugf("Writing chunk of %d messages to targetHTTP queue ...", messageCount)
 
 	lookup := make(map[string]*models.Message)
 
@@ -225,7 +225,7 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 	), errResult
 }
 
-// Open fetches the queue URL for this target
+// Open fetches the queue URL for this targetHTTP
 func (st *SQSTarget) Open() {
 	urlResult, err := st.client.GetQueueUrl(&sqs.GetQueueUrlInput{
 		QueueName: aws.String(st.queueName),
@@ -244,12 +244,12 @@ func (st *SQSTarget) Close() {
 }
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
-// per message for this target
+// per message for this targetHTTP
 func (st *SQSTarget) MaximumAllowedMessageSizeBytes() int {
 	return sqsSendMessageByteLimit
 }
 
-// GetID returns the identifier for this target
+// GetID returns the identifier for this targetHTTP
 func (st *SQSTarget) GetID() string {
 	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", st.region, st.accountID, st.queueName)
 }
