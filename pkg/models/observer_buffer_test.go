@@ -68,7 +68,7 @@ func TestObserverBuffer(t *testing.T) {
 	b.AppendWriteInvalid(r)
 	b.AppendWriteInvalid(nil)
 
-	fr := NewFilterResultWithTime(filtered, timeNow)
+	fr := newFilterResultWithTime(filtered, timeNow)
 
 	b.AppendFiltered(fr)
 
@@ -91,17 +91,17 @@ func TestObserverBuffer(t *testing.T) {
 
 	assert.Equal(time.Duration(10)*time.Minute, b.MaxProcLatency)
 	assert.Equal(time.Duration(4)*time.Minute, b.MinProcLatency)
-	assert.Equal(time.Duration(7)*time.Minute, b.GetAvgProcLatency())
+	assert.Equal(time.Duration(7)*time.Minute, b.getAvgProcLatency())
 	assert.Equal(time.Duration(70)*time.Minute, b.MaxMsgLatency)
 	assert.Equal(time.Duration(30)*time.Minute, b.MinMsgLatency)
-	assert.Equal(time.Duration(50)*time.Minute, b.GetAvgMsgLatency())
+	assert.Equal(time.Duration(50)*time.Minute, b.getAvgMsgLatency())
 	assert.Equal(time.Duration(3)*time.Minute, b.MaxTransformLatency)
 	assert.Equal(time.Duration(1)*time.Minute, b.MinTransformLatency)
-	assert.Equal(time.Duration(2)*time.Minute, b.GetAvgTransformLatency())
+	assert.Equal(time.Duration(2)*time.Minute, b.getAvgTransformLatency())
 
 	assert.Equal(time.Duration(10)*time.Minute, b.MaxFilterLatency)
 	assert.Equal(time.Duration(10)*time.Minute, b.MinFilterLatency)
-	assert.Equal(time.Duration(10)*time.Minute, b.GetAvgFilterLatency())
+	assert.Equal(time.Duration(10)*time.Minute, b.getAvgFilterLatency())
 
 	assert.Equal("TargetResults:2,MsgFiltered:1,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:600000,MaxMsgLatency:4200000,MaxFilterLatency:600000,MaxTransformLatency:180000,SumTransformLatency:720000,SumProcLatency:2520000,SumMsgLatency:18000000", b.String())
 }

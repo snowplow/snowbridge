@@ -27,54 +27,54 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
 )
 
-// Config holds the configuration data along with the decoder to decode them
+// Config holds the configuration data along with the Decoder to Decode them
 type Config struct {
-	Data    *ConfigurationData
+	Data    *configurationData
 	Decoder Decoder
 }
 
-// ConfigurationData for holding all configuration options
-type ConfigurationData struct {
-	Source                  *Component       `hcl:"source,block" envPrefix:"SOURCE_"`
-	Target                  *Component       `hcl:"target,block" envPrefix:"TARGET_"`
-	FailureTarget           *FailureConfig   `hcl:"failure_target,block"`
-	Sentry                  *SentryConfig    `hcl:"sentry,block"`
-	StatsReceiver           *StatsConfig     `hcl:"stats_receiver,block"`
+// configurationData for holding all configuration options
+type configurationData struct {
+	Source                  *component       `hcl:"source,block" envPrefix:"SOURCE_"`
+	Target                  *component       `hcl:"target,block" envPrefix:"TARGET_"`
+	FailureTarget           *failureConfig   `hcl:"failure_target,block"`
+	Sentry                  *sentryConfig    `hcl:"sentry,block"`
+	StatsReceiver           *statsConfig     `hcl:"stats_receiver,block"`
 	Transform               *TransformConfig `hcl:"transform,block"`
 	LogLevel                string           `hcl:"log_level,optional" env:"LOG_LEVEL"`
 	GoogleServiceAccountB64 string           `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
 	UserProvidedID          string           `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
 }
 
-// Component is a type to abstract over configuration blocks.
-type Component struct {
-	Use *Use `hcl:"use,block"`
+// component is a type to abstract over configuration blocks.
+type component struct {
+	Use *use `hcl:"use,block"`
 }
 
-// Use is a type to denote what a component will be configured to use.
-type Use struct {
+// use is a type to denote what a component will be configured to use.
+type use struct {
 	Name string   `hcl:",label" env:"NAME"`
 	Body hcl.Body `hcl:",remain"`
 }
 
-// FailureConfig holds configuration for the failure target.
+// failureConfig holds configuration for the failure target.
 // It includes the target component to use.
-type FailureConfig struct {
-	Target *Use   `hcl:"use,block" envPrefix:"FAILURE_TARGET_"`
+type failureConfig struct {
+	Target *use   `hcl:"use,block" envPrefix:"FAILURE_TARGET_"`
 	Format string `hcl:"format,optional" env:"FAILURE_TARGETS_FORMAT"`
 }
 
-// SentryConfig configures the Sentry error tracker.
-type SentryConfig struct {
+// sentryConfig configures the Sentry error tracker.
+type sentryConfig struct {
 	Dsn   string `hcl:"dsn" env:"SENTRY_DSN"`
 	Tags  string `hcl:"tags,optional" env:"SENTRY_TAGS"`
 	Debug bool   `hcl:"debug,optional" env:"SENTRY_DEBUG"`
 }
 
-// StatsConfig holds configuration for stats receivers.
+// statsConfig holds configuration for stats receivers.
 // It includes a receiver component to use.
-type StatsConfig struct {
-	Receiver   *Use `hcl:"use,block" envPrefix:"STATS_RECEIVER_"`
+type statsConfig struct {
+	Receiver   *use `hcl:"use,block" envPrefix:"STATS_RECEIVER_"`
 	TimeoutSec int  `hcl:"timeout_sec,optional" env:"STATS_RECEIVER_TIMEOUT_SEC"`
 	BufferSec  int  `hcl:"buffer_sec,optional" env:"STATS_RECEIVER_BUFFER_SEC"`
 }
@@ -82,30 +82,30 @@ type StatsConfig struct {
 // TransformConfig holds configuration for tranformations.
 type TransformConfig struct {
 	Message string `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
-	Layer   *Use   `hcl:"use,block" envPrefix:"TRANSFORMATION_LAYER_"`
+	Layer   *use   `hcl:"use,block" envPrefix:"TRANSFORMATION_LAYER_"`
 }
 
 // defaultConfigData returns the initial main configuration target.
-func defaultConfigData() *ConfigurationData {
-	return &ConfigurationData{
-		Source: &Component{&Use{Name: "stdin"}},
-		Target: &Component{&Use{Name: "stdout"}},
+func defaultConfigData() *configurationData {
+	return &configurationData{
+		Source: &component{&use{Name: "stdin"}},
+		Target: &component{&use{Name: "stdout"}},
 
-		FailureTarget: &FailureConfig{
-			Target: &Use{Name: "stdout"},
+		FailureTarget: &failureConfig{
+			Target: &use{Name: "stdout"},
 			Format: "snowplow",
 		},
-		Sentry: &SentryConfig{
+		Sentry: &sentryConfig{
 			Tags: "{}",
 		},
-		StatsReceiver: &StatsConfig{
-			Receiver:   &Use{},
+		StatsReceiver: &statsConfig{
+			Receiver:   &use{},
 			TimeoutSec: 1,
 			BufferSec:  15,
 		},
 		Transform: &TransformConfig{
 			Message: "none",
-			Layer:   &Use{},
+			Layer:   &use{},
 		},
 		LogLevel: "info",
 	}
@@ -130,7 +130,7 @@ func newEnvConfig() (*Config, error) {
 	var err error
 
 	decoderOpts := &DecoderOptions{}
-	envDecoder := &EnvDecoder{}
+	envDecoder := &envDecoder{}
 
 	configData := defaultConfigData()
 
@@ -161,12 +161,12 @@ func newHclConfig(filename string) (*Config, error) {
 	}
 
 	// Creating EvalContext
-	evalContext := CreateHclContext() // ptr
+	evalContext := createHclContext() // ptr
 
 	// Decoding
 	configData := defaultConfigData()
 	decoderOpts := &DecoderOptions{Input: fileHCL.Body}
-	hclDecoder := &HclDecoder{EvalContext: evalContext}
+	hclDecoder := &hclDecoder{EvalContext: evalContext}
 
 	err = hclDecoder.Decode(decoderOpts, configData)
 	if err != nil {
@@ -181,9 +181,9 @@ func newHclConfig(filename string) (*Config, error) {
 	return &mainConfig, nil
 }
 
-// CreateComponent creates a pluggable component given the decoder options.
+// CreateComponent creates a pluggable component given the Decoder options.
 func (c *Config) CreateComponent(p Pluggable, opts *DecoderOptions) (interface{}, error) {
-	componentConfigure := WithDecoderOptions(opts)
+	componentConfigure := withDecoderOptions(opts)
 
 	decodedConfig, err := componentConfigure(p, c.Decoder)
 	if err != nil {
@@ -204,7 +204,7 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 	switch useTarget.Name {
 	case "stdout":
 		plug = target.AdaptStdoutTargetFunc(
-			target.NewStdoutTarget,
+			target.StdoutTargetConfigFunction,
 		)
 	case "kinesis":
 		plug = target.AdaptKinesisTargetFunc(
@@ -224,7 +224,7 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		)
 	case "eventhub":
 		plug = target.AdaptEventHubTargetFunc(
-			target.NewEventHubTarget,
+			target.EventHubTargetConfigFunction,
 		)
 	case "http":
 		plug = target.AdaptHTTPTargetFunc(
@@ -260,7 +260,7 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 	switch useFailureTarget.Name {
 	case "stdout":
 		plug = target.AdaptStdoutTargetFunc(
-			target.NewStdoutTarget,
+			target.StdoutTargetConfigFunction,
 		)
 	case "kinesis":
 		plug = target.AdaptKinesisTargetFunc(
@@ -280,7 +280,7 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 		)
 	case "eventhub":
 		plug = target.AdaptEventHubTargetFunc(
-			target.NewEventHubTarget,
+			target.EventHubTargetConfigFunction,
 		)
 	case "http":
 		plug = target.AdaptHTTPTargetFunc(
@@ -329,15 +329,15 @@ func (c *Config) GetTags() (map[string]string, error) {
 // GetObserver builds and returns the observer with the embedded
 // optional stats receiver
 func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error) {
-	sr, err := c.GetStatsReceiver(tags)
+	sr, err := c.getStatsReceiver(tags)
 	if err != nil {
 		return nil, err
 	}
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
 }
 
-// GetStatsReceiver builds and returns the stats receiver
-func (c *Config) GetStatsReceiver(tags map[string]string) (statsreceiveriface.StatsReceiver, error) {
+// getStatsReceiver builds and returns the stats receiver
+func (c *Config) getStatsReceiver(tags map[string]string) (statsreceiveriface.StatsReceiver, error) {
 	useReceiver := c.Data.StatsReceiver.Receiver
 	decoderOpts := &DecoderOptions{
 		Input: useReceiver.Body,

@@ -41,15 +41,15 @@ type PubSubTarget struct {
 	log *log.Entry
 }
 
-// PubSubPublishResult contains the publish result and the function to execute
+// pubSubPublishResult contains the publish result and the function to execute
 // on success to ack the send
-type PubSubPublishResult struct {
+type pubSubPublishResult struct {
 	Result  *pubsub.PublishResult
 	Message *models.Message
 }
 
-// NewPubSubTarget creates a new client for writing messages to Google PubSub
-func NewPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) {
+// newPubSubTarget creates a new client for writing messages to Google PubSub
+func newPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) {
 	ctx := context.Background()
 
 	client, err := pubsub.NewClient(ctx, projectID)
@@ -67,7 +67,7 @@ func NewPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) 
 
 // PubSubTargetConfigFunction creates PubSubTarget from PubSubTargetConfig
 func PubSubTargetConfigFunction(c *PubSubTargetConfig) (*PubSubTarget, error) {
-	return NewPubSubTarget(c.ProjectID, c.TopicName)
+	return newPubSubTarget(c.ProjectID, c.TopicName)
 }
 
 // The PubSubTargetAdapter type is an adapter for functions to be used as
@@ -117,7 +117,7 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		), err
 	}
 
-	var results []*PubSubPublishResult
+	var results []*pubSubPublishResult
 
 	safeMessages, oversized := models.FilterOversizedMessages(
 		messages,
@@ -139,7 +139,7 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		}
 
 		r := ps.topic.Publish(ctx, pubSubMsg)
-		results = append(results, &PubSubPublishResult{
+		results = append(results, &pubSubPublishResult{
 			Result:  r,
 			Message: msg,
 		})

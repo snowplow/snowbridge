@@ -29,7 +29,7 @@ func TestNewFilterResult_EmptyWithoutTime(t *testing.T) {
 func TestNewFilterResult_EmptyWithTime(t *testing.T) {
 	assert := assert.New(t)
 
-	r := NewFilterResultWithTime(nil, time.Now().UTC())
+	r := newFilterResultWithTime(nil, time.Now().UTC())
 	assert.NotNil(r)
 
 	assert.Equal(int64(0), r.FilteredCount)
@@ -61,7 +61,7 @@ func TestNewFilterResult_WithMessages(t *testing.T) {
 		},
 	}
 
-	r := NewFilterResultWithTime(filtered, timeNow)
+	r := newFilterResultWithTime(filtered, timeNow)
 	assert.NotNil(r)
 
 	assert.Equal(int64(2), r.FilteredCount)

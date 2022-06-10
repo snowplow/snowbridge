@@ -194,7 +194,7 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	// Use our function generator to interact with localstack
+	// use our function generator to interact with localstack
 	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
 	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
 
