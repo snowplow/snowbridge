@@ -33,8 +33,8 @@ type BadRow struct {
 	selfDescribingData *iglu.SelfDescribingData
 }
 
-// NewBadRow returns a new bad-row structure
-func NewBadRow(schema string, data map[string]interface{}, payload []byte, targetByteLimit int) (*BadRow, error) {
+// newBadRow returns a new bad-row structure
+func newBadRow(schema string, data map[string]interface{}, payload []byte, targetByteLimit int) (*BadRow, error) {
 	payloadLength := len(payload)
 
 	// Ensure data map does not contain anything for payload

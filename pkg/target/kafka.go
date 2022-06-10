@@ -25,10 +25,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
-const (
-	kafkaTarget = `kafka_target`
-)
-
 // KafkaConfig contains configurable options for the kafka target
 type KafkaConfig struct {
 	Brokers        string `hcl:"brokers" env:"TARGET_KAFKA_BROKERS"`
@@ -57,7 +53,7 @@ type KafkaConfig struct {
 type KafkaTarget struct {
 	syncProducer     sarama.SyncProducer
 	asyncProducer    sarama.AsyncProducer
-	asyncResults     chan *SaramaResult
+	asyncResults     chan *saramaResult
 	topicName        string
 	brokers          string
 	messageByteLimit int
@@ -65,8 +61,8 @@ type KafkaTarget struct {
 	log *log.Entry
 }
 
-// SaramaResult holds the result of a Sarama request
-type SaramaResult struct {
+// saramaResult holds the result of a Sarama request
+type saramaResult struct {
 	Msg *sarama.ProducerMessage
 	Err error
 }
@@ -132,7 +128,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		saramaConfig.Net.TLS.Enable = true
 	}
 
-	var asyncResults chan *SaramaResult = nil
+	var asyncResults chan *saramaResult = nil
 	var asyncProducer sarama.AsyncProducer = nil
 	var syncProducer sarama.SyncProducer = nil
 	var producerError error = nil
@@ -154,17 +150,17 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 			return nil, producerError
 		}
 
-		asyncResults = make(chan *SaramaResult)
+		asyncResults = make(chan *saramaResult)
 
 		go func() {
 			for err := range asyncProducer.Errors() {
-				asyncResults <- &SaramaResult{Msg: err.Msg, Err: err.Err}
+				asyncResults <- &saramaResult{Msg: err.Msg, Err: err.Err}
 			}
 		}()
 
 		go func() {
 			for success := range asyncProducer.Successes() {
-				asyncResults <- &SaramaResult{Msg: success}
+				asyncResults <- &saramaResult{Msg: success}
 			}
 		}()
 	} else {

@@ -23,7 +23,7 @@ func TestNewBadRow_InvalidData(t *testing.T) {
 		},
 	}
 
-	br, err := NewBadRow(schema, data, []byte("Hello World!"), 5000)
+	br, err := newBadRow(schema, data, []byte("Hello World!"), 5000)
 	assert.NotNil(err)
 	assert.Nil(br)
 }

@@ -21,7 +21,7 @@ type testStruct struct {
 }
 
 func TestEnvDecode(t *testing.T) {
-	envDecoder := EnvDecoder{}
+	envDecoder := envDecoder{}
 
 	testCases := []struct {
 		TestName    string
@@ -76,7 +76,7 @@ func TestEnvDecode(t *testing.T) {
 
 func TestHclDecode(t *testing.T) {
 	evalCtx := &hcl.EvalContext{}
-	hclDecoder := HclDecoder{evalCtx}
+	hclDecoder := hclDecoder{evalCtx}
 	hclSrc := `
 test_string = "ateststring"
 `
@@ -147,8 +147,8 @@ func TestCreateHclContext(t *testing.T) {
 		TestInt int    `hcl:"test_int"`
 	}
 
-	evalCtx := CreateHclContext()
-	hclDecoder := HclDecoder{evalCtx}
+	evalCtx := createHclContext()
+	hclDecoder := hclDecoder{evalCtx}
 	hclSrc := `
 test_string = env.TEST_STRING
 test_int = env("TEST_INT")

@@ -28,19 +28,19 @@ type Pluggable interface {
 	ComponentCreator
 }
 
-// DecodingHandler is the type of any function that, given a ComponentConfigurable
+// decodingHandler is the type of any function that, given a ComponentConfigurable
 // and a Decoder, returns a pointer to a structure that was decoded.
-type DecodingHandler func(c ComponentConfigurable, d Decoder) (interface{}, error)
+type decodingHandler func(c ComponentConfigurable, d Decoder) (interface{}, error)
 
-// WithDecoderOptions returns a DecodingHandler closed over some DecoderOptions.
-func WithDecoderOptions(opts *DecoderOptions) DecodingHandler {
+// withDecoderOptions returns a decodingHandler closed over some DecoderOptions.
+func withDecoderOptions(opts *DecoderOptions) decodingHandler {
 	return func(c ComponentConfigurable, d Decoder) (interface{}, error) {
-		return Configure(c, d, opts)
+		return configure(c, d, opts)
 	}
 }
 
 // Configure returns the decoded target.
-func Configure(c ComponentConfigurable, d Decoder, opts *DecoderOptions) (interface{}, error) {
+func configure(c ComponentConfigurable, d Decoder, opts *DecoderOptions) (interface{}, error) {
 	target, err := c.ProvideDefault() // target is ptr
 	if err != nil {
 		return nil, err

@@ -24,13 +24,13 @@ type StatsDStatsReceiverConfig struct {
 	Tags    string `hcl:"tags,optional" env:"STATS_RECEIVER_STATSD_TAGS"`
 }
 
-// StatsDStatsReceiver holds a new client for writing statistics to a StatsD server
-type StatsDStatsReceiver struct {
+// statsDStatsReceiver holds a new client for writing statistics to a StatsD server
+type statsDStatsReceiver struct {
 	client *statsd.Client
 }
 
-// NewStatsDStatsReceiver creates a new client for writing metrics to StatsD
-func NewStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsMapClient map[string]string) (*StatsDStatsReceiver, error) {
+// newStatsDStatsReceiver creates a new client for writing metrics to StatsD
+func newStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsMapClient map[string]string) (*statsDStatsReceiver, error) {
 	tagsMap := map[string]string{}
 	err := json.Unmarshal([]byte(tagsRaw), &tagsMap)
 	if err != nil {
@@ -53,16 +53,16 @@ func NewStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsM
 		statsd.ReconnectInterval(60*time.Second),
 	)
 
-	return &StatsDStatsReceiver{
+	return &statsDStatsReceiver{
 		client: client,
 	}, nil
 }
 
 // NewStatsDReceiverWithTags closes over a given tags map and returns a function
-// that creates a StatsDStatsReceiver given a StatsDStatsReceiverConfig.
-func NewStatsDReceiverWithTags(tags map[string]string) func(c *StatsDStatsReceiverConfig) (*StatsDStatsReceiver, error) {
-	return func(c *StatsDStatsReceiverConfig) (*StatsDStatsReceiver, error) {
-		return NewStatsDStatsReceiver(
+// that creates a statsDStatsReceiver given a StatsDStatsReceiverConfig.
+func NewStatsDReceiverWithTags(tags map[string]string) func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error) {
+	return func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error) {
+		return newStatsDStatsReceiver(
 			c.Address,
 			c.Prefix,
 			c.Tags,
@@ -94,7 +94,7 @@ func (f StatsDStatsReceiverAdapter) ProvideDefault() (interface{}, error) {
 }
 
 // AdaptStatsDStatsReceiverFunc returns a StatsDStatsReceiverAdapter.
-func AdaptStatsDStatsReceiverFunc(f func(c *StatsDStatsReceiverConfig) (*StatsDStatsReceiver, error)) StatsDStatsReceiverAdapter {
+func AdaptStatsDStatsReceiverFunc(f func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error)) StatsDStatsReceiverAdapter {
 	return func(i interface{}) (interface{}, error) {
 		cfg, ok := i.(*StatsDStatsReceiverConfig)
 		if !ok {
@@ -106,7 +106,7 @@ func AdaptStatsDStatsReceiverFunc(f func(c *StatsDStatsReceiverConfig) (*StatsDS
 }
 
 // Send emits the bufferred metrics to the receiver
-func (s *StatsDStatsReceiver) Send(b *models.ObserverBuffer) {
+func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
 	s.client.Incr("message_sent", b.MsgSent)
 	s.client.Incr("message_failed", b.MsgFailed)
 	s.client.Incr("oversized_message_sent", b.OversizedMsgSent)

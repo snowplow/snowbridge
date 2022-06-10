@@ -26,15 +26,15 @@ type FilterResult struct {
 	AvgFilterLatency time.Duration
 }
 
-// NewFilterResult uses the current time as the timeOfFilter and calls NewFilterResultWithTime
+// NewFilterResult uses the current time as the timeOfFilter and calls newFilterResultWithTime
 func NewFilterResult(filtered []*Message) *FilterResult {
-	return NewFilterResultWithTime(filtered, time.Now().UTC())
+	return newFilterResultWithTime(filtered, time.Now().UTC())
 }
 
-// NewFilterResultWithTime builds a result structure to return from a filtered message slice
+// newFilterResultWithTime builds a result structure to return from a filtered message slice
 // attempt which contains the filtered message count as well as several
 // derived latency measures.
-func NewFilterResultWithTime(filtered []*Message, timeOfFilter time.Time) *FilterResult {
+func newFilterResultWithTime(filtered []*Message, timeOfFilter time.Time) *FilterResult {
 	r := FilterResult{
 		FilteredCount: int64(len(filtered)),
 	}

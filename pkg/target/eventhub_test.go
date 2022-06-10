@@ -45,7 +45,7 @@ func TestNewEventHubTarget_KeyValue(t *testing.T) {
 	os.Setenv("EVENTHUB_KEY_NAME", "fake")
 	os.Setenv("EVENTHUB_KEY_VALUE", "fake")
 
-	tgt, err := NewEventHubTarget(&cfg)
+	tgt, err := newEventHubTarget(&cfg)
 	assert.Nil(err)
 	assert.NotNil(tgt)
 }
@@ -60,7 +60,7 @@ func TestNewEventHubTarget_ConnString(t *testing.T) {
 
 	os.Setenv("EVENTHUB_CONNECTION_STRING", "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=fake;SharedAccessKey=fake")
 
-	tgt, err := NewEventHubTarget(&cfg)
+	tgt, err := newEventHubTarget(&cfg)
 	assert.Nil(err)
 	assert.NotNil(tgt)
 }
@@ -70,7 +70,7 @@ func TestNewEventHubTarget_Failure(t *testing.T) {
 
 	unsetEverything()
 
-	tgt, err := NewEventHubTarget(&cfg)
+	tgt, err := newEventHubTarget(&cfg)
 	assert.Equal("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment", err.Error())
 	assert.Nil(tgt)
 }

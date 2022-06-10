@@ -45,8 +45,8 @@ type EventHubTarget struct {
 	log *log.Entry
 }
 
-// NewEventHubTarget creates a new client for writing messages to Azure EventHub
-func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
+// newEventHubTarget creates a new client for writing messages to Azure EventHub
+func newEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 
 	_, keyNamePresent := os.LookupEnv("EVENTHUB_KEY_NAME")
 	_, keyValuePresent := os.LookupEnv("EVENTHUB_KEY_VALUE")
@@ -82,6 +82,11 @@ func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 
 		log: log.WithFields(log.Fields{"target": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
 	}, err
+}
+
+// EventHubTargetConfigFunction creates an EventHubTarget from an EventHubconfig
+func EventHubTargetConfigFunction(cfg *EventHubConfig) (*EventHubTarget, error) {
+	return newEventHubTarget(cfg)
 }
 
 // The EventHubTargetAdapter type is an adapter for functions to be used as
