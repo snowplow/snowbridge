@@ -75,6 +75,9 @@ func TestKafkaTarget_AsyncWriteFailure(t *testing.T) {
 
 	writeRes, err := target.Write(messages)
 	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("Error writing messages to Kafka topic: : 1 error occurred:\n\t* kafka: client has run out of available brokers to talk to\n\n", err.Error())
+	}
 	assert.NotNil(writeRes)
 
 	// Check results
@@ -127,6 +130,9 @@ func TestKafkaTarget_SyncWriteFailure(t *testing.T) {
 
 	writeRes, err := target.Write(messages)
 	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("Error writing messages to Kafka topic: : 1 error occurred:\n\t* kafka: client has run out of available brokers to talk to\n\n", err.Error())
+	}
 	assert.NotNil(writeRes)
 
 	// Check results

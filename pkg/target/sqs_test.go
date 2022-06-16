@@ -46,7 +46,7 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 	queueName := "sqs-queue-target-1"
 	queueRes, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	queueURL := queueRes.QueueUrl
 	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
@@ -89,7 +89,7 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 	queueName := "sqs-queue-target-2"
 	queueRes, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	queueURL := queueRes.QueueUrl
 	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)

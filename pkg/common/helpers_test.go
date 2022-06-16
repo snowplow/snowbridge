@@ -8,7 +8,6 @@ package common
 
 import (
 	"crypto/tls"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,12 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	os.Clearenv()
-}
-
 // --- Cloud Helpers
-
 func TestGetGCPServiceAccountFromBase64(t *testing.T) {
 	assert := assert.New(t)
 	defer DeleteTemporaryDir()
@@ -39,9 +33,11 @@ func TestGetGCPServiceAccountFromBase64_NotBase64(t *testing.T) {
 
 	path, err := GetGCPServiceAccountFromBase64("helloworld")
 
-	assert.Equal(path, "")
+	assert.Equal("", path)
 	assert.NotNil(err)
-	assert.True(strings.HasPrefix(err.Error(), "Failed to Base64 decode"))
+	if err != nil {
+		assert.True(strings.HasPrefix(err.Error(), "Failed to Base64 decode"))
+	}
 }
 
 func TestGetAWSSession(t *testing.T) {
@@ -59,6 +55,9 @@ func TestGetAWSSession(t *testing.T) {
 	assert.NotNil(cfg2)
 	assert.Nil(accID2)
 	assert.NotNil(err2)
+	if err != nil {
+		assert.Equal("InvalidParameter: 1 validation error(s) found.\n- minimum field size of 20, AssumeRoleInput.RoleArn.\n", err2.Error())
+	}
 }
 
 // --- Generic Helpers

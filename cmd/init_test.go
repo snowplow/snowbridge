@@ -13,6 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMain(m *testing.M) {
+	os.Clearenv()
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
 func TestInit_Success(t *testing.T) {
 	assert := assert.New(t)
 
@@ -24,23 +30,21 @@ func TestInit_Success(t *testing.T) {
 func TestInit_Failure(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("STATS_RECEIVER_TIMEOUT_SEC")
-
-	os.Setenv("STATS_RECEIVER_TIMEOUT_SEC", "debug")
+	t.Setenv("STATS_RECEIVER_TIMEOUT_SEC", "debug")
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)
 	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("Failed to build config: env: parse error on field \"TimeoutSec\" of type \"int\": strconv.ParseInt: parsing \"debug\": invalid syntax", err.Error())
+	}
 }
 
 func TestInit_Success_Sentry(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("SENTRY_DSN")
-	defer os.Unsetenv("SENTRY_TAGS")
-
-	os.Setenv("SENTRY_DSN", "https://1111111111111111111111111111111d@sentry.snplow.net/28")
-	os.Setenv("SENTRY_TAGS", "{\"client_name\":\"com.acme\"}")
+	t.Setenv("SENTRY_DSN", "https://1111111111111111111111111111111d@sentry.snplow.net/28")
+	t.Setenv("SENTRY_TAGS", "{\"client_name\":\"com.acme\"}")
 
 	cfg, _, err := Init()
 	assert.NotNil(cfg)
@@ -50,43 +54,39 @@ func TestInit_Success_Sentry(t *testing.T) {
 func TestInit_Failure_LogLevel(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("LOG_LEVEL")
-
-	os.Setenv("LOG_LEVEL", "DEBUG")
+	t.Setenv("LOG_LEVEL", "DEBUG")
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)
 	assert.NotNil(err)
-
-	assert.Equal("Supported log levels are 'debug, info, warning, error, fatal, panic'; provided DEBUG", err.Error())
+	if err != nil {
+		assert.Equal("Supported log levels are 'debug, info, warning, error, fatal, panic'; provided DEBUG", err.Error())
+	}
 }
 
 func TestInit_Failure_SentryDSN(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("SENTRY_DSN")
-
-	os.Setenv("SENTRY_DSN", "blahblah")
+	t.Setenv("SENTRY_DSN", "blahblah")
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)
 	assert.NotNil(err)
-
-	assert.Equal("Failed to build Sentry: [Sentry] DsnParseError: invalid scheme", err.Error())
+	if err != nil {
+		assert.Equal("Failed to build Sentry: [Sentry] DsnParseError: invalid scheme", err.Error())
+	}
 }
 
 func TestInit_Failure_SentryTags(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("SENTRY_DSN")
-	defer os.Unsetenv("SENTRY_TAGS")
-
-	os.Setenv("SENTRY_DSN", "https://1111111111111111111111111111111d@sentry.snplow.net/28")
-	os.Setenv("SENTRY_TAGS", "asdasdasd")
+	t.Setenv("SENTRY_DSN", "https://1111111111111111111111111111111d@sentry.snplow.net/28")
+	t.Setenv("SENTRY_TAGS", "asdasdasd")
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)
 	assert.NotNil(err)
-
-	assert.Equal("Failed to unmarshall SENTRY_TAGS to map: invalid character 'a' looking for beginning of value", err.Error())
+	if err != nil {
+		assert.Equal("Failed to unmarshall SENTRY_TAGS to map: invalid character 'a' looking for beginning of value", err.Error())
+	}
 }

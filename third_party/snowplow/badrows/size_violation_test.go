@@ -80,7 +80,9 @@ func TestNewSizeViolation_NotEnoughBytes(t *testing.T) {
 		},
 		10,
 	)
-	assert.NotNil(err)
 	assert.Nil(sv)
-	assert.Equal("Failed to create bad-row as resultant payload will exceed the targets byte limit", err.Error())
+	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("Failed to create bad-row as resultant payload will exceed the targets byte limit", err.Error())
+	}
 }
