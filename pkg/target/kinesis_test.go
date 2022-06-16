@@ -36,6 +36,9 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 
 	writeRes, err := target.Write(messages)
 	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("Error writing messages to Kinesis stream: 1 error occurred:\n\t* Failed to send message batch to Kinesis stream: ResourceNotFoundException: Stream not-exists under account 000000000000 not found.\n\n", err.Error())
+	}
 	assert.NotNil(writeRes)
 
 	// Check results
@@ -55,7 +58,7 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 	streamName := "kinesis-stream-target-1"
 	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 
@@ -97,7 +100,7 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	streamName := "kinesis-stream-target-2"
 	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 
@@ -140,7 +143,7 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	streamName := "kinesis-stream-target-3"
 	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 

@@ -26,6 +26,64 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
+func TestMain(m *testing.M) {
+	os.Clearenv()
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
+func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+	// Since this requires a localstack client (until we implement a mock and make unit tests),
+	// We'll only run it with the integration tests for the time being.
+	assert := assert.New(t)
+
+	// Set up localstack resources
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+	streamName := "kinesis-source-integration-1"
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
+	if createErr != nil {
+		t.Fatal(createErr)
+	}
+	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName)
+
+	appName := "integration"
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	if ddbErr != nil {
+		t.Fatal(ddbErr)
+	}
+
+	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil)
+
+	assert.IsType(&kinesisSource{}, source)
+	assert.Nil(err)
+}
+
+// newKinesisSourceWithInterfaces should fail if we can't reach Kinesis and DDB, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
+/*
+func TestNewKinesisSourceWithInterfaces_Failure(t *testing.T) {
+	// Unlike the success test, we don't require anything to exist for this one
+	assert := assert.New(t)
+
+	// Set up localstack resources
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "nonexistent-stream", "test", nil)
+
+	assert.Nil(&kinesisSource{}, source)
+	assert.NotNil(err)
+
+}
+*/
+
+// TODO: When we address https://github.com/snowplow-devops/stream-replicator/issues/151, this test will need to change.
 func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -43,7 +101,9 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 
 	err = source.Read(nil)
 	assert.NotNil(err)
-	assert.Equal("Failed to start Kinsumer client: error describing table fake-name_checkpoints: ResourceNotFoundException: Cannot do operations on a non-existent table", err.Error())
+	if err != nil {
+		assert.Equal("Failed to start Kinsumer client: error describing table fake-name_checkpoints: ResourceNotFoundException: Cannot do operations on a non-existent table", err.Error())
+	}
 }
 
 func TestKinesisSource_ReadMessages(t *testing.T) {
@@ -57,32 +117,36 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	streamName := "kinesis-source-integration-1"
+	streamName := "kinesis-source-integration-2"
 	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
 	if createErr != nil {
-		panic(createErr)
+		t.Fatal(createErr)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName)
 
 	appName := "integration"
-	testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
-
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	if ddbErr != nil {
+		t.Fatal(ddbErr)
+	}
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
 	// Put ten records into kinesis stream
 	putErr := putNRecordsIntoKinesis(kinesisClient, 10, streamName, "Test")
 	if putErr != nil {
-		panic(putErr)
+		t.Fatal(putErr)
 	}
+
+	time.Sleep(1 * time.Second)
 
 	// Create the source and assert that it's there
 	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil)
 	assert.Nil(err)
 	assert.NotNil(source)
-	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-1", source.GetID())
+	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-2", source.GetID())
 
 	// Read data from stream and check that we got it all
-	successfulReads := testutil.ReadAndReturnMessages(source)
+	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
 
 	assert.Equal(10, len(successfulReads))
 }
@@ -98,22 +162,25 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	streamName := "kinesis-source-integration-2"
+	streamName := "kinesis-source-integration-3"
 	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
 	if createErr != nil {
-		panic(createErr)
+		t.Fatal(createErr)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName)
 
 	appName := "integration"
-	testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	if ddbErr != nil {
+		t.Fatal(ddbErr)
+	}
 
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
 	// Put two batches of 10 records into kinesis stream, grabbing a timestamp in between
 	putErr := putNRecordsIntoKinesis(kinesisClient, 10, streamName, "First batch")
 	if putErr != nil {
-		panic(putErr)
+		t.Fatal(putErr)
 	}
 
 	time.Sleep(1 * time.Second) // Put a 1s buffer either side of the start timestamp
@@ -122,17 +189,17 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 
 	putErr2 := putNRecordsIntoKinesis(kinesisClient, 10, streamName, "Second batch")
 	if putErr2 != nil {
-		panic(putErr2)
+		t.Fatal(putErr2)
 	}
 
 	// Create the source (with start timestamp) and assert that it's there
 	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart)
 	assert.Nil(err)
 	assert.NotNil(source)
-	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-2", source.GetID())
+	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-3", source.GetID())
 
 	// Read from stream
-	successfulReads := testutil.ReadAndReturnMessages(source)
+	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
 
 	// Check that we have ten messages
 	assert.Equal(10, len(successfulReads))
@@ -168,25 +235,22 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	streamName := "kinesis-source-config-integration-1"
 	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
 	if createErr != nil {
-		panic(createErr)
+		t.Fatal(createErr)
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName)
 
 	appName := "kinesisSourceIntegration"
-	testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
-
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	if ddbErr != nil {
+		t.Fatal(ddbErr)
+	}
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
-	defer os.Unsetenv("SOURCE_NAME")
-	defer os.Unsetenv("SOURCE_KINESIS_STREAM_NAME")
-	defer os.Unsetenv("SOURCE_KINESIS_REGION")
-	defer os.Unsetenv("SOURCE_KINESIS_APP_NAME")
+	t.Setenv("SOURCE_NAME", "kinesis")
 
-	os.Setenv("SOURCE_NAME", "kinesis")
-
-	os.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
-	os.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
-	os.Setenv("SOURCE_KINESIS_APP_NAME", appName)
+	t.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
+	t.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
+	t.Setenv("SOURCE_KINESIS_APP_NAME", appName)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

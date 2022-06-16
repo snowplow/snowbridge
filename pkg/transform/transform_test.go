@@ -67,7 +67,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	enrichJSONRes := tranformEnrichJSON(messages)
 
 	for index, value := range enrichJSONRes.Result {
-		assert.Equal(expectedGood[index].Data, value.Data)
+		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.NotNil(expectedGood[index].TimeTransformed)
 
@@ -80,7 +80,10 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal(1, len(enrichJSONRes.Invalid))
 	assert.Equal(int64(1), enrichJSONRes.InvalidCount)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+	assert.NotNil(enrichJSONRes.Invalid[0].GetError())
+	if enrichJSONRes.Invalid[0].GetError() != nil {
+		assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+	}
 	assert.Equal([]byte("not	a	snowplow	event"), enrichJSONRes.Invalid[0].Data)
 	assert.Equal("some-key4", enrichJSONRes.Invalid[0].PartitionKey)
 }
@@ -127,9 +130,10 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	enrichJSONRes := tranformMultiple(messages)
 
 	for index, value := range enrichJSONRes.Result {
-		assert.Equal(expectedGood[index].Data, value.Data)
+		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.NotNil(expectedGood[index].TimeTransformed)
+		assert.NotNil(value.TimeTransformed)
 
 		// assertions to ensure we don't accidentally modify the input
 		assert.NotEqual(messages[index].Data, value.Data)
@@ -141,7 +145,11 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.Equal(1, len(enrichJSONRes.Invalid))
 	assert.Equal(int64(1), enrichJSONRes.InvalidCount)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+	assert.NotNil(enrichJSONRes.Invalid[0].GetError())
+	if enrichJSONRes.Invalid[0].GetError() != nil {
+		assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+	}
+
 	assert.Equal([]byte("not	a	snowplow	event"), enrichJSONRes.Invalid[0].Data)
 	assert.Equal("some-key4", enrichJSONRes.Invalid[0].PartitionKey)
 }
