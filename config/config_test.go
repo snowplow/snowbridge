@@ -15,6 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMain(m *testing.M) {
+	os.Clearenv()
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
 // The GetSource part needs to move anyway - causes circular dep.
 func TestNewConfig(t *testing.T) {
 	assert := assert.New(t)
@@ -49,13 +55,9 @@ func TestNewConfig(t *testing.T) {
 func TestNewConfig_FromEnv(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("LOG_LEVEL")
-	defer os.Unsetenv("TARGET_NAME")
-	defer os.Unsetenv("SOURCE_NAME")
-
-	os.Setenv("LOG_LEVEL", "debug")
-	os.Setenv("TARGET_NAME", "kinesis")
-	os.Setenv("SOURCE_NAME", "kinesis")
+	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("TARGET_NAME", "kinesis")
+	t.Setenv("SOURCE_NAME", "kinesis")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -71,9 +73,7 @@ func TestNewConfig_FromEnv(t *testing.T) {
 func TestNewConfig_FromEnvInvalid(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("STATS_RECEIVER_TIMEOUT_SEC")
-
-	os.Setenv("STATS_RECEIVER_TIMEOUT_SEC", "debug")
+	t.Setenv("STATS_RECEIVER_TIMEOUT_SEC", "debug")
 
 	c, err := NewConfig()
 	assert.Nil(c)
@@ -83,9 +83,7 @@ func TestNewConfig_FromEnvInvalid(t *testing.T) {
 func TestNewConfig_InvalidTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("TARGET_NAME")
-
-	os.Setenv("TARGET_NAME", "fake")
+	t.Setenv("TARGET_NAME", "fake")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -102,9 +100,7 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("FAILURE_TARGET_NAME")
-
-	os.Setenv("FAILURE_TARGET_NAME", "fake")
+	t.Setenv("FAILURE_TARGET_NAME", "fake")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -121,9 +117,7 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("FAILURE_TARGETS_FORMAT")
-
-	os.Setenv("FAILURE_TARGETS_FORMAT", "fake")
+	t.Setenv("FAILURE_TARGETS_FORMAT", "fake")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -140,9 +134,7 @@ func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 func TestNewConfig_InvalidStatsReceiver(t *testing.T) {
 	assert := assert.New(t)
 
-	defer os.Unsetenv("STATS_RECEIVER_NAME")
-
-	os.Setenv("STATS_RECEIVER_NAME", "fake")
+	t.Setenv("STATS_RECEIVER_NAME", "fake")
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -217,16 +209,16 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	assert.Equal(c.Data.Source.Use.Name, "stdin")
-	assert.Equal(c.Data.Target.Use.Name, "stdout")
-	assert.Equal(c.Data.FailureTarget.Target.Name, "stdout")
-	assert.Equal(c.Data.FailureTarget.Format, "snowplow")
-	assert.Equal(c.Data.Sentry.Tags, "{}")
-	assert.Equal(c.Data.Sentry.Debug, false)
-	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
-	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
-	assert.Equal(c.Data.Transform.Message, "none")
-	assert.Equal(c.Data.LogLevel, "info")
+	assert.Equal("stdin", c.Data.Source.Use.Name)
+	assert.Equal("stdout", c.Data.Target.Use.Name)
+	assert.Equal("stdout", c.Data.FailureTarget.Target.Name)
+	assert.Equal("snowplow", c.Data.FailureTarget.Format)
+	assert.Equal("{}", c.Data.Sentry.Tags)
+	assert.Equal(false, c.Data.Sentry.Debug)
+	assert.Equal(1, c.Data.StatsReceiver.TimeoutSec)
+	assert.Equal(15, c.Data.StatsReceiver.BufferSec)
+	assert.Equal("none", c.Data.Transform.Message)
+	assert.Equal("info", c.Data.LogLevel)
 }
 
 func TestNewConfig_Hcl_sentry(t *testing.T) {
@@ -241,9 +233,9 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	assert.Equal(c.Data.Sentry.Debug, true)
-	assert.Equal(c.Data.Sentry.Tags, "{\"testKey\":\"testValue\"}")
-	assert.Equal(c.Data.Sentry.Dsn, "testDsn")
+	assert.Equal(true, c.Data.Sentry.Debug)
+	assert.Equal("{\"testKey\":\"testValue\"}", c.Data.Sentry.Tags)
+	assert.Equal("testDsn", c.Data.Sentry.Dsn)
 }
 
 func TestDefaultTransformation(t *testing.T) {

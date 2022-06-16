@@ -105,12 +105,13 @@ integration-reset: integration-down integration-up
 
 integration-up: http-up
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml up -d)
-	sleep 5
+	sleep 20
 
 integration-down: http-down
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml down)
 	rm -rf $(integration_dir)/.localstack
 
+# ngrok needs to be installed and auth token must be configured for this if running locally
 http-up:
 	(cd "$(integration_dir)/http/server" && go run server.go &)
 	sleep 5

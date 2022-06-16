@@ -33,7 +33,7 @@ type EventHubConfig struct {
 
 // EventHubTarget holds a new client for writing messages to Azure EventHub
 type EventHubTarget struct {
-	client                  *eventhub.Hub
+	client                  clientIface
 	eventHubNamespace       string
 	eventHubName            string
 	messageByteLimit        int
@@ -43,6 +43,28 @@ type EventHubTarget struct {
 	batchByteLimit          int
 
 	log *log.Entry
+}
+
+// clientIface allows us to mock the entire eventhub.Hub client, since they don't provide interfaces for mocking https://github.com/Azure/azure-event-hubs-go/issues/98
+type clientIface interface {
+	SendBatch(context.Context, eventhub.BatchIterator, ...eventhub.BatchOption) error
+	Close(context.Context) error
+}
+
+// NewEventHubTargetWithInterfaces allows for mocking the eventhub client
+func NewEventHubTargetWithInterfaces(client clientIface, cfg *EventHubConfig) *EventHubTarget {
+	return &EventHubTarget{
+		client:                  client,
+		eventHubNamespace:       cfg.EventHubNamespace,
+		eventHubName:            cfg.EventHubName,
+		messageByteLimit:        cfg.MessageByteLimit,
+		chunkByteLimit:          cfg.ChunkByteLimit,
+		chunkMessageLimit:       cfg.ChunkMessageLimit,
+		contextTimeoutInSeconds: cfg.ContextTimeoutInSeconds,
+		batchByteLimit:          cfg.BatchByteLimit,
+
+		log: log.WithFields(log.Fields{"target": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
+	}
 }
 
 // NewEventHubTarget creates a new client for writing messages to Azure EventHub
@@ -70,18 +92,7 @@ func NewEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 	// If none is specified, it will retry indefinitely until the context times out, which hides the actual error message
 	// To avoid obscuring errors, contextTimeoutInSeconds should be configured to ensure all retries may be completed before its expiry
 
-	return &EventHubTarget{
-		client:                  hub,
-		eventHubNamespace:       cfg.EventHubNamespace,
-		eventHubName:            cfg.EventHubName,
-		messageByteLimit:        cfg.MessageByteLimit,
-		chunkByteLimit:          cfg.ChunkByteLimit,
-		chunkMessageLimit:       cfg.ChunkMessageLimit,
-		contextTimeoutInSeconds: cfg.ContextTimeoutInSeconds,
-		batchByteLimit:          cfg.BatchByteLimit,
-
-		log: log.WithFields(log.Fields{"target": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
-	}, err
+	return NewEventHubTargetWithInterfaces(hub, cfg), err
 }
 
 // The EventHubTargetAdapter type is an adapter for functions to be used as

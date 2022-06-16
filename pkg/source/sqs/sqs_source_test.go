@@ -24,6 +24,49 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
+func TestMain(m *testing.M) {
+	os.Clearenv()
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
+// func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
+func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+	// Since this requires a localstack client (until we implement a mock and make unit tests),
+	// We'll only run it with the integration tests for the time being.
+	assert := assert.New(t)
+
+	client := testutil.GetAWSLocalstackSQSClient()
+
+	queueName := "sqs-queue-source"
+	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
+	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
+
+	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
+
+	assert.IsType(&sqsSource{}, source)
+	assert.Nil(err)
+}
+
+// newSQSSourceWithInterfaces should fail if we can't reach SQS, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
+/*
+func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
+	// Unlike the success test, we don't require anything to exist for this one
+	assert := assert.New(t)
+
+	client := testutil.GetAWSLocalstackSQSClient()
+
+	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, "nonexistent-queue")
+
+	assert.Nil(source)
+	assert.NotNil(err)
+}
+*/
+
+// TODO: When we address https://github.com/snowplow-devops/stream-replicator/issues/151, this test will need to change.
 func TestSQSSource_ReadFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -112,10 +155,8 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName)
 
-	defer os.Unsetenv("SOURCE_NAME")
-
-	os.Setenv("SOURCE_NAME", "sqs")
-	os.Setenv("SOURCE_SQS_QUEUE_NAME", queueName)
+	t.Setenv("SOURCE_NAME", "sqs")
+	t.Setenv("SOURCE_SQS_QUEUE_NAME", queueName)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

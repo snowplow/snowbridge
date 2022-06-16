@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestNewTargetWriteResult_EmptyWithoutTime tests that an empty targetWriteResult with no timings will report 0s across the board
 func TestNewTargetWriteResult_EmptyWithoutTime(t *testing.T) {
 	assert := assert.New(t)
 
@@ -36,6 +37,7 @@ func TestNewTargetWriteResult_EmptyWithoutTime(t *testing.T) {
 	assert.Equal(time.Duration(0), r.AvgTransformLatency)
 }
 
+// TestNewTargetWriteResult_EmptyWithTime tests that an empty targetWriteResult with no a provided timestamp will report 0s across the board
 func TestNewTargetWriteResult_EmptyWithTime(t *testing.T) {
 	assert := assert.New(t)
 
@@ -59,6 +61,7 @@ func TestNewTargetWriteResult_EmptyWithTime(t *testing.T) {
 	assert.Equal(time.Duration(0), r.AvgTransformLatency)
 }
 
+// TestNewTargetWriteResult_WithMessages tests that reporting of statistics is as it should be when we have all data
 func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	assert := assert.New(t)
 
@@ -159,3 +162,53 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	assert.Equal(time.Duration(1)*time.Minute, r3.MinTransformLatency)
 	assert.Equal(time.Duration(3)*time.Minute, r3.AvgTransformLatency)
 }
+
+// TestNewTargetWriteResult_NoTransformation tests that reporting of statistics is as it should be when we don't have a timeTransformed
+// At time of writing there is a bug whereby these will report negative transformLatency stats: https://github.com/snowplow-devops/stream-replicator/issues/108
+// Commenting this test out for the time being, it can serve as an illustration of the problem and unit test for fixing that bug
+/*
+func TestNewTargetWriteResult_NoTransformation(t *testing.T) {
+	assert := assert.New(t)
+
+	timeNow := time.Now().UTC()
+
+	sent := []*Message{
+		{
+			Data:         []byte("Baz"),
+			PartitionKey: "partition1",
+			TimeCreated:  timeNow.Add(time.Duration(-50) * time.Minute),
+			TimePulled:   timeNow.Add(time.Duration(-4) * time.Minute),
+		},
+		{
+			Data:         []byte("Bar"),
+			PartitionKey: "partition2",
+			TimeCreated:  timeNow.Add(time.Duration(-70) * time.Minute),
+			TimePulled:   timeNow.Add(time.Duration(-7) * time.Minute),
+		},
+	}
+	failed := []*Message{
+		{
+			Data:         []byte("Foo"),
+			PartitionKey: "partition3",
+			TimeCreated:  timeNow.Add(time.Duration(-30) * time.Minute),
+			TimePulled:   timeNow.Add(time.Duration(-10) * time.Minute),
+		},
+	}
+
+	r := NewTargetWriteResultWithTime(sent, failed, nil, nil, timeNow)
+	assert.NotNil(r)
+
+	assert.Equal(int64(2), r.SentCount)
+	assert.Equal(int64(1), r.FailedCount)
+	assert.Equal(int64(3), r.Total())
+	assert.Equal(time.Duration(10)*time.Minute, r.MaxProcLatency)
+	assert.Equal(time.Duration(4)*time.Minute, r.MinProcLatency)
+	assert.Equal(time.Duration(7)*time.Minute, r.AvgProcLatency)
+	assert.Equal(time.Duration(70)*time.Minute, r.MaxMsgLatency)
+	assert.Equal(time.Duration(30)*time.Minute, r.MinMsgLatency)
+	assert.Equal(time.Duration(50)*time.Minute, r.AvgMsgLatency)
+	assert.Equal(time.Duration(0), r.MaxTransformLatency)
+	assert.Equal(time.Duration(0), r.MinTransformLatency)
+	assert.Equal(time.Duration(0), r.AvgTransformLatency)
+}
+*/

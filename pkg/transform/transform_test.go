@@ -67,7 +67,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	enrichJSONRes := tranformEnrichJSON(messages)
 
 	for index, value := range enrichJSONRes.Result {
-		assert.Equal(expectedGood[index].Data, value.Data)
+		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.NotNil(expectedGood[index].TimeTransformed)
 
@@ -127,9 +127,10 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	enrichJSONRes := tranformMultiple(messages)
 
 	for index, value := range enrichJSONRes.Result {
-		assert.Equal(expectedGood[index].Data, value.Data)
+		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.NotNil(expectedGood[index].TimeTransformed)
+		assert.NotNil(value.TimeTransformed)
 
 		// assertions to ensure we don't accidentally modify the input
 		assert.NotEqual(messages[index].Data, value.Data)

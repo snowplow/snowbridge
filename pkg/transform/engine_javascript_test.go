@@ -590,9 +590,9 @@ function sleepTenSecs(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], false)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], false)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], false)
 		})
 	}
 }
@@ -792,9 +792,9 @@ function returnWrongType(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], true)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], false)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], false)
 		})
 	}
 }
@@ -983,9 +983,9 @@ function identity(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], true)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], true)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], true)
 		})
 	}
 }
@@ -1170,9 +1170,9 @@ function identity(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], true)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], true)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], true)
 		})
 	}
 }
@@ -1326,9 +1326,9 @@ function filterOutIgnores(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], false)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], false)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], false)
 		})
 	}
 }
@@ -1547,12 +1547,8 @@ function setPk(x) {
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
+					assert.JSONEq(string(exp.Data), string(res.Data))
+					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
 		})
@@ -1675,12 +1671,8 @@ function setPk(x) {
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
+					assert.JSONEq(string(exp.Data), string(res.Data))
+					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
 		})
@@ -1843,7 +1835,7 @@ func testJSEngineFunc(c *jsEngineConfig) (*jsEngineConfig, error) {
 
 // Helper function to compare messages and avoid using reflect.DeepEqual
 // on errors. Compares all but the error field of messages.
-func assertMessagesCompareJs(t *testing.T, act, exp *models.Message) {
+func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJSON bool) {
 	t.Helper()
 
 	ok := false
@@ -1852,8 +1844,13 @@ func assertMessagesCompareJs(t *testing.T, act, exp *models.Message) {
 		ok = exp == nil
 	case exp == nil:
 	default:
+		var dataOk bool
 		pkOk := act.PartitionKey == exp.PartitionKey
-		dataOk := reflect.DeepEqual(act.Data, exp.Data)
+		if isJSON {
+			dataOk = assert.JSONEq(t, string(exp.Data), string(act.Data))
+		} else {
+			dataOk = reflect.DeepEqual(act.Data, exp.Data)
+		}
 		cTimeOk := reflect.DeepEqual(act.TimeCreated, exp.TimeCreated)
 		pTimeOk := reflect.DeepEqual(act.TimePulled, exp.TimePulled)
 		tTimeOk := reflect.DeepEqual(act.TimeTransformed, exp.TimeTransformed)
