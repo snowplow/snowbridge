@@ -29,7 +29,7 @@ func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Se
 		defer req.Body.Close()
 		data, err := ioutil.ReadAll(req.Body)
 		if err != nil {
-			panic(err) // If we hit this error, something went wrong with the test setup, so panic
+			panic(err)
 		}
 		mutex.Lock()
 		*results = append(*results, data)
@@ -69,13 +69,19 @@ func TestGetHeaders(t *testing.T) {
 	invalid1 := `{"Max Forwards": 10}`
 	out4, err4 := getHeaders(invalid1)
 
-	assert.Equal("Error parsing headers. Ensure that headers are provided as a JSON of string key-value pairs: json: cannot unmarshal number into Go value of type string", err4.Error())
+	assert.NotNil(err4)
+	if err4 != nil {
+		assert.Equal("Error parsing headers. Ensure that headers are provided as a JSON of string key-value pairs: json: cannot unmarshal number into Go value of type string", err4.Error())
+	}
 	assert.Nil(out4)
 
 	invalid2 := `[{"Max Forwards": "10"}]`
 	out5, err5 := getHeaders(invalid2)
 
-	assert.Equal("Error parsing headers. Ensure that headers are provided as a JSON of string key-value pairs: json: cannot unmarshal array into Go value of type map[string]string", err5.Error())
+	assert.NotNil(err5)
+	if err5 != nil {
+		assert.Equal("Error parsing headers. Ensure that headers are provided as a JSON of string key-value pairs: json: cannot unmarshal array into Go value of type map[string]string", err5.Error())
+	}
 	assert.Nil(out5)
 
 }
@@ -85,7 +91,7 @@ func TestAddHeadersToRequest(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "abc", bytes.NewBuffer([]byte("def")))
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	headersToAdd := map[string]string{"Max Forwards": "10", "Accept-Language": "en-US,en-IE", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}
 
@@ -100,7 +106,7 @@ func TestAddHeadersToRequest(t *testing.T) {
 
 	req2, err2 := http.NewRequest("POST", "abc", bytes.NewBuffer([]byte("def")))
 	if err2 != nil {
-		panic(err2)
+		t.Fatal(err2)
 	}
 	var noHeadersToAdd map[string]string
 	noHeadersExpected := http.Header{}
@@ -120,11 +126,17 @@ func TestNewHTTPTarget(t *testing.T) {
 
 	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
 
-	assert.Equal("Invalid url for HTTP target: 'something'", err1.Error())
+	assert.NotNil(err1)
+	if err1 != nil {
+		assert.Equal("Invalid url for HTTP target: 'something'", err1.Error())
+	}
 	assert.Nil(failedHTTPTarget)
 
 	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1048576, "application/json", "", "", "", "", "", "", true)
-	assert.Equal("Invalid url for HTTP target: ''", err2.Error())
+	assert.NotNil(err2)
+	if err2 != nil {
+		assert.Equal("Invalid url for HTTP target: ''", err2.Error())
+	}
 	assert.Nil(failedHTTPTarget2)
 }
 
@@ -138,7 +150,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 
 	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	var ackOps int64
@@ -172,7 +184,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 
 	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	mu := &sync.Mutex{}
@@ -215,7 +227,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 
 	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	var ackOps int64
@@ -228,8 +240,9 @@ func TestHttpWrite_Failure(t *testing.T) {
 	writeResult, err1 := target.Write(messages)
 
 	assert.NotNil(err1)
-
-	assert.Regexp("Error sending http request: 10 errors occurred:.*", err1.Error())
+	if err1 != nil {
+		assert.Regexp("Error sending http request: 10 errors occurred:.*", err1.Error())
+	}
 
 	assert.Equal(10, len(writeResult.Failed))
 	assert.Nil(writeResult.Sent)
@@ -246,7 +259,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 
 	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	var ackOps int64
@@ -319,7 +332,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		string(encodedCa),
 		false)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	var ackOps int64
@@ -354,7 +367,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		false)
 	if err2 != nil {
 		os.RemoveAll(`tmp_replicator`)
-		panic(err2)
+		t.Fatal(err2)
 	}
 
 	writeResult2, err3 := target2.Write(messages)
@@ -382,7 +395,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		false)
 	if err4 != nil {
 		os.RemoveAll(`tmp_replicator`)
-		panic(err4)
+		t.Fatal(err4)
 	}
 
 	writeResult3, err5 := target3.Write(messages)

@@ -27,7 +27,9 @@ func TestMessageString(t *testing.T) {
 	msg.SetError(errors.New("failure"))
 
 	assert.NotNil(msg.GetError())
-	assert.Equal("failure", msg.GetError().Error())
+	if msg.GetError() != nil {
+		assert.Equal("failure", msg.GetError().Error())
+	}
 }
 
 func TestGetChunkedMessages(t *testing.T) {

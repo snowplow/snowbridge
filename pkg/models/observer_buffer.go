@@ -176,7 +176,7 @@ func (b *ObserverBuffer) String() string {
 		b.MaxMsgLatency.Milliseconds(),
 		b.MaxFilterLatency.Milliseconds(),
 		b.MaxTransformLatency.Milliseconds(),
-		b.SumTransformLatency.Milliseconds(), // Reporting sums for rc version in order to compute averages in load tests.
+		b.SumTransformLatency.Milliseconds(), // Sums are reported to allow us to compute averages across multi-instance deployments
 		b.SumProcLatency.Milliseconds(),
 		b.SumMsgLatency.Milliseconds(),
 	)

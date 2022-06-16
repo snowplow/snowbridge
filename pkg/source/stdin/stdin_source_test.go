@@ -19,6 +19,12 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
+func TestMain(m *testing.M) {
+	os.Clearenv()
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
 func TestStdinSource_ReadSuccess(t *testing.T) {
 	assert := assert.New(t)
 
@@ -60,13 +66,11 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 }
 
 func TestGetSource_WithStdinSource(t *testing.T) {
+	t.Setenv("SOURCE_NAME", "stdin")
+
 	assert := assert.New(t)
 
 	supportedSources := []sourceconfig.ConfigPair{ConfigPair}
-
-	defer os.Unsetenv("SOURCE_NAME")
-
-	os.Setenv("SOURCE_NAME", "stdin")
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

@@ -1547,12 +1547,8 @@ function setPk(x) {
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
+					assert.JSONEq(string(exp.Data), string(res.Data))
+					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
 		})
@@ -1675,12 +1671,8 @@ function setPk(x) {
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
+					assert.JSONEq(string(exp.Data), string(res.Data))
+					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
 		})
@@ -1852,8 +1844,9 @@ func assertMessagesCompareJs(t *testing.T, act, exp *models.Message) {
 		ok = exp == nil
 	case exp == nil:
 	default:
+		var dataOk bool
 		pkOk := act.PartitionKey == exp.PartitionKey
-		dataOk := reflect.DeepEqual(act.Data, exp.Data)
+		dataOk = reflect.DeepEqual(act.Data, exp.Data)
 		cTimeOk := reflect.DeepEqual(act.TimeCreated, exp.TimeCreated)
 		pTimeOk := reflect.DeepEqual(act.TimePulled, exp.TimePulled)
 		tTimeOk := reflect.DeepEqual(act.TimeTransformed, exp.TimeTransformed)

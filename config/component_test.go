@@ -8,7 +8,6 @@ package config
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -19,10 +18,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 )
-
-func init() {
-	os.Clearenv()
-}
 
 func TestCreateTargetComponentHCL(t *testing.T) {
 	testCases := []struct {
@@ -266,7 +261,7 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 			t.Fatalf("function NewConfig failed with error: %q", err.Error())
 		}
 
-		assert.Equal(c.Data.FailureTarget.Target.Name, "kafka")
+		assert.Equal("kafka", c.Data.FailureTarget.Target.Name)
 		decoderOpts := &DecoderOptions{
 			Prefix: "FAILURE_",
 		}
@@ -313,8 +308,8 @@ func TestCreateObserverComponentHCL(t *testing.T) {
 				t.Fatalf("function NewConfig failed with error: %q", err.Error())
 			}
 
-			assert.Equal(c.Data.StatsReceiver.TimeoutSec, 2)
-			assert.Equal(c.Data.StatsReceiver.BufferSec, 20)
+			assert.Equal(2, c.Data.StatsReceiver.TimeoutSec)
+			assert.Equal(20, c.Data.StatsReceiver.BufferSec)
 
 			use := c.Data.StatsReceiver.Receiver
 			decoderOpts := &DecoderOptions{
