@@ -16,3 +16,9 @@ services:
     environment:
       - SERVICES=sqs,kinesis,dynamodb
       - DATA_DIR=/tmp/localstack/data
+  pubsub:
+    image: bigtruedata/gcloud-pubsub-emulator
+    command: start --host-port 0.0.0.0:8432
+    ports:
+      - "0.0.0.0:8432:8432"
+

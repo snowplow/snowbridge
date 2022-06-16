@@ -57,7 +57,10 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	assert.Nil(failureCase)
 	assert.Nil(intermediate)
 	assert.NotNil(fail)
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", fail.GetError().Error())
+	assert.NotNil(fail.GetError())
+	if fail.GetError() != nil {
+		assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", fail.GetError().Error())
+	}
 
 	// Nuanced success case
 	// Test to assert behaviour when there's an incompatible intermediateState in the input

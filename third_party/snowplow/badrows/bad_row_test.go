@@ -25,5 +25,8 @@ func TestNewBadRow_InvalidData(t *testing.T) {
 
 	br, err := newBadRow(schema, data, []byte("Hello World!"), 5000)
 	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("Could not unmarshall bad-row data blob to JSON: json: unsupported type: map[bool]string", err.Error())
+	}
 	assert.Nil(br)
 }

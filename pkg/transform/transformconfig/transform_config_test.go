@@ -132,10 +132,10 @@ func TestParseTransformations_InvalidMessage(t *testing.T) {
 
 			parsed, err := parseTransformations(tt.Message)
 			assert.Nil(parsed)
-			if err == nil {
-				t.Fatalf("expected error; got nil")
+			assert.NotNil(err)
+			if err != nil {
+				assert.Equal(tt.ExpError, err.Error())
 			}
-			assert.Equal(tt.ExpError, err.Error())
 		})
 	}
 }
@@ -172,12 +172,14 @@ func TestGetTransformations_MissingLayerConfig(t *testing.T) {
 				t.Fatalf("function NewConfig failed with error: %q", err.Error())
 			}
 
-			assert.Equal(c.Data.Transform.Message, tt.TransMessage)
+			assert.Equal(tt.TransMessage, c.Data.Transform.Message)
 
 			transformation, err := GetTransformations(c)
 			assert.Nil(transformation)
 			assert.NotNil(err)
-			assert.Equal(tt.ExpectedError, err.Error())
+			if err != nil {
+				assert.Equal(tt.ExpectedError, err.Error())
+			}
 		})
 	}
 }
@@ -239,7 +241,10 @@ func TestGetTransformations_Builtins(t *testing.T) {
 			applyFun, err := GetTransformations(tt.Provider)
 
 			if tt.ExpectedErr != nil {
-				assert.Equal(tt.ExpectedErr.Error(), err.Error())
+				assert.NotNil(err)
+				if err != nil {
+					assert.Equal(tt.ExpectedErr.Error(), err.Error())
+				}
 				assert.Nil(applyFun)
 			} else {
 				assert.Nil(err)
@@ -288,7 +293,10 @@ func TestGetTransformations_Custom(t *testing.T) {
 			applyFun, err := GetTransformations(tt.Provider)
 
 			if tt.ExpectedErr != nil {
-				assert.Equal(tt.ExpectedErr.Error(), err.Error())
+				assert.NotNil(err)
+				if err != nil {
+					assert.Equal(tt.ExpectedErr.Error(), err.Error())
+				}
 				assert.Nil(applyFun)
 			} else {
 				assert.Nil(err)
@@ -430,7 +438,10 @@ func TestMkEngineFunction(t *testing.T) {
 			)
 
 			if tt.ExpectedErr != nil {
-				assert.Equal(tt.ExpectedErr.Error(), err.Error())
+				assert.NotNil(err)
+				if err != nil {
+					assert.Equal(tt.ExpectedErr.Error(), err.Error())
+				}
 				assert.Nil(fun)
 			} else {
 				assert.Nil(err)
