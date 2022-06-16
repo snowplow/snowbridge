@@ -45,5 +45,8 @@ func TestNewSelfDescribingData_InvalidData(t *testing.T) {
 
 	sddString, err := sdd.String()
 	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("json: unsupported type: map[bool]string", err.Error())
+	}
 	assert.Equal("", sddString)
 }
