@@ -105,7 +105,7 @@ integration-reset: integration-down integration-up
 
 integration-up: http-up
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml up -d)
-	sleep 5
+	sleep 20
 
 integration-down: http-down
 	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml down)

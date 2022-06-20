@@ -4,15 +4,12 @@
 //
 // Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 
-package pubsubsource
+package target
 
 import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,8 +21,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
@@ -35,9 +30,10 @@ const (
 
 func initMockPubsubServer() (*pstest.Server, *grpc.ClientConn) {
 	os.Setenv("PUBSUB_PROJECT_ID", pubsubProjectID)
-	os.Setenv(`PUBSUB_EMULATOR_HOST`, "localhost:8008")
+	os.Setenv(`PUBSUB_EMULATOR_HOST`, "localhost:8563")
+
 	ctx := context.Background()
-	srv := pstest.NewServerWithPort(8008)
+	srv := pstest.NewServerWithPort(8563)
 	// Connect to the server without using TLS.
 	conn, err := grpc.Dial(srv.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -58,17 +54,6 @@ func initMockPubsubServer() (*pstest.Server, *grpc.ClientConn) {
 		panic(err)
 	}
 
-	numMsgs := 10
-	// publish 10 messages
-	wg := sync.WaitGroup{}
-	for i := 0; i < numMsgs; i++ {
-		wg.Add(1)
-		go func() {
-			_ = srv.Publish(`projects/project-test/topics/test-topic`, []byte("message #"+strconv.Itoa(i)), nil)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
 	return srv, conn
 }
 
@@ -76,7 +61,7 @@ func createPubsubResourcesAndWrite() {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 	os.Setenv("PUBSUB_PROJECT_ID", pubsubProjectID)
-	os.Setenv(`PUBSUB_EMULATOR_HOST`, "localhost:8432")
+	os.Setenv(`PUBSUB_EMULATOR_HOST`, "0.0.0.0:8432")
 
 	client, err := pubsub.NewClient(ctx, pubsubProjectID)
 	if err != nil {
@@ -88,7 +73,6 @@ func createPubsubResourcesAndWrite() {
 	if err != nil {
 		panic(errors.Wrap(err, "Failed to create pubsub topic"))
 	}
-
 	_, err = client.CreateSubscription(ctx, `test-sub`, pubsub.SubscriptionConfig{
 		Topic:       topic,
 		AckDeadline: 10 * time.Second,
@@ -96,35 +80,13 @@ func createPubsubResourcesAndWrite() {
 	if err != nil {
 		panic(fmt.Errorf("error creating subscription: %v", err))
 	}
-
-	var wg sync.WaitGroup
-	var totalErrors uint64
-
-	numMsgs := 10
-	// publish 10 messages
-	for i := 0; i < numMsgs; i++ {
-		wg.Add(1)
-		result := topic.Publish(ctx, &pubsub.Message{
-			Data: []byte("message #" + strconv.Itoa(i)),
-		})
-		go func(i int, res *pubsub.PublishResult) {
-			defer wg.Done()
-			_, err := res.Get(ctx)
-			if err != nil {
-				atomic.AddUint64(&totalErrors, 1)
-				return
-			}
-		}(i, result)
-	}
-
-	wg.Wait()
 }
 
 func deletePubsubResources() {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 	os.Setenv("PUBSUB_PROJECT_ID", pubsubProjectID)
-	os.Setenv(`PUBSUB_EMULATOR_HOST`, "localhost:8432")
+	os.Setenv(`PUBSUB_EMULATOR_HOST`, "0.0.0.0:8432")
 
 	client, err := pubsub.NewClient(ctx, pubsubProjectID)
 	if err != nil {
@@ -155,7 +117,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
+func TestPubSubSource_ReadAndReturnSuccess(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -168,27 +130,21 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
 	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", pubsubProjectID)
 
-	adaptedHandle := adapterGenerator(configFunction)
-
-	pubsubSourceConfigPair := sourceconfig.ConfigPair{Name: "pubsub", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{pubsubSourceConfigPair}
-
-	pubsubConfig, err := config.NewConfig()
-	assert.NotNil(pubsubConfig)
+	pubsubTarget, err := NewPubSubTarget(`project-test`, `test-topic`)
+	assert.NotNil(pubsubTarget)
 	assert.Nil(err)
+	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
+	pubsubTarget.Open()
+	defer pubsubTarget.Close()
 
-	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
+	messages := testutil.GetTestMessages(10, "Hello Pubsub!!", nil)
 
-	assert.NotNil(pubsubSource)
+	result, err := pubsubTarget.Write(messages)
+	assert.Equal(result.Total(), int64(10))
 	assert.Nil(err)
-	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
-
-	output := testutil.ReadAndReturnMessages(pubsubSource)
-	assert.Equal(len(output), 10)
-	pubsubSource.Stop()
 }
 
-func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
+func TestPubSubSource_ReadAndReturnSuccessWithMocks(t *testing.T) {
 	assert := assert.New(t)
 
 	srv, conn := initMockPubsubServer()
@@ -199,22 +155,16 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
 	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", pubsubProjectID)
 
-	adaptedHandle := adapterGenerator(configFunction)
-
-	pubsubSourceConfigPair := sourceconfig.ConfigPair{Name: "pubsub", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{pubsubSourceConfigPair}
-
-	pubsubConfig, err := config.NewConfig()
-	assert.NotNil(pubsubConfig)
+	pubsubTarget, err := NewPubSubTarget(`project-test`, `test-topic`)
+	assert.NotNil(pubsubTarget)
 	assert.Nil(err)
+	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
+	pubsubTarget.Open()
+	defer pubsubTarget.Close()
 
-	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
+	messages := testutil.GetTestMessages(10, "Hello Pubsub!!", nil)
 
-	assert.NotNil(pubsubSource)
+	result, err := pubsubTarget.Write(messages)
+	assert.Equal(result.Total(), int64(10))
 	assert.Nil(err)
-	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
-
-	output := testutil.ReadAndReturnMessages(pubsubSource)
-	assert.Equal(len(output), 10)
-	pubsubSource.Stop()
 }
