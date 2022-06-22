@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
@@ -117,7 +118,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-func TestPubSubSource_ReadAndReturnSuccess(t *testing.T) {
+func TestPubSubSource_WriteSuccessIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -140,13 +141,72 @@ func TestPubSubSource_ReadAndReturnSuccess(t *testing.T) {
 	messages := testutil.GetTestMessages(10, "Hello Pubsub!!", nil)
 
 	result, err := pubsubTarget.Write(messages)
+
 	assert.Equal(result.Total(), int64(10))
+	assert.Equal(result.Failed, []*models.Message(nil))
+	assert.Equal(result.Oversized, []*models.Message(nil))
+
 	assert.Nil(err)
 }
 
-func TestPubSubSource_ReadAndReturnSuccessWithMocks(t *testing.T) {
+func TestPubSubSource_WriteTopicUnopenedIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
+	createPubsubResourcesAndWrite()
+	defer deletePubsubResources()
+
+	t.Setenv("SOURCE_NAME", "pubsub")
+	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
+	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", pubsubProjectID)
+
+	pubsubTarget, err := NewPubSubTarget(`project-test`, `test-topic`)
+	assert.NotNil(pubsubTarget)
+	assert.Nil(err)
+	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
+
+	messages := testutil.GetTestMessages(1, ``, nil)
+
+	_, err = pubsubTarget.Write(messages)
+
+	assert.Error(err)
+}
+
+func TestPubSubSource_WithInvalidMessageIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+	assert := assert.New(t)
+
+	createPubsubResourcesAndWrite()
+	defer deletePubsubResources()
+
+	t.Setenv("SOURCE_NAME", "pubsub")
+	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
+	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", pubsubProjectID)
+
+	pubsubTarget, err := NewPubSubTarget(`project-test`, `test-topic`)
+	assert.NotNil(pubsubTarget)
+	assert.Nil(err)
+	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
+	pubsubTarget.Open()
+	defer pubsubTarget.Close()
+
+	messages := testutil.GetTestMessages(1, `test`, nil)
+	messages = append(messages, testutil.GetTestMessages(1, ``, nil)...)
+
+	result, err := pubsubTarget.Write(messages)
+
+	assert.Equal(result.Total(), int64(1))
+	assert.Equal(len(result.Invalid), 1)
+
+	assert.Nil(err)
+}
+
+func TestPubSubSource_WriteSuccessWithMocks(t *testing.T) {
+	assert := assert.New(t)
 	srv, conn := initMockPubsubServer()
 	defer srv.Close()
 	defer conn.Close()

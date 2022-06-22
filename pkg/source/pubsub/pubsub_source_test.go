@@ -185,6 +185,39 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 
 	output := testutil.ReadAndReturnMessages(pubsubSource)
 	assert.Equal(len(output), 10)
+	for _, message := range output {
+		assert.Contains(string(message.Data), `message #`)
+		assert.Nil(message.GetError())
+	}
+	pubsubSource.Stop()
+}
+
+func TestPubSubSource_FailToReadIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+	assert := assert.New(t)
+
+	t.Setenv("SOURCE_NAME", "pubsub")
+	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
+	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", pubsubProjectID)
+
+	adaptedHandle := adapterGenerator(configFunction)
+
+	pubsubSourceConfigPair := sourceconfig.ConfigPair{Name: "pubsub", Handle: adaptedHandle}
+	supportedSources := []sourceconfig.ConfigPair{pubsubSourceConfigPair}
+
+	pubsubConfig, err := config.NewConfig()
+	assert.NotNil(pubsubConfig)
+	assert.Nil(err)
+
+	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
+
+	assert.NotNil(pubsubSource)
+	assert.Nil(err)
+	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
+
+	assert.Panics(func() { testutil.ReadAndReturnMessages(pubsubSource) })
 	pubsubSource.Stop()
 }
 
