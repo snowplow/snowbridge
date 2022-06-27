@@ -15,14 +15,16 @@ import (
 )
 
 // ReadAndReturnMessages takes a source, runs the read function, and outputs all messages found in a slice, against which we may run assertions.
-func ReadAndReturnMessages(source sourceiface.Source, timeToWait time.Duration, testWriteBuilder func(source sourceiface.Source, msgChan chan *models.Message) func(messages []*models.Message) error) []*models.Message {
+// The testWriteBuilder argument allows the test implementation to provide a write function builder,
+// and the additionalOpts argument allows one to pass arguments to that builder
+func ReadAndReturnMessages(source sourceiface.Source, timeToWait time.Duration, testWriteBuilder func(sourceiface.Source, chan *models.Message, interface{}) func([]*models.Message) error, additionalOpts interface{}) []*models.Message {
 	var successfulReads []*models.Message
 
 	hitError := make(chan error)
 	msgRecieved := make(chan *models.Message)
 	// run the read function in a goroutine, so that we can close it after a timeout
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: DefaultTestWriteBuilder(source, msgRecieved),
+		WriteToTarget: DefaultTestWriteBuilder(source, msgRecieved, additionalOpts),
 	}
 	go runRead(hitError, source, &sf)
 
@@ -52,11 +54,30 @@ func runRead(ch chan error, source sourceiface.Source, sf *sourceiface.SourceFun
 }
 
 // DefaultTestWriteBuilder returns a function which replaces the write function, outputting any messages it finds to be handled via a channel
-func DefaultTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Message) func(messages []*models.Message) error {
+func DefaultTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Message, additionalOpts interface{}) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
 		for _, msg := range messages {
 			// Send each message onto the channel to be appended to results
 			msgChan <- msg
+			msg.AckFunc()
+		}
+		return nil
+	}
+}
+
+// DelayedAckTestWriteBuilder delays every third ack, to test the case where some messages are processed slower than others
+func DelayedAckTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Message, additionalOpts interface{}) func(messages []*models.Message) error {
+	return func(messages []*models.Message) error {
+		duration, ok := additionalOpts.(time.Duration)
+		if !ok {
+			panic("DelayedAckTestWriteBuilder requires a duration to be passed as additionalOpts")
+		}
+		for i, msg := range messages {
+			// Send each message onto the channel to be appended to results
+			msgChan <- msg
+			if i%3 == 1 {
+				time.Sleep(duration)
+			}
 			msg.AckFunc()
 		}
 		return nil
