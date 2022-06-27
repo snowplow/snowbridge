@@ -171,7 +171,7 @@ func TestKafkaSource_ReadSuccess(t *testing.T) {
 	}, nil, nil)
 
 	assert.NotNil(t, s.GetID())
-	output := testutil.ReadAndReturnMessages(s)
+	output := testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.DefaultTestWriteBuilder)
 	assert.NotEqual(t, len(output), 0)
 }
 
@@ -190,7 +190,7 @@ func TestKafkaSource_WriteToTargetError(t *testing.T) {
 
 	assert.NotNil(t, s.GetID())
 
-	assert.PanicsWithError(t, targetErr, func() { testutil.ReadAndReturnMessages(s) })
+	assert.PanicsWithError(t, targetErr, func() { testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.DefaultTestWriteBuilder) })
 }
 
 func TestKafkaSource_CloseErr(t *testing.T) {
@@ -208,5 +208,5 @@ func TestKafkaSource_CloseErr(t *testing.T) {
 
 	assert.NotNil(t, s.GetID())
 
-	assert.PanicsWithError(t, closeErr, func() { testutil.ReadAndReturnMessages(s) })
+	assert.PanicsWithError(t, closeErr, func() { testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.DefaultTestWriteBuilder) })
 }

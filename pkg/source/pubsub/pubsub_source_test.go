@@ -63,10 +63,10 @@ func initMockPubsubServer() (*pstest.Server, *grpc.ClientConn) {
 	wg := sync.WaitGroup{}
 	for i := 0; i < numMsgs; i++ {
 		wg.Add(1)
-		go func() {
+		go func(i int) {
 			_ = srv.Publish(`projects/project-test/topics/test-topic`, []byte("message #"+strconv.Itoa(i)), nil)
 			wg.Done()
-		}()
+		}(i)
 	}
 	wg.Wait()
 	return srv, conn
@@ -183,7 +183,7 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
-	output := testutil.ReadAndReturnMessages(pubsubSource)
+	output := testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder)
 	assert.Equal(len(output), 10)
 	for _, message := range output {
 		assert.Contains(string(message.Data), `message #`)
@@ -217,7 +217,7 @@ func TestPubSubSource_FailToReadIntegration(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
-	assert.Panics(func() { testutil.ReadAndReturnMessages(pubsubSource) })
+	assert.Panics(func() { testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder) })
 	pubsubSource.Stop()
 }
 
@@ -247,7 +247,7 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
-	output := testutil.ReadAndReturnMessages(pubsubSource)
+	output := testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder)
 	assert.Equal(len(output), 10)
 	pubsubSource.Stop()
 }

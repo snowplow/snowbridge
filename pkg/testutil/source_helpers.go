@@ -15,18 +15,17 @@ import (
 )
 
 // ReadAndReturnMessages takes a source, runs the read function, and outputs all messages found in a slice, against which we may run assertions.
-func ReadAndReturnMessages(source sourceiface.Source) []*models.Message {
+func ReadAndReturnMessages(source sourceiface.Source, timeToWait time.Duration, testWriteBuilder func(source sourceiface.Source, msgChan chan *models.Message) func(messages []*models.Message) error) []*models.Message {
 	var successfulReads []*models.Message
 
 	hitError := make(chan error)
 	msgRecieved := make(chan *models.Message)
 	// run the read function in a goroutine, so that we can close it after a timeout
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: testWriteFuncBuilder(source, msgRecieved),
+		WriteToTarget: DefaultTestWriteBuilder(source, msgRecieved),
 	}
 	go runRead(hitError, source, &sf)
 
-	timer := time.After(3 * time.Second)
 resultLoop:
 	for {
 		select {
@@ -35,7 +34,7 @@ resultLoop:
 		case msg := <-msgRecieved:
 			// Append messages to the result slice
 			successfulReads = append(successfulReads, msg)
-		case <-timer:
+		case <-time.After(timeToWait):
 			// Stop source after 3s, and return the result slice
 			fmt.Println("Stopping source.")
 			source.Stop()
@@ -52,8 +51,8 @@ func runRead(ch chan error, source sourceiface.Source, sf *sourceiface.SourceFun
 	}
 }
 
-// testWriteFuncBuiler returns a function which replaces the write function, outputting any messages it finds to be handled via a channel
-func testWriteFuncBuilder(source sourceiface.Source, msgChan chan *models.Message) func(messages []*models.Message) error {
+// DefaultTestWriteBuilder returns a function which replaces the write function, outputting any messages it finds to be handled via a channel
+func DefaultTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Message) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
 		for _, msg := range messages {
 			// Send each message onto the channel to be appended to results
