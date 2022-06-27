@@ -90,7 +90,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-1", source.GetID())
 
 	// Read data from stream and check that we got it all
-	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder)
+	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
 
 	assert.Equal(10, len(successfulReads))
 }
@@ -140,7 +140,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-2", source.GetID())
 
 	// Read from stream
-	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder)
+	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
 
 	// Check that we have ten messages
 	assert.Equal(10, len(successfulReads))

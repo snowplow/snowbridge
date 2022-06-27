@@ -183,7 +183,7 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
-	output := testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder)
+	output := testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
 	assert.Equal(len(output), 10)
 	for _, message := range output {
 		assert.Contains(string(message.Data), `message #`)
@@ -217,7 +217,9 @@ func TestPubSubSource_FailToReadIntegration(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
-	assert.Panics(func() { testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder) })
+	assert.Panics(func() {
+		testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
+	})
 	pubsubSource.Stop()
 }
 
@@ -247,7 +249,7 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
-	output := testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder)
+	output := testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
 	assert.Equal(len(output), 10)
 	pubsubSource.Stop()
 }
