@@ -58,7 +58,6 @@ func TestObserverBuffer(t *testing.T) {
 
 	r := NewTargetWriteResultWithTime(sent, failed, nil, nil, timeNow)
 
-	// TO INVESTIGATE: why are we calling each of these twice???
 	b.AppendWrite(r)
 	b.AppendWrite(r)
 	b.AppendWrite(nil)
