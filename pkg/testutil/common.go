@@ -7,6 +7,7 @@
 package testutil
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -39,6 +40,20 @@ func GetTestMessages(count int, body string, ackFunc func()) []*models.Message {
 	for i := 0; i < count; i++ {
 		messages = append(messages, &models.Message{
 			Data:         []byte(body),
+			PartitionKey: uuid.NewV4().String(),
+			AckFunc:      ackFunc,
+		})
+	}
+	return messages
+}
+
+// GetSequentialTestMessages will return an array of messages ready to be used for testing
+// targets and sources. Message data will be sequential integers for easier testing of accuracy, duplicates, etc.
+func GetSequentialTestMessages(count int, ackFunc func()) []*models.Message {
+	var messages []*models.Message
+	for i := 0; i < count; i++ {
+		messages = append(messages, &models.Message{
+			Data:         []byte(fmt.Sprint(i)),
 			PartitionKey: uuid.NewV4().String(),
 			AckFunc:      ackFunc,
 		})
