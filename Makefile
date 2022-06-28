@@ -119,7 +119,7 @@ http-up:
 
 http-down:
 	(cd "$(integration_dir)/http/shutdown" && go run shutdownRequest.go)
-	killall ngrok
+	killall ngrok || true 
 
 # -----------------------------------------------------------------------------
 #  RELEASE
