@@ -1,7 +1,13 @@
-# transform configuration
+# transform configuration - lua - no source code
+
+engine {
+  use "lua" {
+    name = "test-engine"
+  }
+}
 
 transform {
-  message_transformation = "lua:fun"
-
-  use "fake" {}
+  use "lua" {
+    engine_name="test-engine"
+  }
 }

@@ -34,7 +34,8 @@ func TestSpEnrichedToJson(t *testing.T) {
 	// Simple success case
 	transformSuccess, _, failure, intermediate := SpEnrichedToJSON(&messageGood, nil)
 
-	assert.Equal(&expectedGood, transformSuccess)
+	assert.Equal(expectedGood.PartitionKey, transformSuccess.PartitionKey)
+	assert.JSONEq(string(expectedGood.Data), string(transformSuccess.Data))
 	assert.Equal(spTsv1Parsed, intermediate)
 	assert.Nil(failure)
 
@@ -42,7 +43,10 @@ func TestSpEnrichedToJson(t *testing.T) {
 	success, _, transformFailure, intermediate := SpEnrichedToJSON(&messageBad, nil)
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", transformFailure.GetError().Error())
+	assert.NotNil(transformFailure.GetError())
+	if transformFailure.GetError() != nil {
+		assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", transformFailure.GetError().Error())
+	}
 	assert.Equal([]byte("not	a	snowplow	event"), transformFailure.Data)
 	assert.Equal("some-key4", transformFailure.PartitionKey)
 	// Failure in this case is in parsing to IntermediateState, so none expected in output
@@ -64,7 +68,8 @@ func TestSpEnrichedToJson(t *testing.T) {
 	// When we have some incompatible IntermediateState, expected behaviour is to replace it with this transformation's IntermediateState
 	transformSuccess2, _, failure2, intermediate2 := SpEnrichedToJSON(&incompatibleIntermediateMessage, incompatibleIntermediate)
 
-	assert.Equal(&expectedGood, transformSuccess2)
+	assert.Equal(expectedGood.PartitionKey, transformSuccess2.PartitionKey)
+	assert.JSONEq(string(expectedGood.Data), string(transformSuccess2.Data))
 	assert.Equal(spTsv1Parsed, intermediate2)
 	assert.Nil(failure2)
 }

@@ -7,12 +7,16 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	
 	"github.com/stretchr/testify/assert"
+
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform/engine"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformconfig"
 )
 
 // The GetSource part needs to move anyway - causes circular dep.
@@ -27,7 +31,6 @@ func TestNewConfig(t *testing.T) {
 
 	assert.Equal("info", c.Data.LogLevel)
 	assert.Equal("stdout", c.Data.Target.Use.Name)
-	assert.Equal("none", c.Data.Transform.Message)
 	assert.Equal("stdin", c.Data.Source.Use.Name)
 
 	// Tests on sources moved to the source package.
@@ -225,7 +228,6 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert.Equal(c.Data.Sentry.Debug, false)
 	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
 	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
-	assert.Equal(c.Data.Transform.Message, "none")
 	assert.Equal(c.Data.LogLevel, "info")
 }
 
@@ -246,51 +248,212 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 	assert.Equal(c.Data.Sentry.Dsn, "testDsn")
 }
 
-func TestDefaultTransformation(t *testing.T) {
-	assert := assert.New(t)
-
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", "")
-	t.Setenv("MESSAGE_TRANSFORMATION", "")
-
-	c, err := NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-
-	assert.Equal("none", c.Data.Transform.Message)
-	assert.Equal("none", c.ProvideTransformMessage())
-	assert.Equal("", c.ProvideTransformLayerName())
+type expectedMessages struct {
+	Before []*models.Message
+	After  []*models.Message
 }
 
-func TestTransformationProviderImplementation(t *testing.T) {
+func TestEnginesAndTransformations(t *testing.T) {
+	var messageJSCompileErr = &models.Message{
+		Data:         snowplowTsv1,
+		PartitionKey: "some-key",
+	}
+	messageJSCompileErr.SetError(errors.New(`failed initializing JavaScript runtime: "could not assert as function: \"main\""`))
+
 	testFixPath := "./test-fixtures"
 	testCases := []struct {
-		File      string
-		Plug      Pluggable
-		Message   string
-		LayerName string
+		Description        string
+		File               string
+		ExpectedEngines    []engine.Engine
+		ExpectedTransforms []transformconfig.Transformation
+		ExpectedMessages   expectedMessages
 	}{
 		{
-			File:      "transform-lua-simple.hcl",
-			Plug:      transform.LuaLayer().(Pluggable),
-			Message:   "lua:fun",
-			LayerName: "lua",
+			Description: "simple engine and transform success",
+			File:        "transform-js-simple.hcl",
+			ExpectedEngines: []engine.Engine{
+				&engine.JSEngine{
+					Name: "test-engine",
+				}},
+			ExpectedTransforms: []transformconfig.Transformation{
+				{
+					Name:       "js",
+					EngineName: "test-engine",
+				}},
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+			},
 		},
 		{
-			File:      "transform-js-simple.hcl",
-			Plug:      transform.JSLayer().(Pluggable),
-			Message:   "js:fun",
-			LayerName: "js",
+			Description: "simple engine and transform with js compile error",
+			File:        "transform-js-error.hcl",
+			ExpectedEngines: []engine.Engine{
+				&engine.JSEngine{
+					Name: "test-engine",
+				}},
+			ExpectedTransforms: []transformconfig.Transformation{
+				{
+					Name:       "js",
+					EngineName: "test-engine",
+				}},
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{messageJSCompileErr},
+			},
+		},
+		{
+			Description: "extended engine and transform success",
+			File:        "transform-js-extended.hcl",
+			ExpectedEngines: []engine.Engine{
+				&engine.JSEngine{
+					Name:       "test-engine",
+					RunTimeout: 20,
+					SpMode:     true,
+				}},
+			ExpectedTransforms: []transformconfig.Transformation{
+				{
+					Name:       "js",
+					EngineName: "test-engine",
+				}},
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowJSON1After,
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+		{
+			Description: `mixed engines success`,
+			File:        "transform-mixed.hcl",
+			ExpectedEngines: []engine.Engine{
+				&engine.JSEngine{
+					Name: "engine1",
+				},
+				&engine.JSEngine{
+					Name: "engine2",
+				},
+				&engine.LuaEngine{
+					Name: "engine3",
+				},
+			},
+			ExpectedTransforms: []transformconfig.Transformation{
+				{
+					Name:       "js",
+					EngineName: "engine1",
+				},
+				{
+					Name:       "js",
+					EngineName: "engine2",
+				},
+				{
+					Name:       "lua",
+					EngineName: "engine3",
+				}},
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowJSON1Mixed,
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+		{
+			Description: `mixed engines with error`,
+			File:        "transform-mixed-error.hcl",
+			ExpectedEngines: []engine.Engine{
+				&engine.JSEngine{
+					Name: "engine1",
+				},
+				&engine.JSEngine{
+					Name: "engine2",
+				},
+				&engine.LuaEngine{
+					Name: "engine3",
+				},
+			},
+			ExpectedTransforms: []transformconfig.Transformation{
+				{
+					Name:       "js",
+					EngineName: "engine1",
+				},
+				{
+					Name:       "js",
+					EngineName: "engine2",
+				},
+				{
+					Name:       "lua",
+					EngineName: "engine3",
+				}},
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{messageJSCompileErr},
+			},
+		},
+		{
+			Description: `mixed with filter success`,
+			File:        "transform-mixed-filtered.hcl",
+			ExpectedEngines: []engine.Engine{
+				&engine.JSEngine{
+					Name: "engine1",
+				},
+				&engine.JSEngine{
+					Name: "engine2",
+				},
+			},
+			ExpectedTransforms: []transformconfig.Transformation{
+				{
+					Name:       "js",
+					EngineName: "engine1",
+				},
+				{
+					Name:  "spEnrichedFilter",
+					Field: "app_id",
+					Regex: "again",
+				},
+				{
+					Name:       "js",
+					EngineName: "engine2",
+				},
+			},
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+			},
 		},
 	}
 
 	for _, tt := range testCases {
-		t.Run(tt.File, func(t *testing.T) {
+		t.Run(tt.Description, func(t *testing.T) {
 			assert := assert.New(t)
 
-			configFile := filepath.Join(testFixPath, tt.File)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", configFile)
+			filename := filepath.Join(testFixPath, tt.File)
+			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 			c, err := NewConfig()
 			assert.NotNil(c)
@@ -298,13 +461,52 @@ func TestTransformationProviderImplementation(t *testing.T) {
 				t.Fatalf("function NewConfig failed with error: %q", err.Error())
 			}
 
-			assert.Equal(tt.Message, c.ProvideTransformMessage())
-			assert.Equal(tt.LayerName, c.ProvideTransformLayerName())
-
-			component, err := c.ProvideTransformComponent(tt.Plug)
+			// get engines, check that all of them have been initiated
+			engines, err := c.GetEngines()
+			assert.NotNil(engines)
 			assert.Nil(err)
-			assert.NotNil(component)
 
+			assert.Equal(len(tt.ExpectedEngines), len(engines))
+
+			for idx, eng := range engines {
+				assert.Equal(tt.ExpectedEngines[idx].GetName(), eng.GetName())
+			}
+
+			// get transformations, and run the transformations on the expected messages
+			tr, err := c.GetTransformations(engines)
+			assert.NotNil(tr)
+			assert.Nil(err)
+
+			result := tr(tt.ExpectedMessages.Before)
+			assert.NotNil(result)
+			assert.Equal(int(result.ResultCount+result.FilteredCount+result.InvalidCount), len(tt.ExpectedMessages.After))
+
+			// check result for successfully transformed messages
+			for idx, resultMessage := range result.Result {
+				assert.Equal(resultMessage.Data, tt.ExpectedMessages.After[idx].Data)
+			}
+
+			// check errors for invalid messages
+			for idx, resultMessage := range result.Invalid {
+				assert.Equal(resultMessage.GetError(), tt.ExpectedMessages.After[idx].GetError())
+			}
+
+			// check result for transformed messages in case of filtered results
+			if result.FilteredCount != 0 {
+				assert.NotNil(result.Filtered)
+				for idx, resultMessage := range result.Filtered {
+					assert.Equal(resultMessage.Data, tt.ExpectedMessages.After[idx].Data)
+				}
+			}
 		})
 	}
 }
+
+var snowplowTsv1 = []byte(`test-data1	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`)
+var snowplowJSON1 = []byte(`{"app_id":"test-data1","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
+
+// snowplowJSON1 with changed app_id
+var snowplowJSON1After = []byte(`{"app_id":"changed","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
+
+// snowplowJSON1 with 3 transformations applied
+var snowplowJSON1Mixed = []byte(`Hello:{"app_id":"again","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)

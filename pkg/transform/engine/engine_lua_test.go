@@ -4,12 +4,11 @@
 //
 // Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 
-package transform
+package engine
 
 import (
 	"encoding/base64"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,127 +16,21 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
-func TestLuaEngineConfig_ENV(t *testing.T) {
-	testCases := []struct {
-		Name     string
-		Plug     config.Pluggable
-		Expected interface{}
-	}{
-		{
-			Name: "transform-lua-from-env",
-			Plug: testLuaEngineAdapter(testLuaEngineFunc),
-			Expected: &luaEngineConfig{
-				SourceB64:  "CglmdW5jdGlvbiBmb28oeCkKICAgICAgICAgICByZXR1cm4geAogICAgICAgIGVuZAoJ",
-				RunTimeout: 10,
-				Sandbox:    false,
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", "")
-
-			t.Setenv("MESSAGE_TRANSFORMATION", "lua:fun")
-			t.Setenv("TRANSFORMATION_LAYER_NAME", "lua")
-
-			t.Setenv("TRANSFORMATION_LUA_SOURCE_B64", "CglmdW5jdGlvbiBmb28oeCkKICAgICAgICAgICByZXR1cm4geAogICAgICAgIGVuZAoJ")
-			t.Setenv("TRANSFORMATION_LUA_TIMEOUT_SEC", "10")
-			t.Setenv("TRANSFORMATION_LUA_SANDBOX", "false")
-
-			c, err := config.NewConfig()
-			assert.NotNil(c)
-			if err != nil {
-				t.Fatalf("function NewConfig failed with error: %q", err.Error())
-			}
-
-			engine := c.Data.Transform.Layer
-			decoderOpts := &config.DecoderOptions{
-				Input: engine.Body,
-			}
-
-			result, err := c.CreateComponent(tt.Plug, decoderOpts)
-			assert.NotNil(result)
-			assert.Nil(err)
-
-			if !reflect.DeepEqual(result, tt.Expected) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(result),
-					spew.Sdump(tt.Expected))
-			}
-		})
-	}
-}
-
-func TestLuaEngineConfig_HCL(t *testing.T) {
-	fixturesDir := "../../config/test-fixtures"
-	testCases := []struct {
-		File     string
-		Plug     config.Pluggable
-		Expected interface{}
-	}{
-		{
-			File: "transform-lua-simple.hcl",
-			Plug: testLuaEngineAdapter(testLuaEngineFunc),
-			Expected: &luaEngineConfig{
-				SourceB64:  "CglmdW5jdGlvbiBmb28oeCkKICAgICAgICAgICByZXR1cm4geAogICAgICAgIGVuZAoJ",
-				RunTimeout: 5,
-				Sandbox:    true,
-			},
-		},
-		{
-			File: "transform-lua-extended.hcl",
-			Plug: testLuaEngineAdapter(testLuaEngineFunc),
-			Expected: &luaEngineConfig{
-				SourceB64:  "CglmdW5jdGlvbiBmb28oeCkKICAgICAgICAgICByZXR1cm4geAogICAgICAgIGVuZAoJ",
-				RunTimeout: 10,
-				Sandbox:    false,
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.File, func(t *testing.T) {
-			assert := assert.New(t)
-
-			filename := filepath.Join(fixturesDir, tt.File)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
-
-			c, err := config.NewConfig()
-			assert.NotNil(c)
-			if err != nil {
-				t.Fatalf("function NewConfig failed with error: %q", err.Error())
-			}
-
-			engine := c.Data.Transform.Layer
-			decoderOpts := &config.DecoderOptions{
-				Input: engine.Body,
-			}
-
-			result, err := c.CreateComponent(tt.Plug, decoderOpts)
-			assert.NotNil(result)
-			assert.Nil(err)
-
-			if !reflect.DeepEqual(result, tt.Expected) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(result),
-					spew.Sdump(tt.Expected))
-			}
-		})
-	}
-}
-
 func TestLuaLayer(t *testing.T) {
-	layer := LuaLayer()
-	if _, ok := layer.(config.Pluggable); !ok {
-		t.Errorf("invalid interface returned from LuaLayer")
-	}
+	assert := assert.New(t)
+	layer, err := LuaEngineConfigFunction(&luaEngineConfig{
+		Name:       "test-engine",
+		SourceB64:  "CglmdW5jdGlvbiBmb28oeCkKICAgICAgICAgICByZXR1cm4geAogICAgICAgIGVuZAoJ",
+		RunTimeout: 5,
+		Sandbox:    false,
+		SpMode:     false,
+	})
+	assert.Nil(err)
+	assert.NotNil(layer)
 }
 
 func TestLuaEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
@@ -154,11 +47,11 @@ func TestLuaEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
 	}{
 		{
 			Src: `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -172,7 +65,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         "asdf",
@@ -181,12 +74,12 @@ end
 		},
 		{
 			Src: `
-function concatHello(x)
-   x.Data = "Hello:" .. x.Data
-   return x
+function main(x)
+  x.Data = "Hello:" .. x.Data
+  return x
 end
 `,
-			FunName: "concatHello",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -200,7 +93,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         "Hello:asdf",
@@ -209,12 +102,12 @@ end
 		},
 		{
 			Src: `
-function filterIn(x)
-   x.FilterOut = false
-   return x
+function main(x)
+  x.FilterOut = false
+  return x
 end
 `,
-			FunName: "filterIn",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -228,7 +121,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         "asdf",
@@ -237,14 +130,14 @@ end
 		},
 		{
 			Src: `
-function filterOut(x)
-   if type(x.Data) == "string" then
-      return { FilterOut = true }
-   end
-   return { FilterOut = false }
+function main(x)
+  if type(x.Data) == "string" then
+     return { FilterOut = true }
+  end
+  return { FilterOut = false }
 end
 `,
-			FunName: "filterOut",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -265,19 +158,19 @@ end
 			Src: `
 local json = require("json")
 
-function jsonIdentity(x)
-   local dat = x["Data"]
-   local jsonObj, decodeErr = json.decode(dat)
-   if decodeErr then error(decodeErr) end
+function main(x)
+  local dat = x["Data"]
+  local jsonObj, decodeErr = json.decode(dat)
+  if decodeErr then error(decodeErr) end
 
-   local result, encodeErr = json.encode(jsonObj)
-   if encodeErr then error(encodeErr) end
+  local result, encodeErr = json.encode(jsonObj)
+  if encodeErr then error(encodeErr) end
 
-   x.Data = result
-   return x
+  x.Data = result
+  return x
 end
 `,
-			FunName: "jsonIdentity",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         snowplowJSON1,
@@ -291,7 +184,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(snowplowJSON1),
@@ -302,21 +195,21 @@ end
 			Src: `
 local json = require("json")
 
-function jsonTransformFieldName(x)
-   local data = x["Data"]
-   local jsonObj, decodeErr = json.decode(data)
-   if decodeErr then error(decodeErr) end
+function main(x)
+  local data = x["Data"]
+  local jsonObj, decodeErr = json.decode(data)
+  if decodeErr then error(decodeErr) end
 
-   jsonObj["app_id_CHANGED"] = jsonObj["app_id"]
-   jsonObj["app_id"] = nil
+  jsonObj["app_id_CHANGED"] = jsonObj["app_id"]
+  jsonObj["app_id"] = nil
 
-   local result, encodeErr = json.encode(jsonObj)
-   if encodeErr then error(encodeErr) end
+  local result, encodeErr = json.encode(jsonObj)
+  if encodeErr then error(encodeErr) end
 
-   return { Data = result }
+  return { Data = result }
 end
 `,
-			FunName: "jsonTransformFieldName",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         snowplowJSON1,
@@ -330,7 +223,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(snowplowJSON1ChangedLua),
@@ -341,18 +234,18 @@ end
 			Src: `
 local json = require("json")
 
-function jsonFilterOut(x)
-   local jsonObj, decodeErr = json.decode(x["Data"])
-   if decodeErr then error(decodeErr) end
+function main(x)
+  local jsonObj, decodeErr = json.decode(x["Data"])
+  if decodeErr then error(decodeErr) end
 
-   if jsonObj["app_id"] == "filterMeOut" then
-      return { FilterOut = false, Data = x["Data"] }
-   else
-      return { FilterOut = true }
-   end
+  if jsonObj["app_id"] == "filterMeOut" then
+     return { FilterOut = false, Data = x["Data"] }
+  else
+     return { FilterOut = true }
+  end
 end
 `,
-			FunName: "jsonFilterOut",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         snowplowJSON1,
@@ -371,11 +264,11 @@ end
 		},
 		{
 			Src: `
-function retWrongType(x)
-   return 0
+function main(x)
+  return 0
 end
 `,
-			FunName: "retWrongType",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -394,10 +287,10 @@ end
 		},
 		{
 			Src: `
-function noReturn(x)
+function main(x)
 end
 `,
-			FunName: "noReturn",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -416,11 +309,11 @@ end
 		},
 		{
 			Src: `
-function returnNil(x)
-   return nil
+function main(x)
+  return nil
 end
 `,
-			FunName: "returnNil",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -439,11 +332,11 @@ end
 		},
 		{
 			Src: `
-function causeRuntimeError(x)
-   return 2 * x
+function main(x)
+  return 2 * x
 end
 `,
-			FunName: "causeRuntimeError",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -458,15 +351,15 @@ end
 				},
 			},
 			ExpInterState: nil,
-			Error:         fmt.Errorf("error running Lua function \"causeRuntimeError\""),
+			Error:         fmt.Errorf("error running Lua function \"main\""),
 		},
 		{
 			Src: `
-function callError(x)
-   error("Failed")
+function main(x)
+  error("Failed")
 end
 `,
-			FunName: "callError",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -481,18 +374,18 @@ end
 				},
 			},
 			ExpInterState: nil,
-			Error:         fmt.Errorf("error running Lua function \"callError\""),
+			Error:         fmt.Errorf("error running Lua function \"main\""),
 		},
 		{
 			Src: `
 local clock = os.clock
 
-function sleepTenSecs(x)
-   local t0 = clock()
-   while clock() - t0 <= 10 do end
+function main(x)
+  local t0 = clock()
+  while clock() - t0 <= 10 do end
 end
 `,
-			FunName: "sleepTenSecs",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         []byte("asdf"),
@@ -517,6 +410,7 @@ end
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &luaEngineConfig{
+				Name:       "test-engine",
 				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
@@ -577,13 +471,13 @@ func TestLuaEngineMakeFunction_SpModeTrue_IntermediateNil(t *testing.T) {
 		Error         error
 	}{
 		{
-			Scenario: "identity",
+			Scenario: "main",
 			Src: `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         testLuaTsv,
@@ -597,7 +491,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testLuaMap,
@@ -607,16 +501,16 @@ end
 		{
 			Scenario: "filtering",
 			Src: `
-function filterOut(input)
-   -- input is a lua table
-   local spData = input["Data"]
-   if spData["app_id"] == "myApp" then
-      return input;
-   end
-   return { FilterOut = true }
+function main(input)
+  -- input is a lua table
+  local spData = input["Data"]
+  if spData["app_id"] == "myApp" then
+     return input;
+  end
+  return { FilterOut = true }
 end
 `,
-			FunName: "filterOut",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         testLuaTsv,
@@ -636,16 +530,16 @@ end
 		{
 			Scenario: "filteringOut_ignoresData",
 			Src: `
-function filterOutIgnores(x)
-   local ret = {
-      FilterOut = true,
-      Data = "shouldNotAppear",
-      PartitionKey = "notThis"
-   }
-   return ret
+function main(x)
+  local ret = {
+     FilterOut = true,
+     Data = "shouldNotAppear",
+     PartitionKey = "notThis"
+  }
+  return ret
 end
 `,
-			FunName: "filterOutIgnores",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         testLuaTsv,
@@ -665,11 +559,11 @@ end
 		{
 			Scenario: "non_Snowplow_enriched_to_failed",
 			Src: `
-function willNotRun(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "willNotRun",
+			FunName: "main",
 			Sandbox: false,
 			Input: &models.Message{
 				Data:         []byte("nonSpEnrichedEvent"),
@@ -689,11 +583,11 @@ end
 		{
 			Scenario: "return_wrong_type",
 			Src: `
-function returnWrongType(x)
-   return 0
+function main(x)
+  return 0
 end
 `,
-			FunName: "returnWrongType",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaTsv,
@@ -718,6 +612,7 @@ end
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &luaEngineConfig{
+				Name:       "test-engine",
 				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
@@ -780,17 +675,17 @@ func TestLuaEngineMakeFunction_IntermediateState_SpModeFalse(t *testing.T) {
 		{
 			Scenario: "intermediateState_EngineProtocol_Map",
 			Src: `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaJSON,
 				PartitionKey: "some-test-key",
 			},
-			InterState: &EngineProtocol{
+			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testLuaMap,
@@ -803,7 +698,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testLuaMap,
@@ -813,17 +708,17 @@ end
 		{
 			Scenario: "intermediateState_EngineProtocol_String",
 			Src: `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaJSON,
 				PartitionKey: "some-test-key",
 			},
-			InterState: &EngineProtocol{
+			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testLuaJSON),
@@ -836,7 +731,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testLuaJSON),
@@ -846,11 +741,11 @@ end
 		{
 			Scenario: "intermediateState_not_EngineProtocol_nonSpEnriched",
 			Src: `
-function identity(x)
-    return x;
+function main(x)
+   return x;
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaJSON,
@@ -865,7 +760,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testLuaJSON),
@@ -875,11 +770,11 @@ end
 		{
 			Scenario: "intermediateState_not_EngineProtocol_SpEnriched",
 			Src: `
-function identity(x)
-    return x;
+function main(x)
+   return x;
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaTsv,
@@ -894,7 +789,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testLuaTsv),
@@ -909,6 +804,7 @@ end
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &luaEngineConfig{
+				Name:       "test-engine",
 				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
@@ -972,17 +868,17 @@ func TestLuaEngineMakeFunction_IntermediateState_SpModeTrue(t *testing.T) {
 		{
 			Scenario: "intermediateState_EngineProtocol_Map",
 			Src: `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaJSON,
 				PartitionKey: "some-test-key",
 			},
-			InterState: &EngineProtocol{
+			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testLuaMap,
@@ -995,7 +891,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testLuaMap,
@@ -1005,17 +901,17 @@ end
 		{
 			Scenario: "intermediateState_EngineProtocol_String",
 			Src: `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaJSON,
 				PartitionKey: "some-test-key",
 			},
-			InterState: &EngineProtocol{
+			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testLuaJSON),
@@ -1028,7 +924,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testLuaJSON),
@@ -1038,11 +934,11 @@ end
 		{
 			Scenario: "intermediateState_notEngineProtocol_notSpEnriched",
 			Src: `
-function willNotRun(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "willNotRun",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaJSON,
@@ -1063,11 +959,11 @@ end
 		{
 			Scenario: "intermediateState_notEngineProtocol_SpEnriched",
 			Src: `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName: "identity",
+			FunName: "main",
 			Sandbox: true,
 			Input: &models.Message{
 				Data:         testLuaTsv,
@@ -1082,7 +978,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testLuaMap,
@@ -1097,6 +993,7 @@ end
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &luaEngineConfig{
+				Name:       "test-engine",
 				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
@@ -1159,12 +1056,12 @@ func TestLuaEngineMakeFunction_SetPK(t *testing.T) {
 		{
 			Scenario: "onlySetPk_spModeTrue",
 			Src: `
-function onlySetPk(x)
-    x["PartitionKey"] = "newPk"
-    return x
+function main(x)
+   x["PartitionKey"] = "newPk"
+   return x
 end
 `,
-			FunName: "onlySetPk",
+			FunName: "main",
 			Sandbox: true,
 			SpMode:  true,
 			Input: &models.Message{
@@ -1179,7 +1076,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "newPk",
 				Data:         testLuaMap,
@@ -1189,12 +1086,12 @@ end
 		{
 			Scenario: "onlySetPk_spModeFalse",
 			Src: `
-function onlySetPk(x)
-    x["PartitionKey"] = "newPk"
-    return x
+function main(x)
+   x["PartitionKey"] = "newPk"
+   return x
 end
 `,
-			FunName: "onlySetPk",
+			FunName: "main",
 			Sandbox: true,
 			SpMode:  false,
 			Input: &models.Message{
@@ -1209,7 +1106,7 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "newPk",
 				Data:         string(testLuaTsv),
@@ -1219,16 +1116,16 @@ end
 		{
 			Scenario: "filterOutIgnores",
 			Src: `
-function filterOutIgnores(x)
-   local ret = {
-      FilterOut = true,
-      Data = "shouldNotAppear",
-      PartitionKey = "notThis"
-   }
-   return ret
+function main(x)
+  local ret = {
+     FilterOut = true,
+     Data = "shouldNotAppear",
+     PartitionKey = "notThis"
+  }
+  return ret
 end
 `,
-			FunName: "filterOutIgnores",
+			FunName: "main",
 			Sandbox: true,
 			SpMode:  true,
 			Input: &models.Message{
@@ -1254,6 +1151,7 @@ end
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &luaEngineConfig{
+				Name:       "test-engine",
 				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
@@ -1310,25 +1208,25 @@ func TestLuaEngineSmokeTest(t *testing.T) {
 	}{
 		{
 			Src: `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `,
-			FunName:      "identity",
+			FunName:      "main",
 			Sandbox:      true,
 			CompileError: nil,
 			SmokeError:   nil,
 		},
 		{
 			Src: `
-function notThisOne(x)
-   return "something"
+function wrong_name(x)
+  return "something"
 end
 `,
-			FunName:      "notExists",
+			FunName:      "main",
 			Sandbox:      true,
 			CompileError: nil,
-			SmokeError:   fmt.Errorf("global Lua function not found"),
+			SmokeError:   fmt.Errorf("global main() Lua function not found: \"main\""),
 		},
 		{
 			Src: `
@@ -1342,8 +1240,8 @@ local clock = os.clock
 		},
 		{
 			Src: `
-function syntaxError(x)
-   loca y = 0
+function main(x)
+  loca y = 0
 end
 `,
 			FunName:      "syntaxError",
@@ -1359,6 +1257,7 @@ end
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &luaEngineConfig{
+				Name:       "test-engine",
 				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
@@ -1416,13 +1315,14 @@ func TestLuaEngineWithBuiltins(t *testing.T) {
 	}
 
 	srcCode := `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `
-	funcName := "identity"
+	funcname := "main"
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	luaConfig := &luaEngineConfig{
+		Name:       "test-engine",
 		SourceB64:  src,
 		RunTimeout: 1,
 		Sandbox:    true,
@@ -1433,21 +1333,21 @@ end
 		t.Fatalf("newLuaEngine failed with error: %q", err)
 	}
 
-	if err := luaEngine.SmokeTest(funcName); err != nil {
+	if err := luaEngine.SmokeTest(funcname); err != nil {
 		t.Fatalf("smoke-test failed with error: %q", err.Error())
 	}
 
-	luaFunc := luaEngine.MakeFunction(funcName)
-	setPkToAppID := NewSpEnrichedSetPkFunction("app_id")
-	spEnrichedToJSON := SpEnrichedToJSON
+	luaFunc := luaEngine.MakeFunction(funcname)
+	setPkToAppID := transform.NewSpEnrichedSetPkFunction("app_id")
+	spEnrichedToJSON := transform.SpEnrichedToJSON
 
 	testCases := []struct {
 		Name           string
-		Transformation TransformationApplyFunction
+		Transformation transform.TransformationApplyFunction
 	}{
 		{
 			Name: "first",
-			Transformation: NewTransformation(
+			Transformation: transform.NewTransformation(
 				setPkToAppID,
 				spEnrichedToJSON,
 				luaFunc,
@@ -1464,11 +1364,7 @@ end
 			assert.NotNil(result)
 			for i, res := range result.Result {
 				exp := expectedGood[i]
-				if !reflect.DeepEqual(res.Data, exp.Data) {
-					t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-						spew.Sdump(res.Data),
-						spew.Sdump(exp.Data))
-				}
+				assert.JSONEq(string(res.Data), string(exp.Data))
 				assert.Equal(res.PartitionKey, exp.PartitionKey)
 
 			}
@@ -1479,18 +1375,19 @@ end
 
 func TestLuaEngineWithBuiltinsSpModeFalse(t *testing.T) {
 	srcCode := `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 
 function setPk(x)
-   x["PartitionKey"] = "testKey"
-   return x
+  x["PartitionKey"] = "testKey"
+  return x
 end
 `
 	// Lua
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	luaConfig := &luaEngineConfig{
+		Name:       "test-engine",
 		SourceB64:  src,
 		RunTimeout: 1,
 		Sandbox:    true,
@@ -1502,30 +1399,27 @@ end
 		t.Fatalf("newLuaEngine failed with error: %q", err)
 	}
 
-	if err := luaEngine.SmokeTest("identity"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
-	}
-	if err := luaEngine.SmokeTest("setPk"); err != nil {
+	if err := luaEngine.SmokeTest("main"); err != nil {
 		t.Fatalf("smoke-test failed with error: %q", err.Error())
 	}
 
-	luaFuncID := luaEngine.MakeFunction("identity")
+	luaFuncID := luaEngine.MakeFunction("main")
 	luaFuncPk := luaEngine.MakeFunction("setPk")
 
 	// Builtins
-	setPkToAppID := NewSpEnrichedSetPkFunction("app_id")
-	spEnrichedToJSON := SpEnrichedToJSON
+	setPkToAppID := transform.NewSpEnrichedSetPkFunction("app_id")
+	spEnrichedToJSON := transform.SpEnrichedToJSON
 
 	testCases := []struct {
 		Name           string
-		Transformation TransformationApplyFunction
+		Transformation transform.TransformationApplyFunction
 		Input          []*models.Message
 		ExpectedGood   []*models.Message
 	}{
 		{
 			Name:  "identity0",
 			Input: messages,
-			Transformation: NewTransformation(
+			Transformation: transform.NewTransformation(
 				luaFuncID,
 				setPkToAppID,
 				spEnrichedToJSON,
@@ -1548,7 +1442,7 @@ end
 		{
 			Name:  "identity2",
 			Input: messages,
-			Transformation: NewTransformation(
+			Transformation: transform.NewTransformation(
 				setPkToAppID,
 				spEnrichedToJSON,
 				luaFuncID,
@@ -1571,7 +1465,7 @@ end
 		{
 			Name:  "setPk1",
 			Input: messages,
-			Transformation: NewTransformation(
+			Transformation: transform.NewTransformation(
 				setPkToAppID,
 				luaFuncPk,
 				spEnrichedToJSON,
@@ -1603,11 +1497,7 @@ end
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
+					assert.JSONEq(string(res.Data), string(exp.Data))
 					assert.Equal(res.PartitionKey, exp.PartitionKey)
 				}
 			}
@@ -1617,18 +1507,19 @@ end
 
 func TestLuaEngineWithBuiltinsSpModeTrue(t *testing.T) {
 	srcCode := `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 
 function setPk(x)
-   x["PartitionKey"] = "testKey"
-   return x
+  x["PartitionKey"] = "testKey"
+  return x
 end
 `
 	// Lua
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	luaConfig := &luaEngineConfig{
+		Name:       "test-engine",
 		SourceB64:  src,
 		RunTimeout: 1,
 		Sandbox:    true,
@@ -1640,35 +1531,35 @@ end
 		t.Fatalf("newLuaEngine failed with error: %q", err)
 	}
 
-	if err := luaEngine.SmokeTest("identity"); err != nil {
+	if err := luaEngine.SmokeTest("main"); err != nil {
 		t.Fatalf("smoke-test failed with error: %q", err.Error())
 	}
 	if err := luaEngine.SmokeTest("setPk"); err != nil {
 		t.Fatalf("smoke-test failed with error: %q", err.Error())
 	}
 
-	luaFuncID := luaEngine.MakeFunction("identity")
+	luaFuncID := luaEngine.MakeFunction("main")
 	luaFuncPk := luaEngine.MakeFunction("setPk")
 
 	// Builtins
-	setPkToAppID := NewSpEnrichedSetPkFunction("app_id")
-	spEnrichedToJSON := SpEnrichedToJSON
+	setPkToAppID := transform.NewSpEnrichedSetPkFunction("app_id")
+	spEnrichedToJSON := transform.SpEnrichedToJSON
 
 	testCases := []struct {
 		Name           string
-		Transformation TransformationApplyFunction
+		Transformation transform.TransformationApplyFunction
 		Input          []*models.Message
 		ExpectedGood   []*models.Message
 	}{
 		{
-			Name: "identity",
+			Name: "main",
 			Input: []*models.Message{
 				{
 					Data:         testLuaTsv,
 					PartitionKey: "prevKey",
 				},
 			},
-			Transformation: NewTransformation(
+			Transformation: transform.NewTransformation(
 				setPkToAppID,
 				spEnrichedToJSON,
 				luaFuncID,
@@ -1688,7 +1579,7 @@ end
 					PartitionKey: "prevKey",
 				},
 			},
-			Transformation: NewTransformation(
+			Transformation: transform.NewTransformation(
 				setPkToAppID,
 				luaFuncPk,
 			),
@@ -1707,7 +1598,7 @@ end
 					PartitionKey: "prevKey",
 				},
 			},
-			Transformation: NewTransformation(
+			Transformation: transform.NewTransformation(
 				setPkToAppID,
 				luaFuncID,
 				luaFuncPk,
@@ -1732,11 +1623,7 @@ end
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
+					assert.JSONEq(string(res.Data), string(exp.Data))
 					assert.Equal(res.PartitionKey, exp.PartitionKey)
 				}
 			}
@@ -1748,8 +1635,8 @@ func Benchmark_LuaEngine_Passthrough_Sandboxed(b *testing.B) {
 	b.ReportAllocs()
 
 	srcCode := `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
@@ -1759,6 +1646,7 @@ end
 		PartitionKey: "some-test-key",
 	}
 	luaConfig := &luaEngineConfig{
+		Name:       "test-engine",
 		SourceB64:  src,
 		RunTimeout: 5,
 		Sandbox:    true,
@@ -1769,7 +1657,7 @@ end
 		b.Fatalf("function newLuaEngine failed with error: %q", err.Error())
 	}
 
-	transFunction := luaEngine.MakeFunction("identity")
+	transFunction := luaEngine.MakeFunction("main")
 
 	for n := 0; n < b.N; n++ {
 		transFunction(inputMsg, nil)
@@ -1780,8 +1668,8 @@ func Benchmark_LuaEngine_Passthrough(b *testing.B) {
 	b.ReportAllocs()
 
 	srcCode := `
-function identity(x)
-   return x
+function main(x)
+  return x
 end
 `
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
@@ -1791,6 +1679,7 @@ end
 		PartitionKey: "some-test-key",
 	}
 	luaConfig := &luaEngineConfig{
+		Name:       "test-engine",
 		SourceB64:  src,
 		RunTimeout: 5,
 		Sandbox:    false,
@@ -1801,7 +1690,7 @@ end
 		b.Fatalf("function newLuaEngine failed with error: %q", err.Error())
 	}
 
-	transFunction := luaEngine.MakeFunction("identity")
+	transFunction := luaEngine.MakeFunction("main")
 
 	for n := 0; n < b.N; n++ {
 		transFunction(inputMsg, nil)
@@ -1812,11 +1701,11 @@ func Benchmark_LuaEngine_Passthrough_Json(b *testing.B) {
 	b.ReportAllocs()
 
 	srcCode := `
-function jsonIdentity(x)
-   local jsonObj, _ = json.decode(x)
-   local result, _ = json.encode(jsonObj)
+function main(x)
+  local jsonObj, _ = json.decode(x)
+  local result, _ = json.encode(jsonObj)
 
-   return result
+  return result
 end
 `
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
@@ -1826,6 +1715,7 @@ end
 		PartitionKey: "some-test-key",
 	}
 	luaConfig := &luaEngineConfig{
+		Name:       "test-engine",
 		SourceB64:  src,
 		RunTimeout: 5,
 		Sandbox:    false,
@@ -1841,24 +1731,6 @@ end
 	for n := 0; n < b.N; n++ {
 		transFunction(inputMsg, nil)
 	}
-}
-
-// Test helpers
-func testLuaEngineAdapter(f func(c *luaEngineConfig) (*luaEngineConfig, error)) luaEngineAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*luaEngineConfig)
-		if !ok {
-			return nil, fmt.Errorf("invalid input, expected luaEngineConfig")
-		}
-
-		return f(cfg)
-	}
-
-}
-
-func testLuaEngineFunc(c *luaEngineConfig) (*luaEngineConfig, error) {
-
-	return c, nil
 }
 
 // Helper function to compare messages and avoid using reflect.DeepEqual

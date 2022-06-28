@@ -31,7 +31,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/telemetry"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformconfig"
 )
 
 const (
@@ -81,7 +80,12 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 			return err
 		}
 
-		tr, err := transformconfig.GetTransformations(cfg)
+		en, err := cfg.GetEngines()
+		if err != nil {
+			return err
+		}
+
+		tr, err := cfg.GetTransformations(en)
 		if err != nil {
 			return err
 		}

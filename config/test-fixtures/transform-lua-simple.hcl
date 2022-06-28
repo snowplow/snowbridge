@@ -1,9 +1,14 @@
 # transform configuration - lua - simple
 
-transform {
-  message_transformation = "lua:fun"
-
+engine {
   use "lua" {
+    name = "test-engine"
     source_b64 = "CglmdW5jdGlvbiBmb28oeCkKICAgICAgICAgICByZXR1cm4geAogICAgICAgIGVuZAoJ"
+  }
+}
+
+transform {
+  use "lua" {
+    engine_name="test-engine"
   }
 }

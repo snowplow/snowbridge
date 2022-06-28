@@ -13,7 +13,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformconfig"
 )
 
 // ServerlessRequestHandler is a common function for all
@@ -35,16 +34,21 @@ func ServerlessRequestHandler(messages []*models.Message) error {
 	}
 	t.Open()
 
-	tr, err := transformconfig.GetTransformations(cfg)
-	if err != nil {
-		return err
-	}
-
 	ft, err := cfg.GetFailureTarget(AppName, AppVersion)
 	if err != nil {
 		return err
 	}
 	ft.Open()
+
+	en, err := cfg.GetEngines()
+	if err != nil {
+		return err
+	}
+
+	tr, err := cfg.GetTransformations(en)
+	if err != nil {
+		return err
+	}
 
 	// --- Process events
 

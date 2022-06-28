@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 
-package transform
+package engine
 
 import (
 	"context"
@@ -15,32 +15,41 @@ import (
 
 	gojson "github.com/goccy/go-json"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
 	luaparse "github.com/yuin/gopher-lua/parse"
 	luajson "layeh.com/gopher-json"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
 // luaEngineConfig configures the Lua Engine.
 type luaEngineConfig struct {
+	Name       string `hcl:"name"`
 	SourceB64  string `hcl:"source_b64" env:"TRANSFORMATION_LUA_SOURCE_B64"`
 	RunTimeout int    `hcl:"timeout_sec,optional" env:"TRANSFORMATION_LUA_TIMEOUT_SEC"`
 	Sandbox    bool   `hcl:"sandbox,optional" env:"TRANSFORMATION_LUA_SANDBOX"`
 	SpMode     bool   `hcl:"snowplow_mode,optional" env:"TRANSFORMATION_LUA_SNOWPLOW_MODE"`
 }
 
-// luaEngine handles the provision of a Lua runtime to run transformations.
-type luaEngine struct {
+// LuaEngine handles the provision of a Lua runtime to run transformations.
+type LuaEngine struct {
+	Name       string
 	Code       *lua.FunctionProto
 	RunTimeout time.Duration
 	Options    *lua.Options
 	SpMode     bool
 }
 
+// GetName returns the engine's name
+func (e *LuaEngine) GetName() string {
+	return e.Name
+}
+
 // newLuaEngine returns a Lua Engine from a luaEngineConfig.
-func newLuaEngine(c *luaEngineConfig) (*luaEngine, error) {
+func newLuaEngine(c *luaEngineConfig) (*LuaEngine, error) {
 	luaSrc, err := base64.StdEncoding.DecodeString(c.SourceB64)
 	if err != nil {
 		return nil, err
@@ -51,7 +60,8 @@ func newLuaEngine(c *luaEngineConfig) (*luaEngine, error) {
 		return nil, err
 	}
 
-	eng := &luaEngine{
+	eng := &LuaEngine{
+		Name:       c.Name,
 		Code:       compiledCode,
 		RunTimeout: time.Duration(c.RunTimeout) * time.Second,
 		Options:    &lua.Options{SkipOpenLibs: c.Sandbox},
@@ -61,17 +71,29 @@ func newLuaEngine(c *luaEngineConfig) (*luaEngine, error) {
 	return eng, nil
 }
 
-// The luaEngineAdapter type is an adapter for functions to be used as
+// The LuaEngineAdapter type is an adapter for functions to be used as
 // pluggable components for Lua Engine. It implements the Pluggable interface.
-type luaEngineAdapter func(i interface{}) (interface{}, error)
+type LuaEngineAdapter func(i interface{}) (interface{}, error)
+
+// AdaptLuaEngineFunc returns a LuaEngineAdapter.
+func AdaptLuaEngineFunc(f func(c *luaEngineConfig) (*LuaEngine, error)) LuaEngineAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*luaEngineConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected luaEngineConfig")
+		}
+
+		return f(cfg)
+	}
+}
 
 // Create implements the ComponentCreator interface.
-func (f luaEngineAdapter) Create(i interface{}) (interface{}, error) {
+func (f LuaEngineAdapter) Create(i interface{}) (interface{}, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f luaEngineAdapter) ProvideDefault() (interface{}, error) {
+func (f LuaEngineAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults for the optional parameters
 	// whose default is not their zero value.
 	cfg := &luaEngineConfig{
@@ -82,25 +104,19 @@ func (f luaEngineAdapter) ProvideDefault() (interface{}, error) {
 	return cfg, nil
 }
 
-// adaptLuaEngineFunc returns a luaEngineAdapter.
-func adaptLuaEngineFunc(f func(c *luaEngineConfig) (*luaEngine, error)) luaEngineAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*luaEngineConfig)
-		if !ok {
-			return nil, fmt.Errorf("invalid input, expected luaEngineConfig")
-		}
-
-		return f(cfg)
-	}
+// LuaEngineConfigFunction returns the Pluggable transformation layer implemented in Lua.
+func LuaEngineConfigFunction(t *luaEngineConfig) (*LuaEngine, error) {
+	return newLuaEngine(&luaEngineConfig{
+		Name:       t.Name,
+		SourceB64:  t.SourceB64,
+		RunTimeout: t.RunTimeout,
+		Sandbox:    t.Sandbox,
+		SpMode:     t.SpMode,
+	})
 }
 
-// LuaLayer returns the Pluggable transformation layer implemented in Lua.
-func LuaLayer() interface{} {
-	return adaptLuaEngineFunc(newLuaEngine)
-}
-
-// SmokeTest implements SmokeTester.
-func (e *luaEngine) SmokeTest(funcName string) error {
+// SmokeTest implements smokeTester.
+func (e *LuaEngine) SmokeTest(funcName string) error {
 	// setup the Lua state
 	L := lua.NewState(*e.Options) // L is ptr
 	defer L.Close()
@@ -113,8 +129,8 @@ func (e *luaEngine) SmokeTest(funcName string) error {
 	return initVM(e, L, funcName)
 }
 
-// MakeFunction implements FunctionMaker.
-func (e *luaEngine) MakeFunction(funcName string) TransformationFunction {
+// MakeFunction implements functionMaker.
+func (e *LuaEngine) MakeFunction(funcName string) transform.TransformationFunction {
 
 	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 		// making input
@@ -233,7 +249,7 @@ func loadLuaCode(ls *lua.LState, proto *lua.FunctionProto) error {
 }
 
 // initVM performs the initialization steps for a Lua state.
-func initVM(e *luaEngine, L *lua.LState, funcName string) error {
+func initVM(e *LuaEngine, L *lua.LState, funcName string) error {
 	if e.Options.SkipOpenLibs == false {
 		luajson.Preload(L)
 	}
@@ -244,7 +260,7 @@ func initVM(e *luaEngine, L *lua.LState, funcName string) error {
 	}
 
 	if _, ok := L.GetGlobal(funcName).(*lua.LFunction); !ok {
-		return fmt.Errorf("global Lua function not found: %q", funcName)
+		return fmt.Errorf("global main() Lua function not found: %q", funcName)
 	}
 
 	return nil
@@ -252,14 +268,14 @@ func initVM(e *luaEngine, L *lua.LState, funcName string) error {
 
 // mkLuaEngineInput describes the process of constructing input to Lua engine.
 // No side effects.
-func mkLuaEngineInput(e *luaEngine, message *models.Message, interState interface{}) (*lua.LTable, error) {
+func mkLuaEngineInput(e *LuaEngine, message *models.Message, interState interface{}) (*lua.LTable, error) {
 	if interState != nil {
-		if i, ok := interState.(*EngineProtocol); ok {
+		if i, ok := interState.(*engineProtocol); ok {
 			return toLuaTable(i)
 		}
 	}
 
-	candidate := &EngineProtocol{
+	candidate := &engineProtocol{
 		Data: string(message.Data),
 	}
 
@@ -267,7 +283,7 @@ func mkLuaEngineInput(e *luaEngine, message *models.Message, interState interfac
 		return toLuaTable(candidate)
 	}
 
-	parsedMessage, err := intermediateAsSpEnrichedParsed(interState, message)
+	parsedMessage, err := transform.IntermediateAsSpEnrichedParsed(interState, message)
 	if err != nil {
 		// if spMode, error for non Snowplow enriched event data
 		return nil, err
@@ -283,7 +299,7 @@ func mkLuaEngineInput(e *luaEngine, message *models.Message, interState interfac
 }
 
 // toLuaTable
-func toLuaTable(p *EngineProtocol) (*lua.LTable, error) {
+func toLuaTable(p *engineProtocol) (*lua.LTable, error) {
 	var tmpMap map[string]interface{}
 
 	err := mapstructure.Decode(p, &tmpMap)
@@ -367,14 +383,14 @@ func mapToLTable(m map[string]interface{}) (*lua.LTable, error) {
 }
 
 // validateLuaEngineOut validates the value returned from the Lua engine is a
-// Lua Table (lua.LTable) and that it maps to EngineProtocol.
-func validateLuaEngineOut(output interface{}) (*EngineProtocol, error) {
+// Lua Table (lua.LTable) and that it maps to engineProtocol.
+func validateLuaEngineOut(output interface{}) (*engineProtocol, error) {
 	if output == nil {
 		return nil, fmt.Errorf("invalid return type from Lua transformation; got nil")
 	}
 
 	if luaTablePtr, ok := output.(*lua.LTable); ok {
-		result := &EngineProtocol{}
+		result := &engineProtocol{}
 		luaMapper := gluamapper.NewMapper(gluamapper.Option{
 			NameFunc: gluamapper.Id,
 		})

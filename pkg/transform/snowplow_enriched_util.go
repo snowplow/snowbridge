@@ -7,12 +7,15 @@
 package transform
 
 import (
+	"strconv"
+
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
-	"strconv"
 )
 
-func intermediateAsSpEnrichedParsed(intermediateState interface{}, message *models.Message) (analytics.ParsedEvent, error) {
+// IntermediateAsSpEnrichedParsed returns the intermediate state as a ParsedEvent if valid or parses
+// the message as an event
+func IntermediateAsSpEnrichedParsed(intermediateState interface{}, message *models.Message) (analytics.ParsedEvent, error) {
 	var parsedMessage, ok = intermediateState.(analytics.ParsedEvent)
 	var parseErr error
 	if ok {

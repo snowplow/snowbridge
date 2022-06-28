@@ -1,9 +1,14 @@
 # transform configuration - js - simple
 
-transform {
-  message_transformation = "js:fun"
-
+engine {
   use "js" {
-    source_b64 = "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ"
+    name = "test-engine"
+    source_b64 = "ZnVuY3Rpb24gbWFpbih4KSB7CiAgICByZXR1cm4geDsKfQkgICAKCQ=="
+  }
+}
+
+transform {
+  use "js" {
+    engine_name="test-engine"
   }
 }

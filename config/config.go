@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
@@ -25,6 +26,9 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform/engine"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformconfig"
 )
 
 // Config holds the configuration data along with the decoder to decode them
@@ -35,15 +39,16 @@ type Config struct {
 
 // ConfigurationData for holding all configuration options
 type ConfigurationData struct {
-	Source                  *Component       `hcl:"source,block" envPrefix:"SOURCE_"`
-	Target                  *Component       `hcl:"target,block" envPrefix:"TARGET_"`
-	FailureTarget           *FailureConfig   `hcl:"failure_target,block"`
-	Sentry                  *SentryConfig    `hcl:"sentry,block"`
-	StatsReceiver           *StatsConfig     `hcl:"stats_receiver,block"`
-	Transform               *TransformConfig `hcl:"transform,block"`
-	LogLevel                string           `hcl:"log_level,optional" env:"LOG_LEVEL"`
-	GoogleServiceAccountB64 string           `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
-	UserProvidedID          string           `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
+	Source                  *Component     `hcl:"source,block" envPrefix:"SOURCE_"`
+	Target                  *Component     `hcl:"target,block" envPrefix:"TARGET_"`
+	FailureTarget           *FailureConfig `hcl:"failure_target,block"`
+	Sentry                  *SentryConfig  `hcl:"sentry,block"`
+	StatsReceiver           *StatsConfig   `hcl:"stats_receiver,block"`
+	Engines                 []*Component   `hcl:"engine,block"`
+	Transformations         []*Component   `hcl:"transform,block"`
+	LogLevel                string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
+	GoogleServiceAccountB64 string         `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
+	UserProvidedID          string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
 }
 
 // Component is a type to abstract over configuration blocks.
@@ -79,12 +84,6 @@ type StatsConfig struct {
 	BufferSec  int  `hcl:"buffer_sec,optional" env:"STATS_RECEIVER_BUFFER_SEC"`
 }
 
-// TransformConfig holds configuration for tranformations.
-type TransformConfig struct {
-	Message string `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
-	Layer   *Use   `hcl:"use,block" envPrefix:"TRANSFORMATION_LAYER_"`
-}
-
 // defaultConfigData returns the initial main configuration target.
 func defaultConfigData() *ConfigurationData {
 	return &ConfigurationData{
@@ -103,11 +102,9 @@ func defaultConfigData() *ConfigurationData {
 			TimeoutSec: 1,
 			BufferSec:  15,
 		},
-		Transform: &TransformConfig{
-			Message: "none",
-			Layer:   &Use{},
-		},
-		LogLevel: "info",
+		Engines:         nil,
+		Transformations: nil,
+		LogLevel:        "info",
 	}
 }
 
@@ -246,6 +243,114 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 	return nil, fmt.Errorf("could not interpret target configuration for %q", useTarget.Name)
 }
 
+// GetEngines builds and returns the engines that are configured
+func (c *Config) GetEngines() ([]engine.Engine, error) {
+	layers := make([]engine.Engine, len(c.Data.Engines))
+	for idx, engineComponent := range c.Data.Engines {
+		var plug Pluggable
+		decoderOpts := &DecoderOptions{
+			Input: engineComponent.Use.Body,
+		}
+
+		switch engineComponent.Use.Name {
+		case `lua`:
+			plug = engine.AdaptLuaEngineFunc(engine.LuaEngineConfigFunction)
+		case `js`:
+			plug = engine.AdaptJSEngineFunc(engine.JSEngineConfigFunction)
+		case ``:
+			return nil, fmt.Errorf(`engine is missing type`)
+		default:
+			return nil, fmt.Errorf(`engine type is invalid`)
+		}
+
+		component, err := c.CreateComponent(plug, decoderOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		eng, ok := component.(engine.Engine)
+		if !ok {
+			return nil, errors.New("cannot create engine")
+		}
+		layers[idx] = eng
+	}
+
+	return layers, nil
+}
+
+// GetTransformations builds and returns transformationApplyFunction
+// from the transformations configured.
+func (c *Config) GetTransformations(engines []engine.Engine) (transform.TransformationApplyFunction, error) {
+	transformations := make([]*transformconfig.Transformation, len(c.Data.Transformations))
+	for idx, transformation := range c.Data.Transformations {
+		plug := transformconfig.AdaptTransformationsFunc(transformconfig.TransformationConfigFunction)
+
+		component, err := c.CreateComponent(plug, &DecoderOptions{
+			Input: transformation.Use.Body,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		trans, ok := component.(*transformconfig.Transformation)
+		if !ok {
+			return nil, errors.New(`error parsing transformation`)
+		}
+		trans.Name = transformation.Use.Name
+		transformations[idx] = trans
+	}
+
+	validationErrors := transformconfig.ValidateTransformations(transformations)
+	for _, err := range validationErrors {
+		log.Errorf("validation error: %v", err)
+		return nil, errors.New(`transformations validation returned errors`)
+	}
+
+	funcs := make([]transform.TransformationFunction, 0, len(transformations))
+	for _, transformation := range transformations {
+		switch transformation.Name {
+		// Builtin transformations
+		case "spEnrichedToJson":
+			funcs = append(funcs, transform.SpEnrichedToJSON)
+		case "spEnrichedSetPk":
+			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(transformation.Option))
+		case "spEnrichedFilter":
+			filterFunc, err := transform.NewSpEnrichedFilterFunction(transformation.Field, transformation.Regex)
+			if err != nil {
+				return nil, err
+			}
+			funcs = append(funcs, filterFunc)
+		case "spEnrichedFilterContext":
+			filterFunc, err := transform.NewSpEnrichedFilterFunctionContext(transformation.Field, transformation.Regex)
+			if err != nil {
+				return nil, err
+			}
+			funcs = append(funcs, filterFunc)
+		case "spEnrichedFilterUnstructEvent":
+			filterFunc, err := transform.NewSpEnrichedFilterFunctionUnstructEvent(transformation.Field, transformation.Regex)
+			if err != nil {
+				return nil, err
+			}
+			funcs = append(funcs, filterFunc)
+		// Custom transformations
+		case "lua":
+			luaFunc, err := transformconfig.MkEngineFunction(engines, transformation)
+			if err != nil {
+				return nil, err
+			}
+			funcs = append(funcs, luaFunc)
+		case "js":
+			jsFunc, err := transformconfig.MkEngineFunction(engines, transformation)
+			if err != nil {
+				return nil, err
+			}
+			funcs = append(funcs, jsFunc)
+		}
+	}
+
+	return transform.NewTransformation(funcs...), nil
+}
+
 // GetFailureTarget builds and returns the target that is configured
 func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureiface.Failure, error) {
 	var plug Pluggable
@@ -363,23 +468,4 @@ func (c *Config) GetStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid stats receiver found; expected one of 'statsd' and got '%s'", useReceiver.Name))
 	}
-}
-
-// ProvideTransformMessage implements transformconfig.configProvider
-func (c *Config) ProvideTransformMessage() string {
-	return c.Data.Transform.Message
-}
-
-// ProvideTransformLayerName implements transformconfig.configProvider
-func (c *Config) ProvideTransformLayerName() string {
-	return c.Data.Transform.Layer.Name
-}
-
-// ProvideTransformComponent implements transformconfig.configProvider
-func (c *Config) ProvideTransformComponent(p Pluggable) (interface{}, error) {
-	decoderOpts := &DecoderOptions{
-		Input: c.Data.Transform.Layer.Body,
-	}
-
-	return c.CreateComponent(p, decoderOpts)
 }

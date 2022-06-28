@@ -7,10 +7,12 @@
 package transform
 
 import (
-	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
@@ -45,57 +47,30 @@ func findSpEnrichedFilterValue(queriedField, parsedEventName, eventVer, field st
 	return valueFound, nil
 }
 
-func evaluateSpEnrichedFilter(valuesToMatch string, valuesFound []interface{}, isNegationFilter, shouldKeepMessage *bool) {
-	for _, valueToMatch := range strings.Split(valuesToMatch, "|") {
-		for _, v := range valuesFound {
-			if fmt.Sprintf("%v", v) == valueToMatch {
-				// Once config value is matched once, change shouldKeepMessage, and stop looking for matches
-				if *isNegationFilter {
-					*shouldKeepMessage = false
-				} else {
-					*shouldKeepMessage = true
-				}
-				return
-
-			}
+func evaluateSpEnrichedFilter(valuesFound []interface{}, regex string, shouldKeepMessage *bool) {
+	re, err := regexp.Compile(regex)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, `error compiling regex for filter`))
+	}
+	for _, v := range valuesFound {
+		stringValue, ok := v.(string)
+		if !ok {
+			log.Fatal(fmt.Sprintf("found value is not a string: %s", v))
 		}
+		if re.Match([]byte(stringValue)) {
+			*shouldKeepMessage = true
+			return
+		}
+		return
 	}
 }
 
-// createSpEnrichedFilterFunction returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event.
-// The filterconfig should describe the conditions for including a message.
-// For example "aid=abc|def" includes all events with app IDs of abc or def, and filters out the rest.
-// aid!=abc|def includes all events whose app IDs do not match abc or def, and filters out the rest.
-func createSpEnrichedFilterFunction(filterConfig string, isUnstructEvent bool, isContext bool) (TransformationFunction, error) {
-	// This regex prevents whitespace characters in the value provided
-	regex := `\S+(!=|==)[^\s\|]+((?:\|[^\s|]+)*)$`
-	re := regexp.MustCompile(regex)
-
-	if !(re.MatchString(filterConfig)) {
-		// If invalid, return an error which will be returned by the main function
-		return nil, errors.New("invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]")
-	}
-
-	// Check for a negation condition first
-	keyValues := strings.SplitN(filterConfig, "!=", 2)
-
-	// isNegationFilter determines whether a match sets shouldKeepMessage to true or false, and consequently whether message is kept or filtered
-	var isNegationFilter bool
-	if len(keyValues) > 1 {
-		// If negation condition is found, default to keep the message, and change this when match found
-		isNegationFilter = true
-	} else {
-		// Otherwise, look for affirmation condition, default to drop the message and change when match found
-		keyValues = strings.SplitN(filterConfig, "==", 2)
-		isNegationFilter = false
-	}
-
+// createSpEnrichedFilterFunction returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event
+// and a regex declared by the user.
+func createSpEnrichedFilterFunction(field, regex string, isUnstructEvent bool) (TransformationFunction, error) {
 	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
-		// Start by resetting shouldKeepMessage to isNegationFilter
-		shouldKeepMessage := isNegationFilter
-
 		// Evaluate intermediateState to parsedEvent
-		parsedMessage, parseErr := intermediateAsSpEnrichedParsed(intermediateState, message)
+		parsedMessage, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(parseErr)
 			return nil, nil, message, nil
@@ -103,11 +78,11 @@ func createSpEnrichedFilterFunction(filterConfig string, isUnstructEvent bool, i
 
 		// This regex retrieves the path fields
 		// (e.g. field1.field2[0].field3 -> [field1, field2, 0, field3])
-		regex = `\w+`
-		re = regexp.MustCompile(regex)
+		regexWords := `\w+`
+		re := regexp.MustCompile(regexWords)
 
 		// separate the path string into words using regex
-		path := re.FindAllString(keyValues[0], -1)
+		path := re.FindAllString(field, -1)
 		separatedPath := make([]string, len(path)-1)
 		for idx, pathField := range path[1:] {
 			separatedPath[idx] = pathField
@@ -145,7 +120,7 @@ func createSpEnrichedFilterFunction(filterConfig string, isUnstructEvent bool, i
 			path[0],
 			parsedEventName,
 			eventMajorVer,
-			keyValues[0],
+			field,
 			parsedMessage,
 			convertPathToInterfaces(separatedPath),
 		)
@@ -154,8 +129,10 @@ func createSpEnrichedFilterFunction(filterConfig string, isUnstructEvent bool, i
 			return nil, nil, message, nil
 		}
 
+		var shouldKeepMessage bool
+
 		// evaluate whether the found value passes the filter, determining if the message should be kept
-		evaluateSpEnrichedFilter(keyValues[1], valueFound, &isNegationFilter, &shouldKeepMessage)
+		evaluateSpEnrichedFilter(valueFound, regex, &shouldKeepMessage)
 
 		// if message is not to be kept, return it as a filtered message to be acked in the main function
 		if !shouldKeepMessage {
@@ -168,16 +145,16 @@ func createSpEnrichedFilterFunction(filterConfig string, isUnstructEvent bool, i
 }
 
 // NewSpEnrichedFilterFunction returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event.
-func NewSpEnrichedFilterFunction(filterConfig string) (TransformationFunction, error) {
-	return createSpEnrichedFilterFunction(filterConfig, false, false)
+func NewSpEnrichedFilterFunction(field, regex string) (TransformationFunction, error) {
+	return createSpEnrichedFilterFunction(field, regex, false)
 }
 
 // NewSpEnrichedFilterFunctionContext returns a TransformationFunction for filtering a context
-func NewSpEnrichedFilterFunctionContext(filterConfig string) (TransformationFunction, error) {
-	return createSpEnrichedFilterFunction(filterConfig, false, true)
+func NewSpEnrichedFilterFunctionContext(field, regex string) (TransformationFunction, error) {
+	return createSpEnrichedFilterFunction(field, regex, true)
 }
 
 // NewSpEnrichedFilterFunctionUnstructEvent returns a TransformationFunction for filtering an unstruct_event
-func NewSpEnrichedFilterFunctionUnstructEvent(filterConfig string) (TransformationFunction, error) {
-	return createSpEnrichedFilterFunction(filterConfig, true, false)
+func NewSpEnrichedFilterFunctionUnstructEvent(field, regex string) (TransformationFunction, error) {
+	return createSpEnrichedFilterFunction(field, regex, false)
 }

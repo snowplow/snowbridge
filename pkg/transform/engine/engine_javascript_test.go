@@ -1,15 +1,14 @@
-// PROPRIETARY AND CONFIDENTIAL
+//// PROPRIETARY AND CONFIDENTIAL
+////
+//// Unauthorized copying of this file via any medium is strictly prohibited.
+////
+//// Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 //
-// Unauthorized copying of this file via any medium is strictly prohibited.
-//
-// Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
-
-package transform
+package engine
 
 import (
 	"encoding/base64"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,136 +17,26 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
-func TestJSEngineConfig_ENV(t *testing.T) {
-	testCases := []struct {
-		Name     string
-		Plug     config.Pluggable
-		Expected interface{}
-	}{
-		{
-			Name: "transform-js-from-env",
-			Plug: testJSEngineAdapter(testJSEngineFunc),
-			Expected: &jsEngineConfig{
-				SourceB64:         "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ",
-				RunTimeout:        10,
-				DisableSourceMaps: false,
-				SpMode:            false,
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", "")
-
-			t.Setenv("MESSAGE_TRANSFORMATION", "js")
-			t.Setenv("TRANSFORMATION_LAYER_NAME", "js")
-
-			t.Setenv("TRANSFORMATION_JS_SOURCE_B64", "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ")
-			t.Setenv("TRANSFORMATION_JS_TIMEOUT_SEC", "10")
-			t.Setenv("TRANSFORMATION_JS_DISABLE_SOURCE_MAPS", "false")
-			t.Setenv("TRANSFORMATION_JS_SNOWPLOW_MODE", "false")
-
-			c, err := config.NewConfig()
-			assert.NotNil(c)
-			if err != nil {
-				t.Fatalf("function NewConfig failed with error: %q", err.Error())
-			}
-
-			engine := c.Data.Transform.Layer
-			decoderOpts := &config.DecoderOptions{
-				Input: engine.Body,
-			}
-
-			result, err := c.CreateComponent(tt.Plug, decoderOpts)
-			assert.NotNil(result)
-			assert.Nil(err)
-
-			if !reflect.DeepEqual(result, tt.Expected) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(result),
-					spew.Sdump(tt.Expected))
-			}
-		})
-	}
-}
-
-func TestJSEngineConfig_HCL(t *testing.T) {
-	testFixPath := "../../config/test-fixtures"
-	testCases := []struct {
-		File     string
-		Plug     config.Pluggable
-		Expected interface{}
-	}{
-		{
-			File: "transform-js-simple.hcl",
-			Plug: testJSEngineAdapter(testJSEngineFunc),
-			Expected: &jsEngineConfig{
-				SourceB64:         "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ",
-				RunTimeout:        5,
-				DisableSourceMaps: true,
-				SpMode:            false,
-			},
-		},
-		{
-			File: "transform-js-extended.hcl",
-			Plug: testJSEngineAdapter(testJSEngineFunc),
-			Expected: &jsEngineConfig{
-				SourceB64:         "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ",
-				RunTimeout:        10,
-				DisableSourceMaps: false,
-				SpMode:            true,
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.File, func(t *testing.T) {
-			assert := assert.New(t)
-
-			filename := filepath.Join(testFixPath, tt.File)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
-
-			c, err := config.NewConfig()
-			assert.NotNil(c)
-			if err != nil {
-				t.Fatalf("function NewConfig failed with error: %q", err.Error())
-			}
-
-			engine := c.Data.Transform.Layer
-			decoderOpts := &config.DecoderOptions{
-				Input: engine.Body,
-			}
-
-			result, err := c.CreateComponent(tt.Plug, decoderOpts)
-			assert.NotNil(result)
-			assert.Nil(err)
-
-			if !reflect.DeepEqual(result, tt.Expected) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(result),
-					spew.Sdump(tt.Expected))
-			}
-		})
-	}
-}
-
 func TestJSLayer(t *testing.T) {
-	layer := JSLayer()
-	if _, ok := layer.(config.Pluggable); !ok {
-		t.Errorf("invalid interface returned from JSLayer")
-	}
+	assert := assert.New(t)
+
+	jsEngine, err := newJSEngine(&jsEngineConfig{
+		Name:              "test-engine",
+		SourceB64:         "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ",
+		RunTimeout:        15,
+		DisableSourceMaps: true,
+		SpMode:            false,
+	})
+	assert.NotNil(t, jsEngine)
+	assert.Nil(err)
 }
 
 func TestJSEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
 	var testInterState interface{} = nil
-	var testSpMode bool = false
+	var testSpMode = false
 	testCases := []struct {
 		Src               string
 		FunName           string
@@ -159,8 +48,8 @@ func TestJSEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
 	}{
 		{
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -177,7 +66,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         "asdf",
@@ -186,10 +75,10 @@ function identity(x) {
 		},
 		{
 			Src: `
-function concatHello(x) {
-    let newVal = "Hello:" + x.Data;
-    x.Data = newVal;
-    return x;
+function main(x) {
+   let newVal = "Hello:" + x.Data;
+   x.Data = newVal;
+   return x;
 }
 `,
 			FunName:           "concatHello",
@@ -206,7 +95,7 @@ function concatHello(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         "Hello:asdf",
@@ -215,9 +104,9 @@ function concatHello(x) {
 		},
 		{
 			Src: `
-function filterIn(x) {
-    x.FilterOut = false
-    return x;
+function main(x) {
+   x.FilterOut = false
+   return x;
 }
 `,
 			FunName:           "filterIn",
@@ -234,7 +123,7 @@ function filterIn(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         "asdf",
@@ -243,17 +132,17 @@ function filterIn(x) {
 		},
 		{
 			Src: `
-function filterOut(x) {
-    if (Object.prototype.toString.call(x.Data) === '[object String]') {
-        return {
-            FilterOut: true,
-        };
-    }
+function main(x) {
+   if (Object.prototype.toString.call(x.Data) === '[object String]') {
+       return {
+           FilterOut: true,
+       };
+   }
 
-    return {
-        FilterOut: false,
-        Data: x.Data
-    };
+   return {
+       FilterOut: false,
+       Data: x.Data
+   };
 }
 `,
 			FunName:           "filterOut",
@@ -275,13 +164,13 @@ function filterOut(x) {
 		},
 		{
 			Src: `
-function jsonIdentity(x) {
-    var jsonObj = JSON.parse(x.Data);
-    var result = JSON.stringify(jsonObj);
+function main(x) {
+   var jsonObj = JSON.parse(x.Data);
+   var result = JSON.stringify(jsonObj);
 
-    return {
-        Data: result
-    };
+   return {
+       Data: result
+   };
 }
 `,
 			FunName:           "jsonIdentity",
@@ -298,7 +187,7 @@ function jsonIdentity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSON),
@@ -307,14 +196,14 @@ function jsonIdentity(x) {
 		},
 		{
 			Src: `
-function jsonTransformFieldNameRegex(x) {
-    var jsonObj = JSON.parse(x.Data);
+function main(x) {
+   var jsonObj = JSON.parse(x.Data);
 
-    if (jsonObj.hasOwnProperty("app_id")) {
-        x.Data = x.Data.replace(/app_id/, 'app_id_CHANGED');
-    }
+   if (jsonObj.hasOwnProperty("app_id")) {
+       x.Data = x.Data.replace(/app_id/, 'app_id_CHANGED');
+   }
 
-    return x;
+   return x;
 }
 `,
 			FunName:           "jsonTransformFieldNameRegex",
@@ -331,7 +220,7 @@ function jsonTransformFieldNameRegex(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSONChanged1),
@@ -340,17 +229,17 @@ function jsonTransformFieldNameRegex(x) {
 		},
 		{
 			Src: `
-function jsonTransformFieldNameObj(x) {
+function main(x) {
 
-    var jsonObj = JSON.parse(x.Data);
+   var jsonObj = JSON.parse(x.Data);
 
-    var descriptor = Object.getOwnPropertyDescriptor(jsonObj, "app_id");
-    Object.defineProperty(jsonObj, "app_id_CHANGED", descriptor);
-    delete jsonObj["app_id"];
+   var descriptor = Object.getOwnPropertyDescriptor(jsonObj, "app_id");
+   Object.defineProperty(jsonObj, "app_id_CHANGED", descriptor);
+   delete jsonObj["app_id"];
 
-    return {
-        Data: JSON.stringify(jsonObj)
-    };
+   return {
+       Data: JSON.stringify(jsonObj)
+   };
 }
 `,
 			FunName:           "jsonTransformFieldNameObj",
@@ -367,7 +256,7 @@ function jsonTransformFieldNameObj(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSONChanged2),
@@ -376,16 +265,16 @@ function jsonTransformFieldNameObj(x) {
 		},
 		{
 			Src: `
-function jsonFilterOut(x) {
-    var jsonObj = JSON.parse(x.Data);
+function main(x) {
+   var jsonObj = JSON.parse(x.Data);
 
-    if (jsonObj.hasOwnProperty("app_id") && jsonObj["app_id"] === "filterMeOut") {
-        x.FilterOut = false;
-    } else {
-        x.FilterOut = true;
-    }
+   if (jsonObj.hasOwnProperty("app_id") && jsonObj["app_id"] === "filterMeOut") {
+       x.FilterOut = false;
+   } else {
+       x.FilterOut = true;
+   }
 
-    return x;
+   return x;
 }
 `,
 			FunName:           "jsonFilterOut",
@@ -407,8 +296,8 @@ function jsonFilterOut(x) {
 		},
 		{
 			Src: `
-function returnWrongType(x) {
-    return 0;
+function main(x) {
+   return 0;
 }
 `,
 			FunName:           "returnWrongType",
@@ -430,7 +319,7 @@ function returnWrongType(x) {
 		},
 		{
 			Src: `
-function returnUndefined(x) {}
+function main(x) {}
 `,
 			FunName:           "returnUndefined",
 			DisableSourceMaps: true,
@@ -451,8 +340,8 @@ function returnUndefined(x) {}
 		},
 		{
 			Src: `
-function returnNull(x) {
-  return null;
+function main(x) {
+ return null;
 }
 `,
 			FunName:           "returnNull",
@@ -474,8 +363,8 @@ function returnNull(x) {
 		},
 		{
 			Src: `
-function causeRuntimeError(x) {
-    return x.toExponential(2);
+function main(x) {
+   return x.toExponential(2);
 }
 `,
 			FunName:           "causeRuntimeError",
@@ -493,12 +382,12 @@ function causeRuntimeError(x) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         fmt.Errorf("error running JavaScript function \"causeRuntimeError\""),
+			Error:         fmt.Errorf("error running JavaScript (engine test-engine) function \"main\""),
 		},
 		{
 			Src: `
-function callError(x) {
-    throw("Failed");
+function main(x) {
+   throw("Failed");
 }
 `,
 			FunName:           "callError",
@@ -516,14 +405,14 @@ function callError(x) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         fmt.Errorf("error running JavaScript function \"callError\""),
+			Error:         fmt.Errorf("error running JavaScript (engine test-engine) function \"main\""),
 		},
 		{
 			Src: `
-function sleepTenSecs(x) {
-    var now = new Date().getTime();
-    while(new Date().getTime() < now + 10000) {
-    }
+function main(x) {
+   var now = new Date().getTime();
+   while(new Date().getTime() < now + 10000) {
+   }
 }
 `,
 			FunName:           "sleepTenSecs",
@@ -551,8 +440,9 @@ function sleepTenSecs(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &jsEngineConfig{
+				Name:              "test-engine",
 				SourceB64:         src,
-				RunTimeout:        1,
+				RunTimeout:        5,
 				DisableSourceMaps: tt.DisableSourceMaps,
 				SpMode:            testSpMode,
 			}
@@ -563,11 +453,11 @@ function sleepTenSecs(x) {
 				t.Fatalf("function newJSEngine failed with error: %q", err.Error())
 			}
 
-			if err := jsEngine.SmokeTest(tt.FunName); err != nil {
+			if err := jsEngine.SmokeTest("main"); err != nil {
 				t.Fatalf("smoke-test failed with error: %q", err.Error())
 			}
 
-			transFunction := jsEngine.MakeFunction(tt.FunName)
+			transFunction := jsEngine.MakeFunction("main")
 			s, f, e, i := transFunction(tt.Input, testInterState)
 
 			if !reflect.DeepEqual(i, tt.ExpInterState) {
@@ -613,8 +503,8 @@ func TestJSEngineMakeFunction_SpModeTrue_IntermediateNil(t *testing.T) {
 		{
 			Scenario: "identity",
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -631,7 +521,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testJSMap,
@@ -641,15 +531,15 @@ function identity(x) {
 		{
 			Scenario: "filtering",
 			Src: `
-function filterOut(input) {
-    // input is an object
-    var spData = input.Data;
-    if (spData["app_id"] === "myApp") {
-        return input;
-    }
-    return {
-        FilterOut: true
-    };
+function main(input) {
+   // input is an object
+   var spData = input.Data;
+   if (spData["app_id"] === "myApp") {
+       return input;
+   }
+   return {
+       FilterOut: true
+   };
 }
 `,
 			FunName:           "filterOut",
@@ -672,12 +562,12 @@ function filterOut(input) {
 		{
 			Scenario: "filteringOut_ignoresData",
 			Src: `
-function filterOutIgnores(x) {
-    return {
-        FilterOut: true,
-        Data: "shouldNotAppear",
-        PartitionKey: "notThis"
-    };
+function main(x) {
+   return {
+       FilterOut: true,
+       Data: "shouldNotAppear",
+       PartitionKey: "notThis"
+   };
 }
 `,
 			FunName:           "filterOutIgnores",
@@ -700,8 +590,8 @@ function filterOutIgnores(x) {
 		{
 			Scenario: "non_Snowplow_enriched_to_failed",
 			Src: `
-function willNotRun(x) {
-   return x;
+function main(x) {
+  return x;
 }
 `,
 			FunName:           "willNotRun",
@@ -724,8 +614,8 @@ function willNotRun(x) {
 		{
 			Scenario: "return_wrong_type",
 			Src: `
-function returnWrongType(x) {
-    return 0;
+function main(x) {
+   return 0;
 }
 `,
 			FunName:           "returnWrongType",
@@ -753,8 +643,9 @@ function returnWrongType(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &jsEngineConfig{
+				Name:              "test-engine",
 				SourceB64:         src,
-				RunTimeout:        1,
+				RunTimeout:        5,
 				DisableSourceMaps: tt.DisableSourceMaps,
 				SpMode:            testSpMode,
 			}
@@ -765,11 +656,11 @@ function returnWrongType(x) {
 				t.Fatalf("function newJSEngine failed with error: %q", err.Error())
 			}
 
-			if err := jsEngine.SmokeTest(tt.FunName); err != nil {
+			if err := jsEngine.SmokeTest("main"); err != nil {
 				t.Fatalf("smoke-test failed with error: %q", err.Error())
 			}
 
-			transFunction := jsEngine.MakeFunction(tt.FunName)
+			transFunction := jsEngine.MakeFunction("main")
 			s, f, e, i := transFunction(tt.Input, testInterState)
 
 			if !reflect.DeepEqual(i, tt.ExpInterState) {
@@ -815,8 +706,8 @@ func TestJSEngineMakeFunction_IntermediateState_SpModeFalse(t *testing.T) {
 		{
 			Scenario: "intermediateState_EngineProtocol_Map",
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -825,7 +716,7 @@ function identity(x) {
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
 			},
-			InterState: &EngineProtocol{
+			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testJSMap,
@@ -838,7 +729,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testJSMap,
@@ -848,8 +739,8 @@ function identity(x) {
 		{
 			Scenario: "intermediateState_EngineProtocol_String",
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -858,7 +749,7 @@ function identity(x) {
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
 			},
-			InterState: &EngineProtocol{
+			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSON),
@@ -871,7 +762,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSON),
@@ -881,8 +772,8 @@ function identity(x) {
 		{
 			Scenario: "intermediateState_not_EngineProtocol_spMode_true",
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -900,7 +791,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSON),
@@ -910,8 +801,8 @@ function identity(x) {
 		{
 			Scenario: "intermediateState_not_EngineProtocol_spMode_false",
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -929,7 +820,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSON),
@@ -944,8 +835,9 @@ function identity(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &jsEngineConfig{
+				Name:              "test-engine",
 				SourceB64:         src,
-				RunTimeout:        1,
+				RunTimeout:        5,
 				DisableSourceMaps: tt.DisableSourceMaps,
 				SpMode:            testSpMode,
 			}
@@ -956,11 +848,11 @@ function identity(x) {
 				t.Fatalf("function newJSEngine failed with error: %q", err.Error())
 			}
 
-			if err := jsEngine.SmokeTest(tt.FunName); err != nil {
+			if err := jsEngine.SmokeTest("main"); err != nil {
 				t.Fatalf("smoke-test failed with error: %q", err.Error())
 			}
 
-			transFunction := jsEngine.MakeFunction(tt.FunName)
+			transFunction := jsEngine.MakeFunction("main")
 			s, f, e, i := transFunction(tt.Input, tt.InterState)
 
 			if !reflect.DeepEqual(i, tt.ExpInterState) {
@@ -1006,8 +898,8 @@ func TestJSEngineMakeFunction_IntermediateState_SpModeTrue(t *testing.T) {
 		{
 			Scenario: "intermediateState_EngineProtocol_Map",
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -1016,7 +908,7 @@ function identity(x) {
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
 			},
-			InterState: &EngineProtocol{
+			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testJSMap,
@@ -1029,7 +921,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testJSMap,
@@ -1039,8 +931,8 @@ function identity(x) {
 		{
 			Scenario: "intermediateState_EngineProtocol_String",
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -1049,7 +941,7 @@ function identity(x) {
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
 			},
-			InterState: &EngineProtocol{
+			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSON),
@@ -1062,7 +954,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         string(testJsJSON),
@@ -1072,8 +964,8 @@ function identity(x) {
 		{
 			Scenario: "intermediateState_notEngineProtocol_notSpEnriched",
 			Src: `
-function willNotRun(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "willNotRun",
@@ -1097,8 +989,8 @@ function willNotRun(x) {
 		{
 			Scenario: "intermediateState_notEngineProtocol_SpEnriched",
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -1116,7 +1008,7 @@ function identity(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         testJSMap,
@@ -1131,8 +1023,9 @@ function identity(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &jsEngineConfig{
+				Name:              "test-engine",
 				SourceB64:         src,
-				RunTimeout:        1,
+				RunTimeout:        5,
 				DisableSourceMaps: tt.DisableSourceMaps,
 				SpMode:            testSpMode,
 			}
@@ -1143,11 +1036,11 @@ function identity(x) {
 				t.Fatalf("function newJSEngine failed with error: %q", err.Error())
 			}
 
-			if err := jsEngine.SmokeTest(tt.FunName); err != nil {
+			if err := jsEngine.SmokeTest("main"); err != nil {
 				t.Fatalf("smoke-test failed with error: %q", err.Error())
 			}
 
-			transFunction := jsEngine.MakeFunction(tt.FunName)
+			transFunction := jsEngine.MakeFunction("main")
 			s, f, e, i := transFunction(tt.Input, tt.InterState)
 
 			if !reflect.DeepEqual(i, tt.ExpInterState) {
@@ -1193,9 +1086,9 @@ func TestJSEngineMakeFunction_SetPK(t *testing.T) {
 		{
 			Scenario: "onlySetPk_spModeTrue",
 			Src: `
-function onlySetPk(x) {
-    x.PartitionKey = "newPk";
-    return x;
+function main(x) {
+   x.PartitionKey = "newPk";
+   return x;
 }
 `,
 			FunName:           "onlySetPk",
@@ -1213,7 +1106,7 @@ function onlySetPk(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "newPk",
 				Data:         testJSMap,
@@ -1223,9 +1116,9 @@ function onlySetPk(x) {
 		{
 			Scenario: "onlySetPk_spModeFalse",
 			Src: `
-function onlySetPk(x) {
-    x.PartitionKey = "newPk";
-    return x;
+function main(x) {
+   x.PartitionKey = "newPk";
+   return x;
 }
 `,
 			FunName:           "onlySetPk",
@@ -1243,7 +1136,7 @@ function onlySetPk(x) {
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &EngineProtocol{
+			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "newPk",
 				Data:         string(testJsTsv),
@@ -1253,12 +1146,12 @@ function onlySetPk(x) {
 		{
 			Scenario: "filterOutIgnores",
 			Src: `
-function filterOutIgnores(x) {
-    return {
-        FilterOut: true,
-        Data: "shouldNotAppear",
-        PartitionKey: "notThis"
-    };
+function main(x) {
+   return {
+       FilterOut: true,
+       Data: "shouldNotAppear",
+       PartitionKey: "notThis"
+   };
 }
 `,
 			FunName:           "filterOutIgnores",
@@ -1287,8 +1180,9 @@ function filterOutIgnores(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &jsEngineConfig{
+				Name:              "test-engine",
 				SourceB64:         src,
-				RunTimeout:        1,
+				RunTimeout:        5,
 				DisableSourceMaps: tt.DisableSourceMaps,
 				SpMode:            tt.SpMode,
 			}
@@ -1299,11 +1193,11 @@ function filterOutIgnores(x) {
 				t.Fatalf("function newJSEngine failed with error: %q", err.Error())
 			}
 
-			if err := jsEngine.SmokeTest(tt.FunName); err != nil {
+			if err := jsEngine.SmokeTest("main"); err != nil {
 				t.Fatalf("smoke-test failed with error: %q", err.Error())
 			}
 
-			transFunction := jsEngine.MakeFunction(tt.FunName)
+			transFunction := jsEngine.MakeFunction("main")
 			s, f, e, i := transFunction(tt.Input, testInterState)
 
 			if !reflect.DeepEqual(i, tt.ExpInterState) {
@@ -1343,8 +1237,8 @@ func TestJSEngineSmokeTest(t *testing.T) {
 	}{
 		{
 			Src: `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `,
 			FunName:           "identity",
@@ -1354,8 +1248,8 @@ function identity(x) {
 		},
 		{
 			Src: `
-function notThisOne(x) {
-    return x;
+function notMain(x) {
+   return x;
 }
 `,
 			FunName:           "notExists",
@@ -1365,8 +1259,8 @@ function notThisOne(x) {
 		},
 		{
 			Src: `
-function syntaxError(x) {
-    loca y = 0;
+function main(x) {
+   local y = 0;
 }
 `,
 			FunName:           "syntaxError",
@@ -1382,8 +1276,9 @@ function syntaxError(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &jsEngineConfig{
+				Name:              "test-engine",
 				SourceB64:         src,
-				RunTimeout:        1,
+				RunTimeout:        5,
 				DisableSourceMaps: tt.DisableSourceMaps,
 			}
 
@@ -1402,7 +1297,7 @@ function syntaxError(x) {
 			} else {
 				assert.NotNil(jsEngine)
 
-				smoke := jsEngine.SmokeTest(tt.FunName)
+				smoke := jsEngine.SmokeTest("main")
 				expErr := tt.SmokeError
 				if smoke != nil {
 					if expErr == nil {
@@ -1422,277 +1317,12 @@ function syntaxError(x) {
 	}
 }
 
-func TestJSEngineWithBuiltinsSpModeFalse(t *testing.T) {
-	srcCode := `
-function identity(x) {
-    return x;
-}
-
-function setPk(x) {
-    x.PartitionKey = "testKey";
-    return x;
-}
-`
-	// JS
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
-	jsConfig := &jsEngineConfig{
-		SourceB64:  src,
-		RunTimeout: 1,
-		SpMode:     false,
-	}
-
-	jsEngine, err := newJSEngine(jsConfig)
-	if err != nil {
-		t.Fatalf("newJSEngine failed with error: %q", err)
-	}
-
-	if err := jsEngine.SmokeTest("identity"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
-	}
-	if err := jsEngine.SmokeTest("setPk"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
-	}
-
-	jsFuncID := jsEngine.MakeFunction("identity")
-	jsFuncPk := jsEngine.MakeFunction("setPk")
-
-	// Builtins
-	setPkToAppID := NewSpEnrichedSetPkFunction("app_id")
-	spEnrichedToJSON := SpEnrichedToJSON
-
-	testCases := []struct {
-		Name           string
-		Transformation TransformationApplyFunction
-		Input          []*models.Message
-		ExpectedGood   []*models.Message
-	}{
-		{
-			Name:  "identity0",
-			Input: messages,
-			Transformation: NewTransformation(
-				jsFuncID,
-				setPkToAppID,
-				spEnrichedToJSON,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         snowplowJSON1,
-					PartitionKey: "test-data1",
-				},
-				{
-					Data:         snowplowJSON2,
-					PartitionKey: "test-data2",
-				},
-				{
-					Data:         snowplowJSON3,
-					PartitionKey: "test-data3",
-				},
-			},
-		},
-		{
-			Name:  "identity2",
-			Input: messages,
-			Transformation: NewTransformation(
-				setPkToAppID,
-				spEnrichedToJSON,
-				jsFuncID,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         snowplowJSON1,
-					PartitionKey: "test-data1",
-				},
-				{
-					Data:         snowplowJSON2,
-					PartitionKey: "test-data2",
-				},
-				{
-					Data:         snowplowJSON3,
-					PartitionKey: "test-data3",
-				},
-			},
-		},
-		{
-			Name:  "setPk1",
-			Input: messages,
-			Transformation: NewTransformation(
-				setPkToAppID,
-				jsFuncPk,
-				spEnrichedToJSON,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         snowplowJSON1,
-					PartitionKey: "testKey",
-				},
-				{
-					Data:         snowplowJSON2,
-					PartitionKey: "testKey",
-				},
-				{
-					Data:         snowplowJSON3,
-					PartitionKey: "testKey",
-				},
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			result := tt.Transformation(tt.Input)
-			assert.NotNil(result)
-			assert.Equal(len(tt.ExpectedGood), len(result.Result))
-			for i, res := range result.Result {
-				if i < len(tt.ExpectedGood) {
-					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
-				}
-			}
-		})
-	}
-}
-
-func TestJSEngineWithBuiltinsSpModeTrue(t *testing.T) {
-	srcCode := `
-function identity(x) {
-    return x;
-}
-
-function setPk(x) {
-    x.PartitionKey = "testKey";
-    return x;
-}
-`
-	// JS
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
-	jsConfig := &jsEngineConfig{
-		SourceB64:  src,
-		RunTimeout: 1,
-		SpMode:     true,
-	}
-
-	jsEngine, err := newJSEngine(jsConfig)
-	if err != nil {
-		t.Fatalf("newJSEngine failed with error: %q", err)
-	}
-
-	if err := jsEngine.SmokeTest("identity"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
-	}
-	if err := jsEngine.SmokeTest("setPk"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
-	}
-
-	jsFuncID := jsEngine.MakeFunction("identity")
-	jsFuncPk := jsEngine.MakeFunction("setPk")
-
-	// Builtins
-	setPkToAppID := NewSpEnrichedSetPkFunction("app_id")
-	spEnrichedToJSON := SpEnrichedToJSON
-
-	testCases := []struct {
-		Name           string
-		Transformation TransformationApplyFunction
-		Input          []*models.Message
-		ExpectedGood   []*models.Message
-	}{
-		{
-			Name: "identity",
-			Input: []*models.Message{
-				{
-					Data:         testJsTsv,
-					PartitionKey: "prevKey",
-				},
-			},
-			Transformation: NewTransformation(
-				setPkToAppID,
-				spEnrichedToJSON,
-				jsFuncID,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         testJsJSON,
-					PartitionKey: "test-data<>",
-				},
-			},
-		},
-		{
-			Name: "setPk",
-			Input: []*models.Message{
-				{
-					Data:         testJsTsv,
-					PartitionKey: "prevKey",
-				},
-			},
-			Transformation: NewTransformation(
-				setPkToAppID,
-				jsFuncPk,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         testJsJSON,
-					PartitionKey: "testKey",
-				},
-			},
-		},
-		{
-			Name: "mix",
-			Input: []*models.Message{
-				{
-					Data:         testJsTsv,
-					PartitionKey: "prevKey",
-				},
-			},
-			Transformation: NewTransformation(
-				setPkToAppID,
-				jsFuncID,
-				jsFuncPk,
-				jsFuncID,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         testJsJSON,
-					PartitionKey: "testKey",
-				},
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			result := tt.Transformation(tt.Input)
-			assert.NotNil(result)
-			assert.Equal(len(tt.ExpectedGood), len(result.Result))
-			for i, res := range result.Result {
-				if i < len(tt.ExpectedGood) {
-					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
-				}
-			}
-		})
-	}
-}
-
 func Benchmark_JSEngine_Passthrough_DisabledSrcMaps(b *testing.B) {
 	b.ReportAllocs()
 
 	srcCode := `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
@@ -1702,6 +1332,7 @@ function identity(x) {
 	}
 
 	jsConfig := &jsEngineConfig{
+		Name:              "test-engine",
 		SourceB64:         src,
 		RunTimeout:        5,
 		DisableSourceMaps: true,
@@ -1724,8 +1355,8 @@ func Benchmark_JSEngine_Passthrough(b *testing.B) {
 	b.ReportAllocs()
 
 	srcCode := `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
@@ -1735,6 +1366,7 @@ function identity(x) {
 	}
 
 	jsConfig := &jsEngineConfig{
+		Name:              "test-engine",
 		SourceB64:         src,
 		RunTimeout:        5,
 		DisableSourceMaps: false,
@@ -1757,8 +1389,8 @@ func Benchmark_JSEngine_PassthroughSpMode(b *testing.B) {
 	b.ReportAllocs()
 
 	srcCode := `
-function identity(x) {
-    return x;
+function main(x) {
+   return x;
 }
 `
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
@@ -1768,6 +1400,7 @@ function identity(x) {
 	}
 
 	jsConfig := &jsEngineConfig{
+		Name:              "test-engine",
 		SourceB64:         src,
 		RunTimeout:        5,
 		DisableSourceMaps: false,
@@ -1790,13 +1423,13 @@ func Benchmark_JSEngine_Passthrough_JsJson(b *testing.B) {
 	b.ReportAllocs()
 
 	srcCode := `
-function jsonIdentity(x) {
-    var jsonObj = JSON.parse(x.Data);
-    var result = JSON.stringify(jsonObj);
+function main(x) {
+   var jsonObj = JSON.parse(x.Data);
+   var result = JSON.stringify(jsonObj);
 
-    return {
-        Data: result
-    };
+   return {
+       Data: result
+   };
 }
 `
 	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
@@ -1806,6 +1439,7 @@ function jsonIdentity(x) {
 	}
 
 	jsConfig := &jsEngineConfig{
+		Name:              "test-engine",
 		SourceB64:         src,
 		RunTimeout:        5,
 		DisableSourceMaps: false,
@@ -1822,19 +1456,6 @@ function jsonIdentity(x) {
 	for n := 0; n < b.N; n++ {
 		transFunction(inputMsg, nil)
 	}
-}
-
-// Test helpers
-func testJSEngineAdapter(f func(c *jsEngineConfig) (*jsEngineConfig, error)) jsEngineAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*jsEngineConfig)
-		if !ok {
-			return nil, fmt.Errorf("invalid input, expected jsEngineConfig")
-		}
-
-		return f(cfg)
-	}
-
 }
 
 func testJSEngineFunc(c *jsEngineConfig) (*jsEngineConfig, error) {
@@ -1928,6 +1549,7 @@ var testJSMap = map[string]interface{}{
 
 var testJsTsv = []byte(`test-data<>	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	1.2.3.4				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`)
 
+//
 // corresponding JSON to previous TSV
 var testJsJSON = []byte(`{"app_id":"test-data<>","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"1.2.3.4","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 

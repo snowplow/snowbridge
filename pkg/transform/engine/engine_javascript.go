@@ -4,10 +4,11 @@
 //
 // Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 
-package transform
+package engine
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,25 +18,69 @@ import (
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
 // jsEngineConfig configures the JavaScript Engine.
 type jsEngineConfig struct {
-	SourceB64         string `hcl:"source_b64" env:"TRANSFORMATION_JS_SOURCE_B64"`
+	Name              string `hcl:"name"`
+	SourceB64         string `hcl:"source_b64,optional"`
 	RunTimeout        int    `hcl:"timeout_sec,optional" env:"TRANSFORMATION_JS_TIMEOUT_SEC"`
 	DisableSourceMaps bool   `hcl:"disable_source_maps,optional" env:"TRANSFORMATION_JS_DISABLE_SOURCE_MAPS"`
 	SpMode            bool   `hcl:"snowplow_mode,optional" env:"TRANSFORMATION_JS_SNOWPLOW_MODE"`
 }
 
-// jsEngine handles the provision of a JavaScript runtime to run transformations.
-type jsEngine struct {
+// JSEngine handles the provision of a JavaScript runtime to run transformations.
+type JSEngine struct {
+	Name       string
 	Code       *goja.Program
 	RunTimeout time.Duration
 	SpMode     bool
 }
 
-// newJSEngine returns a JavaScript Engine from a jsEngineConfig.
-func newJSEngine(c *jsEngineConfig) (*jsEngine, error) {
+// The JSEngineAdapter type is an adapter for functions to be used as
+// pluggable components for a JS Engine. It implements the Pluggable interface.
+type JSEngineAdapter func(i interface{}) (interface{}, error)
+
+// ProvideDefault returns a jsEngineConfig with default configuration values
+func (f JSEngineAdapter) ProvideDefault() (interface{}, error) {
+	return &jsEngineConfig{
+		Name:              "",
+		RunTimeout:        15,
+		DisableSourceMaps: true,
+	}, nil
+}
+
+// Create implements the ComponentCreator interface.
+func (f JSEngineAdapter) Create(i interface{}) (interface{}, error) {
+	return f(i)
+}
+
+// JSEngineConfigFunction creates a JSEngine from a jsEngineConfig
+func JSEngineConfigFunction(c *jsEngineConfig) (*JSEngine, error) {
+	return newJSEngine(&jsEngineConfig{
+		Name:              c.Name,
+		SourceB64:         c.SourceB64,
+		RunTimeout:        c.RunTimeout,
+		DisableSourceMaps: c.DisableSourceMaps,
+		SpMode:            c.SpMode,
+	})
+}
+
+// AdaptJSEngineFunc returns an JSEngineAdapter.
+func AdaptJSEngineFunc(f func(c *jsEngineConfig) (*JSEngine, error)) JSEngineAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*jsEngineConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected jsEngineConfig")
+		}
+
+		return f(cfg)
+	}
+}
+
+// newJSEngine returns a JSEngine from a jsEngineConfig.
+func newJSEngine(c *jsEngineConfig) (*JSEngine, error) {
 	jsSrc, err := base64.StdEncoding.DecodeString(c.SourceB64)
 	if err != nil {
 		return nil, err
@@ -46,7 +91,8 @@ func newJSEngine(c *jsEngineConfig) (*jsEngine, error) {
 		return nil, err
 	}
 
-	eng := &jsEngine{
+	eng := &JSEngine{
+		Name:       c.Name,
 		Code:       compiledCode,
 		RunTimeout: time.Duration(c.RunTimeout) * time.Second,
 		SpMode:     c.SpMode,
@@ -55,52 +101,19 @@ func newJSEngine(c *jsEngineConfig) (*jsEngine, error) {
 	return eng, nil
 }
 
-// The jsEngineAdapter type is an adapter for functions to be used as
-// pluggable components for JavaScript Engine. Implements the Pluggable interface.
-type jsEngineAdapter func(i interface{}) (interface{}, error)
-
-// Create implements the ComponentCreator interface.
-func (f jsEngineAdapter) Create(i interface{}) (interface{}, error) {
-	return f(i)
+// GetName returns the engine's name
+func (e *JSEngine) GetName() string {
+	return e.Name
 }
 
-// ProvideDefault implements the ComponentConfigurable interface.
-func (f jsEngineAdapter) ProvideDefault() (interface{}, error) {
-	// Provide defaults for the optional parameters
-	// whose default is not their zero value.
-	cfg := &jsEngineConfig{
-		RunTimeout:        5,
-		DisableSourceMaps: true,
-	}
-
-	return cfg, nil
-}
-
-// adaptJSEngineFunc returns a jsEngineAdapter.
-func adaptJSEngineFunc(f func(c *jsEngineConfig) (*jsEngine, error)) jsEngineAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*jsEngineConfig)
-		if !ok {
-			return nil, fmt.Errorf("invalid input, expected jsEngineConfig")
-		}
-
-		return f(cfg)
-	}
-}
-
-// JSLayer returns the Pluggable transformation layer implemented in JavaScript.
-func JSLayer() interface{} {
-	return adaptJSEngineFunc(newJSEngine)
-}
-
-// SmokeTest implements SmokeTester.
-func (e *jsEngine) SmokeTest(funcName string) error {
+// SmokeTest implements smokeTester.
+func (e *JSEngine) SmokeTest(funcName string) error {
 	_, _, err := initRuntime(e, funcName)
 	return err
 }
 
-// MakeFunction implements FunctionMaker.
-func (e *jsEngine) MakeFunction(funcName string) TransformationFunction {
+// MakeFunction implements functionMaker.
+func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunction {
 
 	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 		// making input
@@ -127,7 +140,7 @@ func (e *jsEngine) MakeFunction(funcName string) TransformationFunction {
 
 		if err != nil {
 			// runtime error counts as failure
-			runErr := fmt.Errorf("error running JavaScript function %q: %q", funcName, err.Error())
+			runErr := fmt.Errorf("error running JavaScript (engine %s) function %q: %q", e.Name, funcName, err.Error())
 			message.SetError(runErr)
 			return nil, nil, message, nil
 		}
@@ -200,7 +213,7 @@ func compileJS(code, name string, disableSrcMaps bool) (*goja.Program, error) {
 }
 
 // initRuntime initializes and returns an instance of a JavaScript runtime.
-func initRuntime(e *jsEngine, funcName string) (*goja.Runtime, goja.Callable, error) {
+func initRuntime(e *JSEngine, funcName string) (*goja.Runtime, goja.Callable, error) {
 	// goja.New returns *goja.Runtime
 	vm := goja.New()
 	timer := time.AfterFunc(e.RunTimeout, func() {
@@ -222,14 +235,14 @@ func initRuntime(e *jsEngine, funcName string) (*goja.Runtime, goja.Callable, er
 
 // mkJSEngineInput describes the logic for constructing the input to JS engine.
 // No side effects.
-func mkJSEngineInput(e *jsEngine, message *models.Message, interState interface{}) (*EngineProtocol, error) {
+func mkJSEngineInput(e *JSEngine, message *models.Message, interState interface{}) (*engineProtocol, error) {
 	if interState != nil {
-		if i, ok := interState.(*EngineProtocol); ok {
+		if i, ok := interState.(*engineProtocol); ok {
 			return i, nil
 		}
 	}
 
-	candidate := &EngineProtocol{
+	candidate := &engineProtocol{
 		Data: string(message.Data),
 	}
 
@@ -237,7 +250,7 @@ func mkJSEngineInput(e *jsEngine, message *models.Message, interState interface{
 		return candidate, nil
 	}
 
-	parsedMessage, err := intermediateAsSpEnrichedParsed(interState, message)
+	parsedMessage, err := transform.IntermediateAsSpEnrichedParsed(interState, message)
 	if err != nil {
 		// if spMode, error for non Snowplow enriched event data
 		return nil, err
@@ -253,12 +266,12 @@ func mkJSEngineInput(e *jsEngine, message *models.Message, interState interface{
 }
 
 // validateJSEngineOut validates the value returned by the js engine.
-func validateJSEngineOut(output interface{}) (*EngineProtocol, error) {
+func validateJSEngineOut(output interface{}) (*engineProtocol, error) {
 	if output == nil {
 		return nil, fmt.Errorf("invalid return type from JavaScript transformation; got null or undefined")
 	}
 
-	if out, ok := output.(*EngineProtocol); ok {
+	if out, ok := output.(*engineProtocol); ok {
 		return out, nil
 	}
 
@@ -267,7 +280,7 @@ func validateJSEngineOut(output interface{}) (*EngineProtocol, error) {
 		return nil, fmt.Errorf("invalid return type from JavaScript transformation")
 	}
 
-	result := &EngineProtocol{}
+	result := &engineProtocol{}
 	err := mapstructure.Decode(outMap, result)
 	if err != nil {
 		return nil, fmt.Errorf("protocol violation in return value from JavaScript transformation")
