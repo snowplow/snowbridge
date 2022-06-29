@@ -23,8 +23,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// TODO: Issue here is the port is wrong. Change 'Host' to 'port'.
-
 // InitMockPubsubServer creates a mock PubSub Server for testing
 func InitMockPubsubServer(port int, opts []pstest.ServerReactorOption) (*pstest.Server, *grpc.ClientConn) {
 	os.Setenv("PUBSUB_PROJECT_ID", `project-test`)

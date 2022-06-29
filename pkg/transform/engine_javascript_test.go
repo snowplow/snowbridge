@@ -1835,7 +1835,7 @@ func testJSEngineFunc(c *jsEngineConfig) (*jsEngineConfig, error) {
 
 // Helper function to compare messages and avoid using reflect.DeepEqual
 // on errors. Compares all but the error field of messages.
-func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJson bool) {
+func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJSON bool) {
 	t.Helper()
 
 	ok := false
@@ -1846,7 +1846,7 @@ func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJson bool
 	default:
 		var dataOk bool
 		pkOk := act.PartitionKey == exp.PartitionKey
-		if isJson {
+		if isJSON {
 			dataOk = assert.JSONEq(t, string(exp.Data), string(act.Data))
 		} else {
 			dataOk = reflect.DeepEqual(act.Data, exp.Data)
