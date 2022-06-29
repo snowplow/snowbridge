@@ -41,7 +41,7 @@ func TestGetGCPServiceAccountFromBase64_NotBase64(t *testing.T) {
 
 	path, err := GetGCPServiceAccountFromBase64("helloworld")
 
-	assert.Equal(path, "")
+	assert.Equal("", path)
 	assert.NotNil(err)
 	assert.True(strings.HasPrefix(err.Error(), "Failed to Base64 decode"))
 }
@@ -99,8 +99,8 @@ func TestCreateTLSConfiguration(t *testing.T) {
 	}
 
 	assert.Nil(err)
-	assert.Equal(len(files), 3)
-	assert.Equal(files[0].Name(), `kafka.crt`)
+	assert.Equal(3, len(files))
+	assert.Equal(`kafka.crt`, files[0].Name())
 	f, err := os.ReadFile(`tmp_replicator/tls/kafka/kafka.crt`)
 
 	assert.Nil(err)
@@ -128,7 +128,7 @@ func TestCreateTLSConfiguration_DirExists(t *testing.T) {
 	}
 
 	assert.Error(err)
-	assert.Equal(len(files), 0)
+	assert.Equal(0, len(files))
 
 	os.RemoveAll(`tmp_replicator`)
 }
@@ -142,7 +142,7 @@ func TestCreateTLSConfiguration_NotB64(t *testing.T) {
 	}
 
 	assert.True(strings.HasPrefix(err.Error(), `Failed to Base64 decode for creating file `))
-	assert.Equal(len(files), 0)
+	assert.Equal(0, len(files))
 
 	os.RemoveAll(`tmp_replicator`)
 }

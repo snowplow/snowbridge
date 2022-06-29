@@ -129,7 +129,7 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	for index, value := range enrichJSONRes.Result {
 		assert.Equal(expectedGood[index].Data, value.Data)
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
-		assert.NotNil(expectedGood[index].TimeTransformed)
+		assert.NotNil(expectedGood[index].TimeTransformed) // TODO: Is this a bug? looks like we're asserting against the expected?
 
 		// assertions to ensure we don't accidentally modify the input
 		assert.NotEqual(messages[index].Data, value.Data)

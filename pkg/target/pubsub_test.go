@@ -48,9 +48,9 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 
 	result, err := pubsubTarget.Write(messages)
 
-	assert.Equal(result.Total(), int64(10))
-	assert.Equal(result.Failed, []*models.Message(nil))
-	assert.Equal(result.Oversized, []*models.Message(nil))
+	assert.Equal(int64(10), result.Total())
+	assert.Equal([]*models.Message(nil), result.Failed)
+	assert.Equal([]*models.Message(nil), result.Oversized)
 
 	assert.Nil(err)
 	// TODO: Grab from pubsub and check results
@@ -98,8 +98,8 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 
 	result, err := pubsubTarget.Write(messages)
 
-	assert.Equal(result.Total(), int64(1))
-	assert.Equal(len(result.Invalid), 1)
+	assert.Equal(int64(1), result.Total())
+	assert.Equal(1, len(result.Invalid))
 
 	assert.Nil(err)
 }
