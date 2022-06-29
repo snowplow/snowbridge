@@ -34,7 +34,6 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	// Single value cases
 	aidFilterFuncKeep, _ := NewSpEnrichedFilterFunction("app_id==test-data3")
 
-	// TODO: sort out numbering for fail cases...
 	aidKeepIn, aidKeepOut, fail, _ := aidFilterFuncKeep(&messageGood, nil)
 
 	assert.Equal(snowplowTsv3, aidKeepIn.Data)
