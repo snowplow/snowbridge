@@ -34,7 +34,8 @@ func TestSpEnrichedToJson(t *testing.T) {
 	// Simple success case
 	transformSuccess, _, failure, intermediate := SpEnrichedToJSON(&messageGood, nil)
 
-	assert.Equal(&expectedGood, transformSuccess)
+	assert.Equal(expectedGood.PartitionKey, transformSuccess.PartitionKey)
+	assert.JSONEq(string(expectedGood.Data), string(transformSuccess.Data))
 	assert.Equal(spTsv1Parsed, intermediate)
 	assert.Nil(failure)
 
@@ -64,7 +65,8 @@ func TestSpEnrichedToJson(t *testing.T) {
 	// When we have some incompatible IntermediateState, expected behaviour is to replace it with this transformation's IntermediateState
 	transformSuccess2, _, failure2, intermediate2 := SpEnrichedToJSON(&incompatibleIntermediateMessage, incompatibleIntermediate)
 
-	assert.Equal(&expectedGood, transformSuccess2)
+	assert.Equal(expectedGood.PartitionKey, transformSuccess2.PartitionKey)
+	assert.JSONEq(string(expectedGood.Data), string(transformSuccess2.Data))
 	assert.Equal(spTsv1Parsed, intermediate2)
 	assert.Nil(failure2)
 }

@@ -1464,11 +1464,7 @@ end
 			assert.NotNil(result)
 			for i, res := range result.Result {
 				exp := expectedGood[i]
-				if !reflect.DeepEqual(res.Data, exp.Data) {
-					t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-						spew.Sdump(res.Data),
-						spew.Sdump(exp.Data))
-				}
+				assert.JSONEq(string(exp.Data), string(res.Data))
 				assert.Equal(exp.PartitionKey, res.PartitionKey)
 
 			}
@@ -1603,11 +1599,7 @@ end
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
+					assert.JSONEq(string(exp.Data), string(res.Data))
 					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
@@ -1732,11 +1724,7 @@ end
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
-						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-							spew.Sdump(res.Data),
-							spew.Sdump(exp.Data))
-					}
+					assert.JSONEq(string(exp.Data), string(res.Data))
 					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
