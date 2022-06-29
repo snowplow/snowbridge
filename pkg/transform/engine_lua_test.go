@@ -1469,7 +1469,7 @@ end
 						spew.Sdump(res.Data),
 						spew.Sdump(exp.Data))
 				}
-				assert.Equal(res.PartitionKey, exp.PartitionKey)
+				assert.Equal(exp.PartitionKey, res.PartitionKey)
 
 			}
 		})
@@ -1608,7 +1608,7 @@ end
 							spew.Sdump(res.Data),
 							spew.Sdump(exp.Data))
 					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
+					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
 		})
@@ -1737,7 +1737,7 @@ end
 							spew.Sdump(res.Data),
 							spew.Sdump(exp.Data))
 					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
+					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
 		})

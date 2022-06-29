@@ -209,16 +209,16 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	assert.Equal(c.Data.Source.Use.Name, "stdin")
-	assert.Equal(c.Data.Target.Use.Name, "stdout")
-	assert.Equal(c.Data.FailureTarget.Target.Name, "stdout")
-	assert.Equal(c.Data.FailureTarget.Format, "snowplow")
-	assert.Equal(c.Data.Sentry.Tags, "{}")
-	assert.Equal(c.Data.Sentry.Debug, false)
-	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
-	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
-	assert.Equal(c.Data.Transform.Message, "none")
-	assert.Equal(c.Data.LogLevel, "info")
+	assert.Equal("stdin", c.Data.Source.Use.Name)
+	assert.Equal("stdout", c.Data.Target.Use.Name)
+	assert.Equal("stdout", c.Data.FailureTarget.Target.Name)
+	assert.Equal("snowplow", c.Data.FailureTarget.Format)
+	assert.Equal("{}", c.Data.Sentry.Tags)
+	assert.Equal(false, c.Data.Sentry.Debug)
+	assert.Equal(1, c.Data.StatsReceiver.TimeoutSec)
+	assert.Equal(15, c.Data.StatsReceiver.BufferSec)
+	assert.Equal("none", c.Data.Transform.Message)
+	assert.Equal("info", c.Data.LogLevel)
 }
 
 func TestNewConfig_Hcl_sentry(t *testing.T) {
@@ -233,9 +233,9 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	assert.Equal(c.Data.Sentry.Debug, true)
-	assert.Equal(c.Data.Sentry.Tags, "{\"testKey\":\"testValue\"}")
-	assert.Equal(c.Data.Sentry.Dsn, "testDsn")
+	assert.Equal(true, c.Data.Sentry.Debug)
+	assert.Equal("{\"testKey\":\"testValue\"}", c.Data.Sentry.Tags)
+	assert.Equal("testDsn", c.Data.Sentry.Dsn)
 }
 
 func TestDefaultTransformation(t *testing.T) {

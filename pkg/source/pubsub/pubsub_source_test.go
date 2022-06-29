@@ -50,7 +50,7 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
 	output := testutil.ReadAndReturnMessages(pubsubSource, 5*time.Second, testutil.DefaultTestWriteBuilder, nil)
-	assert.Equal(len(output), 10)
+	assert.Equal(10, len(output))
 	for _, message := range output {
 		assert.Contains(string(message.Data), `message #`)
 		assert.Nil(message.GetError())
@@ -123,7 +123,7 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
 	output := testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
-	assert.Equal(len(output), 10)
+	assert.Equal(10, len(output))
 
 	// Check that we got exactly the 10 messages we want, with no duplicates
 	msgDatas := make([]string, 0)
@@ -175,7 +175,7 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
 	output := testutil.ReadAndReturnMessages(pubsubSource, 5*time.Second, testutil.DelayedAckTestWriteBuilder, 2*time.Second)
-	assert.Equal(len(output), 10)
+	assert.Equal(10, len(output))
 
 	// Check that we got exactly the 10 messages we want, with no duplicates
 	msgDatas := make([]string, 0)
@@ -186,5 +186,3 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 	sort.Strings(msgDatas)
 	assert.Equal(expected, msgDatas)
 }
-
-// TODO: Debug why these last two tests are failing now.

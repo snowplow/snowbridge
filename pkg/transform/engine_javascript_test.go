@@ -1547,12 +1547,12 @@ function setPk(x) {
 			for i, res := range result.Result {
 				if i < len(tt.ExpectedGood) {
 					exp := tt.ExpectedGood[i]
-					if !reflect.DeepEqual(res.Data, exp.Data) {
+					if !reflect.DeepEqual(exp.Data, res.Data) {
 						t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
 							spew.Sdump(res.Data),
 							spew.Sdump(exp.Data))
 					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
+					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
 		})
@@ -1680,7 +1680,7 @@ function setPk(x) {
 							spew.Sdump(res.Data),
 							spew.Sdump(exp.Data))
 					}
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
+					assert.Equal(exp.PartitionKey, res.PartitionKey)
 				}
 			}
 		})

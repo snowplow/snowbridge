@@ -172,7 +172,7 @@ func TestGetTransformations_MissingLayerConfig(t *testing.T) {
 				t.Fatalf("function NewConfig failed with error: %q", err.Error())
 			}
 
-			assert.Equal(c.Data.Transform.Message, tt.TransMessage)
+			assert.Equal(tt.TransMessage, c.Data.Transform.Message)
 
 			transformation, err := GetTransformations(c)
 			assert.Nil(transformation)

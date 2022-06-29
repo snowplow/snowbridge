@@ -14,6 +14,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
+// TODO: Refactor to provide a means to test errors without panicing
+
 // ReadAndReturnMessages takes a source, runs the read function, and outputs all messages found in a slice, against which we may run assertions.
 // The testWriteBuilder argument allows the test implementation to provide a write function builder,
 // and the additionalOpts argument allows one to pass arguments to that builder
