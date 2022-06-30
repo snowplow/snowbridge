@@ -26,7 +26,7 @@ func ReadAndReturnMessages(source sourceiface.Source, timeToWait time.Duration, 
 	msgRecieved := make(chan *models.Message)
 	// run the read function in a goroutine, so that we can close it after a timeout
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: DefaultTestWriteBuilder(source, msgRecieved, additionalOpts),
+		WriteToTarget: testWriteBuilder(source, msgRecieved, additionalOpts),
 	}
 	go runRead(hitError, source, &sf)
 
