@@ -399,8 +399,8 @@ func TestNewEventHubTarget_ConnString(t *testing.T) {
 	assert.NotNil(tgt)
 }
 
-// TestNewEventHubTarget_ConnString tests that we fail on startup when we're not provided with appropriate credential values.
-func TestNewEventHubTarget_Failure(t *testing.T) {
+// TestNewEventHubTarget_CredentialsNotFound tests that we fail on startup when we're not provided with appropriate credential values.
+func TestNewEventHubTarget_CredentialsNotFound(t *testing.T) {
 	assert := assert.New(t)
 
 	os.Clearenv()
@@ -409,3 +409,21 @@ func TestNewEventHubTarget_Failure(t *testing.T) {
 	assert.Equal("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment", err.Error())
 	assert.Nil(tgt)
 }
+
+// NewEventHubTarget should fail if we can't reach EventHub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
+// Note that when we do so, the above tests will need to be changed to use some kind of mock
+/*
+func TestNewEventHubTarget_Failure(t *testing.T) {
+	assert := assert.New(t)
+
+	os.Clearenv()
+
+	// Test that we can initialise a client with Key and Value
+	t.Setenv("EVENTHUB_KEY_NAME", "fake")
+	t.Setenv("EVENTHUB_KEY_VALUE", "fake")
+
+	tgt, err := NewEventHubTarget(&cfg)
+	assert.NotNil(err)
+	assert.Nil(tgt)
+}
+*/

@@ -57,32 +57,37 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 }
 
-// GetSource should fail if we can't reach PubSub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
+// newPubSubSource_Failure should fail if we can't reach PubSub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
 /*
-func TestGetSource_Failure(t *testing.T) {
+func TestNewPubSubSource_Failure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 	assert := assert.New(t)
 
-	t.Setenv("SOURCE_NAME", "pubsub")
-	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "not-exists")
-	t.Setenv("SOURCE_PUBSUB_PROJECT_ID",  `project-test`)
-
-	adaptedHandle := adapterGenerator(configFunction)
-
-	pubsubSourceConfigPair := sourceconfig.ConfigPair{Name: "pubsub", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{pubsubSourceConfigPair}
-
-	pubsubConfig, err := config.NewConfig()
-	assert.NotNil(pubsubConfig)
-	assert.Nil(err)
-
-	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
+	pubsubSource, err := newPubSubSource(10, "nonexistent-project", "nonexistent-subscription")
+	// sourceconfig.GetSource(pubsubConfig, supportedSources)
 	assert.NotNil(err)
+	assert.Nil(pubsubSource)
 	// This should return an error when we can't connect, rather than proceeding to the Write() function before we hit a problem.
 }
 */
+
+// TestNewPubSubSource_Success tests the typical case of creating a new pubsub source.
+func TestNewPubSubSource_Success(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+	assert := assert.New(t)
+
+	testutil.InitMockPubsubServer(8010, nil)
+
+	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub")
+	// sourceconfig.GetSource(pubsubConfig, supportedSources)
+	assert.Nil(err)
+	assert.IsType(&pubSubSource{}, pubsubSource)
+	// This should return an error when we can't connect, rather than proceeding to the Write() function before we hit a problem.
+}
 
 func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	assert := assert.New(t)
