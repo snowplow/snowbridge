@@ -27,16 +27,16 @@ target {
     basic_auth_password        = env.MY_AUTH_PASSWORD
 
     # The optional certificate file for client authentication
-    cert_file                  = "myLocalhost.crt"
+    tls_cert                  = "dGVzdCBzdHJpbmc="
 
     # The optional key file for client authentication
-    key_file                   = "MyLocalhost.key"
+    tls_key                   = "c29tZSBzdHJpbmc="
 
     # The optional certificate authority file for TLS client authentication
-    ca_file                    = "myRootCA.crt"
+    tls_ca                    = "b3RoZXIgc3RyaW5ncw=="
 
     # Whether to skip verifying ssl certificates chain (default: false)
-    # If cert_file and key_file are not provided, this setting is not applied.
+    # If tls_cert and tls_key are not provided, this setting is not applied.
     skip_verify_tls            = true
   }
 }

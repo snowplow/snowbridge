@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -18,7 +19,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+)
+
+const (
+	httpTarget = `http_target`
 )
 
 // HTTPTargetConfig configures the destination for records consumed
@@ -30,9 +36,9 @@ type HTTPTargetConfig struct {
 	Headers                 string `hcl:"headers,optional" env:"TARGET_HTTP_HEADERS" `
 	BasicAuthUsername       string `hcl:"basic_auth_username,optional" env:"TARGET_HTTP_BASICAUTH_USERNAME"`
 	BasicAuthPassword       string `hcl:"basic_auth_password,optional" env:"TARGET_HTTP_BASICAUTH_PASSWORD"`
-	CertFile                string `hcl:"cert_file,optional" env:"TARGET_HTTP_TLS_CERT_FILE"`
-	KeyFile                 string `hcl:"key_file,optional" env:"TARGET_HTTP_TLS_KEY_FILE"`
-	CaFile                  string `hcl:"ca_file,optional" env:"TARGET_HTTP_TLS_CA_FILE"`
+	TLSCert                 string `hcl:"tls_cert,optional" env:"TARGET_HTTP_TLS_CERT_B64"`
+	TLSKey                  string `hcl:"tls_key,optional" env:"TARGET_HTTP_TLS_KEY_B64"`
+	TLSCa                   string `hcl:"tls_ca,optional" env:"TARGET_HTTP_TLS_CA_B64"`
 	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional" env:"TARGET_HTTP_TLS_SKIP_VERIFY_TLS"` // false
 }
 
@@ -96,11 +102,16 @@ func NewHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 	if err1 != nil {
 		return nil, err1
 	}
-	tlsConfig, err2 := CreateTLSConfiguration(certFile, keyFile, caFile, skipVerifyTLS)
+	transport := &http.Transport{}
+
+	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, httpTarget, skipVerifyTLS)
 	if err2 != nil {
 		return nil, err2
 	}
-	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	if tlsConfig != nil {
+		transport.TLSClientConfig = tlsConfig
+	}
+	
 	return &HTTPTarget{
 		client: &http.Client{
 			Transport: transport,
@@ -126,9 +137,9 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.Headers,
 		c.BasicAuthUsername,
 		c.BasicAuthPassword,
-		c.CertFile,
-		c.KeyFile,
-		c.CaFile,
+		c.TLSCert,
+		c.TLSKey,
+		c.TLSCa,
 		c.SkipVerifyTLS,
 	)
 }

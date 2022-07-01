@@ -44,6 +44,7 @@ func TestNewConfig(t *testing.T) {
 	observer, err := c.GetObserver(map[string]string{})
 	assert.NotNil(observer)
 	assert.Nil(err)
+	os.RemoveAll(`tmp_replicator`)
 }
 
 func TestNewConfig_FromEnv(t *testing.T) {
