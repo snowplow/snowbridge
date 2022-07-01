@@ -7,8 +7,11 @@
 package common
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
@@ -26,25 +29,47 @@ import (
 // and attempt to create a JSON file on disk within the /tmp directory
 // for later use in creating GCP clients.
 func GetGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
-	sDec, err := base64.StdEncoding.DecodeString(serviceAccountB64)
+	targetFile := fmt.Sprintf(`tmp_replicator/stream-replicator-service-account-%s.json`, uuid.NewV4().String())
+	err := DecodeB64ToFile(serviceAccountB64, targetFile)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to Base64 decode service account")
+		return ``, err
 	}
-
-	targetFile := fmt.Sprintf("/tmp/stream-replicator-service-account-%s.json", uuid.NewV4().String())
-
-	f, err := os.Create(targetFile)
-	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("Failed to create target file '%s' for service account", targetFile))
-	}
-	defer f.Close()
-
-	_, err2 := f.WriteString(string(sDec))
-	if err2 != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("Failed to write decoded service account to target file '%s'", targetFile))
-	}
-
 	return targetFile, nil
+}
+
+// DeleteTemporaryDir deletes the temp directory we created to store credentials
+func DeleteTemporaryDir() error {
+	err := os.RemoveAll(`tmp_replicator`)
+	return err
+}
+
+// DecodeB64ToFile takes a B64-encoded credential, decodes it, and writes it to a file
+func DecodeB64ToFile(b64String, filename string) error {
+	tls, decodeErr := base64.StdEncoding.DecodeString(b64String)
+	if decodeErr != nil {
+		return errors.Wrap(decodeErr, "Failed to Base64 decode for creating file "+filename)
+	}
+
+	err := createTempDir(`tmp_replicator`)
+	if err != nil {
+		return err
+	}
+
+	f, createErr := os.Create(filename)
+	if createErr != nil {
+		return errors.Wrap(createErr, fmt.Sprintf("Failed to create file '%s'", filename))
+	}
+
+	_, writeErr := f.WriteString(string(tls))
+	if writeErr != nil {
+		return errors.Wrap(decodeErr, fmt.Sprintf("Failed to write decoded base64 string to target file '%s'", filename))
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetAWSSession is a general tool to handle generating an AWS session
@@ -86,4 +111,48 @@ func GetAverageFromDuration(sum time.Duration, total int64) time.Duration {
 		return time.Duration(int64(sum)/total) * time.Nanosecond
 	}
 	return time.Duration(0)
+}
+
+func createTempDir(dirName string) error {
+	dir, statErr := os.Stat(dirName)
+	if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+		return errors.Wrap(statErr, fmt.Sprintf("Failed checking for existence of %s dir", dirName))
+	}
+
+	if dir == nil {
+		dirErr := os.Mkdir(dirName, 0700)
+		if dirErr != nil && !errors.Is(dirErr, os.ErrExist) {
+			return errors.Wrap(dirErr, fmt.Sprintf("Failed to create %s directory", dirName))
+		}
+	}
+	return nil
+}
+
+// CreateTLSConfiguration creates a TLS configuration for use in a target
+func CreateTLSConfiguration(certFile string, keyFile string, caFile string, skipVerify bool) (*tls.Config, error) {
+	if certFile == "" || keyFile == "" {
+		return nil, nil
+	}
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	caCert, err := ioutil.ReadFile(caFile)
+	if err != nil {
+		return nil, err
+	}
+
+	caCertPool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, err
+	}
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	return &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+		InsecureSkipVerify: skipVerify,
+	}, nil
 }

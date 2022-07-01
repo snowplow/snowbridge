@@ -7,6 +7,8 @@
 package common
 
 import (
+	"crypto/tls"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -14,16 +16,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	os.Clearenv()
+}
+
 // --- Cloud Helpers
 
 func TestGetGCPServiceAccountFromBase64(t *testing.T) {
 	assert := assert.New(t)
+	defer DeleteTemporaryDir()
 
 	path, err := GetGCPServiceAccountFromBase64("ewogICJoZWxsbyI6IndvcmxkIgp9")
 
 	assert.NotEqual(path, "")
 	assert.Nil(err)
-	assert.True(strings.HasPrefix(path, "/tmp/stream-replicator-service-account-"))
+	assert.True(strings.HasPrefix(path, "tmp_replicator/stream-replicator-service-account-"))
 	assert.True(strings.HasSuffix(path, ".json"))
 }
 
@@ -34,12 +41,13 @@ func TestGetGCPServiceAccountFromBase64_NotBase64(t *testing.T) {
 
 	assert.Equal(path, "")
 	assert.NotNil(err)
-	assert.True(strings.HasPrefix(err.Error(), "Failed to Base64 decode service account: "))
+	assert.True(strings.HasPrefix(err.Error(), "Failed to Base64 decode"))
 }
 
 func TestGetAWSSession(t *testing.T) {
 	assert := assert.New(t)
 
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", "")
 	sess, cfg, accID, err := GetAWSSession("us-east-1", "")
 	assert.NotNil(sess)
 	assert.Nil(cfg)
@@ -63,4 +71,13 @@ func TestGetAverageFromDuration(t *testing.T) {
 
 	duration2 := GetAverageFromDuration(time.Duration(10)*time.Second, 2)
 	assert.Equal(time.Duration(5)*time.Second, duration2)
+}
+
+func TestCreateTLSConfiguration(t *testing.T) {
+	assert := assert.New(t)
+
+	conf, err := CreateTLSConfiguration(`../../integration/http/localhost.crt`, `../../integration/http/localhost.key`, `../../integration/http/rootCA.crt`, false)
+
+	assert.Nil(err)
+	assert.IsType(tls.Config{}, *conf)
 }

@@ -36,7 +36,7 @@ target {
     ca_file                    = "myRootCA.crt"
 
     # Whether to skip verifying ssl certificates chain (default: false)
-    # If cert_file and key_file are not provided, this setting is not applied.
+    # If tls_cert and tls_key are not provided, this setting is not applied.
     skip_verify_tls            = true
   }
 }
