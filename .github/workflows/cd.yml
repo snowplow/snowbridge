@@ -18,13 +18,13 @@ jobs:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
     - name: Install Go
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
-
-    - name: Checkout code
-      uses: actions/checkout@v2
 
     - name: Cache go modules
       uses: actions/cache@v2
