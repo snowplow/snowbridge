@@ -8,6 +8,7 @@ package config
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -18,6 +19,10 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 )
+
+func init() {
+	os.Clearenv()
+}
 
 func TestCreateTargetComponentHCL(t *testing.T) {
 	testCases := []struct {
@@ -90,9 +95,9 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				Headers:                 "{\"Accept-Language\":\"en-US\"}",
 				BasicAuthUsername:       "testUsername",
 				BasicAuthPassword:       "testPass",
-				CertFile:                "test.cert",
-				KeyFile:                 "test.key",
-				CaFile:                  "test.ca",
+				CertFile:                "myLocalhost.crt",
+				KeyFile:                 "MyLocalhost.key",
+				CaFile:                  "myRootCA.crt",
 				SkipVerifyTLS:           true,
 			},
 		},
@@ -138,9 +143,9 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				SASLUsername:   "testUsername",
 				SASLPassword:   "testPass",
 				SASLAlgorithm:  "sha256",
-				CertFile:       "test.cert",
-				KeyFile:        "test.key",
-				CaFile:         "test.ca",
+				CertFile:       "myLocalhost.crt",
+				KeyFile:        "MyLocalhost.key",
+				CaFile:         "myRootCA.crt",
 				SkipVerifyTLS:  true,
 				ForceSync:      true,
 				FlushFrequency: 2,
@@ -217,9 +222,9 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 			SASLUsername:   "testUsername",
 			SASLPassword:   "testPass",
 			SASLAlgorithm:  "sha256",
-			CertFile:       "test.cert",
-			KeyFile:        "test.key",
-			CaFile:         "test.ca",
+			CertFile:       "test/certfile.crt",
+			KeyFile:        "test/keyfile.key",
+			CaFile:         "test/cafile.crt",
 			SkipVerifyTLS:  true,
 			ForceSync:      true,
 			FlushFrequency: 2,
@@ -230,7 +235,7 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 
 	t.Run(testCase.Name, func(t *testing.T) {
 		assert := assert.New(t)
-
+		t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", "")
 		t.Setenv("FAILURE_TARGET_NAME", "kafka")
 		t.Setenv("FAILURE_TARGET_KAFKA_BROKERS", "testBrokers")
 		t.Setenv("FAILURE_TARGET_KAFKA_TOPIC_NAME", "testTopic")
@@ -244,9 +249,9 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 		t.Setenv("FAILURE_TARGET_KAFKA_SASL_USERNAME", "testUsername")
 		t.Setenv("FAILURE_TARGET_KAFKA_SASL_PASSWORD", "testPass")
 		t.Setenv("FAILURE_TARGET_KAFKA_SASL_ALGORITHM", "sha256")
-		t.Setenv("FAILURE_TARGET_KAFKA_TLS_CERT_FILE", "test.cert")
-		t.Setenv("FAILURE_TARGET_KAFKA_TLS_KEY_FILE", "test.key")
-		t.Setenv("FAILURE_TARGET_KAFKA_TLS_CA_FILE", "test.ca")
+		t.Setenv("FAILURE_TARGET_KAFKA_TLS_CERT_FILE", "test/certfile.crt")
+		t.Setenv("FAILURE_TARGET_KAFKA_TLS_KEY_FILE", "test/keyfile.key")
+		t.Setenv("FAILURE_TARGET_KAFKA_TLS_CA_FILE", "test/cafile.crt")
 		t.Setenv("FAILURE_TARGET_KAFKA_TLS_SKIP_VERIFY_TLS", "true")
 		t.Setenv("FAILURE_TARGET_KAFKA_FORCE_SYNC_PRODUCER", "true")
 		t.Setenv("FAILURE_TARGET_KAFKA_FLUSH_FREQUENCY", "2")

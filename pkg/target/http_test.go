@@ -295,9 +295,9 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		os.Getenv("CERT_DIR")+"/localhost.crt",
-		os.Getenv("CERT_DIR")+"/localhost.key",
-		os.Getenv("CERT_DIR")+"/rootCA.crt",
+		string(`../../integration/http/localhost.crt`),
+		string(`../../integration/http/localhost.key`),
+		string(`../../integration/http/rootCA.crt`),
 		false)
 	if err != nil {
 		panic(err)
@@ -319,6 +319,8 @@ func TestHttpWrite_TLS(t *testing.T) {
 
 	ngrokAddress := getNgrokAddress() + "/hello"
 
+	os.RemoveAll(`tmp_replicator`)
+
 	// Test that https requests work for different endpoints when different certs are provided manually
 	target2, err2 := NewHTTPTarget(ngrokAddress,
 		5,
@@ -327,11 +329,12 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		os.Getenv("CERT_DIR")+"/localhost.crt",
-		os.Getenv("CERT_DIR")+"/localhost.key",
-		os.Getenv("CERT_DIR")+"/rootCA.crt",
+		string(`../../integration/http/localhost.crt`),
+		string(`../../integration/http/localhost.key`),
+		string(`../../integration/http/rootCA.crt`),
 		false)
 	if err2 != nil {
+		os.RemoveAll(`tmp_replicator`)
 		panic(err2)
 	}
 
@@ -341,6 +344,8 @@ func TestHttpWrite_TLS(t *testing.T) {
 	assert.Equal(10, len(writeResult2.Sent))
 
 	assert.Equal(int64(20), ackOps)
+
+	os.RemoveAll(`tmp_replicator`)
 
 	// Test that https works when certs aren't manually provided
 
@@ -357,6 +362,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		false)
 	if err4 != nil {
+		os.RemoveAll(`tmp_replicator`)
 		panic(err4)
 	}
 
@@ -366,6 +372,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 	assert.Equal(10, len(writeResult3.Sent))
 
 	assert.Equal(int64(30), ackOps)
+	os.RemoveAll(`tmp_replicator`)
 }
 
 type ngrokAPIObject struct {

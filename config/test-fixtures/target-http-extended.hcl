@@ -9,9 +9,9 @@ target {
     headers                    = "{\"Accept-Language\":\"en-US\"}"
     basic_auth_username        = "testUsername"
     basic_auth_password        = "testPass"
-    cert_file                  = "test.cert"
-    key_file                   = "test.key"
-    ca_file                    = "test.ca"
+    cert_file                  = "myLocalhost.crt"
+    key_file                   = "MyLocalhost.key"
+    ca_file                    = "myRootCA.crt"
     skip_verify_tls            = true
   }
 }

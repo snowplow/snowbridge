@@ -22,6 +22,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
@@ -121,12 +122,22 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 			select {
 			case <-stop:
 				log.Debug("source.Stop() finished successfully!")
+				
+				err := common.DeleteTemporaryDir()
+				if err != nil {
+					log.Debugf(`error deleting tmp directory: %v`, err)
+				}
 			case <-time.After(5 * time.Second):
 				log.Error("source.Stop() took more than 5 seconds, forcing shutdown ...")
 
 				t.Close()
 				ft.Close()
 				o.Stop()
+
+				err := common.DeleteTemporaryDir()
+				if err != nil {
+					log.Debugf(`error deleting tmp directory: %v`, err)
+				}
 
 				os.Exit(1)
 			}

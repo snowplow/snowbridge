@@ -15,10 +15,17 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
+
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
+)
+
+const (
+	httpTarget = `http_target`
 )
 
 // HTTPTargetConfig configures the destination for records consumed
@@ -96,11 +103,16 @@ func NewHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 	if err1 != nil {
 		return nil, err1
 	}
-	tlsConfig, err2 := CreateTLSConfiguration(certFile, keyFile, caFile, skipVerifyTLS)
+	transport := &http.Transport{}
+
+	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, skipVerifyTLS)
 	if err2 != nil {
 		return nil, err2
 	}
-	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	if tlsConfig != nil {
+		transport.TLSClientConfig = tlsConfig
+	}
+
 	return &HTTPTarget{
 		client: &http.Client{
 			Transport: transport,

@@ -14,12 +14,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
+
 	"github.com/Shopify/sarama"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/xdg/scram"
+
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
+)
+
+const (
+	kafkaTarget = `kafka_target`
 )
 
 // KafkaConfig contains configurable options for the kafka target
@@ -116,7 +123,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		}
 	}
 
-	tlsConfig, err := CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
+	tlsConfig, err := common.CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
