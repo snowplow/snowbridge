@@ -19,13 +19,15 @@ jobs:
       NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go-version }}
-
-    - name: Checkout code
-      uses: actions/checkout@v2
+        check-latest: true
+        cache: true
 
     - name: Snyk Setup
       uses: snyk/actions/setup@master
@@ -34,14 +36,6 @@ jobs:
       run: snyk test --project-name=stream-replicator --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-    - name: Cache go modules
-      uses: actions/cache@v2
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
 
     - name: Block Concurrent Executions of Integration Tests
       if: ${{ env.NGROK_TOKEN != '' }} 
