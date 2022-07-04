@@ -10,5 +10,6 @@ target {
     chunk_message_limit        = 501
     context_timeout_in_seconds = 21
     batch_byte_limit           = 1000000
+    set_eh_partition_key       = false
   }
 }

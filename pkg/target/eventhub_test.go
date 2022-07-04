@@ -32,6 +32,7 @@ var cfg = EventHubConfig{
 	ChunkMessageLimit:       500,
 	ContextTimeoutInSeconds: 20,
 	BatchByteLimit:          1048576,
+	SetEHPartitionKey:       true,
 }
 
 var errMock = errors.New("Mock Failure Path")
@@ -183,10 +184,6 @@ func TestProcessFailure(t *testing.T) {
 }
 
 // TestProcessWithNoPartitionKey tests the process() function happy path when we don't set a partition key.
-// Note that at time of writing, we actually cannot do this. However it illustrates the behaviour of the EH client well,
-// and can serve as the basis for developing a solution to https://github.com/snowplow-devops/stream-replicator/issues/148
-// (To see it run successfully before we fix that behaviour, comment out `ehEvent.PartitionKey = &msg.PartitionKey` in the process function.)
-/*
 func TestProcessWithNoPartitionKey(t *testing.T) {
 	assert := assert.New(t)
 
@@ -195,6 +192,7 @@ func TestProcessWithNoPartitionKey(t *testing.T) {
 		results: make(chan *eventhub.EventBatch),
 	}
 	tgt := newEventHubTargetWithInterfaces(m, &cfg)
+	tgt.setEHPartitionKey = false
 
 	// Mechanism for counting acks
 	var ackOps int64
@@ -223,8 +221,8 @@ func TestProcessWithNoPartitionKey(t *testing.T) {
 	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 }
-*/
 
+// TestProcessBatchingByPartitionKey tests that the process function batches per partition key as expected.
 func TestProcessBatchingByPartitionKey(t *testing.T) {
 	assert := assert.New(t)
 
