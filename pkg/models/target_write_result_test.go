@@ -164,9 +164,6 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 }
 
 // TestNewTargetWriteResult_NoTransformation tests that reporting of statistics is as it should be when we don't have a timeTransformed
-// At time of writing there is a bug whereby these will report negative transformLatency stats: https://github.com/snowplow-devops/stream-replicator/issues/108
-// Commenting this test out for the time being, it can serve as an illustration of the problem and unit test for fixing that bug
-/*
 func TestNewTargetWriteResult_NoTransformation(t *testing.T) {
 	assert := assert.New(t)
 
@@ -211,4 +208,3 @@ func TestNewTargetWriteResult_NoTransformation(t *testing.T) {
 	assert.Equal(time.Duration(0), r.MinTransformLatency)
 	assert.Equal(time.Duration(0), r.AvgTransformLatency)
 }
-*/
