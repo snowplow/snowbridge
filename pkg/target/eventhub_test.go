@@ -32,6 +32,7 @@ var cfg = EventHubConfig{
 	ChunkMessageLimit:       500,
 	ContextTimeoutInSeconds: 20,
 	BatchByteLimit:          1048576,
+	SetEHPartitionKey:       true,
 }
 
 var errMock = errors.New("Mock Failure Path")
@@ -186,7 +187,6 @@ func TestProcessFailure(t *testing.T) {
 // Note that at time of writing, we actually cannot do this. However it illustrates the behaviour of the EH client well,
 // and can serve as the basis for developing a solution to https://github.com/snowplow-devops/stream-replicator/issues/148
 // (To see it run successfully before we fix that behaviour, comment out `ehEvent.PartitionKey = &msg.PartitionKey` in the process function.)
-/*
 func TestProcessWithNoPartitionKey(t *testing.T) {
 	assert := assert.New(t)
 
@@ -195,6 +195,7 @@ func TestProcessWithNoPartitionKey(t *testing.T) {
 		results: make(chan *eventhub.EventBatch),
 	}
 	tgt := newEventHubTargetWithInterfaces(m, &cfg)
+	tgt.SetEHPartitionKey = false
 
 	// Mechanism for counting acks
 	var ackOps int64
@@ -223,8 +224,8 @@ func TestProcessWithNoPartitionKey(t *testing.T) {
 	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 }
-*/
 
+// TestProcessBatchingByPartitionKey tests that the process function batches per partition key as expected.
 func TestProcessBatchingByPartitionKey(t *testing.T) {
 	assert := assert.New(t)
 
@@ -389,6 +390,8 @@ func TestNewEventHubTarget_ConnString(t *testing.T) {
 	tgt, err := newEventHubTarget(&cfg)
 	assert.Nil(err)
 	assert.NotNil(tgt)
+	fmt.Println(tgt)
+	fmt.Println(tgt.SetEHPartitionKey)
 }
 
 // TestNewEventHubTarget_CredentialsNotFound tests that we fail on startup when we're not provided with appropriate credential values.

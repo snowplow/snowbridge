@@ -29,6 +29,7 @@ type EventHubConfig struct {
 	ChunkMessageLimit       int    `hcl:"chunk_message_limit,optional" env:"TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT"`
 	ContextTimeoutInSeconds int    `hcl:"context_timeout_in_seconds,optional" env:"TARGET_EVENTHUB_CONTEXT_TIMEOUT_SECONDS"`
 	BatchByteLimit          int    `hcl:"batch_byte_limit,optional" env:"TARGET_EVENTHUB_BATCH_BYTE_LIMIT"`
+	SetEHPartitionKey       bool   `hcl:"set_eh_partition_key,optional" env:"TARGET_EVENTHUB_SET_EH_PK"`
 }
 
 // EventHubTarget holds a new client for writing messages to Azure EventHub
@@ -41,6 +42,7 @@ type EventHubTarget struct {
 	chunkMessageLimit       int
 	contextTimeoutInSeconds int
 	batchByteLimit          int
+	SetEHPartitionKey       bool
 
 	log *log.Entry
 }
@@ -62,6 +64,7 @@ func newEventHubTargetWithInterfaces(client clientIface, cfg *EventHubConfig) *E
 		chunkMessageLimit:       cfg.ChunkMessageLimit,
 		contextTimeoutInSeconds: cfg.ContextTimeoutInSeconds,
 		batchByteLimit:          cfg.BatchByteLimit,
+		SetEHPartitionKey:       cfg.SetEHPartitionKey,
 
 		log: log.WithFields(log.Fields{"target": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
 	}
@@ -120,6 +123,7 @@ func (f EventHubTargetAdapter) ProvideDefault() (interface{}, error) {
 		ChunkMessageLimit:       500,
 		ContextTimeoutInSeconds: 20,
 		BatchByteLimit:          1048576,
+		SetEHPartitionKey:       true,
 	}
 
 	return cfg, nil
@@ -177,7 +181,9 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 	ehBatch := make([]*eventhub.Event, messageCount)
 	for i, msg := range messages {
 		ehEvent := eventhub.NewEvent(msg.Data)
-		ehEvent.PartitionKey = &msg.PartitionKey
+		if eht.SetEHPartitionKey {
+			ehEvent.PartitionKey = &msg.PartitionKey
+		}
 		ehBatch[i] = ehEvent
 	}
 
