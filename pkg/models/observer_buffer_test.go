@@ -173,11 +173,8 @@ func TestObserverBuffer_Basic(t *testing.T) {
 	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MaxProcLatency:240000,MaxMsgLatency:3000000,MaxFilterLatency:0,MaxTransformLatency:120000,SumTransformLatency:120000,SumProcLatency:240000,SumMsgLatency:3000000", b.String())
 }
 
-// TestObserverBuffer_Basic is a basic version of the above test, stripping away all but one event
-// It was created in order to demonstrate an issue with misreporting of transformLatency when we don't have transformations.
-// https://github.com/snowplow-devops/stream-replicator/issues/108
-// Commented out but should serve as illustration of and unit test for that bug.
-/*
+// TestObserverBuffer_Basic is a basic version of the above test, stripping away all but one event.
+// It exists purely to simplify reasoning through bugs.
 func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 	assert := assert.New(t)
 
@@ -199,12 +196,10 @@ func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 
 	b.AppendWrite(r)
 	b.AppendWrite(nil)
-	// b.AppendWriteOversized(r)
 	b.AppendWriteOversized(nil)
-	// b.AppendWriteInvalid(r)
 	b.AppendWriteInvalid(nil)
 
-	fr := NewFilterResultWithTime(nil, timeNow)
+	fr := newFilterResultWithTime(nil, timeNow)
 
 	b.AppendFiltered(fr)
 
@@ -241,4 +236,3 @@ func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 
 	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MaxProcLatency:240000,MaxMsgLatency:3000000,MaxFilterLatency:0,MaxTransformLatency:0,SumTransformLatency:0,SumProcLatency:240000,SumMsgLatency:3000000", b.String())
 }
-*/
