@@ -35,7 +35,7 @@ gcp_container_name = snowplow/stream-replicator-gcp
 all: cli container
 
 gox:
-	GO111MODULE=on go install github.com/mitchellh/gox@latest
+	go install github.com/mitchellh/gox@latest
 	mkdir -p $(compiled_dir)
 
 cli: gox cli-linux cli-darwin cli-windows
@@ -53,16 +53,16 @@ cli: gox cli-linux cli-darwin cli-windows
 	mv $(windows_out_dir)/gcp/cli/staging.zip $(compiled_dir)/gcp_cli_stream_replicator_$(version)_windows_amd64.zip
 
 cli-linux: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
+	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
 
 cli-darwin: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
 
 cli-windows: gox
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
-	GO111MODULE=on CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
+	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
 
 container: cli-linux
 	docker build -t $(aws_container_name):$(version) -f Dockerfile.aws .
@@ -73,15 +73,15 @@ container: cli-linux
 # -----------------------------------------------------------------------------
 
 format:
-	GO111MODULE=on go fmt $(go_dirs)
-	GO111MODULE=on gofmt -s -w .
+	go fmt $(go_dirs)
+	gofmt -s -w .
 
 lint:
-	GO111MODULE=on go install golang.org/x/lint/golint@latest
+	go install golang.org/x/lint/golint@latest
 	LINTRESULT=$$(golint $(go_dirs)); echo "$$LINTRESULT"; [ -z "$$LINTRESULT" ];
 
 tidy:
-	GO111MODULE=on go mod tidy
+	go mod tidy
 
 # -----------------------------------------------------------------------------
 #  TESTING
@@ -89,17 +89,17 @@ tidy:
 
 test-setup:
 	mkdir -p $(coverage_dir)
-	GO111MODULE=on go install golang.org/x/tools/cmd/cover@latest
+	go install golang.org/x/tools/cmd/cover@latest
 
 test: test-setup
-	GO111MODULE=on go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
-	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
-	GO111MODULE=on go tool cover -func=$(coverage_out)
+	go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
+	go tool cover -html=$(coverage_out) -o $(coverage_html)
+	go tool cover -func=$(coverage_out)
 
 integration-test: test-setup
-	GO111MODULE=on go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
-	GO111MODULE=on go tool cover -html=$(coverage_out) -o $(coverage_html)
-	GO111MODULE=on go tool cover -func=$(coverage_out)
+	go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+	go tool cover -html=$(coverage_out) -o $(coverage_html)
+	go tool cover -func=$(coverage_out)
 
 integration-reset: integration-down integration-up
 
