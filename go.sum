@@ -388,8 +388,6 @@ github.com/jpillora/backoff v1.0.0 h1:uvFg412JmmHBHw7iwprIxkPMI+sGQ4kzOWsMeHnm2E
 github.com/jpillora/backoff v1.0.0/go.mod h1:J/6gKK9jxlEcS3zixgDgUAsiuZ7yrSoa/FX5e0EB2j4=
 github.com/json-iterator/go v1.1.6/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/json-iterator/go v1.1.9/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=
-github.com/json-iterator/go v1.1.11 h1:uVUAXhF2To8cbw/3xN3pxj6kk7TYKs98NIrTqPlMWAQ=
-github.com/json-iterator/go v1.1.11/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
@@ -441,7 +439,6 @@ github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJ
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
-github.com/modern-go/reflect2 v1.0.1 h1:9f412s+6RmYXLWZSEzVVgPGK7C2PphHj5RJrvfx9AWI=
 github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
 github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
@@ -496,8 +493,6 @@ github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a h1:9
 github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a/go.mod h1:7/jMxl0yrvgiUlv5L37fw6pql71aNh55sKQc4kBFj5s=
 github.com/snowplow-devops/kinsumer v1.3.0 h1:uN8PPG8EffKjcfTcDqsHWnnsTFvYGMU39XlDPULIQcA=
 github.com/snowplow-devops/kinsumer v1.3.0/go.mod h1:SebvcasLweQnOygk9SOFkM/JjBtXFviUxoAq19CwrHQ=
-github.com/snowplow/snowplow-golang-analytics-sdk v0.2.2 h1:ehPNYJ4tOq+n4Lj8jtentKS4UzzvRv5iQ8vlESQj8qw=
-github.com/snowplow/snowplow-golang-analytics-sdk v0.2.2/go.mod h1:Z8ZW805JGCYhnq1wnHe2PIiamUnvoNtAtXPWNyS0mV8=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.3.0 h1:lkWd2JDVG8+X8UPJYdru2EgRW4w/TVnWCmKhW5lPJvc=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.3.0/go.mod h1:KCL+i2+Uj9lvSdknXOA7lBQoBUWGW6ovJgTao7Fkdxk=
 github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1 h1:bp1MynC4BkywqTfpt4wddqZxtN4U7d3UUqxjalcGR1s=
