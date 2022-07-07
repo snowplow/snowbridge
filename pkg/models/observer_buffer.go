@@ -57,7 +57,7 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	b.MsgFailed += res.FailedCount
 	b.MsgTotal += res.Total()
 
-	b.AppendWriteResult(res)
+	b.appendWriteResult(res)
 }
 
 // AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
@@ -71,7 +71,7 @@ func (b *ObserverBuffer) AppendWriteOversized(res *TargetWriteResult) {
 	b.OversizedMsgFailed += res.FailedCount
 	b.OversizedMsgTotal += res.Total()
 
-	b.AppendWriteResult(res)
+	b.appendWriteResult(res)
 }
 
 // AppendWriteInvalid adds an invalid TargetWriteResult onto the buffer and stores the result
@@ -85,10 +85,10 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	b.InvalidMsgFailed += res.FailedCount
 	b.InvalidMsgTotal += res.Total()
 
-	b.AppendWriteResult(res)
+	b.appendWriteResult(res)
 }
 
-func (b *ObserverBuffer) AppendWriteResult(res *TargetWriteResult) {
+func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
 	if b.MaxProcLatency < res.MaxProcLatency {
 		b.MaxProcLatency = res.MaxProcLatency
 	}
@@ -121,10 +121,10 @@ func (b *ObserverBuffer) AppendFiltered(res *FilterResult) {
 	}
 
 	b.MsgFiltered += res.FilteredCount
-	b.AppendFilterResult(res)
+	b.appendFilterResult(res)
 }
 
-func (b *ObserverBuffer) AppendFilterResult(res *FilterResult) {
+func (b *ObserverBuffer) appendFilterResult(res *FilterResult) {
 	if b.MaxFilterLatency < res.MaxFilterLatency {
 		b.MaxFilterLatency = res.MaxFilterLatency
 	}
