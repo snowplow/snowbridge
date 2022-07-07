@@ -57,7 +57,7 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	b.MsgFailed += res.FailedCount
 	b.MsgTotal += res.Total()
 
-	b.appendWriteResult(res)
+	b.AppendWriteResult(res)
 }
 
 // AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
@@ -71,7 +71,7 @@ func (b *ObserverBuffer) AppendWriteOversized(res *TargetWriteResult) {
 	b.OversizedMsgFailed += res.FailedCount
 	b.OversizedMsgTotal += res.Total()
 
-	b.appendWriteResult(res)
+	b.AppendWriteResult(res)
 }
 
 // AppendWriteInvalid adds an invalid TargetWriteResult onto the buffer and stores the result
@@ -85,10 +85,10 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	b.InvalidMsgFailed += res.FailedCount
 	b.InvalidMsgTotal += res.Total()
 
-	b.appendWriteResult(res)
+	b.AppendWriteResult(res)
 }
 
-func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
+func (b *ObserverBuffer) AppendWriteResult(res *TargetWriteResult) {
 	if b.MaxProcLatency < res.MaxProcLatency {
 		b.MaxProcLatency = res.MaxProcLatency
 	}
@@ -121,10 +121,10 @@ func (b *ObserverBuffer) AppendFiltered(res *FilterResult) {
 	}
 
 	b.MsgFiltered += res.FilteredCount
-	b.appendFilterResult(res)
+	b.AppendFilterResult(res)
 }
 
-func (b *ObserverBuffer) appendFilterResult(res *FilterResult) {
+func (b *ObserverBuffer) AppendFilterResult(res *FilterResult) {
 	if b.MaxFilterLatency < res.MaxFilterLatency {
 		b.MaxFilterLatency = res.MaxFilterLatency
 	}
@@ -139,23 +139,23 @@ func (b *ObserverBuffer) GetSumResults() int64 {
 	return b.TargetResults + b.OversizedTargetResults + b.InvalidTargetResults
 }
 
-// getAvgProcLatency calculates average processing latency
-func (b *ObserverBuffer) getAvgProcLatency() time.Duration {
+// GetAvgProcLatency calculates average processing latency
+func (b *ObserverBuffer) GetAvgProcLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumProcLatency, b.GetSumResults())
 }
 
-// getAvgMsgLatency calculates average message latency
-func (b *ObserverBuffer) getAvgMsgLatency() time.Duration {
+// GetAvgMsgLatency calculates average message latency
+func (b *ObserverBuffer) GetAvgMsgLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumMsgLatency, b.GetSumResults())
 }
 
-// getAvgTransformLatency calculates average transformation latency
-func (b *ObserverBuffer) getAvgTransformLatency() time.Duration {
+// GetAvgTransformLatency calculates average transformation latency
+func (b *ObserverBuffer) GetAvgTransformLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumTransformLatency, b.MsgTotal)
 }
 
-// getAvgFilterLatency calculates average filter latency
-func (b *ObserverBuffer) getAvgFilterLatency() time.Duration {
+// GetAvgFilterLatency calculates average filter latency
+func (b *ObserverBuffer) GetAvgFilterLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumFilterLatency, b.MsgFiltered)
 }
 
