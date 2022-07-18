@@ -5,7 +5,6 @@ import (
 )
 
 var (
-	enable             = true
 	interval           = time.Hour
 	method             = "POST"
 	protocol           = "https"

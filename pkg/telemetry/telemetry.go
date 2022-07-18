@@ -27,7 +27,7 @@ type config struct {
 
 func newTelemetryWithConfig(cfg *conf.Config) *config {
 	return &config{
-		enable:             enable,
+		enable:             cfg.Data.EnableTelemetry,
 		interval:           interval,
 		method:             method,
 		protocol:           protocol,
@@ -46,20 +46,24 @@ func initTelemetry(telemetry *config) {
 		gt.RequireCollectorUri(fmt.Sprintf(`%s:%s`, telemetry.url, telemetry.port)),
 		gt.OptionRequestType(telemetry.method),
 		gt.OptionProtocol(telemetry.protocol),
-		gt.OptionCallback(func(g []gt.CallbackResult, b []gt.CallbackResult) {
-			if len(g) != 0 && g[0].Status != http.StatusOK {
-				log.WithFields(log.Fields{
-					"error_code": g[0].Status,
-				}).Debugf("Error sending good telemetry event")
-				return
+		gt.OptionCallback(func(goodResults []gt.CallbackResult, badResults []gt.CallbackResult) {
+			for _, goodResult := range goodResults {
+				if goodResult.Status != http.StatusOK {
+					log.WithFields(log.Fields{
+						"error_code": goodResult.Status,
+					}).Debugf("Error sending telemetry event")
+					return
+				}
 			}
-			if len(b) != 0 && b[0].Status != http.StatusOK {
-				log.WithFields(log.Fields{
-					"error_code": b[0].Status,
-				}).Debugf("Error sending bad telemetry event")
-				return
+			for _, badResult := range badResults {
+				if badResult.Status != http.StatusOK {
+					log.WithFields(log.Fields{
+						"error_code": badResult.Status,
+					}).Debugf("Error sending telemetry event")
+					return
+				}
 			}
-			log.Println(`Telemetry event sent successfully`)
+			log.Info(`Telemetry event sent successfully`)
 		}),
 		gt.OptionStorage(storage),
 	)
