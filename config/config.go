@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
-
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
@@ -78,12 +77,6 @@ type statsConfig struct {
 	Receiver   *use `hcl:"use,block" envPrefix:"STATS_RECEIVER_"`
 	TimeoutSec int  `hcl:"timeout_sec,optional" env:"STATS_RECEIVER_TIMEOUT_SEC"`
 	BufferSec  int  `hcl:"buffer_sec,optional" env:"STATS_RECEIVER_BUFFER_SEC"`
-}
-
-// TransformConfig holds configuration for tranformations.
-type TransformConfig struct {
-	Message string `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
-	Layer   *use   `hcl:"use,block" envPrefix:"TRANSFORMATION_LAYER_"`
 }
 
 // defaultConfigData returns the initial main configuration target.
@@ -362,23 +355,4 @@ func (c *Config) getStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid stats receiver found; expected one of 'statsd' and got '%s'", useReceiver.Name))
 	}
-}
-
-// ProvideTransformMessage implements transformconfig.configProvider
-func (c *Config) ProvideTransformMessage() string {
-	return c.Data.Transform.Message
-}
-
-// ProvideTransformLayerName implements transformconfig.configProvider
-func (c *Config) ProvideTransformLayerName() string {
-	return c.Data.Transform.Layer.Name
-}
-
-// ProvideTransformComponent implements transformconfig.configProvider
-func (c *Config) ProvideTransformComponent(p Pluggable) (interface{}, error) {
-	decoderOpts := &DecoderOptions{
-		Input: c.Data.Transform.Layer.Body,
-	}
-
-	return c.CreateComponent(p, decoderOpts)
 }

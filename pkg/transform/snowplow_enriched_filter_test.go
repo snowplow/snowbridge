@@ -32,7 +32,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	}
 
 	// Single value cases
-	aidFilterFuncKeep, _ := NewSpEnrichedFilterFunction("app_id==test-data3")
+	aidFilterFuncKeep, _ := NewSpEnrichedFilterFunction("app_id", "test-data3", 0)
 
 	aidKeepIn, aidKeepOut, fail, _ := aidFilterFuncKeep(&messageGood, nil)
 
@@ -40,7 +40,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(aidKeepOut)
 	assert.Nil(fail)
 
-	aidFilterFuncDiscard, _ := NewSpEnrichedFilterFunction("app_id==failThis")
+	aidFilterFuncDiscard, _ := NewSpEnrichedFilterFunction("app_id", "failThis", 10)
 
 	aidDiscardIn, aidDiscardOut, fail2, _ := aidFilterFuncDiscard(&messageGood, nil)
 
@@ -49,7 +49,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail2)
 
 	// int value
-	urlPrtFilterFuncKeep, _ := NewSpEnrichedFilterFunction("page_urlport==80")
+	urlPrtFilterFuncKeep, _ := NewSpEnrichedFilterFunction("page_urlport", "80", 10)
 
 	urlPrtKeepIn, urlPrtKeepOut, fail, _ := urlPrtFilterFuncKeep(&messageGood, nil)
 
@@ -58,7 +58,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail)
 
 	// Multiple value cases
-	aidFilterFuncKeepWithMultiple, _ := NewSpEnrichedFilterFunction("app_id==someotherValue|test-data3")
+	aidFilterFuncKeepWithMultiple, _ := NewSpEnrichedFilterFunction("app_id", "someotherValue|test-data3", 10)
 
 	aidMultipleNegationFailedIn, aidMultipleKeepOut, fail3, _ := aidFilterFuncKeepWithMultiple(&messageGood, nil)
 
@@ -66,7 +66,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(aidMultipleKeepOut)
 	assert.Nil(fail3)
 
-	aidFilterFuncDiscardWithMultiple, _ := NewSpEnrichedFilterFunction("app_id==someotherValue|failThis")
+	aidFilterFuncDiscardWithMultiple, _ := NewSpEnrichedFilterFunction("app_id", "someotherValue|failThis", 10)
 
 	aidNegationMultipleIn, aidMultipleDiscardOut, fail3, _ := aidFilterFuncDiscardWithMultiple(&messageGood, nil)
 
@@ -76,7 +76,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 
 	// Single value negation cases
 
-	aidFilterFuncNegationDiscard, _ := NewSpEnrichedFilterFunction("app_id!=test-data3")
+	aidFilterFuncNegationDiscard, _ := NewSpEnrichedFilterFunction("app_id", "^((?!test-data3).)*$", 10)
 
 	aidNegationIn, aidNegationOut, fail4, _ := aidFilterFuncNegationDiscard(&messageGood, nil)
 
@@ -84,7 +84,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Equal(snowplowTsv3, aidNegationOut.Data)
 	assert.Nil(fail4)
 
-	aidFilterFuncNegationKeep, _ := NewSpEnrichedFilterFunction("app_id!=failThis")
+	aidFilterFuncNegationKeep, _ := NewSpEnrichedFilterFunction("app_id", "^((?!failThis).)*$", 10)
 
 	aidNegationFailedIn, aidNegationFailedOut, fail5, _ := aidFilterFuncNegationKeep(&messageGood, nil)
 
@@ -93,7 +93,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail5)
 
 	// Multiple value negation cases
-	aidFilterFuncNegationDiscardMultiple, _ := NewSpEnrichedFilterFunction("app_id!=someotherValue|test-data1|test-data2|test-data3")
+	aidFilterFuncNegationDiscardMultiple, _ := NewSpEnrichedFilterFunction("app_id", "^((?!someotherValue|test-data1|test-data2|test-data3).)*$", 10)
 
 	aidNegationMultipleIn, aidNegationMultipleOut, fail6, _ := aidFilterFuncNegationDiscardMultiple(&messageGood, nil)
 
@@ -101,7 +101,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Equal(snowplowTsv3, aidNegationMultipleOut.Data)
 	assert.Nil(fail6)
 
-	aidFilterFuncNegationKeptMultiple, _ := NewSpEnrichedFilterFunction("app_id!=someotherValue|failThis")
+	aidFilterFuncNegationKeptMultiple, _ := NewSpEnrichedFilterFunction("app_id", "^((?!someotherValue|failThis).)*$", 10)
 
 	aidMultipleNegationFailedIn, aidMultipleNegationFailedOut, fail7, _ := aidFilterFuncNegationKeptMultiple(&messageGood, nil)
 
@@ -110,7 +110,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail7)
 
 	// Filters on a nil field
-	txnFilterFunctionAffirmation, _ := NewSpEnrichedFilterFunction("txn_id==something")
+	txnFilterFunctionAffirmation, _ := NewSpEnrichedFilterFunction("txn_id", "something", 10)
 
 	nilAffirmationIn, nilAffirmationOut, fail8, _ := txnFilterFunctionAffirmation(&messageGood, nil)
 
@@ -118,16 +118,16 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Equal(snowplowTsv3, nilAffirmationOut.Data)
 	assert.Nil(fail8)
 
-	txnFilterFunctionNegation, _ := NewSpEnrichedFilterFunction("txn_id!=something")
+	txnFilterFunctionNegation, _ := NewSpEnrichedFilterFunction("txn_id", "^((?!something).)*$", 10)
 
 	nilNegationIn, nilNegationOut, fail8, _ := txnFilterFunctionNegation(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, nilNegationIn.Data)
-	assert.Nil(nilNegationOut)
+	assert.Nil(nilNegationIn)
+	assert.Equal(snowplowTsv3, nilNegationOut.Data)
 	assert.Nil(fail8)
 
 	// context filter success
-	contextFuncKeep, _ := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1.test1.test2[0].test3==testValue")
+	contextFuncKeep, _ := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1.test1.test2[0].test3", "testValue", 10)
 
 	contextKeepIn, contextKeepOut, fail9, _ := contextFuncKeep(&messageGood, nil)
 
@@ -136,7 +136,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail9)
 
 	// context filter success (integer value)
-	contextFuncKeep, _ = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1.test1.test2[0].test3==1")
+	contextFuncKeep, _ = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1.test1.test2[0].test3", "1", 10)
 
 	contextKeepIn, contextKeepOut, fail9, _ = contextFuncKeep(&messageGoodInt, nil)
 
@@ -145,7 +145,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail9)
 
 	// context filter failure
-	contextFuncKeep, _ = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_2.test1.test2[0].test3==testValue")
+	contextFuncKeep, _ = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_2.test1.test2[0].test3", "testValue", 10)
 
 	contextKeepIn, contextKeepOut, fail9, _ = contextFuncKeep(&messageGood, nil)
 
@@ -154,7 +154,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail9)
 
 	// event filter success, filtered event name
-	eventFilterFunCkeep, _ := NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart_1.sku==item41")
+	eventFilterFunCkeep, _ := NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart_1.sku", "item41", 10)
 
 	eventKeepIn, eventKeepOut, fail10, _ := eventFilterFunCkeep(&messageWithUnstructEvent, nil)
 
@@ -163,7 +163,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail10)
 
 	// event filter success, filtered event name, no event ver
-	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart.sku==item41")
+	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart.sku", "item41", 10)
 
 	eventKeepIn, eventKeepOut, fail10, _ = eventFilterFunCkeep(&messageWithUnstructEvent, nil)
 
@@ -172,7 +172,7 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail10)
 
 	// event filter failure, wrong event name
-	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_wrong_name.sku==item41")
+	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_wrong_name.sku", "item41", 10)
 
 	eventKeepIn, eventKeepOut, fail11, _ := eventFilterFunCkeep(&messageWithUnstructEvent, nil)
 
@@ -181,53 +181,13 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail11)
 
 	// event filter failure, field not found
-	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart.ska==item41")
+	eventFilterFunCkeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("unstruct_event_add_to_cart.ska", "item41", 10)
 
 	eventNoFieldIn, eventNoFieldOut, fail12, _ := eventFilterFunCkeep(&messageWithUnstructEvent, nil)
 
 	assert.Nil(eventNoFieldIn)
 	assert.Nil(eventNoFieldOut)
 	assert.NotNil(fail12)
-}
-
-func TestNewSpEnrichedFilterFunction_Error(t *testing.T) {
-	filterError := `invalid filter function config, must be of the format {field name}=={value}[|{value}|...] or {field name}!={value}[|{value}|...]`
-
-	testCases := []struct {
-		Name string
-		Arg  string
-	}{
-		{
-			Name: "incompatible_arg",
-			Arg:  "incompatibleArg",
-		},
-		{
-			Name: "empty_arg",
-			Arg:  "",
-		},
-		{
-			Name: "wrong_arg_pipe",
-			Arg:  "app_id==abc|",
-		},
-		{
-			Name: "wrong_arg_syntax",
-			Arg:  "!=abc",
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			filterFunc, err := NewSpEnrichedFilterFunction(tt.Arg)
-
-			assert.Nil(filterFunc)
-			assert.NotNil(err)
-			if err != nil {
-				assert.Equal(filterError, err.Error())
-			}
-		})
-	}
 }
 
 func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
@@ -251,7 +211,7 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filterFunc, _ := NewSpEnrichedFilterFunction("app_id==test-data1")
+	filterFunc, _ := NewSpEnrichedFilterFunction("app_id", "test-data1", 10)
 
 	filter1 := NewTransformation(filterFunc)
 	filter1Res := filter1(messages)
@@ -279,7 +239,7 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filterFunc2, _ := NewSpEnrichedFilterFunction("app_id==test-data1|test-data2")
+	filterFunc2, _ := NewSpEnrichedFilterFunction("app_id", "test-data1|test-data2", 10)
 
 	filter2 := NewTransformation(filterFunc2)
 	filter2Res := filter2(messages)
@@ -295,7 +255,7 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filterFunc3, _ := NewSpEnrichedFilterFunction("app_id!=test-data1|test-data2")
+	filterFunc3, _ := NewSpEnrichedFilterFunction("app_id", "^((?!test-data1|test-data2).)*$", 10)
 
 	filter3 := NewTransformation(filterFunc3)
 	filter3Res := filter3(messages)
@@ -303,4 +263,14 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 	assert.Equal(len(expectedFilter3), len(filter3Res.Result))
 	assert.Equal(1, len(filter3Res.Invalid))
 
+}
+
+func TestEvaluateSpEnrichedFilter(t *testing.T) {
+	assert := assert.New(t)
+
+	valuesFound := []interface{}{"NO", "maybe", "yes"}
+	assert.True(evaluateSpEnrichedFilter(valuesFound, "yes", 10))
+
+	valuesFound = []interface{}{"NO", "maybe", "nope"}
+	assert.False(evaluateSpEnrichedFilter(valuesFound, "yes", 10))
 }
