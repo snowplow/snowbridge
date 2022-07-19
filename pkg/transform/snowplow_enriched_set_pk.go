@@ -16,7 +16,7 @@ import (
 func NewSpEnrichedSetPkFunction(pkField string) TransformationFunction {
 	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 		// Evalute intermediateState to parsedEvent
-		parsedMessage, parseErr := intermediateAsSpEnrichedParsed(intermediateState, message)
+		parsedMessage, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(parseErr)
 			return nil, nil, message, nil

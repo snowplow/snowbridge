@@ -4,31 +4,35 @@
 //
 // Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 
-package transform
+package engine
 
-// FunctionMaker is the interface that wraps the MakeFunction method
-type FunctionMaker interface {
+import (
+	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+)
+
+// functionMaker is the interface that wraps the MakeFunction method
+type functionMaker interface {
 	// MakeFunction returns a TransformationFunction that runs
 	// a given function in a runtime engine.
-	MakeFunction(funcName string) TransformationFunction
+	MakeFunction(funcName string) transform.TransformationFunction
 }
 
-// SmokeTester is the interface that wraps the SmokeTest method.
-type SmokeTester interface {
+// smokeTester is the interface that wraps the SmokeTest method.
+type smokeTester interface {
 	// SmokeTest runs a test spin of the engine trying to get as close to
 	// running the given function as possible.
 	SmokeTest(funcName string) error
 }
 
 // Engine is the interface that groups
-// FunctionMaker and SmokeTester.
+// functionMaker and smokeTester.
 type Engine interface {
-	FunctionMaker
-	SmokeTester
+	functionMaker
+	smokeTester
 }
 
-// EngineProtocol is the I/O type of an Engine.
-type EngineProtocol struct {
+// engineProtocol is the I/O type of Engine.
+type engineProtocol struct {
 	FilterOut    bool
 	PartitionKey string
 	Data         interface{}
