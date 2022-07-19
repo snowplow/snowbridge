@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
-
 	"github.com/snowplow-devops/stream-replicator/pkg/failure"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/observer"
@@ -35,16 +34,16 @@ type Config struct {
 
 // configurationData for holding all configuration options
 type configurationData struct {
-	Source                  *component       `hcl:"source,block" envPrefix:"SOURCE_"`
-	Target                  *component       `hcl:"target,block" envPrefix:"TARGET_"`
-	FailureTarget           *failureConfig   `hcl:"failure_target,block"`
-	Sentry                  *sentryConfig    `hcl:"sentry,block"`
-	StatsReceiver           *statsConfig     `hcl:"stats_receiver,block"`
-	Transform               *TransformConfig `hcl:"transform,block"`
-	LogLevel                string           `hcl:"log_level,optional" env:"LOG_LEVEL"`
-	GoogleServiceAccountB64 string           `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
-	UserProvidedID          string           `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
-	EnableTelemetry         bool             `hcl:"enable_telemetry,optional" env:"ENABLE_TELEMETRY"`
+	Source                  *component     `hcl:"source,block" envPrefix:"SOURCE_"`
+	Target                  *component     `hcl:"target,block" envPrefix:"TARGET_"`
+	FailureTarget           *failureConfig `hcl:"failure_target,block"`
+	Sentry                  *sentryConfig  `hcl:"sentry,block"`
+	StatsReceiver           *statsConfig   `hcl:"stats_receiver,block"`
+	Transformations         []*component   `hcl:"transform,block"`
+	LogLevel                string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
+	GoogleServiceAccountB64 string         `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
+	UserProvidedID          string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
+	EnableTelemetry         bool           `hcl:"enable_telemetry,optional" env:"ENABLE_TELEMETRY"`
 }
 
 // component is a type to abstract over configuration blocks.
@@ -80,12 +79,6 @@ type statsConfig struct {
 	BufferSec  int  `hcl:"buffer_sec,optional" env:"STATS_RECEIVER_BUFFER_SEC"`
 }
 
-// TransformConfig holds configuration for tranformations.
-type TransformConfig struct {
-	Message string `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
-	Layer   *use   `hcl:"use,block" envPrefix:"TRANSFORMATION_LAYER_"`
-}
-
 // defaultConfigData returns the initial main configuration target.
 func defaultConfigData() *configurationData {
 	return &configurationData{
@@ -104,10 +97,7 @@ func defaultConfigData() *configurationData {
 			TimeoutSec: 1,
 			BufferSec:  15,
 		},
-		Transform: &TransformConfig{
-			Message: "none",
-			Layer:   &use{},
-		},
+		Transformations: nil,
 		LogLevel:        "info",
 		EnableTelemetry: true,
 	}
@@ -365,23 +355,4 @@ func (c *Config) getStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid stats receiver found; expected one of 'statsd' and got '%s'", useReceiver.Name))
 	}
-}
-
-// ProvideTransformMessage implements transformconfig.configProvider
-func (c *Config) ProvideTransformMessage() string {
-	return c.Data.Transform.Message
-}
-
-// ProvideTransformLayerName implements transformconfig.configProvider
-func (c *Config) ProvideTransformLayerName() string {
-	return c.Data.Transform.Layer.Name
-}
-
-// ProvideTransformComponent implements transformconfig.configProvider
-func (c *Config) ProvideTransformComponent(p Pluggable) (interface{}, error) {
-	decoderOpts := &DecoderOptions{
-		Input: c.Data.Transform.Layer.Body,
-	}
-
-	return c.CreateComponent(p, decoderOpts)
 }

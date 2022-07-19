@@ -7,423 +7,48 @@
 package transformconfig
 
 import (
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	"github.com/snowplow-devops/stream-replicator/pkg/transform/engine"
 )
 
-func TestParseTransformations_InvalidMessage(t *testing.T) {
-	testCases := []struct {
-		Name     string
-		Message  string
-		ExpError string
-	}{
-		{
-			Name:     "message_empty",
-			Message:  "",
-			ExpError: "invalid message transformation found; empty string",
-		},
-		{
-			Name:     "message_not_found",
-			Message:  "fake",
-			ExpError: "invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk', 'spEnrichedFilter', 'spEnrichedFilterContext', 'spEnrichedFilterUnstructEvent', 'lua', 'js' or 'none' but got \"fake\"",
-		},
-		{
-			Name:     "message_option_none_a",
-			Message:  "none:wrong",
-			ExpError: "invalid message transformation found; unexpected colon after \"none\"",
-		},
-		{
-			Name:     "message_option_none_b",
-			Message:  "none:",
-			ExpError: "invalid message transformation found; unexpected colon after \"none\"",
-		},
-		{
-			Name:     "message_option_spEnrichedToJson",
-			Message:  "spEnrichedToJson:wrong",
-			ExpError: "invalid message transformation found; unexpected colon after \"spEnrichedToJson\"",
-		},
-		{
-			Name:     "message_no_option_spEnrichedSetPk",
-			Message:  "spEnrichedSetPk",
-			ExpError: "invalid message transformation found; expected 'spEnrichedSetPk:{option}' but got \"spEnrichedSetPk\"",
-		},
-		{
-			Name:     "message_empty_option_spEnrichedSetPk",
-			Message:  "spEnrichedSetPk:",
-			ExpError: "invalid message transformation found; empty option for 'spEnrichedSetPk'",
-		},
-		{
-			Name:     "message_no_option_spEnrichedFilter",
-			Message:  "spEnrichedFilter:too:wrong",
-			ExpError: "invalid message transformation found; expected 'spEnrichedFilter:{option}' but got \"spEnrichedFilter:too:wrong\"",
-		},
-		{
-			Name:     "message_empty_option_spEnrichedFilter",
-			Message:  "spEnrichedFilter:",
-			ExpError: "invalid message transformation found; empty option for 'spEnrichedFilter'",
-		},
-		{
-			Name:     "message_no_option_spEnrichedFilterContext",
-			Message:  "spEnrichedFilterContext:too:wrong",
-			ExpError: "invalid message transformation found; expected 'spEnrichedFilterContext:{option}' but got \"spEnrichedFilterContext:too:wrong\"",
-		},
-		{
-			Name:     "message_empty_option_spEnrichedFilterContext",
-			Message:  "spEnrichedFilterContext:",
-			ExpError: "invalid message transformation found; empty option for 'spEnrichedFilterContext'",
-		},
-		{
-			Name:     "message_no_option_spEnrichedFilterUnstructEvent",
-			Message:  "spEnrichedFilterUnstructEvent:too:wrong",
-			ExpError: "invalid message transformation found; expected 'spEnrichedFilterUnstructEvent:{option}' but got \"spEnrichedFilterUnstructEvent:too:wrong\"",
-		},
-		{
-			Name:     "message_empty_option_spEnrichedFilterUnstructEvent",
-			Message:  "spEnrichedFilterUnstructEvent:",
-			ExpError: "invalid message transformation found; empty option for 'spEnrichedFilterUnstructEvent'",
-		},
-		{
-			Name:     "message_no_option_lua",
-			Message:  "lua",
-			ExpError: "invalid message transformation found; expected 'lua:{option}' but got \"lua\"",
-		},
-		{
-			Name:     "message_empty_option_lua",
-			Message:  "lua:",
-			ExpError: "invalid message transformation found; empty option for 'lua'",
-		},
-		{
-			Name:     "message_no_option_js",
-			Message:  "js",
-			ExpError: "invalid message transformation found; expected 'js:{option}' but got \"js\"",
-		},
-		{
-			Name:     "message_empty_option_js",
-			Message:  "js:",
-			ExpError: "invalid message transformation found; empty option for 'js'",
-		},
-		{
-			Name:     "invalid_transformation_syntax_a",
-			Message:  "spEnrichedToJson,",
-			ExpError: "empty transformation found; please check the message transformation syntax",
-		},
-		{
-			Name:     "invalid_transformation_syntax_b",
-			Message:  ":",
-			ExpError: "empty transformation found; please check the message transformation syntax",
-		},
-		{
-			Name:     "invalid_transformation_syntax_c",
-			Message:  ",",
-			ExpError: "empty transformation found; please check the message transformation syntax",
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			parsed, err := parseTransformations(tt.Message)
-			assert.Nil(parsed)
-			assert.NotNil(err)
-			if err != nil {
-				assert.Equal(tt.ExpError, err.Error())
-			}
-		})
-	}
-}
-
-func TestGetTransformations_MissingLayerConfig(t *testing.T) {
-	fixturesDir := "../../../config/test-fixtures"
-	testCases := []struct {
-		Filename      string
-		TransMessage  string
-		ExpectedError string
-	}{
-		{
-			Filename:      "transform-invalid-layer-lua.hcl",
-			TransMessage:  "lua:fun",
-			ExpectedError: "missing configuration for the custom transformation layer specified: \"lua\"",
-		},
-		{
-			Filename:      "transform-invalid-layer-js.hcl",
-			TransMessage:  "js:fun",
-			ExpectedError: "missing configuration for the custom transformation layer specified: \"js\"",
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Filename, func(t *testing.T) {
-			assert := assert.New(t)
-
-			filename := filepath.Join(fixturesDir, tt.Filename)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
-
-			c, err := config.NewConfig()
-			assert.NotNil(c)
-			if err != nil {
-				t.Fatalf("function NewConfig failed with error: %q", err.Error())
-			}
-
-			assert.Equal(tt.TransMessage, c.Data.Transform.Message)
-
-			transformation, err := GetTransformations(c)
-			assert.Nil(transformation)
-			assert.NotNil(err)
-			if err != nil {
-				assert.Equal(tt.ExpectedError, err.Error())
-			}
-		})
-	}
-}
-
-func TestGetTransformations_Builtins(t *testing.T) {
-	testCases := []struct {
-		Name        string
-		Provider    configProvider
-		ExpectedErr error
-	}{
-		{
-			Name: "invalid_transform_message",
-			Provider: &testConfigProvider{
-				message: "tooWrong",
-			},
-			ExpectedErr: fmt.Errorf("invalid transformation found; expected one of 'spEnrichedToJson', 'spEnrichedSetPk', 'spEnrichedFilter', 'spEnrichedFilterContext', 'spEnrichedFilterUnstructEvent', 'lua', 'js' or 'none' but got \"tooWrong\""),
-		},
-		{
-			Name: "spEnrichedToJson",
-			Provider: &testConfigProvider{
-				message: "spEnrichedToJson",
-			},
-			ExpectedErr: nil,
-		},
-		{
-			Name: "spEnrichedSetPk",
-			Provider: &testConfigProvider{
-				message: "spEnrichedSetPk:app_id",
-			},
-			ExpectedErr: nil,
-		},
-		{
-			Name: "spEnrichedFilter",
-			Provider: &testConfigProvider{
-				message: "spEnrichedFilter:app_id==xyz",
-			},
-			ExpectedErr: nil,
-		},
-		{
-			Name: "spEnrichedFilterContext",
-			Provider: &testConfigProvider{
-				message: "spEnrichedFilterContext:contexts_x_x_x_1.yz==xyz",
-			},
-			ExpectedErr: nil,
-		},
-		{
-			Name: "spEnrichedFilterUnstructEvent",
-			Provider: &testConfigProvider{
-				message: "spEnrichedFilterUnstructEvent:unstruct_event_x_x_x_1.yz==xyz",
-			},
-			ExpectedErr: nil,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			applyFun, err := GetTransformations(tt.Provider)
-
-			if tt.ExpectedErr != nil {
-				assert.NotNil(err)
-				if err != nil {
-					assert.Equal(tt.ExpectedErr.Error(), err.Error())
-				}
-				assert.Nil(applyFun)
-			} else {
-				assert.Nil(err)
-				assert.NotNil(applyFun)
-			}
-		})
-	}
-}
-
-func TestGetTransformations_Custom(t *testing.T) {
-	testCases := []struct {
-		Name        string
-		Provider    configProvider
-		ExpectedErr error
-	}{
-		{
-			Name: "lua",
-			Provider: &testConfigProvider{
-				message:   "lua:fun",
-				layerName: "lua",
-				component: &testEngine{
-					smokeTestErr: nil,
-					mkFunction:   testTransformationFunction,
-				},
-			},
-			ExpectedErr: nil,
-		},
-		{
-			Name: "js",
-			Provider: &testConfigProvider{
-				message:   "js:fun",
-				layerName: "js",
-				component: &testEngine{
-					smokeTestErr: nil,
-					mkFunction:   testTransformationFunction,
-				},
-			},
-			ExpectedErr: nil,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			applyFun, err := GetTransformations(tt.Provider)
-
-			if tt.ExpectedErr != nil {
-				assert.NotNil(err)
-				if err != nil {
-					assert.Equal(tt.ExpectedErr.Error(), err.Error())
-				}
-				assert.Nil(applyFun)
-			} else {
-				assert.Nil(err)
-				assert.NotNil(applyFun)
-			}
-		})
-	}
-}
-
-func TestLayerRegistry(t *testing.T) {
-	assert := assert.New(t)
-
-	registry, err := getLayerRegistry()
-	assert.Nil(err)
-
-	_, okLua := registry["lua"]
-	assert.True(okLua)
-
-	_, okJs := registry["js"]
-	assert.True(okJs)
-}
-
 func TestMkEngineFunction(t *testing.T) {
+	var eng engine.Engine
+	eng = &engine.JSEngine{
+		Code:       nil,
+		RunTimeout: 15,
+		SpMode:     false,
+	}
 	testCases := []struct {
-		Name        string
-		Provider    *testConfigProvider
-		Unit        *transformationUnit
-		Registry    layerRegistry
-		ExpectedErr error
+		Name           string
+		Engines        []engine.Engine
+		Transformation *Transformation
+		ExpectedErr    error
 	}{
 		{
-			Name: "missing_layer_config",
-			Provider: &testConfigProvider{
-				layerName: "test",
-				component: "irrelevant",
-				err:       nil,
+			Name:    "no engine",
+			Engines: nil,
+			Transformation: &Transformation{
+				Name: "js",
 			},
-			Unit: &transformationUnit{
-				name:   "noTest",
-				option: "testFun",
-			},
-			Registry:    map[string]config.Pluggable{},
-			ExpectedErr: fmt.Errorf("missing configuration for the custom transformation layer specified: \"noTest\""),
+			ExpectedErr: fmt.Errorf("could not find engine for transformation"),
 		},
 		{
-			Name: "unknown_layer",
-			Provider: &testConfigProvider{
-				layerName: "test",
-				component: "irrelevant",
-				err:       nil,
+			Name:    "success",
+			Engines: []engine.Engine{eng},
+			Transformation: &Transformation{
+				Name:   "js",
+				Engine: eng,
 			},
-			Unit: &transformationUnit{
-				name:   "test",
-				option: "testFun",
-			},
-			Registry:    map[string]config.Pluggable{},
-			ExpectedErr: fmt.Errorf("unknown transformation layer specified"),
-		},
-		{
-			Name: "provider_error",
-			Provider: &testConfigProvider{
-				layerName: "test",
-				component: nil,
-				err:       fmt.Errorf("some error"),
-			},
-			Unit: &transformationUnit{
-				name:   "test",
-				option: "testFun",
-			},
-			Registry: map[string]config.Pluggable{
-				"test": &testPluggable{},
-			},
-			ExpectedErr: fmt.Errorf("some error"),
-		},
-		{
-			Name: "no_engine_component",
-			Provider: &testConfigProvider{
-				layerName: "test",
-				component: "notAnEngine",
-				err:       nil,
-			},
-			Unit: &transformationUnit{
-				name:   "test",
-				option: "testFun",
-			},
-			Registry: map[string]config.Pluggable{
-				"test": &testPluggable{},
-			},
-			ExpectedErr: fmt.Errorf("could not interpret custom transformation configuration"),
-		},
-		{
-			Name: "engine_smoke_test_error",
-			Provider: &testConfigProvider{
-				layerName: "test",
-				component: &testEngine{
-					smokeTestErr: fmt.Errorf("smoke error"),
-					mkFunction:   testTransformationFunction,
-				},
-				err: nil,
-			},
-			Unit: &transformationUnit{
-				name:   "test",
-				option: "testFun",
-			},
-			Registry: map[string]config.Pluggable{
-				"test": &testPluggable{},
-			},
-			ExpectedErr: fmt.Errorf("smoke error"),
-		},
-		{
-			Name: "happy_path",
-			Provider: &testConfigProvider{
-				layerName: "test",
-				component: &testEngine{
-					smokeTestErr: nil,
-					mkFunction:   testTransformationFunction,
-				},
-				err: nil,
-			},
-			Unit: &transformationUnit{
-				name:   "test",
-				option: "testFun",
-			},
-			Registry: map[string]config.Pluggable{
-				"test": &testPluggable{},
-			},
-			ExpectedErr: nil,
 		},
 	}
 
@@ -431,17 +56,10 @@ func TestMkEngineFunction(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			fun, err := mkEngineFunction(
-				tt.Provider,
-				tt.Unit,
-				tt.Registry,
-			)
+			fun, err := MkEngineFunction(tt.Transformation)
 
 			if tt.ExpectedErr != nil {
-				assert.NotNil(err)
-				if err != nil {
-					assert.Equal(tt.ExpectedErr.Error(), err.Error())
-				}
+				assert.Equal(tt.ExpectedErr.Error(), err.Error())
 				assert.Nil(fun)
 			} else {
 				assert.Nil(err)
@@ -451,52 +69,462 @@ func TestMkEngineFunction(t *testing.T) {
 	}
 }
 
-// Helpers
-type testConfigProvider struct {
-	message   string
-	layerName string
-	component interface{}
-	err       error
+func TestValidateTransformations(t *testing.T) {
+	srcCode := `
+function main(x)
+  local jsonObj, _ = json.decode(x)
+  local result, _ = json.encode(jsonObj)
+
+  return result
+end
+`
+	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
+
+	luaConfig := &engine.LuaEngineConfig{
+		SourceB64:  src,
+		RunTimeout: 5,
+		Sandbox:    false,
+	}
+
+	luaEngine, err := engine.NewLuaEngine(luaConfig)
+	assert.NotNil(t, luaEngine)
+	if err != nil {
+		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
+	}
+
+	srcCode = `
+function notMain(x)
+  return x
+end
+`
+	src = base64.StdEncoding.EncodeToString([]byte(srcCode))
+
+	luaConfig = &engine.LuaEngineConfig{
+		SourceB64:  src,
+		RunTimeout: 5,
+		Sandbox:    false,
+	}
+
+	luaEngineNoMain, err := engine.NewLuaEngine(luaConfig)
+	assert.NotNil(t, luaEngineNoMain)
+	if err != nil {
+		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
+	}
+
+	srcCode = `
+function main(x) {
+   return x;
+}
+`
+	src = base64.StdEncoding.EncodeToString([]byte(srcCode))
+	jsConfig := &engine.JSEngineConfig{
+		SourceB64:  src,
+		RunTimeout: 5,
+	}
+
+	jsEngine, err := engine.NewJSEngine(jsConfig)
+	assert.NotNil(t, jsEngine)
+	if err != nil {
+		t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+	}
+
+	srcCode = `
+function notMain(x) {
+   return x;
+}
+`
+	src = base64.StdEncoding.EncodeToString([]byte(srcCode))
+	jsConfig = &engine.JSEngineConfig{
+		SourceB64:  src,
+		RunTimeout: 5,
+	}
+
+	jsEngineNoMain, err := engine.NewJSEngine(jsConfig)
+	assert.NotNil(t, jsEngine)
+	if err != nil {
+		t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+	}
+
+	testCases := []struct {
+		Name            string
+		Transformations []*Transformation
+		ExpectedErrs    []error
+	}{
+		{
+			Name: "invalid name",
+			Transformations: []*Transformation{{
+				Name: "wrongName",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("invalid transformation name: wrongName")},
+		},
+		{
+			Name: "spEnrichedSetPk success",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedSetPk",
+				Field: `app_id`,
+			}},
+		},
+		{
+			Name: "spEnrichedSetPk no field",
+			Transformations: []*Transformation{{
+				Name: "spEnrichedSetPk",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedSetPk, empty field")},
+		},
+		{
+			Name: "spEnrichedFilter success",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilter",
+				Field: "app_id",
+				Regex: "test.+",
+			}},
+		},
+		{
+			Name: "spEnrichedFilter regexp does not compile",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilter",
+				Field: "app_id",
+				Regex: "?(?=-)",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
+		},
+		{
+			Name: "spEnrichedFilter empty field",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilter",
+				Regex: "test.+",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, empty field")},
+		},
+		{
+			Name: "spEnrichedFilter empty regex",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilter",
+				Field: "app_id",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, empty regex")},
+		},
+		{
+			Name: "spEnrichedFilterContext success",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilterContext",
+				Field: "contexts_nl_basjes_yauaa_context_1.test1.test2[0]",
+				Regex: "test.+",
+			}},
+		},
+		{
+			Name: "spEnrichedFilterContext regexp does not compile",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilterContext",
+				Field: "contexts_nl_basjes_yauaa_context_1.test1.test2[0]",
+				Regex: "?(?=-)",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
+		},
+		{
+			Name: "spEnrichedFilterContext empty field",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilterContext",
+				Regex: "test.+",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, empty field")},
+		},
+		{
+			Name: "spEnrichedFilterContext empty regex",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilterContext",
+				Field: "contexts_nl_basjes_yauaa_context_1.test1.test2[0]",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, empty regex")},
+		},
+		{
+			Name: "spEnrichedFilterUnstructEvent success",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilterUnstructEvent",
+				Field: "unstruct_event_add_to_cart_1.sku",
+				Regex: "test.+",
+			}},
+		},
+		{
+			Name: "spEnrichedFilterUnstructEvent regexp does not compile",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilterUnstructEvent",
+				Field: "unstruct_event_add_to_cart_1.sku",
+				Regex: "?(?=-)",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
+		},
+		{
+			Name: "spEnrichedFilterUnstructEvent empty field",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilterUnstructEvent",
+				Regex: "test.+",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty field")},
+		},
+		{
+			Name: "spEnrichedFilterUnstructEvent empty regex",
+			Transformations: []*Transformation{{
+				Name:  "spEnrichedFilterUnstructEvent",
+				Field: "unstruct_event_add_to_cart_1.sku",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty regex")},
+		},
+		{
+			Name: "lua success",
+			Transformations: []*Transformation{{
+				Name:   "lua",
+				Engine: luaEngine,
+			}},
+		},
+		{
+			Name: "lua main() smoke test failed",
+			Transformations: []*Transformation{{
+				Name:   "lua",
+				Engine: luaEngineNoMain,
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error in lua transformation #0, main() smoke test failed")},
+		},
+		{
+			Name: "js success",
+			Transformations: []*Transformation{{
+				Name:   "js",
+				Engine: jsEngine,
+			}},
+		},
+		{
+			Name: "js main() smoke test failed",
+			Transformations: []*Transformation{{
+				Name:   "js",
+				Engine: jsEngineNoMain,
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error in js transformation #0, main() smoke test failed")},
+		},
+		{
+			Name: "multiple validation errors",
+			Transformations: []*Transformation{
+				{
+					Name:   "js",
+					Engine: jsEngineNoMain,
+				},
+				{
+					Name:  "spEnrichedFilter",
+					Regex: "test.+",
+				},
+				// a successful transformation mixed in to test transformation counter
+				{
+					Name: "spEnrichedToJson",
+				},
+				{
+					Name: "spEnrichedSetPk",
+				},
+			},
+			ExpectedErrs: []error{
+				fmt.Errorf("validation error in js transformation #0, main() smoke test failed"),
+				fmt.Errorf("validation error #1 spEnrichedFilter, empty field"),
+				fmt.Errorf("validation error #3 spEnrichedSetPk, empty field"),
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			valErrs := ValidateTransformations(tt.Transformations)
+
+			if tt.ExpectedErrs != nil {
+				for idx, valErr := range valErrs {
+					assert.Equal(valErr.Error(), tt.ExpectedErrs[idx].Error())
+				}
+			} else {
+				assert.Nil(valErrs)
+			}
+		})
+	}
 }
 
-// *testConfigProvider implements configProvider
-func (tc *testConfigProvider) ProvideTransformMessage() string {
-	return tc.message
+func TestEnginesAndTransformations(t *testing.T) {
+	var messageJSCompileErr = &models.Message{
+		Data:         snowplowTsv1,
+		PartitionKey: "some-key",
+	}
+	messageJSCompileErr.SetError(errors.New(`failed initializing JavaScript runtime: "could not assert as function: \"main\""`))
+
+	testFixPath := "../../../config/test-fixtures"
+	testCases := []struct {
+		Description        string
+		File               string
+		ExpectedTransforms []Transformation
+		ExpectedMessages   expectedMessages
+		CompileErr         string
+	}{
+		{
+			Description: "simple transform success",
+			File:        "transform-js-simple.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+		{
+			Description: "simple transform with js compile error",
+			File:        "transform-js-error.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{messageJSCompileErr},
+			},
+			CompileErr: `SyntaxError`,
+		},
+		{
+			Description: `mixed success`,
+			File:        "transform-mixed.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowJSON1Mixed,
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+		{
+			Description: `mixed success, order test`,
+			File:        "transform-mixed-order.hcl",
+			// initial app_id should be changed to 1, then if the app_id is 1, it should be changed to 2, then 3
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowJSON1Order,
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+		{
+			Description: `mixed with error`,
+			File:        "transform-mixed-error.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{messageJSCompileErr},
+			},
+			CompileErr: `SyntaxError`,
+		},
+		{
+			Description: `mixed with filter success`,
+			File:        "transform-mixed-filtered.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Description, func(t *testing.T) {
+			assert := assert.New(t)
+
+			filename := filepath.Join(testFixPath, tt.File)
+			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+
+			c, err := config.NewConfig()
+			assert.NotNil(c)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
+
+			// get transformations, and run the transformations on the expected messages
+			tr, err := GetTransformations(c)
+			if tt.CompileErr != `` {
+				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
+				assert.Nil(tr)
+				return
+			}
+
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+
+			result := tr(tt.ExpectedMessages.Before)
+			assert.NotNil(result)
+			assert.Equal(int(result.ResultCount+result.FilteredCount+result.InvalidCount), len(tt.ExpectedMessages.After))
+
+			// check result for successfully transformed messages
+			for idx, resultMessage := range result.Result {
+				assert.Equal(resultMessage.Data, tt.ExpectedMessages.After[idx].Data)
+			}
+
+			// check errors for invalid messages
+			for idx, resultMessage := range result.Invalid {
+				assert.Equal(resultMessage.GetError(), tt.ExpectedMessages.After[idx].GetError())
+			}
+
+			// check result for transformed messages in case of filtered results
+			if result.FilteredCount != 0 {
+				assert.NotNil(result.Filtered)
+				for idx, resultMessage := range result.Filtered {
+					assert.Equal(resultMessage.Data, tt.ExpectedMessages.After[idx].Data)
+				}
+			}
+		})
+	}
 }
 
-func (tc *testConfigProvider) ProvideTransformLayerName() string {
-	return tc.layerName
+type expectedMessages struct {
+	Before []*models.Message
+	After  []*models.Message
 }
 
-func (tc *testConfigProvider) ProvideTransformComponent(p config.Pluggable) (interface{}, error) {
-	return tc.component, tc.err
+var snowplowTsv1 = []byte(`test-data1	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`)
+var snowplowJSON1 = []byte(`{"app_id":"test-data1","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
+var snowplowTsv2 = []byte(`test-data2	pc	2019-05-10 14:40:32.392	2019-05-10 14:40:31.105	2019-05-10 14:40:30.218	transaction_item	5071169f-3050-473f-b03f-9748319b1ef2			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				68220ade-307b-4898-8e25-c4c8ac92f1d7																																																		transaction<built-in function input>	item58			35.87	1					python-requests/2.21.0																																										2019-05-10 14:40:30.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:31.105	com.snowplowanalytics.snowplow	transaction_item	jsonschema	1-0-0		`)
+var snowplowTsv3 = []byte(`test-data3	pc	2019-05-10 14:40:30.836	2019-05-10 14:40:29.576	2019-05-10 14:40:29.204	page_view	e8aef68d-8533-45c6-a672-26a0f01be9bd			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				b66c4a12-8584-4c7a-9a5d-7c96f59e2556												www.demo-site.com/campaign-landing-page	landing-page				80	www.demo-site.com/campaign-landing-page																																										python-requests/2.21.0																																										2019-05-10 14:40:29.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??","test1":{"test2":[{"test3":"testValue"}]}}}]}		2019-05-10 14:40:29.576	com.snowplowanalytics.snowplow	page_view	jsonschema	1-0-0		`)
+
+var nonSnowplowString = []byte(`not	a	snowplow	event`)
+
+var messages = []*models.Message{
+	{
+		Data:         snowplowTsv1,
+		PartitionKey: "some-key",
+	},
+	{
+		Data:         snowplowTsv2,
+		PartitionKey: "some-key1",
+	},
+	{
+		Data:         snowplowTsv3,
+		PartitionKey: "some-key2",
+	},
+	{
+		Data:         nonSnowplowString,
+		PartitionKey: "some-key4",
+	},
 }
 
-type testPluggable struct{}
+// snowplowJSON1 with 3 transformations applied
+var snowplowJSON1Mixed = []byte(`Hello:{"app_id":"again","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
-// *testPluggable implements config.Pluggable
-func (tp *testPluggable) ProvideDefault() (interface{}, error) {
-	return "placeholder", nil
-}
-
-func (tp *testPluggable) Create(i interface{}) (interface{}, error) {
-	return "placeholder", nil
-}
-
-type testEngine struct {
-	smokeTestErr error
-	mkFunction   transform.TransformationFunction
-}
-
-// *testEngine implements transform.Engine
-func (te *testEngine) SmokeTest(funName string) error {
-	return te.smokeTestErr
-}
-
-func (te *testEngine) MakeFunction(funName string) transform.TransformationFunction {
-	return te.mkFunction
-}
-
-func testTransformationFunction(*models.Message, interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
-	return nil, nil, nil, nil
-}
+// snowplowJSON1 with 3 transformations applied, for order test
+var snowplowJSON1Order = []byte(`{"app_id":"3","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
