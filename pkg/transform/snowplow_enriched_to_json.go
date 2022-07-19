@@ -13,7 +13,7 @@ import (
 // SpEnrichedToJSON is a specific transformation implementation to transform good enriched data within a message to Json
 func SpEnrichedToJSON(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 	// Evalute intermediateState to parsedEvent
-	parsedMessage, parseErr := intermediateAsSpEnrichedParsed(intermediateState, message)
+	parsedMessage, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 	if parseErr != nil {
 		message.SetError(parseErr)
 		return nil, nil, message, nil

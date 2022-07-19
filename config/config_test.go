@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +26,6 @@ func TestNewConfig(t *testing.T) {
 
 	assert.Equal("info", c.Data.LogLevel)
 	assert.Equal("stdout", c.Data.Target.Use.Name)
-	assert.Equal("none", c.Data.Transform.Message)
 	assert.Equal("stdin", c.Data.Source.Use.Name)
 
 	// Tests on sources moved to the source package.
@@ -226,7 +224,6 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert.Equal(false, c.Data.Sentry.Debug)
 	assert.Equal(1, c.Data.StatsReceiver.TimeoutSec)
 	assert.Equal(15, c.Data.StatsReceiver.BufferSec)
-	assert.Equal("none", c.Data.Transform.Message)
 	assert.Equal("info", c.Data.LogLevel)
 }
 
@@ -245,67 +242,4 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 	assert.Equal(true, c.Data.Sentry.Debug)
 	assert.Equal("{\"testKey\":\"testValue\"}", c.Data.Sentry.Tags)
 	assert.Equal("testDsn", c.Data.Sentry.Dsn)
-}
-
-func TestDefaultTransformation(t *testing.T) {
-	assert := assert.New(t)
-
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", "")
-	t.Setenv("MESSAGE_TRANSFORMATION", "")
-
-	c, err := NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-
-	assert.Equal("none", c.Data.Transform.Message)
-	assert.Equal("none", c.ProvideTransformMessage())
-	assert.Equal("", c.ProvideTransformLayerName())
-}
-
-func TestTransformationProviderImplementation(t *testing.T) {
-	testFixPath := "./test-fixtures"
-	testCases := []struct {
-		File      string
-		Plug      Pluggable
-		Message   string
-		LayerName string
-	}{
-		{
-			File:      "transform-lua-simple.hcl",
-			Plug:      transform.LuaLayer().(Pluggable),
-			Message:   "lua:fun",
-			LayerName: "lua",
-		},
-		{
-			File:      "transform-js-simple.hcl",
-			Plug:      transform.JSLayer().(Pluggable),
-			Message:   "js:fun",
-			LayerName: "js",
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.File, func(t *testing.T) {
-			assert := assert.New(t)
-
-			configFile := filepath.Join(testFixPath, tt.File)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", configFile)
-
-			c, err := NewConfig()
-			assert.NotNil(c)
-			if err != nil {
-				t.Fatalf("function NewConfig failed with error: %q", err.Error())
-			}
-
-			assert.Equal(tt.Message, c.ProvideTransformMessage())
-			assert.Equal(tt.LayerName, c.ProvideTransformLayerName())
-
-			component, err := c.ProvideTransformComponent(tt.Plug)
-			assert.Nil(err)
-			assert.NotNil(component)
-
-		})
-	}
 }

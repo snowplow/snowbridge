@@ -13,9 +13,9 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-// intermediateAsSpEnrichedParsed checks whether we have a Snowplow Analytics SDK ParsedEvent in the intermediateState
-// If we do, we return it. If it don't, we parse the message.Data and return it the result.
-func intermediateAsSpEnrichedParsed(intermediateState interface{}, message *models.Message) (analytics.ParsedEvent, error) {
+// IntermediateAsSpEnrichedParsed returns the intermediate state as a ParsedEvent if valid or parses
+// the message as an event
+func IntermediateAsSpEnrichedParsed(intermediateState interface{}, message *models.Message) (analytics.ParsedEvent, error) {
 	var parsedMessage, ok = intermediateState.(analytics.ParsedEvent)
 	var parseErr error
 	if ok {

@@ -50,6 +50,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1
+	github.com/dlclark/regexp2 v1.7.0
 	github.com/dop251/goja v0.0.0-20220405120441-9037c2b61cbf
 	github.com/goccy/go-json v0.9.7
 	github.com/hashicorp/hcl/v2 v2.11.1
@@ -72,7 +73,6 @@ require (
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/devigned/tab v0.1.1 // indirect
-	github.com/dlclark/regexp2 v1.4.1-0.20201116162257-a2a8dda75c91 // indirect
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
