@@ -1,11 +1,10 @@
 # transform configuration - lua - extended
 
 transform {
-  message_transformation = "lua:fun"
-
   use "lua" {
-    source_b64  = "CglmdW5jdGlvbiBmb28oeCkKICAgICAgICAgICByZXR1cm4geAogICAgICAgIGVuZAoJ"
+    source_b64 = "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ"
     timeout_sec = 10
+    snowplow_mode = false
     sandbox     = false
   }
 }
