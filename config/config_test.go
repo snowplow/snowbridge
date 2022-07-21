@@ -50,6 +50,7 @@ func TestNewConfig_FromEnv(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("TARGET_NAME", "kinesis")
 	t.Setenv("SOURCE_NAME", "kinesis")
+	t.Setenv("TRANSFORM_CONFIG_B64", `dHJhbnNmb3JtIHsKICB1c2UgImpzIiB7CiAgICAvLyBjaGFuZ2VzIGFwcF9pZCB0byAiMSIKICAgIHNvdXJjZV9iNjQgPSAiWm5WdVkzUnBiMjRnYldGcGJpaDRLU0I3Q2lBZ0lDQjJZWElnYW5OdmJrOWlhaUE5SUVwVFQwNHVjR0Z5YzJVb2VDNUVZWFJoS1RzS0lDQWdJR3B6YjI1UFltcGJJbUZ3Y0Y5cFpDSmRJRDBnSWpFaU93b2dJQ0FnY21WMGRYSnVJSHNLSUNBZ0lDQWdJQ0JFWVhSaE9pQktVMDlPTG5OMGNtbHVaMmxtZVNocWMyOXVUMkpxS1FvZ0lDQWdmVHNLZlE9PSIKICB9Cn0KCnRyYW5zZm9ybSB7CiAgdXNlICJqcyIgewogICAgLy8gaWYgYXBwX2lkID09ICIxIiBpdCBpcyBjaGFuZ2VkIHRvICIyIgogICAgc291cmNlX2I2NCA9ICJablZ1WTNScGIyNGdiV0ZwYmloNEtTQjdDaUFnSUNCMllYSWdhbk52Yms5aWFpQTlJRXBUVDA0dWNHRnljMlVvZUM1RVlYUmhLVHNLSUNBZ0lHbG1JQ2hxYzI5dVQySnFXeUpoY0hCZmFXUWlYU0E5UFNBaU1TSXBJSHNLSUNBZ0lDQWdJQ0JxYzI5dVQySnFXeUpoY0hCZmFXUWlYU0E5SUNJeUlnb2dJQ0FnZlFvZ0lDQWdjbVYwZFhKdUlIc0tJQ0FnSUNBZ0lDQkVZWFJoT2lCS1UwOU9Mbk4wY21sdVoybG1lU2hxYzI5dVQySnFLUW9nSUNBZ2ZUc0tmUT09IgogIH0KfQoKdHJhbnNmb3JtIHsKICB1c2UgImpzIiB7CiAgICAvLyBpZiBhcHBfaWQgPT0gIjIiIGl0IGlzIGNoYW5nZWQgdG8gIjMiCiAgICBzb3VyY2VfYjY0ID0gIlpuVnVZM1JwYjI0Z2JXRnBiaWg0S1NCN0NpQWdJQ0IyWVhJZ2FuTnZiazlpYWlBOUlFcFRUMDR1Y0dGeWMyVW9lQzVFWVhSaEtUc0tJQ0FnSUdsbUlDaHFjMjl1VDJKcVd5SmhjSEJmYVdRaVhTQTlQU0FpTWlJcElIc0tJQ0FnSUNBZ0lDQnFjMjl1VDJKcVd5SmhjSEJmYVdRaVhTQTlJQ0l6SWdvZ0lDQWdmUW9nSUNBZ2NtVjBkWEp1SUhzS0lDQWdJQ0FnSUNCRVlYUmhPaUJLVTA5T0xuTjBjbWx1WjJsbWVTaHFjMjl1VDJKcUtRb2dJQ0FnZlRzS2ZRPT0iCiAgfQp9`)
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -60,6 +61,11 @@ func TestNewConfig_FromEnv(t *testing.T) {
 	assert.Equal("debug", c.Data.LogLevel)
 	assert.Equal("kinesis", c.Data.Target.Use.Name)
 	assert.Equal("kinesis", c.Data.Source.Use.Name)
+	assert.Equal(3, len(c.Data.Transformations))
+	for _, transf := range c.Data.Transformations {
+		assert.Equal("js", transf.Use.Name)
+
+	}
 }
 
 func TestNewConfig_FromEnvInvalid(t *testing.T) {
@@ -148,6 +154,33 @@ func TestNewConfig_InvalidStatsReceiver(t *testing.T) {
 	assert.NotNil(err)
 	if err != nil {
 		assert.Equal("Invalid stats receiver found; expected one of 'statsd' and got 'fake'", err.Error())
+	}
+}
+
+func TestNewConfig_InvalidTransformationB64(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Setenv("TRANSFORM_CONFIG_B64", `fdssdnpfdspnm`)
+
+	c, err := NewConfig()
+	assert.Nil(c)
+	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("Error decoding transformation config base64 from env: Failed to Base64 decode for creating file tmp_replicator/transform.hcl: illegal base64 data at input byte 12", err.Error())
+	}
+
+}
+
+func TestNewConfig_UnparseableTransformationB64(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Setenv("TRANSFORM_CONFIG_B64", `dHJhbnNmb3JtIHsKICB1c2UgImpzIiB7CiAgICAvLyBjaGFuZ2VzIGFwcF9pZCB0byAiMSIKICAgIHNvdXJjZV9iNjQgPSAiWm5WdVkzUnBiMjRnYldGcGJpaDRLU0I3Q2lBZ0lDQjJZWElnYW5OdmJrOWlhaUE5SUVwVFQwNHVjR0Z5YzJVb2VDNUVZWFJoS1RzS0lDQWdJR3B6YjI1UFltcGJJbUZ3Y0Y5cFpDSmRJRDBnSWpFaU93b2dJQ0FnY21WMGRYSnVJSHNLSUNBZ0lDQWdJQ0JFWVhSaE9pQktVMDlPTG5OMGNtbHVaMmxtZVNocWMyOXVUMkpxS1FvZ0lDQWdmVHNLZlE9PSIKICB9Cn0KCnRyYW5zZm9ybSB7CiAgdXNlICJqcyIgewogICAgLy8gaWYgYXBwX2lkID09ICIxIiBpdCBpcyBjaGFuZ2VkIHRvICIyIgogICAgc291cmNlX2I2NCA9ICJablZ1WTNScGIyNGdiV0ZwYmloNEtTQjdDaUFnSUNCMllYSWdhbk52Yms5aWFpQTlJRXBUVDA0dWNHRnljMlVvZUM1RVlYUmhLVHNLSUNBZ0lHbG1JQ2hxYzI5dVQySnFXeUpoY0hCZmFXUWlYU0E5UFNBaU1TSXBJSHNLSUNBZ0lDQWdJQ0JxYzI5dVQySnFXeUpoY0hCZmFXUWlYU0E5SUNJeUlnb2dJQ0FnZlFvZ0lDQWdjbVYwZFhKdUlIc0tJQ0FnSUNBZ0lDQkVZWFJoT2lCS1UwOU9Mbk4wY21sdVoybG1lU2hxYzI5dVQySnFLUW9nSUNBZ2ZUc0tmUT09IgoKfQoKdHJhbnNmb3JtIHsKICB1c2UgImpzIiB7CiAgICAvLyBpZiBhcHBfaWQgPT0gIjIiIGl0IGlzIGNoYW5nZWQgdG8gIjMiCiAgICBzb3VyY2VfYjY0ID0gIlpuVnVZM1JwYjI0Z2JXRnBiaWg0S1NCN0NpQWdJQ0IyWVhJZ2FuTnZiazlpYWlBOUlFcFRUMDR1Y0dGeWMyVW9lQzVFWVhSaEtUc0tJQ0FnSUdsbUlDaHFjMjl1VDJKcVd5SmhjSEJmYVdRaVhTQTlQU0FpTWlJcElIc0tJQ0FnSUNBZ0lDQnFjMjl1VDJKcVd5SmhjSEJmYVdRaVhTQTlJQ0l6SWdvZ0lDQWdmUW9nSUNBZ2NtVjBkWEp1SUhzS0lDQWdJQ0FnSUNCRVlYUmhPaUJLVTA5T0xuTjBjbWx1WjJsbWVTaHFjMjl1VDJKcUtRb2dJQ0FnZlRzS2ZRPT0iCiAgfQp9`)
+
+	c, err := NewConfig()
+	assert.Nil(c)
+	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("Error parsing transformation config from env: tmp_replicator/transform.hcl:8,11-12: Unclosed configuration block; There is no closing brace for this block before the end of the file. This may be caused by incorrect brace nesting elsewhere in this file.", err.Error())
 	}
 }
 
@@ -242,4 +275,42 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 	assert.Equal(true, c.Data.Sentry.Debug)
 	assert.Equal("{\"testKey\":\"testValue\"}", c.Data.Sentry.Tags)
 	assert.Equal("testDsn", c.Data.Sentry.Dsn)
+}
+
+func TestNewConfig_HclTransformationOrder(t *testing.T) {
+	assert := assert.New(t)
+
+	filename := filepath.Join("test-fixtures", "transform-mocked-order.hcl")
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
+
+	assert.Equal(5, len(c.Data.Transformations))
+	assert.Equal("one", c.Data.Transformations[0].Use.Name)
+	assert.Equal("two", c.Data.Transformations[1].Use.Name)
+	assert.Equal("three", c.Data.Transformations[2].Use.Name)
+	assert.Equal("four", c.Data.Transformations[3].Use.Name)
+	assert.Equal("five", c.Data.Transformations[4].Use.Name)
+}
+
+func TestNewConfig_B64TransformationOrder(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Setenv("TRANSFORM_CONFIG_B64", `dHJhbnNmb3JtIHsKICB1c2UgIm9uZSIgewogIH0KfQoKdHJhbnNmb3JtIHsKICB1c2UgInR3byIgewogIH0KfQoKdHJhbnNmb3JtIHsKICB1c2UgInRocmVlIiB7CiAgfQp9Cgp0cmFuc2Zvcm0gewogIHVzZSAiZm91ciIgewogIH0KfQoKdHJhbnNmb3JtIHsKICB1c2UgImZpdmUiIHsKICB9Cn0=`)
+
+	c, err := NewConfig()
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
+
+	assert.Equal(5, len(c.Data.Transformations))
+	assert.Equal("one", c.Data.Transformations[0].Use.Name)
+	assert.Equal("two", c.Data.Transformations[1].Use.Name)
+	assert.Equal("three", c.Data.Transformations[2].Use.Name)
+	assert.Equal("four", c.Data.Transformations[3].Use.Name)
+	assert.Equal("five", c.Data.Transformations[4].Use.Name)
 }
