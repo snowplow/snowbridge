@@ -15,12 +15,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
-
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 

@@ -14,14 +14,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
-
 	"github.com/Shopify/sarama"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/xdg/scram"
 
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 

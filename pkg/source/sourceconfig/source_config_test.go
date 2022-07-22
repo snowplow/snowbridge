@@ -10,9 +10,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
