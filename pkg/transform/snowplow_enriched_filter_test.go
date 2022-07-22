@@ -9,8 +9,9 @@ package transform
 import (
 	"testing"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
 func TestNewSpEnrichedFilterFunction(t *testing.T) {

@@ -17,9 +17,10 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
-	"github.com/stretchr/testify/assert"
 )
 
 func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Server {

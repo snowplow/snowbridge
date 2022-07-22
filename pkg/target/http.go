@@ -15,21 +15,20 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
-
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
 // HTTPTargetConfig configures the destination for records consumed
 type HTTPTargetConfig struct {
 	HTTPURL                 string `hcl:"url" env:"TARGET_HTTP_URL"`
-	ByteLimit               int    `hcl:"byte_limit,optional" env:"TARGET_HTTP_BYTE_LIMIT"`                         // defBytes
-	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional" env:"TARGET_HTTP_TIMEOUT_IN_SECONDS"` // def ???? Request timeout in seconds
-	ContentType             string `hcl:"content_type,optional" env:"TARGET_HTTP_CONTENT_TYPE"`                     // application/json
+	ByteLimit               int    `hcl:"byte_limit,optional" env:"TARGET_HTTP_BYTE_LIMIT"`
+	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional" env:"TARGET_HTTP_TIMEOUT_IN_SECONDS"`
+	ContentType             string `hcl:"content_type,optional" env:"TARGET_HTTP_CONTENT_TYPE"`
 	Headers                 string `hcl:"headers,optional" env:"TARGET_HTTP_HEADERS" `
 	BasicAuthUsername       string `hcl:"basic_auth_username,optional" env:"TARGET_HTTP_BASICAUTH_USERNAME"`
 	BasicAuthPassword       string `hcl:"basic_auth_password,optional" env:"TARGET_HTTP_BASICAUTH_PASSWORD"`

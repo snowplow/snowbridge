@@ -8,16 +8,17 @@ package transform
 
 import (
 	"fmt"
-	"github.com/dlclark/regexp2"
 	"log"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/dlclark/regexp2"
+
 	"github.com/pkg/errors"
+	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
 func findSpEnrichedFilterValue(queriedField, parsedEventName, eventVer, field string, parsedMessage analytics.ParsedEvent, path []interface{}) ([]interface{}, error) {

@@ -1,8 +1,8 @@
-//// PROPRIETARY AND CONFIDENTIAL
-////
-//// Unauthorized copying of this file via any medium is strictly prohibited.
-////
-//// Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
+// PROPRIETARY AND CONFIDENTIAL
+//
+// Unauthorized copying of this file via any medium is strictly prohibited.
+//
+// Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 //
 package engine
 
