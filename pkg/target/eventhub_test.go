@@ -17,10 +17,11 @@ import (
 
 	eventhub "github.com/Azure/azure-event-hubs-go/v3"
 	"github.com/pkg/errors"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/twinj/uuid"
+
+	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
 var cfg = EventHubConfig{
