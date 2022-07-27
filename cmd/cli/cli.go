@@ -123,20 +123,25 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 				stop <- struct{}{}
 			}()
 
-			err := common.DeleteTemporaryDir()
-			if err != nil {
-				log.Debugf(`error deleting tmp directory: %v`, err)
-			}
-
 			select {
 			case <-stop:
 				log.Debug("source.Stop() finished successfully!")
+				
+				err := common.DeleteTemporaryDir()
+				if err != nil {
+					log.Debugf(`error deleting tmp directory: %v`, err)
+				}
 			case <-time.After(5 * time.Second):
 				log.Error("source.Stop() took more than 5 seconds, forcing shutdown ...")
 
 				t.Close()
 				ft.Close()
 				o.Stop()
+
+				err := common.DeleteTemporaryDir()
+				if err != nil {
+					log.Debugf(`error deleting tmp directory: %v`, err)
+				}
 
 				os.Exit(1)
 			}
