@@ -2,6 +2,8 @@ package telemetry
 
 import (
 	"time"
+
+	"github.com/snowplow-devops/stream-replicator/cmd"
 )
 
 var (
@@ -11,5 +13,5 @@ var (
 	url                = "telemetry-g.snowplowanalytics.com"
 	port               = "443"
 	applicationName    = "stream-replicator"
-	applicationVersion = "1.0.0"
+	applicationVersion = cmd.AppVersion
 )
