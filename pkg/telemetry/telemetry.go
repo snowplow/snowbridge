@@ -13,7 +13,7 @@ import (
 
 // config holds the configuration for telemetry
 type config struct {
-	enable             bool
+	disable            bool
 	interval           time.Duration
 	method             string
 	url                string
@@ -27,7 +27,7 @@ type config struct {
 
 func newTelemetryWithConfig(cfg *conf.Config) *config {
 	return &config{
-		enable:             cfg.Data.DisableTelemetry,
+		disable:            cfg.Data.DisableTelemetry,
 		interval:           interval,
 		method:             method,
 		protocol:           protocol,
@@ -101,6 +101,9 @@ func makeAndTrackHeartbeat(telemetry *config, tracker *gt.Tracker) {
 // InitTelemetryWithCollector initialises telemetry
 func InitTelemetryWithCollector(cfg *conf.Config) {
 	telemetry := newTelemetryWithConfig(cfg)
+	if telemetry.disable {
+		return
+	}
 	initTelemetry(telemetry)
 }
 
