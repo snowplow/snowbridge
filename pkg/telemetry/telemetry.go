@@ -27,7 +27,7 @@ type config struct {
 
 func newTelemetryWithConfig(cfg *conf.Config) *config {
 	return &config{
-		enable:             cfg.Data.EnableTelemetry,
+		enable:             cfg.Data.DisableTelemetry,
 		interval:           interval,
 		method:             method,
 		protocol:           protocol,
