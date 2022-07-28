@@ -166,6 +166,7 @@ func (rs *RabbitMQTarget) Write(messages []*models.Message) (*models.TargetWrite
 		}
 
 		// TODO: What settings are missing here?
+		// TODO: Handle NotifyReturn / use DeferredConfirm to ensure delivery
 		err := rs.channel.Publish(
 			rs.exchange,   // exchange
 			rs.routingKey, // routing key
