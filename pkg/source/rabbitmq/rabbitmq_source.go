@@ -131,6 +131,14 @@ func (rs *rabbitMQSource) Read(sf *sourceiface.SourceFunctions) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to declare a queue")
 	}
+	err = ch.Qos(
+	  rs.concurrentWrites, // prefetch count
+	  0,                   // prefetch size
+	  false,               // global
+	)
+	if err != nil {
+		return errors.Wrap(err, "Failed to set QoS")
+	}
 
 	msgs, err := ch.Consume(
 		q.Name, // queue

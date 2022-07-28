@@ -142,6 +142,7 @@ func (rs *RabbitMQTarget) Write(messages []*models.Message) (*models.TargetWrite
 			false,         // mandatory
 			false,         // immediate
 			amqp.Publishing{
+				DeliveryMode: amqp.Persistent,
 				ContentType: "text/plain",
 				Body:        msg.Data,
 			},
