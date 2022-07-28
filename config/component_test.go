@@ -167,6 +167,16 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				TopicName: "testTopic",
 			},
 		},
+		{
+			File: "target-rabbitmq.hcl",
+			Plug: testRabbitMQTargetAdapter(testRabbitMQTargetFunc),
+			Expected: &target.RabbitMQTargetConfig{
+				ClusterURL: "localhost:5672",
+				Username: "admin",
+				Password: "secretpassword",
+				QueueName: "my-rabbitmq-queue",
+			},
+		},
 	}
 
 	for _, tt := range testCases {
@@ -436,6 +446,24 @@ func testPubSubTargetAdapter(f func(c *target.PubSubTargetConfig) (*target.PubSu
 }
 
 func testPubSubTargetFunc(c *target.PubSubTargetConfig) (*target.PubSubTargetConfig, error) {
+
+	return c, nil
+}
+
+// RabbitMQ
+func testRabbitMQTargetAdapter(f func(c *target.RabbitMQTargetConfig) (*target.RabbitMQTargetConfig, error)) target.RabbitMQTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*target.RabbitMQTargetConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected RabbitMQTargetConfig")
+		}
+
+		return f(cfg)
+	}
+
+}
+
+func testRabbitMQTargetFunc(c *target.RabbitMQTargetConfig) (*target.RabbitMQTargetConfig, error) {
 
 	return c, nil
 }
