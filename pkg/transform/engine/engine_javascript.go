@@ -143,7 +143,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		}
 
 		// filtering - keeping same behaviour with spEnrichedFilter
-		if protocol.FilterOut == true {
+		if protocol.FilterOut {
 			return nil, message, nil, nil
 		}
 
@@ -184,7 +184,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 func compileJS(code, name string, disableSrcMaps bool) (*goja.Program, error) {
 	parserOpts := make([]gojaparser.Option, 0, 1)
 
-	if disableSrcMaps == true {
+	if disableSrcMaps {
 		parserOpts = append(parserOpts, gojaparser.WithDisableSourceMaps)
 	}
 

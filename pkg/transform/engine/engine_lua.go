@@ -167,7 +167,7 @@ func (e *LuaEngine) MakeFunction(funcName string) transform.TransformationFuncti
 		}
 
 		// filtering - keeping same behaviour with spEnrichedFilter
-		if protocol.FilterOut == true {
+		if protocol.FilterOut {
 			return nil, message, nil, nil
 		}
 
@@ -241,7 +241,7 @@ func loadLuaCode(ls *lua.LState, proto *lua.FunctionProto) error {
 
 // initVM performs the initialization steps for a Lua state.
 func initVM(e *LuaEngine, L *lua.LState, funcName string) error {
-	if e.Options.SkipOpenLibs == false {
+	if !e.Options.SkipOpenLibs {
 		luajson.Preload(L)
 	}
 
@@ -312,17 +312,17 @@ func mapToLTable(m map[string]interface{}) (*lua.LTable, error) {
 	// Loop map
 	for key, val := range m {
 
-		switch val.(type) {
+		switch v := val.(type) {
 		case float64:
-			ltbl.RawSetString(key, lua.LNumber(val.(float64)))
+			ltbl.RawSetString(key, lua.LNumber(v))
 		case int64:
-			ltbl.RawSetString(key, lua.LNumber(val.(int64)))
+			ltbl.RawSetString(key, lua.LNumber(v))
 		case string:
-			ltbl.RawSetString(key, lua.LString(val.(string)))
+			ltbl.RawSetString(key, lua.LString(v))
 		case bool:
-			ltbl.RawSetString(key, lua.LBool(val.(bool)))
+			ltbl.RawSetString(key, lua.LBool(v))
 		case []byte:
-			ltbl.RawSetString(key, lua.LString(string(val.([]byte))))
+			ltbl.RawSetString(key, lua.LString(string(v)))
 		case map[string]interface{}:
 			// Get table from map
 			tmp, err := mapToLTable(val.(map[string]interface{}))
@@ -348,20 +348,20 @@ func mapToLTable(m map[string]interface{}) (*lua.LTable, error) {
 			// Create slice table
 			sliceTable := &lua.LTable{}
 			for _, vv := range val.([]interface{}) {
-				switch vv.(type) {
+				switch v := vv.(type) {
 				case map[string]interface{}:
 					// Convert map to table
-					m, err := mapToLTable(vv.(map[string]interface{}))
+					m, err := mapToLTable(v)
 					if err != nil {
 						return nil, err
 					}
 					sliceTable.Append(m)
 				case float64:
-					sliceTable.Append(lua.LNumber(vv.(float64)))
+					sliceTable.Append(lua.LNumber(v))
 				case string:
-					sliceTable.Append(lua.LString(vv.(string)))
+					sliceTable.Append(lua.LString(v))
 				case bool:
-					sliceTable.Append(lua.LBool(vv.(bool)))
+					sliceTable.Append(lua.LBool(v))
 				}
 			}
 

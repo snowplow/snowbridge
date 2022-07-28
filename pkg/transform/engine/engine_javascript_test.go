@@ -1427,9 +1427,11 @@ function main(x) {
 	}
 }
 
+/*
 func testJSEngineFunc(c *JSEngineConfig) (*JSEngineConfig, error) {
 	return c, nil
 }
+*/
 
 // Helper function to compare messages and avoid using reflect.DeepEqual
 // on errors. Compares all but the error field of messages.
