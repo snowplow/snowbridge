@@ -109,7 +109,7 @@ func newRabbitMQSource(clusterURL string, username string, password string, queu
 		exchangeName:     exchangeName,
 		exchangeType:     exchangeType,
 		concurrentWrites: concurrentWrites,
-		log:              log.WithFields(log.Fields{"source": "rabbitmq", "queue": queueName}),
+		log:              log.WithFields(log.Fields{"source": "rabbitmq", "queue": queueName, "exchangeName": exchangeName}),
 		exitSignal:       make(chan struct{}),
 	}, nil
 }

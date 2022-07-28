@@ -126,7 +126,7 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 			select {
 			case <-stop:
 				log.Debug("source.Stop() finished successfully!")
-				
+
 				err := common.DeleteTemporaryDir()
 				if err != nil {
 					log.Debugf(`error deleting tmp directory: %v`, err)
