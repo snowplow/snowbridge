@@ -96,7 +96,7 @@ func TestNewConfig_InvalidTarget(t *testing.T) {
 	assert.Nil(source)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fake'", err.Error())
+		assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http, rabbitmq' and got 'fake'", err.Error())
 	}
 }
 
@@ -115,7 +115,7 @@ func TestNewConfig_InvalidFailureTarget(t *testing.T) {
 	assert.Nil(source)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fake'", err.Error())
+		assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http, rabbitmq' and got 'fake'", err.Error())
 	}
 }
 
@@ -222,7 +222,7 @@ func TestNewConfig_Hcl_invalids(t *testing.T) {
 		assert.Nil(target)
 		assert.NotNil(err)
 		if err != nil {
-			assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fakeHCL'", err.Error())
+			assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http, rabbitmq' and got 'fakeHCL'", err.Error())
 		}
 	})
 
@@ -231,7 +231,7 @@ func TestNewConfig_Hcl_invalids(t *testing.T) {
 		assert.Nil(ftarget)
 		assert.NotNil(err)
 		if err != nil {
-			assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fakeHCL'", err.Error())
+			assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http, rabbitmq' and got 'fakeHCL'", err.Error())
 		}
 	})
 

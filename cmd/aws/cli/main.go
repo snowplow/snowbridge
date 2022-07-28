@@ -10,6 +10,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/cmd/cli"
 	kinesissource "github.com/snowplow-devops/stream-replicator/pkg/source/kinesis"
 	pubsubsource "github.com/snowplow-devops/stream-replicator/pkg/source/pubsub"
+	rabbitmqsource "github.com/snowplow-devops/stream-replicator/pkg/source/rabbitmq"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	sqssource "github.com/snowplow-devops/stream-replicator/pkg/source/sqs"
 	stdinsource "github.com/snowplow-devops/stream-replicator/pkg/source/stdin"
@@ -17,7 +18,7 @@ import (
 
 func main() {
 	// Make a slice of SourceConfigPairs supported for this build
-	sourceConfigPairs := []sourceconfig.ConfigPair{stdinsource.ConfigPair, sqssource.ConfigPair, pubsubsource.ConfigPair, kinesissource.ConfigPair}
+	sourceConfigPairs := []sourceconfig.ConfigPair{stdinsource.ConfigPair, sqssource.ConfigPair, pubsubsource.ConfigPair, kinesissource.ConfigPair, rabbitmqsource.ConfigPair}
 
 	cli.RunCli(sourceConfigPairs)
 }
