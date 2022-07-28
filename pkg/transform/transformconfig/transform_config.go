@@ -162,6 +162,19 @@ func GetTransformations(c *config.Config) (transform.TransformationApplyFunction
 		decoderOpts := &config.DecoderOptions{
 			Input: transformation.Use.Body,
 		}
+		if transformation.Use.Name == `wasm` {
+			enginePlug = engine.AdaptWASMEngineFunc(engine.WASMEngineConfigFunction)
+			component, err := c.CreateComponent(enginePlug, decoderOpts)
+			if err != nil {
+				return nil, err
+			}
+
+			engine, ok := component.(engine.Engine)
+			if !ok {
+				return nil, errors.New("cannot create wasm engine")
+			}
+			eng = engine
+		}
 		if transformation.Use.Name == `lua` {
 			enginePlug = engine.AdaptLuaEngineFunc(engine.LuaEngineConfigFunction)
 			component, err := c.CreateComponent(enginePlug, decoderOpts)
