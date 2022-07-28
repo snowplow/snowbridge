@@ -55,10 +55,9 @@ func newRabbitMQTarget(clusterURL string, username string, password string, queu
 		return nil, errors.Wrap(err, "Failed to open a channel")
 	}
 
-	// TODO: What settings here?
 	queue, err := channel.QueueDeclare(
 		queueName, // name
-		false,     // durable
+		true,      // durable
 		false,     // delete when unused
 		false,     // exclusive
 		false,     // no-wait

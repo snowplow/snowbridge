@@ -120,10 +120,9 @@ func (rs *rabbitMQSource) Read(sf *sourceiface.SourceFunctions) error {
 	}
 	defer ch.Close()
 
-	// TODO: What settings here?
 	q, err := ch.QueueDeclare(
 		rs.queueName, // name
-		false,        // durable
+		true,         // durable
 		false,        // delete when unused
 		false,        // exclusive
 		false,        // no-wait
@@ -133,7 +132,6 @@ func (rs *rabbitMQSource) Read(sf *sourceiface.SourceFunctions) error {
 		return errors.Wrap(err, "Failed to declare a queue")
 	}
 
-	// TODO: What settings here?
 	msgs, err := ch.Consume(
 		q.Name, // queue
 		"",     // consumer
