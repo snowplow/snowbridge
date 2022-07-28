@@ -136,6 +136,7 @@ func (rs *RabbitMQTarget) Write(messages []*models.Message) (*models.TargetWrite
 			continue
 		}
 
+		// TODO: What settings are missing here?
 		err := rs.channel.Publish(
 			"",            // exchange
 			rs.queue.Name, // routing key
