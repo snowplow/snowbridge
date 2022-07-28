@@ -6,12 +6,12 @@ target {
     cluster_url = "localhost:5672"
 
     # Authenticated user to login
-    username    = "admin"
+    username = "admin"
 
     # Password for user to login
-    password    = "secretpassword"
+    password = "secretpassword"
 
     # Name of the queue to push messages to
-    queue_name  = "my-rabbitmq-queue"
+    queue_name = "my-rabbitmq-queue"
   }
 }

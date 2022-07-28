@@ -27,6 +27,8 @@ type configuration struct {
 	Username         string `hcl:"username" env:"SOURCE_RABBITMQ_USERNAME"`
 	Password         string `hcl:"password" env:"SOURCE_RABBITMQ_PASSWORD"`
 	QueueName        string `hcl:"queue_name" env:"SOURCE_RABBITMQ_QUEUE_NAME"`
+	ExchangeName     string `hcl:"exchange_name" env:"SOURCE_RABBITMQ_EXCHANGE_NAME"`
+	ExchangeType     string `hcl:"exchange_type" env:"SOURCE_RABBITMQ_EXCHANGE_TYPE"`
 	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
 }
 
@@ -36,6 +38,8 @@ type rabbitMQSource struct {
 	username         string
 	password         string
 	queueName        string
+	exchangeName     string
+	exchangeType     string
 	concurrentWrites int
 
 	log *log.Entry
@@ -51,6 +55,8 @@ func configfunction(c *configuration) (sourceiface.Source, error) {
 		c.Username,
 		c.Password,
 		c.QueueName,
+		c.ExchangeName,
+		c.ExchangeType,
 		c.ConcurrentWrites,
 	)
 }
@@ -69,6 +75,7 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
 	cfg := &configuration{
 		ConcurrentWrites: 50,
+		ExchangeType:     "fanout",
 	}
 
 	return cfg, nil
@@ -93,12 +100,14 @@ var ConfigPair = sourceconfig.ConfigPair{
 }
 
 // newRabbitMQSource creates a new client for reading messages from RabbitMQ
-func newRabbitMQSource(clusterURL string, username string, password string, queueName string, concurrentWrites int) (*rabbitMQSource, error) {
+func newRabbitMQSource(clusterURL string, username string, password string, queueName string, exchangeName string, exchangeType string, concurrentWrites int) (*rabbitMQSource, error) {
 	return &rabbitMQSource{
 		clusterURL:       clusterURL,
 		username:         username,
 		password:         password,
 		queueName:        queueName,
+		exchangeName:     exchangeName,
+		exchangeType:     exchangeType,
 		concurrentWrites: concurrentWrites,
 		log:              log.WithFields(log.Fields{"source": "rabbitmq", "queue": queueName}),
 		exitSignal:       make(chan struct{}),
@@ -119,6 +128,14 @@ func (rs *rabbitMQSource) Read(sf *sourceiface.SourceFunctions) error {
 		return errors.Wrap(err, "Failed to open a channel")
 	}
 	defer ch.Close()
+	err = ch.Qos(
+		rs.concurrentWrites, // prefetch count
+		0,                   // prefetch size
+		false,               // global
+	)
+	if err != nil {
+		return errors.Wrap(err, "Failed to set QoS")
+	}
 
 	q, err := ch.QueueDeclare(
 		rs.queueName, // name
@@ -131,13 +148,33 @@ func (rs *rabbitMQSource) Read(sf *sourceiface.SourceFunctions) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to declare a queue")
 	}
-	err = ch.Qos(
-	  rs.concurrentWrites, // prefetch count
-	  0,                   // prefetch size
-	  false,               // global
-	)
-	if err != nil {
-		return errors.Wrap(err, "Failed to set QoS")
+
+	// If we have an exchange bind the queue onto it so we can receive traffic from it
+	// so that we can have N consumers pulling the same dataset from the exchange.
+	if rs.exchangeName != "" {
+		err = ch.ExchangeDeclare(
+			rs.exchangeName, // name
+			rs.exchangeType, // type
+			true,            // durable
+			false,           // auto-deleted
+			false,           // internal
+			false,           // no-wait
+			nil,             // arguments
+		)
+		if err != nil {
+			return errors.Wrap(err, "Failed to declare an exchange")
+		}
+
+		err = ch.QueueBind(
+			q.Name,          // queue name
+			"",              // routing key
+			rs.exchangeName, // exchange
+			false,
+			nil,
+		)
+		if err != nil {
+			return errors.Wrap(err, "Failed to bind a queue")
+		}
 	}
 
 	msgs, err := ch.Consume(
@@ -207,5 +244,5 @@ func (rs *rabbitMQSource) Stop() {
 
 // GetID returns the identifier for this source
 func (rs *rabbitMQSource) GetID() string {
-	return fmt.Sprintf("%s", rs.queueName)
+	return fmt.Sprintf("%s%s", rs.queueName, rs.exchangeName)
 }

@@ -171,10 +171,13 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			File: "target-rabbitmq.hcl",
 			Plug: testRabbitMQTargetAdapter(testRabbitMQTargetFunc),
 			Expected: &target.RabbitMQTargetConfig{
-				ClusterURL: "localhost:5672",
-				Username: "admin",
-				Password: "secretpassword",
-				QueueName: "my-rabbitmq-queue",
+				ClusterURL:   "localhost:5672",
+				Username:     "admin",
+				Password:     "secretpassword",
+				QueueName:    "my-rabbitmq-queue",
+				PublishType:  "exchange",
+				ExchangeName: "my-exchange",
+				ExchangeType: "fanout",
 			},
 		},
 	}

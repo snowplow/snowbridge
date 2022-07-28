@@ -24,10 +24,13 @@ const (
 
 // RabbitMQTargetConfig configures the destination for records consumed
 type RabbitMQTargetConfig struct {
-	ClusterURL string `hcl:"cluster_url" env:"TARGET_RABBITMQ_CLUSTER_URL"`
-	Username   string `hcl:"username" env:"TARGET_RABBITMQ_USERNAME"`
-	Password   string `hcl:"password" env:"TARGET_RABBITMQ_PASSWORD"`
-	QueueName  string `hcl:"queue_name" env:"TARGET_RABBITMQ_QUEUE_NAME"`
+	ClusterURL   string `hcl:"cluster_url" env:"TARGET_RABBITMQ_CLUSTER_URL"`
+	Username     string `hcl:"username" env:"TARGET_RABBITMQ_USERNAME"`
+	Password     string `hcl:"password" env:"TARGET_RABBITMQ_PASSWORD"`
+	PublishType  string `hcl:"publish_type,optional" env:"TARGET_RABBITMQ_PUBLISH_TYPE"`
+	QueueName    string `hcl:"queue_name" env:"TARGET_RABBITMQ_QUEUE_NAME"`
+	ExchangeName string `hcl:"exchange_name" env:"TARGET_RABBITMQ_EXCHANGE_NAME"`
+	ExchangeType string `hcl:"exchange_type,optional" env:"TARGET_RABBITMQ_EXCHANGE_TYPE"`
 }
 
 // RabbitMQTarget holds a new client for writing messages to sqs
@@ -35,17 +38,18 @@ type RabbitMQTarget struct {
 	clusterURL string
 	username   string
 	password   string
-	queueName  string
 
 	conn    *amqp.Connection
 	channel *amqp.Channel
-	queue   amqp.Queue
+
+	routingKey string
+	exchange   string
 
 	log *log.Entry
 }
 
 // newRabbitMQTarget creates a new client for writing messages to RabbitMQ
-func newRabbitMQTarget(clusterURL string, username string, password string, queueName string) (*RabbitMQTarget, error) {
+func newRabbitMQTarget(clusterURL string, username string, password string, publishType string, queueName string, exchangeName string, exchangeType string) (*RabbitMQTarget, error) {
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/", username, password, clusterURL))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to connect")
@@ -55,33 +59,56 @@ func newRabbitMQTarget(clusterURL string, username string, password string, queu
 		return nil, errors.Wrap(err, "Failed to open a channel")
 	}
 
-	queue, err := channel.QueueDeclare(
-		queueName, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to declare a queue")
+	routingKey := ""
+	exchange := ""
+
+	switch publishType {
+	case "queue":
+		queue, err := channel.QueueDeclare(
+			queueName, // name
+			true,      // durable
+			false,     // delete when unused
+			false,     // exclusive
+			false,     // no-wait
+			nil,       // arguments
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to declare a queue")
+		}
+		routingKey = queue.Name
+	case "exchange":
+		err = channel.ExchangeDeclare(
+			exchangeName, // name
+			exchangeType, // type
+			true,         // durable
+			false,        // auto-deleted
+			false,        // internal
+			false,        // no-wait
+			nil,          // arguments
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to declare an exchange")
+		}
+		exchange = exchangeName
+	default:
+		return nil, errors.New(fmt.Sprintf("Invalid publish type found; expected one of 'queue, exchange' and got '%s'", publishType))
 	}
 
 	return &RabbitMQTarget{
 		clusterURL: clusterURL,
 		username:   username,
 		password:   password,
-		queueName:  queueName,
 		conn:       conn,
 		channel:    channel,
-		queue:      queue,
-		log:        log.WithFields(log.Fields{"target": "rabbitmq", "queue": queueName}),
+		routingKey: routingKey,
+		exchange:   exchange,
+		log:        log.WithFields(log.Fields{"target": "rabbitmq", "routingKey": routingKey, "exchange": exchange}),
 	}, nil
 }
 
 // RabbitMQTargetConfigFunction creates an RabbitMQTarget from an RabbitMQTargetConfig
 func RabbitMQTargetConfigFunction(c *RabbitMQTargetConfig) (*RabbitMQTarget, error) {
-	return newRabbitMQTarget(c.ClusterURL, c.Username, c.Password, c.QueueName)
+	return newRabbitMQTarget(c.ClusterURL, c.Username, c.Password, c.PublishType, c.QueueName, c.ExchangeName, c.ExchangeType)
 }
 
 // The RabbitMQTargetAdapter type is an adapter for functions to be used as
@@ -96,7 +123,10 @@ func (f RabbitMQTargetAdapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface.
 func (f RabbitMQTargetAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults if any
-	cfg := &RabbitMQTargetConfig{}
+	cfg := &RabbitMQTargetConfig{
+		PublishType:  "queue",
+		ExchangeType: "fanout",
+	}
 
 	return cfg, nil
 }
@@ -137,14 +167,14 @@ func (rs *RabbitMQTarget) Write(messages []*models.Message) (*models.TargetWrite
 
 		// TODO: What settings are missing here?
 		err := rs.channel.Publish(
-			"",            // exchange
-			rs.queue.Name, // routing key
+			rs.exchange,   // exchange
+			rs.routingKey, // routing key
 			false,         // mandatory
 			false,         // immediate
 			amqp.Publishing{
 				DeliveryMode: amqp.Persistent,
-				ContentType: "text/plain",
-				Body:        msg.Data,
+				ContentType:  "text/plain",
+				Body:         msg.Data,
 			},
 		)
 		if err != nil {
@@ -189,5 +219,5 @@ func (rs *RabbitMQTarget) MaximumAllowedMessageSizeBytes() int {
 
 // GetID returns the identifier for this target
 func (rs *RabbitMQTarget) GetID() string {
-	return fmt.Sprintf("%s", rs.queueName)
+	return fmt.Sprintf("%s%s", rs.routingKey, rs.exchange)
 }
