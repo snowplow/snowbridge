@@ -156,3 +156,111 @@ func BenchmarkNativeFilterSimple(b *testing.B) {
 		aidFilterFuncKeep(messages[0], nil)
 	}
 }
+
+var opaScript2 = `
+package snp
+
+default drop := false
+
+drop {
+	input.app_id == "test-data3"
+	input.contexts_nl_basjes_yauaa_context_1[_].test1.test2[_].test3 == "testValue"
+}
+
+drop {
+	input.app_id == "test-data1"
+}
+`
+
+var luaScript2 = `
+function main(input)
+	local spData = input["Data"]
+	local found = false
+
+	for key, value in pairs(spData.contexts_nl_basjes_yauaa_context_1) do
+		for key2, value2 in pairs(value.test1.test2) do
+				if (value2.test3 == "testValue") then 
+				found = true
+				end
+		end
+	end
+
+	if spData["app_id"] == "test-data3" and found then
+		return { FilterOut = true }
+	end
+
+	if spData["app_id"] == "test-data1" then
+		return { FilterOut = true }
+	end
+
+	return input
+end
+`
+
+func BenchmarkOPAFilterComplex(b *testing.B) {
+	b.ReportAllocs()
+
+	server, err := sdktest.NewServer(sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
+		"example.rego": opaScript2,
+	}))
+	if err != nil {
+		panic(err)
+	}
+
+	defer server.Stop()
+
+	config := fmt.Sprintf(`{
+		"services": {
+			"test": {
+        "url": %q
+			}
+		},
+		"bundles": {
+			"test": {
+				"resource": "/bundles/bundle.tar.gz"
+			}
+		},
+		"decision_logs": {
+			"console": false
+		}
+	}`, server.URL())
+
+	opa, err := NewOPAEngine(&OPAEngineConfig{OPAConfig: config})
+	if err != nil {
+		panic(err)
+	}
+
+	opaFunc1 := opa.MakeFunction()
+
+	for n := 0; n < b.N; n++ {
+		opaFunc1(messages[0], nil)
+	}
+}
+
+func BenchmarkLuaFilterComplex(b *testing.B) {
+	b.ReportAllocs()
+
+	src := base64.StdEncoding.EncodeToString([]byte(luaScript2))
+	luaConfig := &LuaEngineConfig{
+		SourceB64:  src,
+		RunTimeout: 1,
+		Sandbox:    true,
+		SpMode:     true,
+	}
+
+	luaEngine, err := NewLuaEngine(luaConfig)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if err := luaEngine.SmokeTest(`main`); err != nil {
+		panic(err)
+	}
+
+	transFunction := luaEngine.MakeFunction(`main`)
+
+	for n := 0; n < b.N; n++ {
+		transFunction(messages[0], nil)
+	}
+}
