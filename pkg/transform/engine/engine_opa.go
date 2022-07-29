@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/open-policy-agent/opa/sdk"
-	sdktest "github.com/open-policy-agent/opa/sdk/test"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
@@ -16,60 +15,21 @@ import (
 // OPAEngineConfig configures the OPA Engine.
 type OPAEngineConfig struct {
 	PolicyPath string `hcl:"policy_path"`
+	OPAConfig string `hcl:"opa_config"`
 }
 
 // OPAEngine handles the provision of a OPA runtime to run transformations.
 type OPAEngine struct {
-	Server *sdktest.Server
 	OPA    *sdk.OPA
 }
 
 // NewOPAEngine returns a OPA Engine from a OPAEngineConfig.
 func NewOPAEngine(c *OPAEngineConfig) (*OPAEngine, error) {
-
 	ctx := context.Background()
-
-	// create a mock HTTP bundle server
-	server, err := sdktest.NewServer(sdktest.MockBundle("/bundles/bundle.tar.gz", map[string]string{
-		"example.rego": `
-				package authz
-
-				default allow := false
-
-				allow {
-					input.app_id == "sesame"
-				}
-			`,
-	}))
-	if err != nil {
-
-		panic(err)
-	}
-
-	// defer server.Stop()
-
-	// provide the OPA configuration which specifies
-	// fetching policy bundles from the mock server
-	// and logging decisions locally to the console
-	config := []byte(fmt.Sprintf(`{
-		"services": {
-			"test": {
-				"url": %q
-			}
-		},
-		"bundles": {
-			"test": {
-				"resource": "/bundles/bundle.tar.gz"
-			}
-		},
-		"decision_logs": {
-			"console": true
-		}
-	}`, server.URL()))
 
 	// create an instance of the OPA object
 	opa, err := sdk.New(ctx, sdk.Options{
-		Config: bytes.NewReader(config),
+		Config: bytes.NewReader([]byte(c.OPAConfig)),
 	})
 	if err != nil {
 		panic(err)
@@ -130,17 +90,16 @@ func (e *OPAEngine) MakeFunction() transform.TransformationFunction {
 			panic(err)
 		}
 
-		result, err := e.OPA.Decision(context.TODO(), sdk.DecisionOptions{Path: "/authz/allow", Input: input})
+		result, err := e.OPA.Decision(context.TODO(), sdk.DecisionOptions{Path: "/snp/drop", Input: input})
 		if err != nil {
-			// panic(err)
-			fmt.Println(err)
+			panic(err)
 		}
-		decision, ok := result.Result.(bool)
+		drop, ok := result.Result.(bool)
 		if !ok {
 			fmt.Println("Not a boolean: ", result.Result)
 		}
-		if !decision {
-			// we might want to reverse the logic here - it's either true to keep message or true to filter/discard message
+
+		if drop {
 			return nil, message, nil, nil
 		}
 
