@@ -163,7 +163,7 @@ func GetTransformations(c *config.Config) (transform.TransformationApplyFunction
 			Input: transformation.Use.Body,
 		}
 		if transformation.Use.Name == `wasm` {
-			enginePlug = engine.AdaptWASMEngineFunc(engine.WASMEngineConfigFunction)
+			enginePlug = engine.AdaptOPAEngineFunc(engine.OPAEngineConfigFunction)
 			component, err := c.CreateComponent(enginePlug, decoderOpts)
 			if err != nil {
 				return nil, err
