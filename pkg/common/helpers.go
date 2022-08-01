@@ -114,46 +114,17 @@ func createTempDir(dirName string) error {
 }
 
 // CreateTLSConfiguration creates a TLS configuration for use in a target
-func CreateTLSConfiguration(crt, key, ca, destination string, skipVerify bool) (*tls.Config, error) {
-	if crt == `` || key == `` || ca == `` {
+func CreateTLSConfiguration(certFile string, keyFile string, caFile string, skipVerify bool) (*tls.Config, error) {
+	if certFile == "" || keyFile == "" {
 		return nil, nil
 	}
-	tlsStrings := map[string]string{
-		`.crt`:    crt,
-		`.key`:    key,
-		`_ca.crt`: ca,
-	}
-	// try to create /tmp_replicator/tls directory
-	err := createTempDir(`tmp_replicator`)
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, err
 	}
 
-	err = createTempDir(`tmp_replicator/tls`)
-	if err != nil {
-		return nil, err
-	}
-
-	// create destination directory
-	err = os.Mkdir(`tmp_replicator/tls/`+destination, 0700)
-	if err != nil {
-		return nil, err
-	}
-	for key, tlsString := range tlsStrings {
-		err := DecodeB64ToFile(tlsString, fmt.Sprintf(`tmp_replicator/tls/%s/%s%s`, destination, destination, key))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	cert, err := tls.LoadX509KeyPair(
-		fmt.Sprintf(`tmp_replicator/tls/%s/%s.crt`, destination, destination),
-		fmt.Sprintf(`tmp_replicator/tls/%s/%s.key`, destination, destination))
-	if err != nil {
-		return nil, err
-	}
-
-	caCert, err := ioutil.ReadFile(fmt.Sprintf(`tmp_replicator/tls/%s/%s_ca.crt`, destination, destination))
+	caCert, err := ioutil.ReadFile(caFile)
 	if err != nil {
 		return nil, err
 	}

@@ -7,11 +7,7 @@
 package common
 
 import (
-	"bytes"
-	"encoding/base64"
-	"io/ioutil"
-	"os"
-	"strings"
+	"crypto/tls"
 	"testing"
 	"time"
 
@@ -52,74 +48,9 @@ func TestGetAverageFromDuration(t *testing.T) {
 
 func TestCreateTLSConfiguration(t *testing.T) {
 	assert := assert.New(t)
-	crt, err := os.ReadFile(`../../integration/http/localhost.crt`)
-	if err != nil {
-		return
-	}
-	encodedCrt := base64.StdEncoding.EncodeToString(crt)
-	key, err := os.ReadFile(`../../integration/http/localhost.key`)
-	if err != nil {
-		return
-	}
-	encodedKey := base64.StdEncoding.EncodeToString(key)
-	ca, err := os.ReadFile(`../../integration/http/rootCA.crt`)
-	if err != nil {
-		return
-	}
-	encodedCa := base64.StdEncoding.EncodeToString(ca)
-	_, err = CreateTLSConfiguration(encodedCrt, encodedKey, encodedCa, `kafka`, false)
-	files, readErr := ioutil.ReadDir("./tmp_replicator/tls/kafka")
-	if readErr != nil {
-		return
-	}
+
+	conf, err := CreateTLSConfiguration(`../../integration/http/localhost.crt`, `../../integration/http/localhost.key`, `../../integration/http/rootCA.crt`, false)
 
 	assert.Nil(err)
-	assert.Equal(3, len(files))
-	assert.Equal(`kafka.crt`, files[0].Name())
-	f, err := os.ReadFile(`tmp_replicator/tls/kafka/kafka.crt`)
-
-	assert.Nil(err)
-	assert.True(bytes.Equal(f, crt))
-
-	f, err = os.ReadFile(`tmp_replicator/tls/kafka/kafka.key`)
-
-	assert.Nil(err)
-	assert.True(bytes.Equal(f, key))
-
-	f, err = os.ReadFile(`tmp_replicator/tls/kafka/kafka_ca.crt`)
-
-	assert.Nil(err)
-	assert.True(bytes.Equal(f, ca))
-	os.RemoveAll(`tmp_replicator`)
-}
-
-func TestCreateTLSConfiguration_DirExists(t *testing.T) {
-	os.MkdirAll(`tmp_replicator/tls/kafka`, 0777)
-	assert := assert.New(t)
-	_, err := CreateTLSConfiguration("dGVzdA==", "dGVzdA==", "dGVzdA==", `kafka`, false)
-	files, readErr := ioutil.ReadDir("./tmp_replicator/tls/kafka")
-	if readErr != nil {
-		return
-	}
-
-	assert.Error(err)
-	assert.Equal(0, len(files))
-
-	os.RemoveAll(`tmp_replicator`)
-}
-
-func TestCreateTLSConfiguration_NotB64(t *testing.T) {
-	assert := assert.New(t)
-	_, err := CreateTLSConfiguration("helloworld", "helloworld", "helloworld", `kafka`, false)
-	files, readErr := ioutil.ReadDir("./tmp_replicator/tls/kafka")
-	if readErr != nil {
-		return
-	}
-	assert.NotNil(err)
-	if err != nil {
-		assert.True(strings.HasPrefix(err.Error(), `Failed to Base64 decode for creating file `))
-	}
-	assert.Equal(0, len(files))
-
-	os.RemoveAll(`tmp_replicator`)
+	assert.IsType(tls.Config{}, *conf)
 }

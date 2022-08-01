@@ -32,9 +32,9 @@ type HTTPTargetConfig struct {
 	Headers                 string `hcl:"headers,optional" env:"TARGET_HTTP_HEADERS" `
 	BasicAuthUsername       string `hcl:"basic_auth_username,optional" env:"TARGET_HTTP_BASICAUTH_USERNAME"`
 	BasicAuthPassword       string `hcl:"basic_auth_password,optional" env:"TARGET_HTTP_BASICAUTH_PASSWORD"`
-	TLSCert                 string `hcl:"tls_cert,optional" env:"TARGET_HTTP_TLS_CERT_B64"`
-	TLSKey                  string `hcl:"tls_key,optional" env:"TARGET_HTTP_TLS_KEY_B64"`
-	TLSCa                   string `hcl:"tls_ca,optional" env:"TARGET_HTTP_TLS_CA_B64"`
+	TLSCert                 string `hcl:"tls_cert,optional" env:"TARGET_HTTP_TLS_CERT_FILE"`
+	TLSKey                  string `hcl:"tls_key,optional" env:"TARGET_HTTP_TLS_KEY_FILE"`
+	TLSCa                   string `hcl:"tls_ca,optional" env:"TARGET_HTTP_TLS_CA_FILE"`
 	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional" env:"TARGET_HTTP_TLS_SKIP_VERIFY_TLS"` // false
 }
 
@@ -100,7 +100,7 @@ func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 	}
 	transport := &http.Transport{}
 
-	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, "http_target", skipVerifyTLS)
+	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, skipVerifyTLS)
 	if err2 != nil {
 		return nil, err2
 	}

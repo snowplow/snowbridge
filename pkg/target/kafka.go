@@ -38,9 +38,9 @@ type KafkaConfig struct {
 	SASLUsername   string `hcl:"sasl_username,optional" env:"TARGET_KAFKA_SASL_USERNAME" `
 	SASLPassword   string `hcl:"sasl_password,optional" env:"TARGET_KAFKA_SASL_PASSWORD"`
 	SASLAlgorithm  string `hcl:"sasl_algorithm,optional" env:"TARGET_KAFKA_SASL_ALGORITHM"`
-	TLSCert        string `hcl:"tls_cert,optional" env:"TARGET_KAFKA_TLS_CERT_B64"`
-	TLSKey         string `hcl:"tls_key,optional" env:"TARGET_KAFKA_TLS_KEY_B64"`
-	TLSCa          string `hcl:"tls_ca,optional" env:"TARGET_KAFKA_TLS_CA_B64"`
+	TLSCert        string `hcl:"tls_cert,optional" env:"TARGET_KAFKA_TLS_CERT_FILE"`
+	TLSKey         string `hcl:"tls_key,optional" env:"TARGET_KAFKA_TLS_KEY_FILE"`
+	TLSCa          string `hcl:"tls_ca,optional" env:"TARGET_KAFKA_TLS_CA_FILE"`
 	SkipVerifyTLS  bool   `hcl:"skip_verify_tls,optional" env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`
 	ForceSync      bool   `hcl:"force_sync_producer,optional" env:"TARGET_KAFKA_FORCE_SYNC_PRODUCER"`
 	FlushFrequency int    `hcl:"flush_frequency,optional" env:"TARGET_KAFKA_FLUSH_FREQUENCY"`
@@ -118,7 +118,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		}
 	}
 
-	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, "kafka_target", cfg.SkipVerifyTLS)
+	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
