@@ -221,9 +221,9 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 			SASLUsername:   "testUsername",
 			SASLPassword:   "testPass",
 			SASLAlgorithm:  "sha256",
-			TLSCert:        "dGVzdA==",
-			TLSKey:         "dGVzdA==",
-			TLSCa:          "dGVzdA==",
+			TLSCert:        "test/certfile.crt",
+			TLSKey:         "test/keyfile.key",
+			TLSCa:          "test/cafile.crt",
 			SkipVerifyTLS:  true,
 			ForceSync:      true,
 			FlushFrequency: 2,
@@ -248,9 +248,9 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 		t.Setenv("FAILURE_TARGET_KAFKA_SASL_USERNAME", "testUsername")
 		t.Setenv("FAILURE_TARGET_KAFKA_SASL_PASSWORD", "testPass")
 		t.Setenv("FAILURE_TARGET_KAFKA_SASL_ALGORITHM", "sha256")
-		t.Setenv("FAILURE_TARGET_KAFKA_TLS_CERT_B64", "dGVzdA==")
-		t.Setenv("FAILURE_TARGET_KAFKA_TLS_KEY_B64", "dGVzdA==")
-		t.Setenv("FAILURE_TARGET_KAFKA_TLS_CA_B64", "dGVzdA==")
+		t.Setenv("FAILURE_TARGET_KAFKA_TLS_CERT_FILE", "test/certfile.crt")
+		t.Setenv("FAILURE_TARGET_KAFKA_TLS_KEY_FILE", "test/keyfile.key")
+		t.Setenv("FAILURE_TARGET_KAFKA_TLS_CA_FILE", "test/cafile.crt")
 		t.Setenv("FAILURE_TARGET_KAFKA_TLS_SKIP_VERIFY_TLS", "true")
 		t.Setenv("FAILURE_TARGET_KAFKA_FORCE_SYNC_PRODUCER", "true")
 		t.Setenv("FAILURE_TARGET_KAFKA_FLUSH_FREQUENCY", "2")
