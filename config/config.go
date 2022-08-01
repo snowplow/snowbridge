@@ -33,18 +33,17 @@ type Config struct {
 	Decoder Decoder
 }
 
-// ConfigurationData for holding all configuration options
-type ConfigurationData struct {
-	Source                  *Component     `hcl:"source,block" envPrefix:"SOURCE_"`
-	Target                  *Component     `hcl:"target,block" envPrefix:"TARGET_"`
-	FailureTarget           *FailureConfig `hcl:"failure_target,block"`
-	Sentry                  *SentryConfig  `hcl:"sentry,block"`
-	StatsReceiver           *StatsConfig   `hcl:"stats_receiver,block"`
-	Transformation          string         `hcl:"message_transformation,optional" env:"MESSAGE_TRANSFORMATION"`
-	LogLevel                string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
-	GoogleServiceAccountB64 string         `hcl:"google_application_credentials_b64,optional" env:"GOOGLE_APPLICATION_CREDENTIALS_B64"`
-	UserProvidedID          string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
-	DisableTelemetry        bool           `hcl:"disable_telemetry,optional" env:"DISABLE_TELEMETRY"`
+// configurationData for holding all configuration options
+type configurationData struct {
+	Source           *component     `hcl:"source,block" envPrefix:"SOURCE_"`
+	Target           *component     `hcl:"target,block" envPrefix:"TARGET_"`
+	FailureTarget    *failureConfig `hcl:"failure_target,block"`
+	Sentry           *sentryConfig  `hcl:"sentry,block"`
+	StatsReceiver    *statsConfig   `hcl:"stats_receiver,block"`
+	Transformations  []*component   `hcl:"transform,block"`
+	LogLevel         string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
+	UserProvidedID   string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
+	DisableTelemetry bool           `hcl:"disable_telemetry,optional" env:"DISABLE_TELEMETRY"`
 }
 
 // component is a type to abstract over configuration blocks.
