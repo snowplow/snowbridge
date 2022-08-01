@@ -9,7 +9,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/pkg/errors"
@@ -17,7 +16,6 @@ import (
 	sentryhook "github.com/snowplow-devops/go-sentryhook"
 
 	config "github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
 )
 
 var (
@@ -41,15 +39,6 @@ func Init() (*config.Config, bool, error) {
 	cfg, err := config.NewConfig()
 	if err != nil {
 		return nil, false, errors.Wrap(err, "Failed to build config")
-	}
-
-	// Configure GCP Access (if set)
-	if cfg.Data.GoogleServiceAccountB64 != "" {
-		targetFile, err := common.GetGCPServiceAccountFromBase64(cfg.Data.GoogleServiceAccountB64)
-		if err != nil {
-			return nil, false, errors.Wrap(err, "Failed to store GCP Service Account JSON file")
-		}
-		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", targetFile)
 	}
 
 	// Configure Sentry
