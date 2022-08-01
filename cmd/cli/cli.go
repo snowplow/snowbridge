@@ -108,7 +108,7 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 		}
 		o.Start()
 
-		telemetry.InitTelemetryWithCollector(cfg)
+		stopTelemetry := telemetry.InitTelemetryWithCollector(cfg)
 
 		// Handle SIGTERM
 		sig := make(chan os.Signal)
@@ -126,7 +126,8 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 			select {
 			case <-stop:
 				log.Debug("source.Stop() finished successfully!")
-				
+
+				stopTelemetry()
 				err := common.DeleteTemporaryDir()
 				if err != nil {
 					log.Debugf(`error deleting tmp directory: %v`, err)
@@ -137,6 +138,7 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 				t.Close()
 				ft.Close()
 				o.Stop()
+				stopTelemetry()
 
 				err := common.DeleteTemporaryDir()
 				if err != nil {

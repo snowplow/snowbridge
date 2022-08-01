@@ -40,7 +40,7 @@ func newTelemetryWithConfig(cfg *conf.Config) *config {
 	}
 }
 
-func initTelemetry(telemetry *config) {
+func initTelemetry(telemetry *config) func() {
 	storage := gt.InitStorageMemory()
 	emitter := gt.InitEmitter(
 		gt.RequireCollectorUri(fmt.Sprintf(`%s:%s`, telemetry.url, telemetry.port)),
@@ -76,13 +76,24 @@ func initTelemetry(telemetry *config) {
 
 	ticker := time.NewTicker(telemetry.interval)
 
+	stop := make(chan struct{})
+
 	go func() {
 		makeAndTrackHeartbeat(telemetry, tracker)
 		for {
-			<-ticker.C
-			makeAndTrackHeartbeat(telemetry, tracker)
+			select {
+			case <-ticker.C:
+				makeAndTrackHeartbeat(telemetry, tracker)
+			case <-stop:
+				return
+			}
+
 		}
 	}()
+
+	return func() {
+		close(stop)
+	}
 }
 
 func makeAndTrackHeartbeat(telemetry *config, tracker *gt.Tracker) {
@@ -99,12 +110,12 @@ func makeAndTrackHeartbeat(telemetry *config, tracker *gt.Tracker) {
 }
 
 // InitTelemetryWithCollector initialises telemetry
-func InitTelemetryWithCollector(cfg *conf.Config) {
+func InitTelemetryWithCollector(cfg *conf.Config) func() {
 	telemetry := newTelemetryWithConfig(cfg)
 	if telemetry.disable {
-		return
+		return func() {}
 	}
-	initTelemetry(telemetry)
+	return initTelemetry(telemetry)
 }
 
 func makeHeartbeatEvent(service config) *gt.SelfDescribingJson {
