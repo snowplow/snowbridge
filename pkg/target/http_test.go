@@ -8,7 +8,6 @@ package target
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -302,24 +301,6 @@ func TestHttpWrite_TLS(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	defer os.RemoveAll(`tmp_replicator`)
-
-	crt, err := os.ReadFile(`../../integration/http/localhost.crt`)
-	if err != nil {
-		return
-	}
-	encodedCrt := base64.StdEncoding.EncodeToString(crt)
-	key, err := os.ReadFile(`../../integration/http/localhost.key`)
-	if err != nil {
-		return
-	}
-	encodedKey := base64.StdEncoding.EncodeToString(key)
-	ca, err := os.ReadFile(`../../integration/http/rootCA.crt`)
-	if err != nil {
-		return
-	}
-	encodedCa := base64.StdEncoding.EncodeToString(ca)
-
 	// Test that https requests work with manually provided certs
 	target, err := newHTTPTarget("https://localhost:8999/hello",
 		5,
@@ -328,9 +309,9 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		string(encodedCrt),
-		string(encodedKey),
-		string(encodedCa),
+		string(`../../integration/http/localhost.crt`),
+		string(`../../integration/http/localhost.key`),
+		string(`../../integration/http/rootCA.crt`),
 		false)
 	if err != nil {
 		t.Fatal(err)
@@ -362,9 +343,9 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		string(encodedCrt),
-		string(encodedKey),
-		string(encodedCa),
+		string(`../../integration/http/localhost.crt`),
+		string(`../../integration/http/localhost.key`),
+		string(`../../integration/http/rootCA.crt`),
 		false)
 	if err2 != nil {
 		os.RemoveAll(`tmp_replicator`)
