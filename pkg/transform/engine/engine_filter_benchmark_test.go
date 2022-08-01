@@ -264,3 +264,12 @@ func BenchmarkLuaFilterComplex(b *testing.B) {
 		transFunction(messages[0], nil)
 	}
 }
+
+/*
+BenchmarkOPAFilterSimple-10       	    7786	    136698 ns/op	   87629 B/op	    1153 allocs/op
+BenchmarkJSFilterSimple-10        	    7430	    163486 ns/op	  189904 B/op	    2227 allocs/op
+BenchmarkLuaFilterSimple-10       	   12736	     92110 ns/op	  174377 B/op	     623 allocs/op
+BenchmarkNativeFilterSimple-10    	  163545	      7183 ns/op	    8406 B/op	      51 allocs/op
+BenchmarkOPAFilterComplex-10      	    7615	    135302 ns/op	   86682 B/op	    1145 allocs/op
+BenchmarkLuaFilterComplex-10      	   10000	    100731 ns/op	  182560 B/op	     619 allocs/op
+*/
