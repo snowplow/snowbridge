@@ -18,31 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// --- Cloud Helpers
-func TestGetGCPServiceAccountFromBase64(t *testing.T) {
-	assert := assert.New(t)
-	defer DeleteTemporaryDir()
-
-	path, err := GetGCPServiceAccountFromBase64("ewogICJoZWxsbyI6IndvcmxkIgp9")
-
-	assert.NotEqual(path, "")
-	assert.Nil(err)
-	assert.True(strings.HasPrefix(path, "tmp_replicator/stream-replicator-service-account-"))
-	assert.True(strings.HasSuffix(path, ".json"))
-}
-
-func TestGetGCPServiceAccountFromBase64_NotBase64(t *testing.T) {
-	assert := assert.New(t)
-
-	path, err := GetGCPServiceAccountFromBase64("helloworld")
-
-	assert.Equal("", path)
-	assert.NotNil(err)
-	if err != nil {
-		assert.True(strings.HasPrefix(err.Error(), "Failed to Base64 decode"))
-	}
-}
-
 func TestGetAWSSession(t *testing.T) {
 	assert := assert.New(t)
 

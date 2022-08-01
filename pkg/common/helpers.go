@@ -20,22 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/pkg/errors"
-	"github.com/twinj/uuid"
 )
-
-// --- Cloud Helpers
-
-// GetGCPServiceAccountFromBase64 will take a base64 encoded string
-// and attempt to create a JSON file on disk within the /tmp directory
-// for later use in creating GCP clients.
-func GetGCPServiceAccountFromBase64(serviceAccountB64 string) (string, error) {
-	targetFile := fmt.Sprintf(`tmp_replicator/stream-replicator-service-account-%s.json`, uuid.NewV4().String())
-	err := DecodeB64ToFile(serviceAccountB64, targetFile)
-	if err != nil {
-		return ``, err
-	}
-	return targetFile, nil
-}
 
 // DeleteTemporaryDir deletes the temp directory we created to store credentials
 func DeleteTemporaryDir() error {
