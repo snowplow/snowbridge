@@ -167,6 +167,15 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				TopicName: "testTopic",
 			},
 		},
+		{
+			File: "target-pulsar-simple.hcl",
+			Plug: testPulsarTargetAdapter(testPulsarTargetFunc),
+			Expected: &target.PulsarTargetConfig{
+				BrokerServiceURL: "pulsar://test:6650",
+				TopicName:      "testTopic",
+				ByteLimit:      1048576,
+			},
+		},
 	}
 
 	for _, tt := range testCases {
@@ -436,6 +445,24 @@ func testPubSubTargetAdapter(f func(c *target.PubSubTargetConfig) (*target.PubSu
 }
 
 func testPubSubTargetFunc(c *target.PubSubTargetConfig) (*target.PubSubTargetConfig, error) {
+
+	return c, nil
+}
+
+// Pulsar
+func testPulsarTargetAdapter(f func(c *target.PulsarTargetConfig) (*target.PulsarTargetConfig, error)) target.PulsarTargetAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*target.PulsarTargetConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected PulsarTargetConfig")
+		}
+
+		return f(cfg)
+	}
+
+}
+
+func testPulsarTargetFunc(c *target.PulsarTargetConfig) (*target.PulsarTargetConfig, error) {
 
 	return c, nil
 }

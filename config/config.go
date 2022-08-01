@@ -239,8 +239,12 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		plug = target.AdaptHTTPTargetFunc(
 			target.HTTPTargetConfigFunction,
 		)
+	case "pulsar":
+		plug = target.AdaptPulsarTargetFunc(
+			target.NewPulsarTarget,
+		)
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useTarget.Name))
+		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http, pulsar' and got '%s'", useTarget.Name))
 	}
 
 	component, err := c.CreateComponent(plug, decoderOpts)
@@ -295,8 +299,12 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 		plug = target.AdaptHTTPTargetFunc(
 			target.HTTPTargetConfigFunction,
 		)
+	case "pulsar":
+		plug = target.AdaptPulsarTargetFunc(
+			target.NewPulsarTarget,
+		)
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useFailureTarget.Name))
+		return nil, errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http, pulsar' and got '%s'", useFailureTarget.Name))
 	}
 
 	component, err := c.CreateComponent(plug, decoderOpts)
