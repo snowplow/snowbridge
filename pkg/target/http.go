@@ -108,11 +108,24 @@ func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 		transport.TLSClientConfig = tlsConfig
 	}
 
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   time.Duration(requestTimeout) * time.Second,
+	}
+
+	// send a HEAD request to the URL to check the connection
+	request, err := http.NewRequest("HEAD", httpURL, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, `Error creating HEAD request`)
+	}
+	resp, err := client.Do(request)
+	if err != nil {
+		return nil, errors.Wrap(err, `Connection to host error`)
+	}
+	defer resp.Body.Close()
+
 	return &HTTPTarget{
-		client: &http.Client{
-			Transport: transport,
-			Timeout:   time.Duration(requestTimeout) * time.Second,
-		},
+		client:            client,
 		httpURL:           httpURL,
 		byteLimit:         byteLimit,
 		contentType:       contentType,

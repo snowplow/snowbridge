@@ -132,6 +132,30 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	assert.Equal(expected, msgDatas)
 }
 
+// TestPubSubSource_ConnCheckErrWithMocks unit tests PubSub source with connection error
+func TestPubSubSource_ConnCheckErrWithMocks(t *testing.T) {
+	assert := assert.New(t)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	srv.Close()
+	conn.Close()
+
+	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub-wrong")
+	assert.Nil(pubsubSource)
+	assert.EqualError(err, `Connection to PubSub failed: context deadline exceeded`)
+}
+
+// TestPubSubSource_SubFailWithMocks unit tests PubSub source initiation with wrong sub name
+func TestPubSubSource_SubFailWithMocks(t *testing.T) {
+	assert := assert.New(t)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	defer srv.Close()
+	defer conn.Close()
+
+	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub-wrong")
+	assert.Nil(pubsubSource)
+	assert.EqualError(err, `Connection to PubSub failed, subscription does not exist`)
+}
+
 // TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks tests the behaviour of pubsub source when some messages take longer to ack than others
 func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 	assert := assert.New(t)

@@ -150,6 +150,30 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 }
 
+// TestPubSubTarget_ConnCheckErrWithMocks unit tests the Pubsub target initialization with connection error
+func TestPubSubTarget_ConnCheckErrWithMocks(t *testing.T) {
+	assert := assert.New(t)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	srv.Close()
+	conn.Close()
+
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic-wrong`)
+	assert.Nil(pubsubTarget)
+	assert.EqualError(err, `Connection to PubSub failed: context deadline exceeded`)
+}
+
+// TestPubSubTarget_TopicFailWithMocks unit tests the Pubsub target initialization with wrong topic name
+func TestPubSubTarget_TopicFailWithMocks(t *testing.T) {
+	assert := assert.New(t)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	defer srv.Close()
+	defer conn.Close()
+
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic-wrong`)
+	assert.Nil(pubsubTarget)
+	assert.EqualError(err, `Connection to PubSub failed, topic does not exist`)
+}
+
 // TestPubSubTarget_WriteFailureWithMocks unit tests the unhappy path for PubSub target
 func TestPubSubTarget_WriteFailureWithMocks(t *testing.T) {
 	assert := assert.New(t)
