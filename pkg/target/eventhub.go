@@ -96,6 +96,12 @@ func newEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 	// If none is specified, it will retry indefinitely until the context times out, which hides the actual error message
 	// To avoid obscuring errors, contextTimeoutInSeconds should be configured to ensure all retries may be completed before its expiry
 
+	// get the runtime information of the event hub in order to check the connection
+	_, err = hub.GetRuntimeInformation(context.Background())
+	if err != nil {
+		return nil, errors.Errorf("Error initialising EventHub client: could not reach Event Hub: %v", err)
+	}
+
 	return newEventHubTargetWithInterfaces(hub, cfg), err
 }
 

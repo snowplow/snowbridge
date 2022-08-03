@@ -62,6 +62,12 @@ func newKinesisTarget(region string, streamName string, roleARN string) (*Kinesi
 // newKinesisTargetWithInterfaces allows you to provide a Kinesis client directly to allow
 // for mocking and localstack usage
 func newKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID string, region string, streamName string) (*KinesisTarget, error) {
+	// test the connection to kinesis by trying to make an API call
+	_, err := client.DescribeStream(&kinesis.DescribeStreamInput{StreamName: &streamName})
+	if err != nil {
+		return nil, err
+	}
+
 	return &KinesisTarget{
 		client:     client,
 		streamName: streamName,

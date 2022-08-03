@@ -64,6 +64,11 @@ func newSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, 
 // newSQSTargetWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
 func newSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, region string, queueName string) (*SQSTarget, error) {
+	_, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{QueueName: &queueName})
+	if err != nil {
+		return nil, errors.Wrap(err, `Could not connect to SQS`)
+	}
+
 	return &SQSTarget{
 		client:    client,
 		queueName: queueName,

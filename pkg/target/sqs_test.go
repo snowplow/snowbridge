@@ -7,6 +7,7 @@
 package target
 
 import (
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -15,7 +16,16 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
-func TestSQSTarget_WriteFailure(t *testing.T) {
+// TestNewSqsTarget_AWSConnectionCheck tests that the SQS target fails on start-up if the connection to AWS fails
+func TestNewSqsTarget_AWSConnectionCheck(t *testing.T) {
+	assert := assert.New(t)
+
+	target, err := newSQSTarget(testutil.AWSLocalstackRegion, "not-exists", `arn:aws:sqs:us-east-1:00000000000:not-exists`)
+	assert.Nil(target)
+	assert.EqualError(err, "NoCredentialProviders: no valid providers in chain. Deprecated.\n\tFor verbose messaging see aws.Config.CredentialsChainVerboseErrors")
+}
+
+func TestSQSTarget_SQSConnectionFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -25,13 +35,11 @@ func TestSQSTarget_WriteFailure(t *testing.T) {
 	client := testutil.GetAWSLocalstackSQSClient()
 
 	target, err := newSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists")
-	assert.Nil(err)
-	assert.NotNil(target)
-	assert.Equal("arn:aws:sqs:us-east-1:00000000000:not-exists", target.GetID())
-
-	res, err := target.Write(nil)
-	assert.Nil(err)
-	assert.NotNil(res)
+	assert.Nil(target)
+	assert.NotNil(err)
+	if err != nil {
+		assert.True(strings.HasPrefix(err.Error(), `Could not connect to SQS`))
+	}
 }
 
 func TestSQSTarget_WriteSuccess(t *testing.T) {

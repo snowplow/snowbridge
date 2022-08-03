@@ -57,6 +57,15 @@ func newPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) 
 		return nil, errors.Wrap(err, "Failed to create PubSub client")
 	}
 
+	sub := client.TopicInProject(topicName, projectID)
+	exists, err := sub.Exists(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "Connection to PubSub failed")
+	}
+	if !exists {
+		return nil, errors.New("Connection to PubSub failed, topic does not exist")
+	}
+
 	return &PubSubTarget{
 		projectID: projectID,
 		client:    client,

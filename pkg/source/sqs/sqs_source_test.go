@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,20 @@ func TestMain(m *testing.M) {
 	os.Clearenv()
 	exitVal := m.Run()
 	os.Exit(exitVal)
+}
+
+// TestNewSqsSource_AWSConnectionCheck tests that the SQS source fails on start-up if the connection to AWS fails
+func TestNewSqsSource_AWSConnectionCheck(t *testing.T) {
+	assert := assert.New(t)
+
+	target, err := configFunction(&configuration{
+		QueueName:        "not-exists",
+		Region:           testutil.AWSLocalstackRegion,
+		RoleARN:          `arn:aws:sqs:us-east-1:00000000000:not-exists`,
+		ConcurrentWrites: 15,
+	})
+	assert.Nil(target)
+	assert.EqualError(err, "NoCredentialProviders: no valid providers in chain. Deprecated.\n\tFor verbose messaging see aws.Config.CredentialsChainVerboseErrors")
 }
 
 // func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
@@ -51,9 +66,8 @@ func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	assert.Nil(err)
 }
 
-// newSQSSourceWithInterfaces should fail if we can't reach SQS, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
-/*
-func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
+// newSQSSourceWithInterfaces should fail if we can't reach SQS
+func TestNewSQSSourceWithInterfaces_SQSConnectionFailure(t *testing.T) {
 	// Unlike the success test, we don't require anything to exist for this one
 	assert := assert.New(t)
 
@@ -63,28 +77,8 @@ func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
 
 	assert.Nil(source)
 	assert.NotNil(err)
-}
-*/
-
-// TODO: When we address https://github.com/snowplow-devops/stream-replicator/issues/151, this test will need to change.
-func TestSQSSource_ReadFailure(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-
-	assert := assert.New(t)
-
-	client := testutil.GetAWSLocalstackSQSClient()
-
-	source, err := newSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
-	assert.Nil(err)
-	assert.NotNil(source)
-	assert.Equal("arn:aws:sqs:us-east-1:00000000000:not-exists", source.GetID())
-
-	err = source.Read(nil)
-	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to get SQS queue URL: AWS.SimpleQueueService.NonExistentQueue: AWS.SimpleQueueService.NonExistentQueue; see the SQS docs.\n\tstatus code: 400, request id: 00000000-0000-0000-0000-000000000000", err.Error())
+		assert.True(strings.HasPrefix(err.Error(), `Could not connect to SQS`))
 	}
 }
 

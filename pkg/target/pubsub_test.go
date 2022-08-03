@@ -150,6 +150,30 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 }
 
+// TestPubSubTarget_ConnCheckErrWithMocks unit tests the Pubsub target initialization with connection error
+func TestPubSubTarget_ConnCheckErrWithMocks(t *testing.T) {
+	assert := assert.New(t)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	srv.Close()
+	conn.Close()
+
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic-wrong`)
+	assert.Nil(pubsubTarget)
+	assert.EqualError(err, `Connection to PubSub failed: context deadline exceeded`)
+}
+
+// TestPubSubTarget_TopicFailWithMocks unit tests the Pubsub target initialization with wrong topic name
+func TestPubSubTarget_TopicFailWithMocks(t *testing.T) {
+	assert := assert.New(t)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	defer srv.Close()
+	defer conn.Close()
+
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic-wrong`)
+	assert.Nil(pubsubTarget)
+	assert.EqualError(err, `Connection to PubSub failed, topic does not exist`)
+}
+
 // TestPubSubTarget_WriteFailureWithMocks unit tests the unhappy path for PubSub target
 func TestPubSubTarget_WriteFailureWithMocks(t *testing.T) {
 	assert := assert.New(t)
@@ -262,17 +286,16 @@ func TestNewPubSubTarget_Success(t *testing.T) {
 	assert.IsType(PubSubTarget{}, *pubsubTarget)
 }
 
-// TestnewPubSubTarget_Failure tests that we fail early when we cannot reach pubsub
-// Commented out as this behaviour is not currently instrumented.
-// This test serves to illustrate the desired behaviour for this issue: https://github.com/snowplow-devops/stream-replicator/issues/151
-/*
-func TestnewPubSubTarget_Failure(t *testing.T) {
+// TestNewPubSubTarget_Failure tests that we fail early when we cannot reach pubsub
+func TestNewPubSubTarget_Failure(t *testing.T) {
 	assert := assert.New(t)
 
-	pubsubTarget, err := newPubSubTarget(`nonexistent-project`, `nonexistent-topic`)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	defer srv.Close()
+	defer conn.Close()
 
-	// TODO: Test for the actual error we expect, when we have instrumented failing fast
-	assert.NotNil(err)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic-wrong`)
+
+	assert.EqualError(err, `Connection to PubSub failed, topic does not exist`)
 	assert.Nil(pubsubTarget)
 }
-*/
