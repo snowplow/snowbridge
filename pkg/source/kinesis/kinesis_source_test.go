@@ -59,7 +59,7 @@ func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 10, 10, 50)
 
 	assert.IsType(&kinesisSource{}, source)
 	assert.Nil(err)
@@ -75,7 +75,7 @@ func TestNewKinesisSourceWithInterfaces_Failure(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "nonexistent-stream", "test", nil)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "nonexistent-stream", "test", nil,10, 10, 50)
 
 	assert.Nil(&kinesisSource{}, source)
 	assert.NotNil(err)
@@ -94,7 +94,7 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil, 10, 10, 50)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", source.GetID())
@@ -140,7 +140,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Create the source and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 10, 10, 50)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-2", source.GetID())
@@ -193,7 +193,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	}
 
 	// Create the source (with start timestamp) and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart, 10, 10, 50)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-3", source.GetID())
@@ -272,6 +272,86 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	assert.IsType(&kinesisSource{}, source)
 }
 
+func TestGetSource_ConfigErrorLeaderAction(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	assert := assert.New(t)
+
+	// Set up localstack resources
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+	streamName := "kinesis-source-config-integration-1"
+	appName := "kinesisSourceIntegration"
+
+	t.Setenv("SOURCE_NAME", "kinesis")
+	t.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
+	t.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
+	t.Setenv("SOURCE_KINESIS_APP_NAME", appName)
+	// leader frequency is lower than shard frequency
+	t.Setenv("SOURCE_KINESIS_LEADER_FREQUENCY", "10")
+	t.Setenv("SOURCE_KINESIS_SHARD_FREQUENCY", "20")
+	t.Setenv("SOURCE_KINESIS_CLIENT_MAX_AGE", "30")
+
+	c, err := config.NewConfig()
+	assert.NotNil(c)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
+
+	// use our function generator to interact with localstack
+	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
+	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
+
+	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{Name: "kinesis", Handle: adaptedHandle}
+	supportedSources := []sourceconfig.ConfigPair{kinesisSourceConfigPairWithLocalstack}
+
+	source, err := sourceconfig.GetSource(c, supportedSources)
+	assert.Nil(source)
+	assert.EqualError(err, `Failed to create Kinsumer client: leaderActionFrequency config value is mandatory and must be at least as long as ShardCheckFrequency`)
+}
+
+func TestGetSource_ConfigErrorMaxAge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	assert := assert.New(t)
+
+	// Set up localstack resources
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+	streamName := "kinesis-source-config-integration-1"
+	appName := "kinesisSourceIntegration"
+
+	t.Setenv("SOURCE_NAME", "kinesis")
+	t.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
+	t.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
+	t.Setenv("SOURCE_KINESIS_APP_NAME", appName)
+	t.Setenv("SOURCE_KINESIS_SHARD_FREQUENCY", "5")
+	t.Setenv("SOURCE_KINESIS_CLIENT_MAX_AGE", "2")
+
+	c, err := config.NewConfig()
+	assert.NotNil(c)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
+
+	// use our function generator to interact with localstack
+	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
+	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
+
+	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{Name: "kinesis", Handle: adaptedHandle}
+	supportedSources := []sourceconfig.ConfigPair{kinesisSourceConfigPairWithLocalstack}
+
+	source, err := sourceconfig.GetSource(c, supportedSources)
+	assert.Nil(source)
+	assert.EqualError(err, `Failed to create Kinsumer client: clientRecordMaxAge value must be at least as long as shardCheckFrequency`)
+}
+
 func TestKinesisSourceHCL(t *testing.T) {
 	testFixPath := "../../../config/test-fixtures"
 	testCases := []struct {
@@ -283,24 +363,30 @@ func TestKinesisSourceHCL(t *testing.T) {
 			File: "source-kinesis-simple.hcl",
 			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
 			Expected: &configuration{
-				StreamName:       "testStream",
-				Region:           "us-test-1",
-				AppName:          "testApp",
-				RoleARN:          "",
-				StartTimestamp:   "",
-				ConcurrentWrites: 50,
+				StreamName:            "testStream",
+				Region:                "us-test-1",
+				AppName:               "testApp",
+				RoleARN:               "",
+				StartTimestamp:        "",
+				ConcurrentWrites:      50,
+				ClientRecordMaxAge:    50,
+				ShardCheckFrequency:   10,
+				LeaderActionFrequency: 10,
 			},
 		},
 		{
 			File: "source-kinesis-extended.hcl",
 			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
 			Expected: &configuration{
-				StreamName:       "testStream",
-				Region:           "us-test-1",
-				AppName:          "testApp",
-				RoleARN:          "xxx-test-role-arn",
-				StartTimestamp:   "2022-03-15 07:52:53",
-				ConcurrentWrites: 51,
+				StreamName:            "testStream",
+				Region:                "us-test-1",
+				AppName:               "testApp",
+				RoleARN:               "xxx-test-role-arn",
+				StartTimestamp:        "2022-03-15 07:52:53",
+				ConcurrentWrites:      51,
+				ClientRecordMaxAge:    30,
+				ShardCheckFrequency:   20,
+				LeaderActionFrequency: 25,
 			},
 		},
 	}
