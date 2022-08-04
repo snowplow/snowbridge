@@ -7,8 +7,6 @@
 package transform
 
 import (
-	"strconv"
-
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -27,19 +25,4 @@ func IntermediateAsSpEnrichedParsed(intermediateState interface{}, message *mode
 		return nil, parseErr
 	}
 	return parsedMessage, nil
-}
-
-// convertPathToInterfaces converts a slice of strings representing a path to a slice of interfaces to be used
-// by the SDK Get() function
-func convertPathToInterfaces(path []string) []interface{} {
-	var output []interface{}
-	for _, pathField := range path {
-		pathFieldInt, err := strconv.Atoi(pathField)
-		if err != nil {
-			output = append(output, pathField)
-		} else {
-			output = append(output, pathFieldInt)
-		}
-	}
-	return output
 }

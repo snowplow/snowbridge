@@ -46,14 +46,3 @@ func TestIntermediateAsSpEnrichedParsed(t *testing.T) {
 		assert.Equal("Cannot parse tsv event - wrong number of fields provided: 1", err4.Error())
 	}
 }
-
-// TestConvertPathToInterfaces tests that convertPathToInterfaces returns integers and strings where appropriate
-func TestConvertPathToInterfaces(t *testing.T) {
-	assert := assert.New(t)
-
-	expected := []interface{}{"one", 2, 3, "four", "five", 6}
-
-	res := convertPathToInterfaces([]string{"one", "2", "3", "four", "five", "6"})
-
-	assert.Equal(expected, res)
-}

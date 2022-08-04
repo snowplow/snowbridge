@@ -8,7 +8,7 @@ transform {
 
 transform {
   use "spEnrichedFilter" {
-    field = "app_id"
+    atomic_field = "app_id"
     regex = "wrong"
     regex_timeout = 10
   }
