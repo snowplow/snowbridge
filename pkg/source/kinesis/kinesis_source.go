@@ -29,23 +29,29 @@ import (
 
 // configuration configures the source for records pulled
 type configuration struct {
-	StreamName       string `hcl:"stream_name" env:"SOURCE_KINESIS_STREAM_NAME"`
-	Region           string `hcl:"region" env:"SOURCE_KINESIS_REGION"`
-	AppName          string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
-	RoleARN          string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
-	StartTimestamp   string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
-	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	StreamName            string `hcl:"stream_name" env:"SOURCE_KINESIS_STREAM_NAME"`
+	Region                string `hcl:"region" env:"SOURCE_KINESIS_REGION"`
+	AppName               string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
+	RoleARN               string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
+	StartTimestamp        string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
+	ConcurrentWrites      int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	ClientRecordMaxAge    *int   `hcl:"client_record_max_age_seconds,optional" env:"SOURCE_KINESIS_CLIENT_MAX_AGE_SECONDS"`
+	ShardCheckFrequency   int    `hcl:"shard_check_frequency_seconds,optional" env:"SOURCE_KINESIS_SHARD_FREQUENCY_SECONDS"`
+	LeaderActionFrequency int    `hcl:"leader_action_frequency_seconds,optional" env:"SOURCE_KINESIS_LEADER_FREQUENCY_SECONDS"`
 }
 
 // --- Kinesis source
 
 // kinesisSource holds a new client for reading messages from kinesis
 type kinesisSource struct {
-	client           *kinsumer.Kinsumer
-	streamName       string
-	concurrentWrites int
-	region           string
-	accountID        string
+	client                *kinsumer.Kinsumer
+	streamName            string
+	concurrentWrites      int
+	region                string
+	accountID             string
+	clientRecordMaxAge    *int
+	shardCheckFrequency   int
+	leaderActionFrequency int
 
 	log *log.Entry
 }
@@ -75,7 +81,10 @@ func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 			c.Region,
 			c.StreamName,
 			c.AppName,
-			&iteratorTstamp)
+			&iteratorTstamp,
+			c.LeaderActionFrequency,
+			c.ShardCheckFrequency,
+			c.ClientRecordMaxAge)
 	}
 }
 
@@ -109,7 +118,9 @@ func (f adapter) Create(i interface{}) (interface{}, error) {
 func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
 	cfg := &configuration{
-		ConcurrentWrites: 50,
+		ConcurrentWrites:      50,
+		ShardCheckFrequency:   10,
+		LeaderActionFrequency: 10,
 	}
 
 	return cfg, nil
@@ -145,14 +156,20 @@ func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
 
 // newKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
 // for mocking and localstack usage
-func newKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string, concurrentWrites int, region string, streamName string, appName string, startTimestamp *time.Time) (*kinesisSource, error) {
+func newKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string, concurrentWrites int, region string, streamName string, appName string, startTimestamp *time.Time, leaderActionFrequency, shardCheckFrequency int, clientRecordMaxAge *int) (*kinesisSource, error) {
 	// TODO: Add statistics monitoring to be able to report on consumer latency
+
 	config := kinsumer.NewConfig().
-		WithShardCheckFrequency(10 * time.Second).
-		WithLeaderActionFrequency(10 * time.Second).
+		WithShardCheckFrequency(time.Duration(shardCheckFrequency) * time.Second).
+		WithLeaderActionFrequency(time.Duration(leaderActionFrequency) * time.Second).
 		WithManualCheckpointing(true).
 		WithLogger(&KinsumerLogrus{}).
 		WithIteratorStartTimestamp(startTimestamp)
+
+	if clientRecordMaxAge != nil {
+		maxAge := time.Duration(*clientRecordMaxAge) * time.Second
+		config = config.WithClientRecordMaxAge(&maxAge)
+	}
 
 	// TODO: See if the client name can be reused to survive same node reboots
 	name := uuid.NewV4().String()
@@ -163,12 +180,15 @@ func newKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynam
 	}
 
 	return &kinesisSource{
-		client:           k,
-		streamName:       streamName,
-		concurrentWrites: concurrentWrites,
-		region:           region,
-		accountID:        awsAccountID,
-		log:              log.WithFields(log.Fields{"source": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
+		client:                k,
+		streamName:            streamName,
+		concurrentWrites:      concurrentWrites,
+		region:                region,
+		accountID:             awsAccountID,
+		log:                   log.WithFields(log.Fields{"source": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
+		clientRecordMaxAge:    clientRecordMaxAge,
+		shardCheckFrequency:   shardCheckFrequency,
+		leaderActionFrequency: leaderActionFrequency,
 	}, nil
 }
 

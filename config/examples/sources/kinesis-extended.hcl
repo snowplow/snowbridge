@@ -21,5 +21,14 @@ source {
 
     # Number of events to process concurrently (default: 50)
     concurrent_writes = 15
+
+    # Delay between tests for the client or shard numbers changing (in seconds)
+    shard_check_frequency_seconds   = 60
+
+    # Time between leader actions (in seconds)
+    leader_action_frequency_seconds = 60
+
+    # Max age for client record before we consider it stale (in seconds)
+    client_record_max_age_seconds   = 120
   }
 }
