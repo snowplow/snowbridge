@@ -160,8 +160,8 @@ function notMain(x) {
 		{
 			Name: "spEnrichedSetPk success",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedSetPk",
-				Field: `app_id`,
+				Name:        "spEnrichedSetPk",
+				AtomicField: `app_id`,
 			}},
 		},
 		{
@@ -169,106 +169,111 @@ function notMain(x) {
 			Transformations: []*Transformation{{
 				Name: "spEnrichedSetPk",
 			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedSetPk, empty field")},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedSetPk, empty atomic field")},
 		},
 		{
 			Name: "spEnrichedFilter success",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilter",
-				Field: "app_id",
-				Regex: "test.+",
+				Name:        "spEnrichedFilter",
+				AtomicField: "app_id",
+				Regex:       "test.+",
 			}},
 		},
 		{
 			Name: "spEnrichedFilter regexp does not compile",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilter",
-				Field: "app_id",
-				Regex: "?(?=-)",
+				Name:        "spEnrichedFilter",
+				AtomicField: "app_id",
+				Regex:       "?(?=-)",
 			}},
 			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
 		},
 		{
-			Name: "spEnrichedFilter empty field",
+			Name: "spEnrichedFilter empty atomic field",
 			Transformations: []*Transformation{{
 				Name:  "spEnrichedFilter",
 				Regex: "test.+",
 			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, empty field")},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, empty atomic field")},
 		},
 		{
 			Name: "spEnrichedFilter empty regex",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilter",
-				Field: "app_id",
+				Name:        "spEnrichedFilter",
+				AtomicField: "app_id",
 			}},
 			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, empty regex")},
 		},
 		{
 			Name: "spEnrichedFilterContext success",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilterContext",
-				Field: "contexts_nl_basjes_yauaa_context_1.test1.test2[0]",
-				Regex: "test.+",
+				Name:            "spEnrichedFilterContext",
+				ContextFullName: "contexts_nl_basjes_yauaa_context_1",
+				CustomFieldPath: "test1.test2[0]",
+				Regex:           "test.+",
 			}},
 		},
 		{
 			Name: "spEnrichedFilterContext regexp does not compile",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilterContext",
-				Field: "contexts_nl_basjes_yauaa_context_1.test1.test2[0]",
-				Regex: "?(?=-)",
+				Name:            "spEnrichedFilterContext",
+				ContextFullName: "contexts_nl_basjes_yauaa_context_1",
+				CustomFieldPath: "test1.test2[0]",
+				Regex:           "?(?=-)",
 			}},
 			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
 		},
 		{
-			Name: "spEnrichedFilterContext empty field",
+			Name: "spEnrichedFilterContext empty custom field path",
 			Transformations: []*Transformation{{
 				Name:  "spEnrichedFilterContext",
 				Regex: "test.+",
 			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, empty field")},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, empty context full name"), fmt.Errorf("validation error #0 spEnrichedFilterContext, empty custom field path")},
 		},
 		{
 			Name: "spEnrichedFilterContext empty regex",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilterContext",
-				Field: "contexts_nl_basjes_yauaa_context_1.test1.test2[0]",
+				Name:            "spEnrichedFilterContext",
+				ContextFullName: "contexts_nl_basjes_yauaa_context_1",
+				CustomFieldPath: "test1.test2[0]",
 			}},
 			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, empty regex")},
 		},
 		{
 			Name: "spEnrichedFilterUnstructEvent success",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilterUnstructEvent",
-				Field: "unstruct_event_add_to_cart_1.sku",
-				Regex: "test.+",
+				Name:              "spEnrichedFilterUnstructEvent",
+				CustomFieldPath:   "sku",
+				Regex:             "test.+",
+				UnstructEventName: "add_to_cart",
 			}},
 		},
 		{
 			Name: "spEnrichedFilterUnstructEvent regexp does not compile",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilterUnstructEvent",
-				Field: "unstruct_event_add_to_cart_1.sku",
-				Regex: "?(?=-)",
+				Name:              "spEnrichedFilterUnstructEvent",
+				CustomFieldPath:   "sku",
+				Regex:             "?(?=-)",
+				UnstructEventName: "add_to_cart",
 			}},
 			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
 		},
 		{
-			Name: "spEnrichedFilterUnstructEvent empty field",
+			Name: "spEnrichedFilterUnstructEvent empty custom field path and event name",
 			Transformations: []*Transformation{{
 				Name:  "spEnrichedFilterUnstructEvent",
 				Regex: "test.+",
 			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty field")},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty custom field path"), fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty event name")},
 		},
 		{
-			Name: "spEnrichedFilterUnstructEvent empty regex",
+			Name: "spEnrichedFilterUnstructEvent empty regex and event name",
 			Transformations: []*Transformation{{
-				Name:  "spEnrichedFilterUnstructEvent",
-				Field: "unstruct_event_add_to_cart_1.sku",
+				Name:            "spEnrichedFilterUnstructEvent",
+				CustomFieldPath: "sku",
 			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty regex")},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty event name"), fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty regex")},
 		},
 		{
 			Name: "lua success",
@@ -321,8 +326,8 @@ function notMain(x) {
 			},
 			ExpectedErrs: []error{
 				fmt.Errorf("validation error in js transformation #0, main() smoke test failed"),
-				fmt.Errorf("validation error #1 spEnrichedFilter, empty field"),
-				fmt.Errorf("validation error #3 spEnrichedSetPk, empty field"),
+				fmt.Errorf("validation error #1 spEnrichedFilter, empty atomic field"),
+				fmt.Errorf("validation error #3 spEnrichedSetPk, empty atomic field"),
 			},
 		},
 	}
@@ -332,10 +337,9 @@ function notMain(x) {
 			assert := assert.New(t)
 
 			valErrs := ValidateTransformations(tt.Transformations)
-
 			if tt.ExpectedErrs != nil {
 				for idx, valErr := range valErrs {
-					assert.Equal(valErr.Error(), tt.ExpectedErrs[idx].Error())
+					assert.Equal(tt.ExpectedErrs[idx].Error(), valErr.Error())
 				}
 			} else {
 				assert.Nil(valErrs)

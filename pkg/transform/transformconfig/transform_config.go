@@ -20,10 +20,15 @@ import (
 
 // Transformation represents a transformation's configuration
 type Transformation struct {
-	Description  string `hcl:"description,optional"`
-	Field        string `hcl:"field,optional"`
-	Regex        string `hcl:"regex,optional"`
-	RegexTimeout int    `hcl:"regex_timeout,optional"`
+	// For native filters
+	Description               string `hcl:"description,optional"`
+	UnstructEventName         string `hcl:"unstruct_event_name,optional"`
+	UnstructEventVersionRegex string `hcl:"unstruct_event_version_regex,optional"`
+	ContextFullName           string `hcl:"context_full_name,optional"`
+	CustomFieldPath           string `hcl:"custom_field_path,optional"`
+	AtomicField               string `hcl:"atomic_field,optional"`
+	Regex                     string `hcl:"regex,optional"`
+	RegexTimeout              int    `hcl:"regex_timeout,optional"`
 	// for JS and Lua transformations
 	SourceB64         string `hcl:"source_b64,optional"`
 	TimeoutSec        int    `hcl:"timeout_sec,optional"`
@@ -76,55 +81,55 @@ func ValidateTransformations(transformations []*Transformation) []error {
 		case "spEnrichedToJson":
 			continue
 		case "spEnrichedSetPk":
-			if transformation.Field == `` {
-				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedSetPk, empty field`, idx))
+			if transformation.AtomicField == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedSetPk, empty atomic field`, idx))
 				continue
 			}
 		case "spEnrichedFilter":
-			if transformation.Field != `` && transformation.Regex != `` {
-				_, err := regexp.Compile(transformation.Regex)
-				if err != nil {
-					validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, regex does not compile. error: %v`, idx, err))
-					continue
-				}
-				continue
-			}
-			if transformation.Field == `` {
-				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, empty field`, idx))
+			if transformation.AtomicField == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, empty atomic field`, idx))
 			}
 			if transformation.Regex == `` {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, empty regex`, idx))
-			}
-		case "spEnrichedFilterContext":
-			if transformation.Field != `` && transformation.Regex != `` {
+			} else {
 				_, err := regexp.Compile(transformation.Regex)
 				if err != nil {
-					validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterContext, regex does not compile. error: %v`, idx, err))
-					continue
+					validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, regex does not compile. error: %v`, idx, err))
 				}
-				continue
 			}
-			if transformation.Field == `` {
-				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterContext, empty field`, idx))
+			continue
+		case "spEnrichedFilterContext":
+			if transformation.ContextFullName == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterContext, empty context full name`, idx))
+			}
+			if transformation.CustomFieldPath == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterContext, empty custom field path`, idx))
 			}
 			if transformation.Regex == `` {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterContext, empty regex`, idx))
-			}
-		case "spEnrichedFilterUnstructEvent":
-			if transformation.Field != `` && transformation.Regex != `` {
+			} else {
 				_, err := regexp.Compile(transformation.Regex)
 				if err != nil {
-					validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterUnstructEvent, regex does not compile. error: %v`, idx, err))
-					continue
+					validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterContext, regex does not compile. error: %v`, idx, err))
 				}
-				continue
 			}
-			if transformation.Field == `` {
-				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterUnstructEvent, empty field`, idx))
+			continue
+		case "spEnrichedFilterUnstructEvent":
+			if transformation.CustomFieldPath == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterUnstructEvent, empty custom field path`, idx))
+			}
+			if transformation.UnstructEventName == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterUnstructEvent, empty event name`, idx))
 			}
 			if transformation.Regex == `` {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterUnstructEvent, empty regex`, idx))
+			} else {
+				_, err := regexp.Compile(transformation.Regex)
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterUnstructEvent, regex does not compile. error: %v`, idx, err))
+				}
 			}
+			continue
 		case "lua":
 			if transformation.Engine.SmokeTest(`main`) != nil {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error in lua transformation #%d, main() smoke test failed`, idx))
@@ -224,21 +229,21 @@ func GetTransformations(c *config.Config) (transform.TransformationApplyFunction
 		case "spEnrichedToJson":
 			funcs = append(funcs, transform.SpEnrichedToJSON)
 		case "spEnrichedSetPk":
-			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(transformation.Field))
+			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(transformation.AtomicField))
 		case "spEnrichedFilter":
-			filterFunc, err := transform.NewSpEnrichedFilterFunction(transformation.Field, transformation.Regex, transformation.RegexTimeout)
+			filterFunc, err := transform.NewSpEnrichedFilterFunction(transformation.AtomicField, transformation.Regex, transformation.RegexTimeout)
 			if err != nil {
 				return nil, err
 			}
 			funcs = append(funcs, filterFunc)
 		case "spEnrichedFilterContext":
-			filterFunc, err := transform.NewSpEnrichedFilterFunctionContext(transformation.Field, transformation.Regex, transformation.RegexTimeout)
+			filterFunc, err := transform.NewSpEnrichedFilterFunctionContext(transformation.ContextFullName, transformation.CustomFieldPath, transformation.Regex, transformation.RegexTimeout)
 			if err != nil {
 				return nil, err
 			}
 			funcs = append(funcs, filterFunc)
 		case "spEnrichedFilterUnstructEvent":
-			filterFunc, err := transform.NewSpEnrichedFilterFunctionUnstructEvent(transformation.Field, transformation.Regex, transformation.RegexTimeout)
+			filterFunc, err := transform.NewSpEnrichedFilterFunctionUnstructEvent(transformation.UnstructEventName, transformation.UnstructEventVersionRegex, transformation.CustomFieldPath, transformation.Regex, transformation.RegexTimeout)
 			if err != nil {
 				return nil, err
 			}
