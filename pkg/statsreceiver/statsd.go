@@ -115,4 +115,8 @@ func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
 	s.client.Incr("invalid_message_failed", b.InvalidMsgFailed)
 	s.client.PrecisionTiming("latency_processing_max", b.MaxProcLatency)
 	s.client.PrecisionTiming("latency_message_max", b.MaxMsgLatency)
+	s.client.PrecisionTiming("latency_transform_min", b.MinTransformLatency)
+	s.client.PrecisionTiming("latency_transform_max", b.MaxTransformLatency)
+	s.client.PrecisionTiming("latency_transform_avg", b.GetAvgTransformLatency())
+	s.client.PrecisionTiming("latency_transform_sum", b.SumTransformLatency)
 }
