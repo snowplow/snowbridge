@@ -221,6 +221,9 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 		if len(messagesToSend) > 0 {
 			err2 := retry.Exponential(5, time.Second, "failureTarget.WriteOversized", func() error {
 				res, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), messagesToSend)
+				if err != nil {
+					return err
+				}
 				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
 					log.Fatal("Oversized message transformation resulted in new oversized / invalid messages")
 				}
@@ -239,6 +242,9 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 		if len(messagesToSend) > 0 {
 			err3 := retry.Exponential(5, time.Second, "failureTarget.WriteInvalid", func() error {
 				res, err := ft.WriteInvalid(messagesToSend)
+				if err != nil {
+					return err
+				}
 				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
 					log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
 				}
