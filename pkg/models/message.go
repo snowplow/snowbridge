@@ -29,6 +29,9 @@ type Message struct {
 	// any cleanup process for the source is actioned
 	AckFunc func()
 
+	// Metadata holds the message's metadata
+	Metadata map[string]interface{}
+
 	// If the message is invalid it can be decorated with an error
 	// message for logging and reporting
 	err error

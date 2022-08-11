@@ -29,6 +29,7 @@ type Transformation struct {
 	AtomicField               string `hcl:"atomic_field,optional"`
 	Regex                     string `hcl:"regex,optional"`
 	RegexTimeout              int    `hcl:"regex_timeout,optional"`
+	MetadataKey               string `hcl:"metadata_key,optional"`
 	// for JS and Lua transformations
 	SourceB64         string `hcl:"source_b64,optional"`
 	TimeoutSec        int    `hcl:"timeout_sec,optional"`
@@ -98,6 +99,13 @@ func ValidateTransformations(transformations []*Transformation) []error {
 				}
 			}
 			continue
+		case "spEnrichedAddMetadata":
+			if transformation.MetadataKey == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedAddMetadata, empty key`, idx))
+			}
+			if transformation.AtomicField == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedAddMetadata, empty field`, idx))
+			}
 		case "spEnrichedFilterContext":
 			if transformation.ContextFullName == `` {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterContext, empty context full name`, idx))

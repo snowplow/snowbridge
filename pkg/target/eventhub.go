@@ -185,6 +185,12 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 		if eht.setEHPartitionKey {
 			ehEvent.PartitionKey = &msg.PartitionKey
 		}
+		// add the message's metadata to the event
+		if msg.Metadata != nil {
+			for key, val := range msg.Metadata {
+				ehEvent.Set(key, val)
+			}
+		}
 		ehBatch[i] = ehEvent
 	}
 
