@@ -22,6 +22,7 @@ import (
 type Transformation struct {
 	Description  string `hcl:"description,optional"`
 	Field        string `hcl:"field,optional"`
+	Key          string `hcl:"key,optional"`
 	Regex        string `hcl:"regex,optional"`
 	RegexTimeout int    `hcl:"regex_timeout,optional"`
 	// for JS and Lua transformations
@@ -94,6 +95,13 @@ func ValidateTransformations(transformations []*Transformation) []error {
 			}
 			if transformation.Regex == `` {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, empty regex`, idx))
+			}
+		case "spEnrichedAddMetadata":
+			if transformation.Key == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedAddMetadata, empty key`, idx))
+			}
+			if transformation.Field == `` {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedAddMetadata, empty field`, idx))
 			}
 		case "spEnrichedFilterContext":
 			if transformation.Field != `` && transformation.Regex != `` {
@@ -231,6 +239,8 @@ func GetTransformations(c *config.Config) (transform.TransformationApplyFunction
 				return nil, err
 			}
 			funcs = append(funcs, filterFunc)
+		case "spEnrichedAddMetadata":
+			funcs = append(funcs, transform.NewSpEnrichedAddMetadataFunction(transformation.Key, transformation.Field))
 		case "spEnrichedFilterContext":
 			filterFunc, err := transform.NewSpEnrichedFilterFunctionContext(transformation.Field, transformation.Regex, transformation.RegexTimeout)
 			if err != nil {
