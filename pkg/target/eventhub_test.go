@@ -297,6 +297,10 @@ func TestWriteSuccess(t *testing.T) {
 	// Set the partition key all to the same value to ensure that batching behaviour is down to chunking rather than EH client batching (which we test elsewhere)
 	for _, msg := range messages {
 		msg.PartitionKey = "testPK"
+		// also set metadata
+		msg.Metadata = map[string]interface{}{
+			"key1": "value1",
+		}
 	}
 
 	var twres *models.TargetWriteResult
@@ -307,10 +311,12 @@ func TestWriteSuccess(t *testing.T) {
 	}()
 	res := getResults(m.results, 1*time.Second)
 
-	// Check that we got correct amonut of batches
+	// Check that we got correct amount of batches
 	assert.Equal(5, len(res))
 	// Check that we acked correct amount of times
 	assert.Equal(int64(100), ackOps)
+	assert.Equal("value1", twres.Sent[0].Metadata["key1"])
+
 	// Check that we got no error and the TargetWriteResult is as expected.
 	assert.Nil(err)
 	assert.Equal(100, len(twres.Sent))

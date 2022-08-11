@@ -232,6 +232,30 @@ function notMain(x) {
 			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, empty context full name"), fmt.Errorf("validation error #0 spEnrichedFilterContext, empty custom field path")},
 		},
 		{
+			Name: "spEnrichedAddMetadata success",
+			Transformations: []*Transformation{{
+				Name:        "spEnrichedAddMetadata",
+				AtomicField: "app_id",
+				MetadataKey: "some-key",
+			}},
+		},
+		{
+			Name: "spEnrichedAddMetadata empty atomic field",
+			Transformations: []*Transformation{{
+				Name:        "spEnrichedAddMetadata",
+				MetadataKey: "some-key",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedAddMetadata, empty field")},
+		},
+		{
+			Name: "spEnrichedAddMetadata empty metadata key",
+			Transformations: []*Transformation{{
+				Name:        "spEnrichedAddMetadata",
+				AtomicField: "app_id",
+			}},
+			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedAddMetadata, empty key")},
+		},
+		{
 			Name: "spEnrichedFilterContext empty regex",
 			Transformations: []*Transformation{{
 				Name:            "spEnrichedFilterContext",
