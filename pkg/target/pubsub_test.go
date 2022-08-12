@@ -290,9 +290,12 @@ func TestNewPubSubTarget_Success(t *testing.T) {
 func TestNewPubSubTarget_Failure(t *testing.T) {
 	assert := assert.New(t)
 
-	pubsubTarget, err := newPubSubTarget(`nonexistent-project`, `nonexistent-topic`)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	defer srv.Close()
+	defer conn.Close()
 
-	assert.NotNil(err)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic-wrong`)
+
 	assert.EqualError(err, `Connection to PubSub failed, topic does not exist`)
 	assert.Nil(pubsubTarget)
 }
