@@ -279,36 +279,11 @@ func TestGetSource_ConfigErrorLeaderAction(t *testing.T) {
 
 	assert := assert.New(t)
 
-	// Set up localstack resources
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	streamName := "kinesis-source-config-integration-1"
-	appName := "kinesisSourceIntegration"
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "something", "test", nil, 0, 10, 1)
 
-	t.Setenv("SOURCE_NAME", "kinesis")
-	t.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
-	t.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
-	t.Setenv("SOURCE_KINESIS_APP_NAME", appName)
-	// leader frequency is lower than shard frequency
-	t.Setenv("SOURCE_KINESIS_LEADER_FREQUENCY", "10")
-	t.Setenv("SOURCE_KINESIS_SHARD_FREQUENCY", "20")
-	t.Setenv("SOURCE_KINESIS_CLIENT_MAX_AGE", "30")
-
-	c, err := config.NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-
-	// use our function generator to interact with localstack
-	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
-	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
-
-	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{Name: "kinesis", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{kinesisSourceConfigPairWithLocalstack}
-
-	source, err := sourceconfig.GetSource(c, supportedSources)
 	assert.Nil(source)
 	assert.EqualError(err, `Failed to create Kinsumer client: leaderActionFrequency config value is mandatory and must be at least as long as ShardCheckFrequency`)
 }
@@ -320,34 +295,11 @@ func TestGetSource_ConfigErrorMaxAge(t *testing.T) {
 
 	assert := assert.New(t)
 
-	// Set up localstack resources
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	streamName := "kinesis-source-config-integration-1"
-	appName := "kinesisSourceIntegration"
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "something", "test", nil, 10, 10, 1)
 
-	t.Setenv("SOURCE_NAME", "kinesis")
-	t.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
-	t.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
-	t.Setenv("SOURCE_KINESIS_APP_NAME", appName)
-	t.Setenv("SOURCE_KINESIS_SHARD_FREQUENCY", "5")
-	t.Setenv("SOURCE_KINESIS_CLIENT_MAX_AGE", "2")
-
-	c, err := config.NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-
-	// use our function generator to interact with localstack
-	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
-	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
-
-	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{Name: "kinesis", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{kinesisSourceConfigPairWithLocalstack}
-
-	source, err := sourceconfig.GetSource(c, supportedSources)
 	assert.Nil(source)
 	assert.EqualError(err, `Failed to create Kinsumer client: clientRecordMaxAge value must be at least as long as shardCheckFrequency`)
 }
