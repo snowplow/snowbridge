@@ -64,8 +64,7 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 }
 
-// newPubSubSource_Failure should fail if we can't reach PubSub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
-/*
+// newPubSubSource_Failure should fail if we can't reach PubSub
 func TestNewPubSubSource_Failure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -77,7 +76,6 @@ func TestNewPubSubSource_Failure(t *testing.T) {
 	assert.Nil(pubsubSource)
 	// This should return an error when we can't connect, rather than proceeding to the Write() function before we hit a problem.
 }
-*/
 
 // TestNewPubSubSource_Success tests the typical case of creating a new pubsub source.
 func TestNewPubSubSource_Success(t *testing.T) {

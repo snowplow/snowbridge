@@ -395,19 +395,3 @@ func TestNewEventHubTarget_ConnVarsErr(t *testing.T) {
 	assert.EqualError(err, `Error initialising EventHub client: could not reach Event Hub: dial tcp: lookup test.servicebus.windows.net: no such host`)
 	assert.Nil(tgt)
 }
-
-// NewEventHubTarget should fail if we can't reach EventHub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
-// Note that when we do so, the above tests will need to be changed to use some kind of mock
-/*
-func TestNewEventHubTarget_Failure(t *testing.T) {
-	assert := assert.New(t)
-
-	// Test that we can initialise a client with Key and Value
-	t.Setenv("EVENTHUB_KEY_NAME", "fake")
-	t.Setenv("EVENTHUB_KEY_VALUE", "fake")
-
-	tgt, err := newEventHubTarget(&cfg)
-	assert.Equal("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment", err.Error())
-	assert.Nil(tgt)
-}
-*/

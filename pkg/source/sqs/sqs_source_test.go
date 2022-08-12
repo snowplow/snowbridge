@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,8 +52,7 @@ func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	assert.Nil(err)
 }
 
-// newSQSSourceWithInterfaces should fail if we can't reach SQS, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
-/*
+// newSQSSourceWithInterfaces should fail if we can't reach SQS
 func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
 	// Unlike the success test, we don't require anything to exist for this one
 	assert := assert.New(t)
@@ -61,10 +61,12 @@ func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
 
 	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, "nonexistent-queue")
 
-	assert.Nil(source)
-	assert.NotNil(err)
+	assert.NotNil(source)
+	assert.Nil(err)
+
+	err = source.Read(nil)
+	assert.True(strings.HasPrefix(err.Error(), `Failed to get SQS queue URL`))
 }
-*/
 
 // TODO: When we address https://github.com/snowplow-devops/stream-replicator/issues/151, this test will need to change.
 func TestSQSSource_ReadFailure(t *testing.T) {

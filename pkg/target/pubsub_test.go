@@ -286,17 +286,13 @@ func TestNewPubSubTarget_Success(t *testing.T) {
 	assert.IsType(PubSubTarget{}, *pubsubTarget)
 }
 
-// TestnewPubSubTarget_Failure tests that we fail early when we cannot reach pubsub
-// Commented out as this behaviour is not currently instrumented.
-// This test serves to illustrate the desired behaviour for this issue: https://github.com/snowplow-devops/stream-replicator/issues/151
-/*
-func TestnewPubSubTarget_Failure(t *testing.T) {
+// TestNewPubSubTarget_Failure tests that we fail early when we cannot reach pubsub
+func TestNewPubSubTarget_Failure(t *testing.T) {
 	assert := assert.New(t)
 
 	pubsubTarget, err := newPubSubTarget(`nonexistent-project`, `nonexistent-topic`)
 
-	// TODO: Test for the actual error we expect, when we have instrumented failing fast
 	assert.NotNil(err)
+	assert.EqualError(err, `Connection to PubSub failed, topic does not exist`)
 	assert.Nil(pubsubTarget)
 }
-*/
