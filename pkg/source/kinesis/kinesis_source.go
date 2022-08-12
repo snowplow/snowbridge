@@ -35,9 +35,9 @@ type configuration struct {
 	RoleARN               string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
 	StartTimestamp        string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
 	ConcurrentWrites      int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
-	ClientRecordMaxAge    int    `hcl:"client_record_max_age,optional" env:"SOURCE_KINESIS_CLIENT_MAX_AGE"`
-	ShardCheckFrequency   int    `hcl:"shard_check_frequency,optional" env:"SOURCE_KINESIS_SHARD_FREQUENCY"`
-	LeaderActionFrequency int    `hcl:"leader_action_frequency,optional" env:"SOURCE_KINESIS_LEADER_FREQUENCY"`
+	ClientRecordMaxAge    int    `hcl:"client_record_max_age_seconds,optional" env:"SOURCE_KINESIS_CLIENT_MAX_AGE_SECONDS"`
+	ShardCheckFrequency   int    `hcl:"shard_check_frequency_seconds,optional" env:"SOURCE_KINESIS_SHARD_FREQUENCY_SECONDS"`
+	LeaderActionFrequency int    `hcl:"leader_action_frequency_seconds,optional" env:"SOURCE_KINESIS_LEADER_FREQUENCY_SECONDS"`
 }
 
 // --- Kinesis source
@@ -121,7 +121,6 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 		ConcurrentWrites:      50,
 		ShardCheckFrequency:   10,
 		LeaderActionFrequency: 10,
-		ClientRecordMaxAge:    50,
 	}
 
 	return cfg, nil
