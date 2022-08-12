@@ -222,10 +222,6 @@ func putNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, stream
 }
 
 func TestGetSource_WithKinesisSource(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-
 	assert := assert.New(t)
 
 	// Set up localstack resources
@@ -321,7 +317,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 				RoleARN:               "",
 				StartTimestamp:        "",
 				ConcurrentWrites:      50,
-				ClientRecordMaxAge:    50,
+				ClientRecordMaxAge:    0,
 				ShardCheckFrequency:   10,
 				LeaderActionFrequency: 10,
 			},

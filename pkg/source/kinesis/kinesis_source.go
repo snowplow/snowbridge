@@ -166,6 +166,9 @@ func newKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynam
 		WithLogger(&KinsumerLogrus{}).
 		WithIteratorStartTimestamp(startTimestamp)
 
+	if clientRecordMaxAge == 0 {
+		clientRecordMaxAge = 5 * shardCheckFrequency
+	}
 	maxAge := time.Duration(clientRecordMaxAge) * time.Second
 	config = config.WithClientRecordMaxAge(&maxAge)
 
