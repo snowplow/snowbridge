@@ -1,0 +1,47 @@
+Easily replicate data streams wherever you need them to be!  This application is available as a standalone CLI based application.
+
+![Stream Replicator](https://user-images.githubusercontent.com/40794354/183377471-fc84580a-1b74-41b4-b42d-33e5a7b4b58f.jpg)
+
+# Configuration
+
+- [Logging, Observability and Sentry](https://github.com/snowplow-devops/stream-replicator/wiki/Config:-Logging,-Observability-and-Sentry)
+- [Sources](https://github.com/snowplow-devops/stream-replicator/wiki/Config:-Sources)
+- [Transformations and Filters](https://github.com/snowplow-devops/stream-replicator/wiki/Config:-Transformations-and-Filters)
+- [Targets](https://github.com/snowplow-devops/stream-replicator/wiki/Config:-Targets)
+- [Failure](https://github.com/snowplow-devops/stream-replicator/wiki/Config:-Failure-Targets-&-Formats)
+
+# Configuration examples:
+
+## HCL configuration
+
+Stream Replicator can be configured using a HCL file. The location of this file is defined in the `STREAM_REPLICATOR_CONFIG_FILE` environment variable.
+
+`export STREAM_REPLICATOR_CONFIG_FILE="/Users/example_user/conf.hcl"`
+
+```hcl
+{{.HCLFullExample}}
+```
+
+## Environment variables
+
+If `STREAM_REPLICATOR_CONFIG_FILE` is not set, stream replicator will instead look to environment variables for configuration.
+
+The source, target and failure target type is indicated using `SOURCE_NAME`, `TARGET_NAME` and `FAILURE_TARGET_NAME`. Transformations are configured by populating the `TRANSFORM_CONFIG_B64` environment variable with a base-64 encoded hcl block.
+
+The above configuration, using environment variables is:
+
+```bash
+{{.BashFullExample}}
+```
+
+# Runtimes
+
+- [CLI (Standalone)](https://github.com/snowplow-devops/stream-replicator/wiki/Runtime:-CLI-(Standalone))
+
+# Profiling
+
+- [Using pprof](https://github.com/snowplow-devops/stream-replicator/wiki/Profiling-with-pprof)
+
+# Contributing
+
+- [Adding targets](https://github.com/snowplow-devops/stream-replicator/wiki/Contributing:-How-to-add-a-new-%60target%60%3F)

@@ -1788,3 +1788,54 @@ var testLuaJSON = []byte(`{"app_id":"test-data<>","collector_tstamp":"2019-05-10
 
 // json encoded inside Lua
 var snowplowJSON1ChangedLua = []byte(`{"app_id_CHANGED":"test-data1","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
+
+func TestLuaQuick(t *testing.T) {
+	assert := assert.New(t)
+
+	script := `function main(input)
+	-- input is a lua table
+	local spData = input["Data"]
+	if spData["platform"] ~= "web" then
+	   return { FilterOut = true };
+	end
+
+	if spData["user_id"] ~= nil then
+		spData["uid"] = spData["user_id"]
+	else
+		spData["uid"] = spData["domain_userid"]
+	end
+	return  { Data = spData, PartitionKey = app_id }
+  end`
+
+	src := base64.StdEncoding.EncodeToString([]byte(script))
+	luaConfig := &LuaEngineConfig{
+		SourceB64:  src,
+		RunTimeout: 10,
+		Sandbox:    false,
+		SpMode:     true,
+	}
+
+	luaEngine, err := NewLuaEngine(luaConfig)
+	assert.NotNil(luaEngine)
+	if err != nil {
+		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
+	}
+
+	transFunction := luaEngine.MakeFunction("main")
+	s, f, e, _ := transFunction(&models.Message{
+		Data:         testJsTsv2, //         []byte(`{"name": "Bruce", "id": "b47m4n", "batmobileCount": 1}`),
+		PartitionKey: "oldPk",
+	}, nil)
+
+	assert.NotNil(s)
+	assert.Nil(f)
+
+	// assert.Nil(s)
+	// assert.NotNil(f)
+
+	if e != nil {
+		fmt.Println(e.GetError())
+	}
+
+	fmt.Println(s)
+}
