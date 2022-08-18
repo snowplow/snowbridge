@@ -17,8 +17,8 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-// unstructFilterConfig is a configuration object for the spEnrichedFilterUnstructEvent transformation
-type unstructFilterConfig struct {
+// UnstructFilterConfig is a configuration object for the spEnrichedFilterUnstructEvent transformation
+type UnstructFilterConfig struct {
 	CustomFieldPath           string `hcl:"custom_field_path"`
 	UnstructEventName         string `hcl:"unstruct_event_name"`
 	UnstructEventVersionRegex string `hcl:"unstruct_event_version_regex,optional"`
@@ -38,7 +38,7 @@ func (f unstructFilterAdapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface
 func (f unstructFilterAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &unstructFilterConfig{
+	cfg := &UnstructFilterConfig{
 		UnstructEventVersionRegex: ".*",
 	}
 
@@ -46,9 +46,9 @@ func (f unstructFilterAdapter) ProvideDefault() (interface{}, error) {
 }
 
 // adapterGenerator returns a spEnrichedFilterUnstructEvent transformation adapter.
-func unstructFilterAdapterGenerator(f func(c *unstructFilterConfig) (transform.TransformationFunction, error)) unstructFilterAdapter {
+func unstructFilterAdapterGenerator(f func(c *UnstructFilterConfig) (transform.TransformationFunction, error)) unstructFilterAdapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*unstructFilterConfig)
+		cfg, ok := i.(*UnstructFilterConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
 		}
@@ -58,7 +58,7 @@ func unstructFilterAdapterGenerator(f func(c *unstructFilterConfig) (transform.T
 }
 
 // unstructFilterConfigFunction returns an spEnrichedFilterUnstructEvent transformation function, from an unstructFilterConfig.
-func unstructFilterConfigFunction(c *unstructFilterConfig) (transform.TransformationFunction, error) {
+func unstructFilterConfigFunction(c *UnstructFilterConfig) (transform.TransformationFunction, error) {
 	return NewUnstructFilter(
 		c.UnstructEventName,
 		c.UnstructEventVersionRegex,

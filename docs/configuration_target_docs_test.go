@@ -1,0 +1,96 @@
+// PROPRIETARY AND CONFIDENTIAL
+//
+// Unauthorized copying of this file via any medium is strictly prohibited.
+//
+// Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
+
+package docs
+
+import (
+	"fmt"
+	"path/filepath"
+	"testing"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/snowplow-devops/stream-replicator/assets"
+	"github.com/snowplow-devops/stream-replicator/config"
+	"github.com/snowplow-devops/stream-replicator/pkg/target"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestTargetDocumentation(t *testing.T) {
+
+	// Set env vars referenced in the config examples
+	t.Setenv("MY_AUTH_PASSWORD", "test")
+	t.Setenv("SASL_PASSWORD", "test")
+
+	targetsToTest := []string{"eventhub", "http", "kafka", "kinesis", "pubsub", "sqs", "stdout"}
+
+	for _, tgt := range targetsToTest {
+
+		// Read file:
+		minimalFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "targets", tgt+"-minimal-example.hcl")
+		fullFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "targets", tgt+"-full-example.hcl")
+
+		// Test minimal config
+		testTargetConfig(t, minimalFilePath, false)
+
+		// Test full config
+		testTargetConfig(t, fullFilePath, true)
+	}
+}
+
+func testTargetConfig(t *testing.T, filepath string, fullExample bool) {
+
+	c := getConfigFromFilepath(t, filepath)
+
+	use := c.Data.Target.Use
+	testTargetComponent(t, use.Name, use.Body, fullExample)
+}
+
+func testFailureTargetConfig(t *testing.T, filepath string, fullExample bool) {
+
+	c := getConfigFromFilepath(t, filepath)
+
+	use := c.Data.FailureTarget.Target
+	testTargetComponent(t, use.Name, use.Body, fullExample)
+}
+
+func testTargetComponent(t *testing.T, name string, body hcl.Body, fullExample bool) {
+	assert := assert.New(t)
+	fmt.Println(name)
+	var configObject interface{}
+	switch name {
+	case "eventhub":
+		configObject = &target.EventHubConfig{}
+	case "http":
+		configObject = &target.HTTPTargetConfig{}
+	case "kafka":
+		configObject = &target.KafkaConfig{}
+	case "kinesis":
+		configObject = &target.KinesisTargetConfig{}
+	case "pubsub":
+		configObject = &target.PubSubTargetConfig{}
+	case "sqs":
+		configObject = &target.SQSTargetConfig{}
+	case "stdout":
+		// stdout doesn't have a config object, so we use an empty struct.
+		var s struct{}
+		configObject = &s
+	default:
+		assert.Fail(fmt.Sprint("Target not recognised: ", name))
+	}
+
+	// DecodeBody parses a hcl Body object into the provided struct.
+	// It will fail if the configurations don't match, or if a required argument is missing.
+	err := gohcl.DecodeBody(body, config.CreateHclContext(), configObject)
+	if err != nil {
+		assert.Fail(name, err.Error())
+	}
+
+	if fullExample {
+		checkComponentForZeros(t, configObject)
+	}
+
+}

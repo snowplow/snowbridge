@@ -177,7 +177,7 @@ func newHclConfig(filename string) (*Config, error) {
 	}
 
 	// Creating EvalContext
-	evalContext := createHclContext() // ptr
+	evalContext := CreateHclContext() // ptr
 
 	// Decoding
 	configData := defaultConfigData()

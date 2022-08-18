@@ -15,8 +15,8 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-// contextFilterConfig is a configuration object for the spEnrichedFilterContext transformation
-type contextFilterConfig struct {
+// ContextFilterConfig is a configuration object for the spEnrichedFilterContext transformation
+type ContextFilterConfig struct {
 	ContextFullName string `hcl:"context_full_name"`
 	CustomFieldPath string `hcl:"custom_field_path"`
 	Regex           string `hcl:"regex"`
@@ -35,15 +35,15 @@ func (f contextFilterAdapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface
 func (f contextFilterAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &contextFilterConfig{}
+	cfg := &ContextFilterConfig{}
 
 	return cfg, nil
 }
 
 // contextFilterAdapterGenerator returns a Context Filter adapter.
-func contextFilterAdapterGenerator(f func(c *contextFilterConfig) (transform.TransformationFunction, error)) contextFilterAdapter {
+func contextFilterAdapterGenerator(f func(c *ContextFilterConfig) (transform.TransformationFunction, error)) contextFilterAdapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*contextFilterConfig)
+		cfg, ok := i.(*ContextFilterConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
 		}
@@ -53,7 +53,7 @@ func contextFilterAdapterGenerator(f func(c *contextFilterConfig) (transform.Tra
 }
 
 // contextFilterConfigFunction returns an spEnrichedFilterContext transformation function, from a contextFilterConfig.
-func contextFilterConfigFunction(c *contextFilterConfig) (transform.TransformationFunction, error) {
+func contextFilterConfigFunction(c *ContextFilterConfig) (transform.TransformationFunction, error) {
 	return NewContextFilter(
 		c.ContextFullName,
 		c.CustomFieldPath,

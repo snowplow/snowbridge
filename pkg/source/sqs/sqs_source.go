@@ -25,8 +25,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// configuration configures the source for records pulled
-type configuration struct {
+// Configuration configures the source for records pulled
+type Configuration struct {
 	QueueName         string `hcl:"queue_name" env:"SOURCE_SQS_QUEUE_NAME"`
 	Region            string `hcl:"region" env:"SOURCE_SQS_REGION"`
 	RoleARN           string `hcl:"role_arn,optional" env:"SOURCE_SQS_ROLE_ARN"`
@@ -55,14 +55,14 @@ type sqsSource struct {
 
 // configFunctionGeneratorWithInterfaces generates the SQS Source Config function, allowing you
 // to provide an SQS client directly to allow for mocking and localstack usage
-func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *configuration) (sourceiface.Source, error) {
-	return func(c *configuration) (sourceiface.Source, error) {
+func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *Configuration) (sourceiface.Source, error) {
+	return func(c *Configuration) (sourceiface.Source, error) {
 		return newSQSSourceWithInterfaces(client, awsAccountID, c.ConcurrentWrites, c.Region, c.QueueName)
 	}
 }
 
 // configFunction returns an SQS source from a config.
-func configFunction(c *configuration) (sourceiface.Source, error) {
+func configFunction(c *Configuration) (sourceiface.Source, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN, c.CustomAWSEndpoint)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (f adapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface.
 func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &configuration{
+	cfg := &Configuration{
 		ConcurrentWrites: 50,
 	}
 
@@ -95,9 +95,9 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 }
 
 // adapterGenerator returns an SQS Source adapter.
-func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
+func adapterGenerator(f func(c *Configuration) (sourceiface.Source, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*configuration)
+		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected SQSSourceConfig")
 		}

@@ -13,8 +13,8 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-// atomicFilterConfig is a configuration object for the spEnrichedFilter transformation
-type atomicFilterConfig struct {
+// AtomicFilterConfig is a configuration object for the spEnrichedFilter transformation
+type AtomicFilterConfig struct {
 	AtomicField  string `hcl:"atomic_field"`
 	Regex        string `hcl:"regex"`
 	FilterAction string `hcl:"filter_action"`
@@ -32,15 +32,15 @@ func (f atomicFilterAdapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface
 func (f atomicFilterAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &atomicFilterConfig{}
+	cfg := &AtomicFilterConfig{}
 
 	return cfg, nil
 }
 
 // adapterGenerator returns a spEnrichedFilter transformation adapter.
-func atomicFilterAdapterGenerator(f func(c *atomicFilterConfig) (transform.TransformationFunction, error)) atomicFilterAdapter {
+func atomicFilterAdapterGenerator(f func(c *AtomicFilterConfig) (transform.TransformationFunction, error)) atomicFilterAdapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*atomicFilterConfig)
+		cfg, ok := i.(*AtomicFilterConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
 		}
@@ -50,7 +50,7 @@ func atomicFilterAdapterGenerator(f func(c *atomicFilterConfig) (transform.Trans
 }
 
 // atomicFilterConfigFunction returns an spEnrichedFilter transformation function, from an atomicFilterConfig.
-func atomicFilterConfigFunction(c *atomicFilterConfig) (transform.TransformationFunction, error) {
+func atomicFilterConfigFunction(c *AtomicFilterConfig) (transform.TransformationFunction, error) {
 	return NewAtomicFilterFunction(
 		c.AtomicField,
 		c.Regex,
