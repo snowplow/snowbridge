@@ -14,8 +14,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
-// setPkConfig is a configuration object for the spEnrichedSetPk transformation
-type setPkConfig struct {
+// SetPkConfig is a configuration object for the spEnrichedSetPk transformation
+type SetPkConfig struct {
 	AtomicField string `hcl:"atomic_field"`
 }
 
@@ -31,15 +31,15 @@ func (f setPkAdapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface
 func (f setPkAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &setPkConfig{}
+	cfg := &SetPkConfig{}
 
 	return cfg, nil
 }
 
 // adapterGenerator returns a spEnrichedSetPk transformation adapter.
-func setPkAdapterGenerator(f func(c *setPkConfig) (TransformationFunction, error)) setPkAdapter {
+func setPkAdapterGenerator(f func(c *SetPkConfig) (TransformationFunction, error)) setPkAdapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*setPkConfig)
+		cfg, ok := i.(*SetPkConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
 		}
@@ -49,7 +49,7 @@ func setPkAdapterGenerator(f func(c *setPkConfig) (TransformationFunction, error
 }
 
 // setPkConfigFunction returns an spEnrichedSetPk transformation function, from an setPkConfig.
-func setPkConfigFunction(c *setPkConfig) (TransformationFunction, error) {
+func setPkConfigFunction(c *SetPkConfig) (TransformationFunction, error) {
 	return NewSpEnrichedSetPkFunction(
 		c.AtomicField,
 	)

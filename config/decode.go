@@ -90,12 +90,12 @@ func (h *hclDecoder) Decode(opts *DecoderOptions, target interface{}) error {
 	return nil
 }
 
-// createHclContext creates an *hcl.EvalContext that is used in decoding HCL.
+// CreateHclContext creates an *hcl.EvalContext that is used in decoding HCL.
 // Here we can add the evaluation features available for the HCL configuration
 // users.
 // For now, below is an example of 2 different ways users can reference
 // environment variables in their HCL configuration file.
-func createHclContext() *hcl.EvalContext {
+func CreateHclContext() *hcl.EvalContext {
 	evalCtx := &hcl.EvalContext{
 		Functions: hclCtxFunctions(),
 		Variables: hclCtxVariables(),

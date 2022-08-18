@@ -21,8 +21,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// configuration configures the source for records pulled
-type configuration struct {
+// Configuration configures the source for records pulled
+type Configuration struct {
 	ProjectID        string `hcl:"project_id" env:"SOURCE_PUBSUB_PROJECT_ID"`
 	SubscriptionID   string `hcl:"subscription_id" env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
 	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
@@ -42,7 +42,7 @@ type pubSubSource struct {
 }
 
 // configFunction returns a pubsub source from a config
-func configFunction(c *configuration) (sourceiface.Source, error) {
+func configFunction(c *Configuration) (sourceiface.Source, error) {
 	return newPubSubSource(
 		c.ConcurrentWrites,
 		c.ProjectID,
@@ -62,7 +62,7 @@ func (f adapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface
 func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &configuration{
+	cfg := &Configuration{
 		ConcurrentWrites: 50,
 	}
 
@@ -70,9 +70,9 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 }
 
 // adapterGenerator returns a PubSub Source adapter.
-func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
+func adapterGenerator(f func(c *Configuration) (sourceiface.Source, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*configuration)
+		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected PubSubSourceConfig")
 		}

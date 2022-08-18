@@ -27,8 +27,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// configuration configures the source for records pulled
-type configuration struct {
+// Configuration configures the source for records pulled
+type Configuration struct {
 	StreamName        string `hcl:"stream_name" env:"SOURCE_KINESIS_STREAM_NAME"`
 	Region            string `hcl:"region" env:"SOURCE_KINESIS_REGION"`
 	AppName           string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
@@ -55,9 +55,9 @@ type kinesisSource struct {
 
 // configFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
 // to provide a Kinesis + DynamoDB client directly to allow for mocking and localstack usage
-func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *configuration) (sourceiface.Source, error) {
+func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *Configuration) (sourceiface.Source, error) {
 	// Return a function which returns the source
-	return func(c *configuration) (sourceiface.Source, error) {
+	return func(c *Configuration) (sourceiface.Source, error) {
 		// Handle iteratorTstamp if provided
 		var iteratorTstamp time.Time
 		var tstampParseErr error
@@ -81,7 +81,7 @@ func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 }
 
 // configFunction returns a kinesis source from a config
-func configFunction(c *configuration) (sourceiface.Source, error) {
+func configFunction(c *Configuration) (sourceiface.Source, error) {
 	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN, c.CustomAWSEndpoint)
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (f adapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface.
 func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &configuration{
+	cfg := &Configuration{
 		ConcurrentWrites: 50,
 	}
 
@@ -117,9 +117,9 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 }
 
 // adapterGenerator returns a Kinesis Source adapter.
-func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
+func adapterGenerator(f func(c *Configuration) (sourceiface.Source, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*configuration)
+		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected configuration for kinesis source")
 		}
