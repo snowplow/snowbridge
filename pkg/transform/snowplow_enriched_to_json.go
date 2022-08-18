@@ -16,8 +16,8 @@ import (
 // We could avoid all the config-related trimmings for this one, but providing them means that this
 // transformation's validation is handled with all the same logic as the others, so it's safer.
 
-// enrichedToJSONConfig is a configuration object for the spEnrichedToJson transformation
-type enrichedToJSONConfig struct {
+// EnrichedToJSONConfig is a configuration object for the spEnrichedToJson transformation
+type EnrichedToJSONConfig struct {
 }
 
 type enrichedToJSONAdapter func(i interface{}) (interface{}, error)
@@ -30,15 +30,15 @@ func (f enrichedToJSONAdapter) Create(i interface{}) (interface{}, error) {
 // ProvideDefault implements the ComponentConfigurable interface
 func (f enrichedToJSONAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &enrichedToJSONConfig{}
+	cfg := &EnrichedToJSONConfig{}
 
 	return cfg, nil
 }
 
 // adapterGenerator returns a spEnrichedToJson transformation adapter.
-func enrichedToJSONAdapterGenerator(f func(c *enrichedToJSONConfig) (TransformationFunction, error)) enrichedToJSONAdapter {
+func enrichedToJSONAdapterGenerator(f func(c *EnrichedToJSONConfig) (TransformationFunction, error)) enrichedToJSONAdapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*enrichedToJSONConfig)
+		cfg, ok := i.(*EnrichedToJSONConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected enrichedToJSONConfig")
 		}
@@ -48,7 +48,7 @@ func enrichedToJSONAdapterGenerator(f func(c *enrichedToJSONConfig) (Transformat
 }
 
 // enrichedToJSONConfigFunction returns an spEnrichedToJson transformation function, from an enrichedToJSONConfig.
-func enrichedToJSONConfigFunction(c *enrichedToJSONConfig) (TransformationFunction, error) {
+func enrichedToJSONConfigFunction(c *EnrichedToJSONConfig) (TransformationFunction, error) {
 	return SpEnrichedToJSON, nil
 }
 

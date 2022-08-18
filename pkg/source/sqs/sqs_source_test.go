@@ -191,7 +191,7 @@ func TestSQSSourceHCL(t *testing.T) {
 		{
 			File: "source-sqs.hcl",
 			Plug: testSQSSourceAdapter(testSQSSourceFunc),
-			Expected: &configuration{
+			Expected: &Configuration{
 				QueueName:        "testQueue",
 				Region:           "us-test-1",
 				RoleARN:          "xxx-test-role-arn",
@@ -232,9 +232,9 @@ func TestSQSSourceHCL(t *testing.T) {
 }
 
 // Helpers
-func testSQSSourceAdapter(f func(c *configuration) (*configuration, error)) adapter {
+func testSQSSourceAdapter(f func(c *Configuration) (*Configuration, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*configuration)
+		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected SQSSourceConfig")
 		}
@@ -244,7 +244,7 @@ func testSQSSourceAdapter(f func(c *configuration) (*configuration, error)) adap
 
 }
 
-func testSQSSourceFunc(c *configuration) (*configuration, error) {
+func testSQSSourceFunc(c *Configuration) (*Configuration, error) {
 
 	return c, nil
 }

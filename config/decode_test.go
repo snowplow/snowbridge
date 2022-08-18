@@ -147,7 +147,7 @@ func TestCreateHclContext(t *testing.T) {
 		TestInt int    `hcl:"test_int"`
 	}
 
-	evalCtx := createHclContext()
+	evalCtx := CreateHclContext()
 	hclDecoder := hclDecoder{evalCtx}
 	hclSrc := `
 test_string = env.TEST_STRING
