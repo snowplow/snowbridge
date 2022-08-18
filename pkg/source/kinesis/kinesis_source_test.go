@@ -282,7 +282,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 		{
 			File: "source-kinesis-simple.hcl",
 			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
-			Expected: &configuration{
+			Expected: &Configuration{
 				StreamName:       "testStream",
 				Region:           "us-test-1",
 				AppName:          "testApp",
@@ -294,7 +294,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 		{
 			File: "source-kinesis-extended.hcl",
 			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
-			Expected: &configuration{
+			Expected: &Configuration{
 				StreamName:       "testStream",
 				Region:           "us-test-1",
 				AppName:          "testApp",
@@ -337,9 +337,9 @@ func TestKinesisSourceHCL(t *testing.T) {
 }
 
 // Helpers
-func testKinesisSourceAdapter(f func(c *configuration) (*configuration, error)) adapter {
+func testKinesisSourceAdapter(f func(c *Configuration) (*Configuration, error)) Adapter {
 	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*configuration)
+		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected KinesisSourceConfig")
 		}
@@ -349,7 +349,7 @@ func testKinesisSourceAdapter(f func(c *configuration) (*configuration, error)) 
 
 }
 
-func testKinesisSourceFunc(c *configuration) (*configuration, error) {
+func testKinesisSourceFunc(c *Configuration) (*Configuration, error) {
 
 	return c, nil
 }

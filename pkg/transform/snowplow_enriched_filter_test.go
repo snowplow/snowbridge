@@ -239,7 +239,7 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 	filterFunc, _ := NewSpEnrichedFilterFunction("app_id", "^test-data1$", 10)
 
 	filter1 := NewTransformation(filterFunc)
-	filter1Res := filter1(messages)
+	filter1Res := filter1(Messages)
 
 	assert.Equal(len(filter1Kept), len(filter1Res.Result))
 	assert.Equal(len(filter1Discarded), len(filter1Res.Filtered))
@@ -267,7 +267,7 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 	filterFunc2, _ := NewSpEnrichedFilterFunction("app_id", "^test-data1|test-data2$", 10)
 
 	filter2 := NewTransformation(filterFunc2)
-	filter2Res := filter2(messages)
+	filter2Res := filter2(Messages)
 
 	assert.Equal(len(filter2Kept), len(filter2Res.Result))
 	assert.Equal(len(filter2Discarded), len(filter2Res.Filtered))
@@ -283,7 +283,7 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 	filterFunc3, _ := NewSpEnrichedFilterFunction("app_id", "^((?!test-data1|test-data2).)*$", 10)
 
 	filter3 := NewTransformation(filterFunc3)
-	filter3Res := filter3(messages)
+	filter3Res := filter3(Messages)
 
 	assert.Equal(len(expectedFilter3), len(filter3Res.Result))
 	assert.Equal(1, len(filter3Res.Invalid))

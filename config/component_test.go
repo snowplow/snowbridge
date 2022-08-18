@@ -27,7 +27,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 	}{
 		{
 			File: "target-sqs.hcl",
-			Plug: testSQSTargetAdapter(testSQSTargetFunc),
+			Plug: MockSQSTargetAdapter(),
 			Expected: &target.SQSTargetConfig{
 				QueueName: "testQueue",
 				Region:    "eu-test-1",
@@ -36,7 +36,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		},
 		{
 			File: "target-eventhub-simple.hcl",
-			Plug: testEventHubTargetAdapter(testEventHubTargetFunc),
+			Plug: MockEventHubTargetAdapter(),
 			Expected: &target.EventHubConfig{
 				EventHubNamespace:       "testNamespace",
 				EventHubName:            "testName",
@@ -51,7 +51,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		},
 		{
 			File: "target-eventhub-extended.hcl",
-			Plug: testEventHubTargetAdapter(testEventHubTargetFunc),
+			Plug: MockEventHubTargetAdapter(),
 			Expected: &target.EventHubConfig{
 				EventHubNamespace:       "testNamespace",
 				EventHubName:            "testName",
@@ -66,7 +66,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		},
 		{
 			File: "target-http-simple.hcl",
-			Plug: testHTTPTargetAdapter(testHTTPTargetFunc),
+			Plug: MockHTTPTargetAdapter(),
 			Expected: &target.HTTPTargetConfig{
 				HTTPURL:                 "testUrl",
 				ByteLimit:               1048576,
@@ -83,7 +83,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		},
 		{
 			File: "target-http-extended.hcl",
-			Plug: testHTTPTargetAdapter(testHTTPTargetFunc),
+			Plug: MockHTTPTargetAdapter(),
 			Expected: &target.HTTPTargetConfig{
 				HTTPURL:                 "testUrl",
 				ByteLimit:               1000000,
@@ -100,7 +100,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		},
 		{
 			File: "target-kafka-simple.hcl",
-			Plug: testKafkaTargetAdapter(testKafkaTargetFunc),
+			Plug: MockKafkaTargetAdapter(),
 			Expected: &target.KafkaConfig{
 				Brokers:        "testBrokers",
 				TopicName:      "testTopic",
@@ -126,7 +126,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		},
 		{
 			File: "target-kafka-extended.hcl",
-			Plug: testKafkaTargetAdapter(testKafkaTargetFunc),
+			Plug: MockKafkaTargetAdapter(),
 			Expected: &target.KafkaConfig{
 				Brokers:        "testBrokers",
 				TopicName:      "testTopic",
@@ -152,7 +152,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		},
 		{
 			File: "target-kinesis.hcl",
-			Plug: testKinesisTargetAdapter(testKinesisTargetFunc),
+			Plug: MockKinesisTargetAdapter(),
 			Expected: &target.KinesisTargetConfig{
 				StreamName: "testStream",
 				Region:     "eu-test-1",
@@ -161,7 +161,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		},
 		{
 			File: "target-pubsub.hcl",
-			Plug: testPubSubTargetAdapter(testPubSubTargetFunc),
+			Plug: MockPubSubTargetAdapter(),
 			Expected: &target.PubSubTargetConfig{
 				ProjectID: "testId",
 				TopicName: "testTopic",
@@ -207,7 +207,7 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 		Expected interface{}
 	}{
 		Name: "test_failure_target_kafka_extended_env",
-		Plug: testKafkaTargetAdapter(testKafkaTargetFunc),
+		Plug: MockKafkaTargetAdapter(),
 		Expected: &target.KafkaConfig{
 			Brokers:        "testBrokers",
 			TopicName:      "testTopic",
@@ -332,114 +332,6 @@ func TestCreateObserverComponentHCL(t *testing.T) {
 }
 
 // Test Helpers
-// SQS
-func testSQSTargetAdapter(f func(c *target.SQSTargetConfig) (*target.SQSTargetConfig, error)) target.SQSTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*target.SQSTargetConfig)
-		if !ok {
-			return nil, errors.New("invalid input, expected SQSTargetConfig")
-		}
-
-		return f(cfg)
-	}
-
-}
-
-func testSQSTargetFunc(c *target.SQSTargetConfig) (*target.SQSTargetConfig, error) {
-
-	return c, nil
-}
-
-// EventHub
-func testEventHubTargetAdapter(f func(c *target.EventHubConfig) (*target.EventHubConfig, error)) target.EventHubTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*target.EventHubConfig)
-		if !ok {
-			return nil, errors.New("invalid input, expected EventHubTargetConfig")
-		}
-
-		return f(cfg)
-	}
-
-}
-
-func testEventHubTargetFunc(c *target.EventHubConfig) (*target.EventHubConfig, error) {
-
-	return c, nil
-}
-
-// HTTP
-func testHTTPTargetAdapter(f func(c *target.HTTPTargetConfig) (*target.HTTPTargetConfig, error)) target.HTTPTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*target.HTTPTargetConfig)
-		if !ok {
-			return nil, errors.New("invalid input, expected HTTPTargetConfig")
-		}
-
-		return f(cfg)
-	}
-
-}
-
-func testHTTPTargetFunc(c *target.HTTPTargetConfig) (*target.HTTPTargetConfig, error) {
-
-	return c, nil
-}
-
-// Kafka
-func testKafkaTargetAdapter(f func(c *target.KafkaConfig) (*target.KafkaConfig, error)) target.KafkaTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*target.KafkaConfig)
-		if !ok {
-			return nil, errors.New("invalid input, expected KafkaTargetConfig")
-		}
-
-		return f(cfg)
-	}
-
-}
-
-func testKafkaTargetFunc(c *target.KafkaConfig) (*target.KafkaConfig, error) {
-
-	return c, nil
-}
-
-// Kinesis
-func testKinesisTargetAdapter(f func(c *target.KinesisTargetConfig) (*target.KinesisTargetConfig, error)) target.KinesisTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*target.KinesisTargetConfig)
-		if !ok {
-			return nil, errors.New("invalid input, expected KinesisTargetConfig")
-		}
-
-		return f(cfg)
-	}
-
-}
-
-func testKinesisTargetFunc(c *target.KinesisTargetConfig) (*target.KinesisTargetConfig, error) {
-
-	return c, nil
-}
-
-// PubSub
-func testPubSubTargetAdapter(f func(c *target.PubSubTargetConfig) (*target.PubSubTargetConfig, error)) target.PubSubTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
-		cfg, ok := i.(*target.PubSubTargetConfig)
-		if !ok {
-			return nil, errors.New("invalid input, expected PubSubTargetConfig")
-		}
-
-		return f(cfg)
-	}
-
-}
-
-func testPubSubTargetFunc(c *target.PubSubTargetConfig) (*target.PubSubTargetConfig, error) {
-
-	return c, nil
-}
-
 // StatsD
 func testStatsDAdapter(f func(c *statsreceiver.StatsDStatsReceiverConfig) (*statsreceiver.StatsDStatsReceiverConfig, error)) statsreceiver.StatsDStatsReceiverAdapter {
 	return func(i interface{}) (interface{}, error) {
