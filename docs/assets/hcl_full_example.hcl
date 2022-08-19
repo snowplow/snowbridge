@@ -80,5 +80,5 @@ stats_receiver {
   buffer_sec  = 20
 }
 
-disabe_telemetry = true
+disable_telemetry = true
 user_provided_id = "hello-this-is-us"
