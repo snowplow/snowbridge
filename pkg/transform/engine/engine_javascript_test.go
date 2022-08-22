@@ -9,6 +9,8 @@ package engine
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -1290,6 +1292,100 @@ function main(x) {
 	}
 }
 
+func TestJSEngine_Examples(t *testing.T) {
+	testSpMode := true
+	testCases := []struct {
+		ExampleFile       string
+		DisableSourceMaps bool
+		Input             *models.Message
+		InterState        interface{}
+		Expected          map[string]*models.Message
+		ExpInterState     interface{}
+		Error             error
+	}{
+		{
+			ExampleFile:       "amplitude.js",
+			DisableSourceMaps: true,
+			Input: &models.Message{
+				Data:         testJsTsvExample,
+				PartitionKey: "some-test-key",
+			},
+			InterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSONAmplitude,
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMapAmplitude,
+			},
+			Error: nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.ExampleFile, func(t *testing.T) {
+			assert := assert.New(t)
+
+			filename := filepath.Join("examples", tt.ExampleFile)
+			fileSrc, err := os.ReadFile(filename)
+			if err != nil {
+				t.Fatalf("failed to read from example file")
+			}
+
+			src := base64.StdEncoding.EncodeToString(fileSrc)
+			jsConfig := &JSEngineConfig{
+				SourceB64:         src,
+				RunTimeout:        5,
+				DisableSourceMaps: tt.DisableSourceMaps,
+				SpMode:            testSpMode,
+			}
+
+			jsEngine, err := NewJSEngine(jsConfig)
+			assert.NotNil(jsEngine)
+			if err != nil {
+				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+			}
+
+			if err := jsEngine.SmokeTest("main"); err != nil {
+				t.Fatalf("smoke-test failed with error: %q", err.Error())
+			}
+
+			transFunction := jsEngine.MakeFunction("main")
+			s, f, e, i := transFunction(tt.Input, tt.InterState)
+
+			if !reflect.DeepEqual(i, tt.ExpInterState) {
+				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
+					spew.Sdump(i),
+					spew.Sdump(tt.ExpInterState))
+			}
+
+			if e != nil {
+				gotErr := e.GetError()
+				expErr := tt.Error
+				if expErr == nil {
+					t.Fatalf("got unexpected error: %s", gotErr.Error())
+				}
+
+				if !strings.Contains(gotErr.Error(), expErr.Error()) {
+					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
+						gotErr.Error(),
+						expErr.Error())
+				}
+			}
+
+			assertMessagesCompareJs(t, s, tt.Expected["success"])
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
+			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+		})
+	}
+}
+
 func Benchmark_JSEngine_Passthrough_DisabledSrcMaps(b *testing.B) {
 	b.ReportAllocs()
 
@@ -1527,3 +1623,74 @@ var testJsJSON = []byte(`{"app_id":"test-data<>","collector_tstamp":"2019-05-10T
 var testJsJSONChanged1 = []byte(`{"app_id_CHANGED":"test-data<>","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"1.2.3.4","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
 var testJsJSONChanged2 = []byte(`{"collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"1.2.3.4","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2","app_id_CHANGED":"test-data<>"}`)
+
+// Events for examples
+var testJsTsvExample = []byte(`media-test	web	2022-07-23 09:18:48.426	2022-07-23 09:18:48.426	2022-07-23 09:18:48.426	unstruct	e9234345-f042-46ad-b1aa-424464066a33			js-3.5.0	snowplow-micro-1.3.1-stdout	snowplow-micro-1.3.1-common-3.1.3	tester	1.2.3.4				3c5154e7-0ba5-4778-a5c4-d38369dea6bc												http://localhost:8000/	Testing																												{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/media_player_event/jsonschema/1-0-0","data":{"type":"play"}}}																			Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36																																										2022-07-23 09:18:48.426			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0","data":[{"schema":"iglu:com.youtube/youtube/jsonschema/1-0-0","data":{"autoPlay":false,"avaliablePlaybackRates":[0.25,0.5,0.75,1,1.25,1.5,1.75,2],"buffering":false,"controls":true,"cued":false,"loaded":3,"playbackQuality":"medium","playerId":"youtube-song","unstarted":false,"url":"https://www.youtube.com/watch?v=foobarbaz","avaliableQualityLevels":["hd1080","hd720","large","medium","small","tiny","auto"]}},{"schema":"iglu:com.snowplowanalytics.snowplow/media_player/jsonschema/1-0-0","data":{"currentTime":0.015303093460083008,"duration":190.301,"ended":false,"loop":false,"muted":false,"paused":false,"playbackRate":1,"volume":100}},{"schema":"iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0","data":{"id":"68027aa2-34b1-4018-95e3-7176c62dbc84"}},{"schema":"iglu:com.google.tag-manager.server-side/user_data/jsonschema/1-0-0","data":{"email_address":"foo@test.io"}},{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-2","data":{"userId":"fd0e5288-e89b-45df-aad5-6d0c6eda6198","sessionId":"1ab28b79-bfdd-4855-9bf1-5199ce15beac","eventIndex":24,"sessionIndex":1,"previousSessionId":null,"storageMechanism":"COOKIE_1","firstEventId":"40fbdb30-1b99-42a3-99f7-850dacf5be43","firstEventTimestamp":"2022-07-23T09:08:04.451Z"}}]}		2022-07-23 09:18:48.426	com.snowplowanalytics.snowplow	media_player_event	jsonschema	1-0-0		`)
+
+var testJsJSONAmplitude = []byte(`{"api_key":"12345","events":[{"event_properties":{"media_event_type":"play","media_player":{"currentTime":0.015303093460083008,"duration":190.301,"ended":false,"loop":false,"muted":false,"paused":false,"playbackRate":1,"volume":100},"page_location":"http://localhost:8000/","page_title":"Testing","youtube":{"autoPlay":false,"avaliablePlaybackRates":[0.25,0.5,0.75,1,1.25,1.5,1.75,2],"avaliableQualityLevels":["hd1080","hd720","large","medium","small","tiny","auto"],"buffering":false,"controls":true,"cued":false,"loaded":3,"playbackQuality":"medium","playerId":"youtube-song","unstarted":false,"url":"https://www.youtube.com/watch?v=foobarbaz"}},"event_type":"media_player_event","insert_id":"e9234345-f042-46ad-b1aa-424464066a33","platform":"web","session_id":1658567284451,"time":1658567928425,"user_id":"tester","user_properties":{"email":"foo@test.io","email_address":"foo@test.io","user_data":{"email_address":"foo@test.io"}}}]}`)
+
+var testJSMapAmplitude = map[string]interface{}{
+	"api_key": "12345",
+	"events": []interface{}{
+		map[string]interface{}{
+			"platform":   "web",
+			"insert_id":  "e9234345-f042-46ad-b1aa-424464066a33",
+			"user_id":    "tester",
+			"event_type": "media_player_event",
+			"time":       int64(1658567928425),
+			"session_id": int64(1658567284451),
+			"user_properties": map[string]interface{}{
+				"email_address": "foo@test.io",
+				"email":         "foo@test.io",
+				"user_data": map[string]interface{}{
+					"email_address": "foo@test.io",
+				},
+			},
+			"event_properties": map[string]interface{}{
+				"media_event_type": "play",
+				"page_location":    "http://localhost:8000/",
+				"page_title":       "Testing",
+				"youtube": map[string]interface{}{
+					"avaliablePlaybackRates": []interface{}{
+						0.25,
+						0.5,
+						0.75,
+						float64(1),
+						1.25,
+						1.5,
+						1.75,
+						float64(2),
+					},
+					"controls":        true,
+					"cued":            false,
+					"playerId":        "youtube-song",
+					"url":             "https://www.youtube.com/watch?v=foobarbaz",
+					"autoPlay":        false,
+					"buffering":       false,
+					"loaded":          float64(3),
+					"playbackQuality": "medium",
+					"unstarted":       false,
+					"avaliableQualityLevels": []interface{}{
+						"hd1080",
+						"hd720",
+						"large",
+						"medium",
+						"small",
+						"tiny",
+						"auto",
+					},
+				},
+				"media_player": map[string]interface{}{
+					"currentTime":  0.015303093460083008,
+					"duration":     190.301,
+					"ended":        false,
+					"loop":         false,
+					"muted":        false,
+					"paused":       false,
+					"playbackRate": float64(1),
+					"volume":       float64(100),
+				},
+			},
+		},
+	},
+}
