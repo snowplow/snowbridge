@@ -85,9 +85,6 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 	wg := sync.WaitGroup{}
 	var consumeErr error
 	for message := range claim.Messages() {
-		if message == nil {
-			return nil
-		}
 		wg.Add(1)
 		consumer.throttle <- struct{}{}
 		go func(message *sarama.ConsumerMessage) {
@@ -250,7 +247,7 @@ func NewKafkaSource(cfg *Config) (*KafkaSource, error) {
 	}
 
 	// validate TLS if required
-	tlsConfig, err := common.CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, `kafka`, cfg.SkipVerifyTLS)
+	tlsConfig, err := common.CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}

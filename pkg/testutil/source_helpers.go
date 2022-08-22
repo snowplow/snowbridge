@@ -67,6 +67,23 @@ func DefaultTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Mes
 	}
 }
 
+// KafkaTestWriteBuilder returns a function which replaces the write function, outputting only 100 messages to be handled via a channel for testing kafka source
+func KafkaTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Message, additionalOpts interface{}) func(messages []*models.Message) error {
+	messageCount := 0
+	return func(messages []*models.Message) error {
+		if messageCount == 100 {
+			return nil
+		}
+		messageCount = messageCount + 1
+		for _, msg := range messages {
+			// Send each message onto the channel to be appended to results
+			msgChan <- msg
+			msg.AckFunc()
+		}
+		return nil
+	}
+}
+
 // DelayedAckTestWriteBuilder delays every third ack, to test the case where some messages are processed slower than others
 func DelayedAckTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Message, additionalOpts interface{}) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {

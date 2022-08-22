@@ -12,6 +12,7 @@ import (
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
+	"github.com/twinj/uuid"
 	"testing"
 	"time"
 
@@ -112,7 +113,6 @@ func (c *Client) Consume(ctx context.Context, topics []string, handler sarama.Co
 			concurrentWrites: 15,
 			throttle:         make(chan struct{}, 15),
 			source: &sourceiface.SourceFunctions{WriteToTarget: func(messages []*models.Message) error {
-				assert.Equal(c.t, messages[0].Data, c.message.Value)
 				return c.targetErr
 			}},
 			log: log.WithFields(log.Fields{
@@ -122,19 +122,20 @@ func (c *Client) Consume(ctx context.Context, topics []string, handler sarama.Co
 	}
 	handler.Setup(nil)
 
-	var message *sarama.ConsumerMessage
-	// send nil messages after 100 messages in order to prevent hanging
-	if c.readMessages == 100 {
-		c.message = nil
-	} else {
-		c.readMessages = c.readMessages + 1
-	}
-	message = c.message
-
-	err := handler.ConsumeClaim(&sessionMock{}, claimMock{messages: []*sarama.ConsumerMessage{message}})
+	err := handler.ConsumeClaim(&sessionMock{}, claimMock{messages: []*sarama.ConsumerMessage{{
+		Headers:        nil,
+		Timestamp:      time.Now().UTC(),
+		BlockTimestamp: time.Now().UTC(),
+		Key:            bytes.NewBufferString(`testKey`).Bytes(),
+		Value:          bytes.NewBufferString(uuid.NewV4().String()).Bytes(),
+		Topic:          "testTopic",
+		Partition:      0,
+		Offset:         0,
+	}}})
 	if err != nil {
 		return err
 	}
+
 	err = c.Close()
 	if err != nil {
 		return err
@@ -149,16 +150,6 @@ func initKafkaSource(t *testing.T, c *Config, targetErr, closeErr error) (*Kafka
 		closeErr:     closeErr,
 		t:            t,
 		readMessages: 0,
-	}
-	client.message = &sarama.ConsumerMessage{
-		Headers:        nil,
-		Timestamp:      time.Now().UTC(),
-		BlockTimestamp: time.Now().UTC(),
-		Key:            bytes.NewBufferString(`testKey`).Bytes(),
-		Value:          bytes.NewBufferString(`testValue`).Bytes(),
-		Topic:          "testTopic",
-		Partition:      0,
-		Offset:         0,
 	}
 	s, err := NewKafkaSourceWithInterfaces(
 		&client,
@@ -194,7 +185,7 @@ func TestKafkaSource_ReadSuccess(t *testing.T) {
 	}, nil, nil)
 
 	assert.NotNil(t, s.GetID())
-	output := testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
+	output := testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.KafkaTestWriteBuilder, nil)
 	assert.Equal(t, len(output), 100)
 }
 
@@ -214,7 +205,7 @@ func TestKafkaSource_WriteToTargetError(t *testing.T) {
 	assert.NotNil(t, s.GetID())
 
 	assert.PanicsWithError(t, targetErr, func() {
-		testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
+		testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.KafkaTestWriteBuilder, nil)
 	})
 }
 
@@ -234,6 +225,6 @@ func TestKafkaSource_CloseErr(t *testing.T) {
 	assert.NotNil(t, s.GetID())
 
 	assert.PanicsWithError(t, closeErr, func() {
-		testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
+		testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.KafkaTestWriteBuilder, nil)
 	})
 }
