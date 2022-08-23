@@ -56,7 +56,7 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 	client := testutil.GetAWSLocalstackKinesisClient()
 
 	streamName := "kinesis-stream-target-1"
-	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
+	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	client := testutil.GetAWSLocalstackKinesisClient()
 
 	streamName := "kinesis-stream-target-2"
-	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
+	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	client := testutil.GetAWSLocalstackKinesisClient()
 
 	streamName := "kinesis-stream-target-3"
-	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName)
+	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

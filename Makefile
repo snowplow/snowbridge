@@ -7,6 +7,7 @@
 version = `cat VERSION`
 
 go_dirs = `go list ./... | grep -v /build/ | grep -v /vendor/`
+integration_test_dirs = `go list ./... | grep -v /build/ | grep -v /vendor/ | grep -v release_test`
 
 build_dir       = build
 vendor_dir      = vendor
@@ -97,18 +98,35 @@ test: test-setup
 	go tool cover -func=$(coverage_out)
 
 integration-test: test-setup
-	go test $(go_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+	go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	go tool cover -html=$(coverage_out) -o $(coverage_html)
 	go tool cover -func=$(coverage_out)
 
-integration-reset: integration-down integration-up
+# e2e-test covers only the e2e release tests, in preparation for when these will rely on deployed assets
+e2e-test: test-setup
+	go test ./release_test -v
 
-integration-up: http-up
-	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml up -d)
+
+e2e-reset: e2e-down e2e-up
+
+e2e-up:
+	(cd $(integration_dir) && docker compose up -d)
 	sleep 5
 
+e2e-down: 
+	(cd $(integration_dir) && docker compose down)
+	rm -rf $(integration_dir)/.localstack
+
+integration-reset: integration-down integration-up
+
+# For integration tests we need localstack and pubsub, but not kafka (yet)
+integration-up: http-up
+	(cd $(integration_dir) && docker compose up -d localstack pubsub)
+	sleep 5
+
+# We can just shut everything down here
 integration-down: http-down
-	(cd $(integration_dir) && docker-compose -f ./docker-compose.yml down)
+	(cd $(integration_dir) && docker compose down)
 	rm -rf $(integration_dir)/.localstack
 
 # ngrok needs to be installed and auth token must be configured for this if running locally

@@ -63,3 +63,9 @@ jobs:
 
     - name: Compile all targets
       run: make all
+
+    - name: Setup e2e resources
+      run: make e2e-up
+
+    - name: Run e2e tests
+      run: make e2e-test
