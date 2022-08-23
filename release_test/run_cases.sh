@@ -3,20 +3,18 @@
 # Get directory of script
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-echo "starting" #TODO: REMOVE
+for casepath in ${SCRIPT_DIR}/cases/*/ ; do
+    # Iterate through the test cases and run the SR binary for each of them
+    echo $casepath
+    export STREAM_REPLICATOR_CONFIG_FILE="${casepath}config.hcl"
 
-# Run spEnrichedToJson case on its own first:
+    cat ${casepath}input.txt | ${SCRIPT_DIR}/stream-replicator > ${casepath}result.txt
 
-export STREAM_REPLICATOR_CONFIG_FILE="${SCRIPT_DIR}/cases/spEnrichedToJson/config.hcl"
+    # run test for each case
+    go test $casepath
+done
 
-echo $STREAM_REPLICATOR_CONFIG_FILE
-
-cat ${SCRIPT_DIR}/cases/spEnrichedToJson/input.txt | ${SCRIPT_DIR}/stream-replicator > ${SCRIPT_DIR}/cases/spEnrichedToJson/result.txt
-
-
-# We may want to do things this way, or we may just do the above for every case, then run go test ${SCRIPT_DIR}/... 
-go test  ${SCRIPT_DIR}/... -run TestCheckSpEnrichedToJsonResult
-
+# could put go test ${SCRIPT_DIR}/... here too if we wanted to do it that way.
 
 # We may also just want one directory of input files, rather than having them all in the different `cases` folders.
 # For a quick spike of the tests though, this is grand.
