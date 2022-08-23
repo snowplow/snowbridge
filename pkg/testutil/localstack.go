@@ -7,6 +7,8 @@
 package testutil
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -123,10 +125,10 @@ func GetAWSLocalstackKinesisClient() kinesisiface.KinesisAPI {
 
 // CreateAWSLocalstackKinesisStream creates a new Kinesis stream and polls until
 // the stream is in an ACTIVE state
-func CreateAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName string) error {
+func CreateAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName string, shardCount int64) error {
 	_, err := client.CreateStream(&kinesis.CreateStreamInput{
 		StreamName: aws.String(streamName),
-		ShardCount: aws.Int64(1),
+		ShardCount: aws.Int64(shardCount),
 	})
 	if err != nil {
 		return err
@@ -178,6 +180,17 @@ func SetupAWSLocalstackSQSQueueWithMessages(client sqsiface.SQSAPI, queueName st
 	return res.QueueUrl
 }
 
+// PutProvidedDataIntoSQS puts the provided data into an SQS queue
+func PutProvidedDataIntoSQS(client sqsiface.SQSAPI, queueURL string, data []string) {
+	for _, msg := range data {
+		client.SendMessage(&sqs.SendMessageInput{
+			DelaySeconds: aws.Int64(0),
+			MessageBody:  aws.String(msg),
+			QueueUrl:     aws.String(queueURL),
+		})
+	}
+}
+
 // CreateAWSLocalstackSQSQueue creates a new SQS queue
 func CreateAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueName string) (*sqs.CreateQueueOutput, error) {
 	return client.CreateQueue(&sqs.CreateQueueInput{
@@ -190,4 +203,28 @@ func DeleteAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueURL *string) (*sqs
 	return client.DeleteQueue(&sqs.DeleteQueueInput{
 		QueueUrl: queueURL,
 	})
+}
+
+// PutNRecordsIntoKinesis puts n records into a kinesis stream. The records will contain `{dataPrefix} {n}` as their data.
+func PutNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, streamName string, dataPrefix string) error {
+	// Put N records into kinesis stream
+	for i := 0; i < n; i++ {
+		_, err := kinesisClient.PutRecord(&kinesis.PutRecordInput{Data: []byte(fmt.Sprint(dataPrefix, " ", i)), PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PutProvidedDataIntoKinesis puts the provided data into a kinsis stream
+func PutProvidedDataIntoKinesis(kinesisClient kinesisiface.KinesisAPI, streamName string, data []string) error {
+	// Put N records into kinesis stream
+	for _, msg := range data {
+		_, err := kinesisClient.PutRecord(&kinesis.PutRecordInput{Data: []byte(msg), PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
