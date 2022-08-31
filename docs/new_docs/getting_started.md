@@ -11,7 +11,7 @@ The defaults for the app are stdin source, no transformations, and stdout target
 
 // TODO: image here maybe?
 
-Next, you can use a `.hcl` config file, or environment variables to configure different sources, targets and transformations.
+Next, to configure sources, targets, and transformations, create a file with `.hcl` extension, add your desired configuration and set the environment variable `STREAM_REPLICATOR_CONFIG_FILE` to the path to that file. Run the application with `./stream-replicator`.
 
 // TODO: Should this line go here? If so, add a link!
 
@@ -20,20 +20,6 @@ See the reference section for the full list of configuration options, and the tu
 ## Distribution options
 
 Stream replicator is available on docker:
-
-`docker pull snowplow/stream-replicator-aws:{version}`
-`docker pull snowplow/stream-replicator-gcp:{version}`
-
-// TODO: Does this bit need to be here?
-
-Note that there are two versions of the build - `aws` may only be deployed to AWS services, due to the restrictive licence of the [kinsumer](https://github.com/twitchscience/kinsumer) package, which we use to consume from Kinesis.
-
-The `gcp` build strips that source out, and so can be run on any platform.
-
-
-## Deployment
-
-The app can be deployed via services like EC2, ECS or Kubernetes using docker:
 
 ```bash
 docker pull snowplow/stream-replicator-aws:{version}
@@ -44,6 +30,16 @@ docker run snowplow/stream-replicator-aws:{version}
 docker pull snowplow/stream-replicator-gcp:{version}
 docker run snowplow/stream-replicator-gcp:{version}
 ```
+
+// TODO: Does this bit need to be here?
+
+Note that there are two versions of the build - `aws` may only be deployed to AWS services, due to the restrictive licence of the [kinsumer](https://github.com/twitchscience/kinsumer) package, which we use to consume from Kinesis.
+
+The `gcp` build strips that source out, and so can be run on any platform.
+
+## Deployment
+
+The app can be deployed via services like EC2, ECS or Kubernetes using docker.
 
 Configuration and authentication can be done by mounting the relevant files, and/or setting the relevant environment variables as per the standard authentication methods for cloud services.
 
