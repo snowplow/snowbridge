@@ -4,9 +4,9 @@ Stream replicator is a flexible, low latency tool which can replicate streams of
 
 ## Features:
 
-- Kinesis, SQS, PubSub and stdin sources
+- [Kinesis](https://aws.amazon.com/kinesis), [SQS](https://aws.amazon.com/sqs/), [PubSub](https://cloud.google.com/pubsub), and stdin sources
 
-- Kinesis, SQS, PubSub, Kafka, EventHubs, Http, and stdout targets.
+- [Kinesis](https://aws.amazon.com/kinesis), [SQS](https://aws.amazon.com/sqs/), [PubSub](https://cloud.google.com/pubsub), [Kafka](https://kafka.apache.org/), [EventHubs](https://azure.microsoft.com/en-us/services/event-hubs/), Http, and stdout targets.
 
 - Custom in-flight Lua and JS transformations
 
