@@ -26,10 +26,42 @@ Currently, stream replicator does not manually batch data - if data is received 
 Targets are plugins to deal with checks for validity and size restrictions, and sending data to the target. If data is provided in batches, and where the target client suits batching, the user can configure the 'chunk' size of batches sent to the target (as distinct from the size of batches received at input).
 
 ### Failure model
+#### Failure targets
 
-Failure targets are instances of targets specifically designed for unprocessable data - for example if a message is too large for the target, or is invalid. In this scenario the message will be wrapped in a Snowplow failed events wrapper and emitted to the configured failure target.
+When stream replicator hits an unrecoverable error - for example oversized or invalid data - it will emit information a [failed event](https://docs.snowplow.io/docs/managing-data-quality/failed-events/understanding-failed-events#what-is-a-failed-event) to the configured failure target. A failure target is the same as a target, the only difference is that the configured destination will receive failed events.
 
-If a message is valid, however, a failure will not be sent to the failure target. Rather, we will not ack the message, and the event will be re-processed eventually. The specifics of how this mechanism will behave is left to the acking model and configuration of the source. Note that this design decision leaves scope for duplicate data to be sent in a failure scenario, for the benefit of avoiding data loss.
+#### Failure cases
+
+There are several different failures that Stream Replicator may hit:
+
+**Target failure**
+
+This is where a request to the destination technology fails or is rejected - for example a http 400 response is received. When stream replicator hits this failure, it will retry 5 times. If all 5 attempts fail, it will be reported as a 'MsgFailed' for monitoring purposes, and will proceed without acking those Messages. As long as the source's acking model allows for it, these will be re-processed through stream replicator again.
+
+Note that this means failures on the receiving end (eg. if an endpoint is unavailable), then stream replicator will continue to attempt to process the data until the issue is fixed.
+
+
+**Oversised data**
+
+Targets have limits to the size of a single message or request. Where the destination technology has a hard limit, targets are hardcoded to that limit. Otherwise, this is a configurable option in the target configuration. When a message's data is above this limit, stream-replicator will produce a [size violation failed event](https://docs.snowplow.io/docs/managing-data-quality/failed-events/understanding-failed-events/#size-violation), and emit it to the failure target.
+
+Writes of oversized messages to the failure target will be recorded with 'OversizedMsg' statistics in monitoring. Any failure to write to the failure target will cause stream replicator to crash.
+
+**Invalid data**
+
+In the unlikely event that stream replicator encounters data which is invalid for the target destination (for example empty data is invalid for pubsub), it will create a [generic error failed event](https://docs.snowplow.io/docs/managing-data-quality/failed-events/understanding-failed-events/#generic-error),  emit it to the failure target, and ack the original message.
+
+Transformation failures are also treated as invalid, as described below.
+
+Writes of invalid messages to the failure target will be recorded with 'InvalidMsg' statistics in monitoring. Any failure to write to the failure target will cause stream replicator to crash.
+
+**Transformation failure**
+
+Where a transformation hits an exception, stream replicator will consider it invalid, assuming that the configured transformation cannot process the data. It will create a [generic error failed event](https://docs.snowplow.io/docs/managing-data-quality/failed-events/understanding-failed-events/#generic-error), emit it to the failure target, and ack the original message.
+
+As long as the built-in transformations are configured correctly, this should be unlikely. For scripting transformations, stream replicator assumes that an exception means the data cannot be processed - make sure to construct and test your scripts accordingly.
+
+Writes of invalid messages to the failure target will be recorded with 'InvalidMsg' statistics in monitoring. Any failure to write to the failure target will cause stream replicator to crash.
 
 ### Transformations and filters
 
