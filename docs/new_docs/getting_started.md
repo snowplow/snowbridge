@@ -22,7 +22,7 @@ See the reference section for the full list of configuration options, and the tu
 Stream replicator is available on docker:
 
 `docker pull snowplow/stream-replicator-aws:{version}`
-`docker pull snowplow/stream-replicator-gcp:{version`
+`docker pull snowplow/stream-replicator-gcp:{version}`
 
 Or for download as a binary from Github [releases][releases]
 
@@ -35,9 +35,18 @@ The `gcp` build strips that source out, and so can be run on any platform.
 
 ## Deployment
 
-The app can be deployed via services like EC2, ECS or Kubernetes using docker. 
+The app can be deployed via services like EC2, ECS or Kubernetes using docker:
+
+```bash
+docker pull snowplow/stream-replicator-aws:{version}
+docker run snowplow/stream-replicator-aws:{version}
+```
+
+```bash
+docker pull snowplow/stream-replicator-gcp:{version}
+docker run snowplow/stream-replicator-gcp:{version}
+```
 
 Configuration and authentication can be done by mounting the relevant files, and/or setting the relevant environment variables as per the standard authentication methods for cloud services.
-
 
 [releases]: https://github.com/snowplow-devops/stream-replicator/releases/
