@@ -23,9 +23,9 @@ Assuming you have already downloaded the relevant binary as per the quickstart:
 
 To use this configuration to read from an sqs queue, and output the data to stdout:
 
-1. Copy the above into a `.hcl` file, and replace the values in this configuration, leaving all other configuration options as the default
+1. Copy the above into a configuration file with extension `.hcl`, and replace the values in this configuration, leaving all other configuration options as the default.
 2. Set the `STREAM_REPLICATOR_CONFIG_FILE` environment variable to the path to your file, and set the AWS authentication env vars.
-3. Run the binary with `./stream-replicator`
+3. Run the binary with `./stream-replicator`.
 
 Your stream's data should now be output to the console, along with logging data. Note that the application will continue to either read data from the sqs queue or wait for new data until you exit.
 
@@ -53,7 +53,7 @@ Assuming you have already downloaded the relevant binary as per the quickstart:
 
 To use this configuration to write data from a local file (json for example) - via stdin - to pubsub:
 
-1. Copy the above into a `.hcl` file, and replace the values in this configuration, leaving all other configuration options as the default
+1. Copy the above into a configuration file with extension `.hcl`, and replace the values in this configuration, leaving all other configuration options as the default.
 2. Set the `STREAM_REPLICATOR_CONFIG_FILE` environment variable to the path to your file
 3. Run the binary with `my-data.json | ./stream-replicator`
 
