@@ -23,7 +23,7 @@ Currently, stream replicator does not manually batch data - if data is received 
 
 ### Targets
 
-Targets are plugins to deal with checks for validity and size restrictions, and sending data to the target. If data is provided in batches, and where the target client suits batching, the user can configure the 'chunk' size of batches sent to the target (as distinct from the size of batches received at input).
+Targets are plugins to deal with checks for validity and size restrictions, and sending data to the end destination. If data is provided in batches, and where the destination client suits batching, the user can configure the 'chunk' size of batches sent to the target (as distinct from the size of batches received at input).
 
 ### Failure model
 #### Failure targets
@@ -65,15 +65,15 @@ Writes of invalid messages to the failure target will be recorded with 'InvalidM
 
 ### Transformations and filters
 
-Transformations are a process which can filter or transform the data in-flight. Filters are transformations which check for a filter condition - if the condition is satisfied, the filter will ack the message immediately and remove it from the queue for sending to the target. While we may sometimes refer to filters as a separate concept for more understandable documenation, within the codebase filters are conceptually a type of transformation.
+Transformations allow you to modify data on the fly before they're sent to the destination. There are a set of built-in transformations, specifically for use with [Snowplow](https://snowplow.io/) data (for example transforming Snowplow enriched events to JSON), You can also configure a script to transform your data however you require - for example if you need to rename fields or change a field's format.
 
-Transformations operate on a per-event basis, and are chained together in the order in which they're configured. It is generally advisable to place filters first where possible, for the most efficient configuration.
+It's also possible to exclude messages (ie. not send them to the target) based on a condition, by configuring a special type of transformation called a filter. (Technically then, filters are transformations, but we sometimes refer to them as a separate concept for clarity). Again there are built-in filters to apply to Snowplow data, or you can provide a script to do filter the data.
 
-The same type of transformation may be configured more than once - for example you may want to configure two filters to satisfy two different conditions.
+Transformations operate on a per-message basis, are chained together in the order configured, and the same type of transformation may be configured more than once. It is advisable to place filters first for performance reasons. When transformations are chained together, the output of the first is the input of the second, however transformations may not depend on each other in any other way. 
 
-Transformations do not have an awareness of each others' state - so a filter cannot depend on the outcome of another filter, for example. Each transformation is a self-contained piece of logic which must determine its own outcome. More complex transformation and filtering logic may be instrumented via the custom Lua and JS scripting transformations. See the scripting transformation interface section for more detail. 
+For example, if you have a built-in filter with condition A, and a filter with condition B, I may arrange them one after another, so that the data must satisfy A AND B. But you can't arrange them to satisfy A OR B - because the outcome of each must be determined on their own.
 
-// TODO: organisation of information - where's the best place to go detailed on scripting, and how should it be referred to here?
+The latter use case, and further nuanced use cases can, however, be achieved using scripting transformation.
 
 ### Custom Scripting transformations
 
