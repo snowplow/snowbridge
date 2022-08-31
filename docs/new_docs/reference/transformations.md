@@ -159,7 +159,7 @@ transform {
 
 Custom tranformation scripts may be defined in Javascript or Lua, and provided to stream replicator.
 
-For the limited benchmarks carried out, the Lua transformation offers a slight performance benefit over Javascript, however both are significantly less performant than the predefined transformations above (as one would expect).
+For the limited benchmarks carried out, the Lua transformation offers a slight performance benefit over Javascript, however both are significantly less performant than the predefined transformations above (as you would expect).
 
 ### The scripting interface
 

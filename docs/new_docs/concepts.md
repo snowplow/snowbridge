@@ -37,7 +37,7 @@ Transformations are a process which can filter or transform the data in-flight. 
 
 Transformations operate on a per-event basis, and are chained together in the order in which they're configured. It is generally advisable to place filters first where possible, for the most efficient configuration.
 
-The same type of transformation may be configured more than once - for example one may want to configure two filters to satisfy two different conditions.
+The same type of transformation may be configured more than once - for example you may want to configure two filters to satisfy two different conditions.
 
 Transformations do not have an awareness of each others' state - so a filter cannot depend on the outcome of another filter, for example. Each transformation is a self-contained piece of logic which must determine its own outcome. More complex transformation and filtering logic may be instrumented via the custom Lua and JS scripting transformations. See the scripting transformation interface section for more detail. 
 

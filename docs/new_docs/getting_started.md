@@ -11,7 +11,7 @@ The defaults for the app are stdin source, no transformations, and stdout target
 
 // TODO: image here maybe?
 
-Next, one can use a `.hcl` config file, or environment variables to configure different sources, targets and transformations.
+Next, you can use a `.hcl` config file, or environment variables to configure different sources, targets and transformations.
 
 // TODO: Should this line go here? If so, add a link!
 

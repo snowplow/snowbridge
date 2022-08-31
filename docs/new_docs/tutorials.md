@@ -170,7 +170,7 @@ transform {
 
 For this example, the input data is a valid Snowplow TSV event.
 
-The built-in trnasformations are a means of performing basic transformations in a fast and efficient manner. Where the requirement is not possible using those basic transformations, one might decide to instrument a scripting transformation for Snowplow data.
+The built-in trnasformations are a means of performing basic transformations in a fast and efficient manner. Where the requirement is not possible using those basic transformations, you might decide to instrument a scripting transformation for Snowplow data.
 
 Some of the work is done for you - when `snowplow_mode` is set to `true`, stream-replicator will pre-transform the data into a JS object or a Lua table before passing it to the script.
 

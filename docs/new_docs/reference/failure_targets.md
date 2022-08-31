@@ -3,7 +3,7 @@ As with the regular targets we also need to handle "bad" or "failed" data in the
 1. Oversized payloads (i.e. the source has pulled a message too big to send to the target) and;
 2. Invalid payloads (i.e. the source has pulled a message that contains invalid content for the target
 
-Failure targets for Stream replicator are the same as targets, except they are only used in the above cases, and they pre-format the failure data. Configuration options for failure targets are exactly the same as those found in [targets](https://github.com/snowplow-devops/stream-replicator/wiki/Config:-Targets), with the exception that they are provided in a `failure_target {}` block, and one may provide a `format` option. 
+Failure targets for Stream replicator are the same as targets, except they are only used in the above cases, and they pre-format the failure data. Configuration options for failure targets are exactly the same as those found in [targets](https://github.com/snowplow-devops/stream-replicator/wiki/Config:-Targets), with the exception that they are provided in a `failure_target {}` block, and you may provide a `format` option. 
 
 Currently the only `format` supported is a Snowplow Bad row, which is the default.
 
