@@ -33,16 +33,13 @@ If the source provides the data in batch, the Kinesis, SQS, EventHub and Kafka t
 
 ### Sources
 
-Sources are essentially plugins to deal with consuming the input stream, and spawning goroutines within which transformations and targets to operate. Concurrency is throttled at source, and is configurable.
+Sources deal with retrieving data from the input stream, and forwarding it for processing - once messages are either filtered or successfully sent, they are then acked (if the source technology supports acking). Otherwise, messages will be retrieved again by the source. Sources also have a setting which controls concurrency for the instance - source_concurrent_writes.
 
-// TODO: Note that this part is something that'll have to be manually updated when we get to changing the behaviour - is there a way to rely on something better than us remembering?
-// - One option is to add a note to the issue - perhaps we can tag issues which require manual doc updates?
-
-Currently, stream replicator does not manually batch data - if data is received from the source in batches, it forwards messages in those batches for processing. If the data is not batched on input (as is the case with the kinesis source), at present it will operate in single-event batches.
 
 ### Targets
 
-Targets are plugins to deal with checks for validity and size restrictions, and sending data to the end destination. If data is provided in batches, and where the destination client suits batching, the user can configure the 'chunk' size of batches sent to the target (as distinct from the size of batches received at input).
+// TODO: Links
+Targets check for [validity and size restrictions](LINK TO FAILURE MODEL), batch data where appropriate [LINK TO BATCHING] and send data to the detination stream.
 
 ### Failure model
 #### Failure targets
