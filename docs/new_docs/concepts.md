@@ -1,16 +1,35 @@
-# Concepts
+# Application Overview
 
 ## Architecture Overview
 
-Stream replicator's architecture is relatively simple - sources read from the input stream, and spawn goroutines for batches of data - within these goroutines, 0 or more transformations operate on the data (on a per-event basis, chained one after another). Targets are then called within the same goroutine, and are responsible for first checking that the data is under the configured size limit, and that it's valid data - then sending to the target. Oversized or invalid data is sent to a failure target in Snowplow bad row format.
+// TODO: Add section links
+
+Stream replicator's architecture is fairly simple - it receives data from one streaming technology (via Sources), optionally runs filtering and transformation logic on them (message-by-message, via Transfomations), and sends the data to another streaming technology or destination (via Targets). If it is not possible to process or retry the data [for some reason](TODO: LINK TO FAILURE MODELS), it outputs a message to another destination (via Failure Targets).
 
 
-
-// TODO: Feedback on & tidy up of arch diagram
+// TODO: Get design team input on diagram
 
 ![draft_architecture](assets/draft_sr_architecture.jpg)
 
+## Operational details
+
+Data is processed on an at-least-once basis, and there is no guarantee of order of messages. The application is designed to minimise duplicates as much as possible, but there isn't a guarantee of avoiding them - for example where there's a failure scenario, it is possible for messages to be delivered without a successful response, and duplicates can occur. 
+
+Stream replicator is built to suit a horizontal scaling model, and internally handles multiple instances consuming the same input (the kinesis source requires Dynamo DB tables to be created for this purpose). Within each instance, concurrency may be managed via the `source_concurrent_writes` setting.
+
 ## Concepts
+
+### Batching model
+
+Messages are processed in batches according to how the source provides data. The Kinesis and Pubsub sources provide data in single-events, so no batching is possible at present. The SQS source is batched according to how the SQS queue returns them.
+
+Transformations always handle individual messages at a time.
+
+If the source provides the data in batch, the Kinesis, SQS, EventHub and Kafka targets can chunk the data into smaller batches before sending the requests. The EventHub target can further batch the data according the the EventHub client's batching logic (by partition key). The Pubsub and HTTP targets handle events individually at present.
+
+// TODO: Link to the weird jank event hub stuff
+
+// Note: not a big fan of listing these things here because when we change these features we rely on remembering to update this - and I doubt we will. I would prefer to remove as much reliance on this kind of thing as possible.
 
 ### Sources
 
@@ -77,7 +96,7 @@ The latter use case, and further nuanced use cases can, however, be achieved usi
 
 ### Custom Scripting transformations
 
-Custom scripting transformations allow the user to provide a script to transform the data, set the partition key, or filter the data according to their own custom logic. Scripts may be provided in Lua or Javascript. For each script provided, a runtime engine is used to run the script against the data. Scipts interface with the rest of the app via the EngineProtocol interface, which provides a means to pass data into the scripting layer, and return data from the scripting layer back to the app.
+Custom scripting transformations allow the user to provide a script to transform the data, set the destination's partition key, or filter the data according to their own custom logic. Scripts may be provided in Lua or Javascript. For each script provided, a runtime engine is used to run the script against the data. Scipts interface with the rest of the app via the EngineProtocol interface, which provides a means to pass data into the scripting layer, and return data from the scripting layer back to the app.
 
 For more detail on using custom scripts, see // TODO: WHERE DOES THE DETAIL GO?
 

@@ -138,7 +138,7 @@ The script filters out any data with a `batmobileCount` less than 1, otherwise i
 
 For these examples, the input data is a valid Snowplow TSV event. A range of built-in basic transformations for Snowplow data are available - these are far more efficient and performant than the scripting layer.
 
-The follwing configuration will first set up a filter to exclude events with `test` app IDs, then a filter to keep only `page_view` or `sceen_view` event names, then it will set the message's partition key to the value of network_userid, then it will transform the event to JSON (using the Snowplow analytics SDK). // TODO: link I guess
+The follwing configuration will first set up a filter to exclude events with `test` app IDs, then a filter to keep only `page_view` or `sceen_view` event names, then it will set the destination's partition key to the value of network_userid, then it will transform the event to JSON (using the Snowplow analytics SDK). // TODO: link I guess
 
 ```hcl
 transform {

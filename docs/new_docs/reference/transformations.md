@@ -74,7 +74,7 @@ transform {
 }
 ```
 
-2. `spEnrichedSetPk`: Sets the message partition key to an atomic field from a Snowplow Enriched tsv string.
+2. `spEnrichedSetPk`: Sets the message's destination partition key to an atomic field from a Snowplow Enriched tsv string.
 
 Example:
 
@@ -195,7 +195,7 @@ end
 
 #### Accessing data
 
-Scripts can access the message Data at `input.Data`, and can return modified data by returning it in the `Data` field of the output. Likewise for the partition key - `input.PartitionKey` and the `PartitionKey` field of the output.
+Scripts can access the message Data at `input.Data`, and can return modified data by returning it in the `Data` field of the output. Likewise for the partition key to be used for the destination - `input.PartitionKey` and the `PartitionKey` field of the output.
 
 By default, the Data field will be a string. For Snowplow enriched TSV data, the `snowplow_mode` option transforms the data to an object for Javascript, or a table for Lua - field names will be those output by the Snowplow Analytics SDK.
 
@@ -216,7 +216,7 @@ function main(input)
 end
 ```
 
-Returning a `PartitionKey` field is always optional, if returned it will set the partition key for the message.
+Returning a `PartitionKey` field is always optional, if returned it will set the destination's partition key for the message.
 
 ```js
 function main(input) {
@@ -298,7 +298,7 @@ transform {
 
 ### Example use cases
 
-#### Generic: Filter, transform and set partition key based on values in the data.
+#### Generic: Filter, transform and set destination partition key based on values in the data.
 
 For this example, the input data is a json string which looks like this: `{"name": "Bruce", "id": "b47m4n", "batmobileCount": 1}`.
 
@@ -355,7 +355,7 @@ The script filters out any data with a `batmobileCount` less than 1, otherwise i
 }</code></pre>
 </details>
 
-#### Snowplow Events: Filter, transform and set partition key based on values in the data.
+#### Snowplow Events: Filter, transform and set destination partition key based on values in the data.
 
 
 For this example, the input data is a valid Snowplow TSV event.
