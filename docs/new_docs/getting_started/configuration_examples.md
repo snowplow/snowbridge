@@ -1,4 +1,4 @@
-# Tutorials
+# Configuration examples
 
 ## Configure a source
 

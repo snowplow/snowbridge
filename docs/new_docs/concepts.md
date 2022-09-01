@@ -6,7 +6,6 @@
 
 Stream replicator's architecture is fairly simple - it receives data from one streaming technology (via Sources), optionally runs filtering and transformation logic on them (message-by-message, via Transfomations), and sends the data to another streaming technology or destination (via Targets). If it is not possible to process or retry the data [for some reason](TODO: LINK TO FAILURE MODELS), it outputs a message to another destination (via Failure Targets).
 
-
 // TODO: Get design team input on diagram
 
 ![draft_architecture](assets/draft_sr_architecture.jpg)
