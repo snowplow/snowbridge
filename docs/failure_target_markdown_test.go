@@ -33,7 +33,7 @@ func TestFailureTargetDocumentation(t *testing.T) {
 		// Read file:
 		markdownFilePath := filepath.Join("documentation", "configuration", "failure_targets", tgt+".md")
 
-		fencedBlocksFound := getFencedHCLBlocksFromMd(markdownFilePath)
+		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
 		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
 		assert.NotEqual(0, len(fencedBlocksFound))

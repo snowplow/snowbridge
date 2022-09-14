@@ -26,7 +26,7 @@ func TestMonitoringDocumentation(t *testing.T) {
 
 	markdownFilePath := filepath.Join("documentation", "configuration", "monitoring", "monitoring.md")
 
-	fencedBlocksFound := getFencedHCLBlocksFromMd(markdownFilePath)
+	fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
 	// Since all code blocks are separate here we can just join them into one
 	codeBlock := strings.Join(fencedBlocksFound, "\n")

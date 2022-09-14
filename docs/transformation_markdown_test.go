@@ -26,7 +26,7 @@ func TestBuiltinTransformationDocumentation(t *testing.T) {
 		// Read file:
 		markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "snowplow-builtin", tfm+".md")
 
-		fencedBlocksFound := getFencedHCLBlocksFromMd(markdownFilePath)
+		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
 		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
 		assert.NotEqual(0, len(fencedBlocksFound))
@@ -62,7 +62,7 @@ func TestTargetDocumentation(t *testing.T) {
 		// Read file:
 		markdownFilePath := filepath.Join("documentation", "configuration", "targets", tgt+".md")
 
-		fencedBlocksFound := getFencedHCLBlocksFromMd(markdownFilePath)
+		fencedBlocksFound, _ := getFencedHCLBlocksFromMd(markdownFilePath)
 
 		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
 		assert.NotEqual(0, len(fencedBlocksFound))

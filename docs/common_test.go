@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-func getFencedHCLBlocksFromMd(markdownFilePath string) []string {
+func getFencedBlocksFromMd(markdownFilePath string) ([]string, []map[string]string) {
 	mdContent, err := os.ReadFile(markdownFilePath)
 	if err != nil {
 		panic(err)
@@ -44,7 +44,8 @@ func getFencedHCLBlocksFromMd(markdownFilePath string) []string {
 
 	mdTokens := md.Parse(mdContent)
 
-	fencedBlocksFound := make([]string, 0, 0)
+	fencedHCLBlocksFound := make([]string, 0, 0)
+	fencedOtherBlocksFound := make([]map[string]string, 0, 0)
 
 	for _, token := range mdTokens {
 
@@ -52,12 +53,13 @@ func getFencedHCLBlocksFromMd(markdownFilePath string) []string {
 		case *markdown.Fence:
 			// only the hcl blocks (for now)
 			if typ.Params == "hcl" {
-				fencedBlocksFound = append(fencedBlocksFound, typ.Content)
+				fencedHCLBlocksFound = append(fencedHCLBlocksFound, typ.Content)
+			} else {
+				fencedOtherBlocksFound = append(fencedOtherBlocksFound, map[string]string{typ.Params: typ.Content})
 			}
 		}
 	}
-
-	return fencedBlocksFound
+	return fencedHCLBlocksFound, fencedOtherBlocksFound
 }
 
 func createConfigFromCodeBlock(t *testing.T, block string) *config.Config {
