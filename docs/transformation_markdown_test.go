@@ -7,12 +7,18 @@
 package docs
 
 import (
+	"encoding/base64"
+	"fmt"
 	"path/filepath"
 	"testing"
 
+	"github.com/snowplow-devops/stream-replicator/pkg/transform/engine"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformconfig"
 	"github.com/stretchr/testify/assert"
 )
+
+// TODO: First pass of these tests only tests that configs 'compile', doesn't test the actual functionality.
+// For scripting transformations, we certainly should do so. For builtins, it'd be an advantage but less important.
 
 // Until transformation configs are refactored, we can't do the same checks on full configurations.
 // TODO: Refactor transformation config then implement the same null checks as other examples.
@@ -46,42 +52,82 @@ func TestBuiltinTransformationDocumentation(t *testing.T) {
 	}
 }
 
-/*
-
-func TestTargetDocumentation(t *testing.T) {
+// These are likely to be more complicated/harder to read, so creating a separate function to test teh different parts of the docs.
+func TestScriptTransformationCreateAScript(t *testing.T) {
 	assert := assert.New(t)
 
-	// Set env vars referenced in the config examples
-	t.Setenv("MY_AUTH_PASSWORD", "test")
-	t.Setenv("SASL_PASSWORD", "test")
+	// Read file:
+	markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", "create-a-script.md")
 
-	targetsToTest := []string{"eventhub", "http", "kafka", "kinesis", "pubsub", "sqs"}
+	fencedHCLBlocksFound, fencedOtherBlocksFound := getFencedBlocksFromMd(markdownFilePath)
 
-	for _, tgt := range targetsToTest {
+	// No HCL, and some other blocks should be in there
+	assert.Equal(0, len(fencedHCLBlocksFound))
+	assert.NotEqual(0, len(fencedOtherBlocksFound))
 
-		// Read file:
-		markdownFilePath := filepath.Join("documentation", "configuration", "targets", tgt+".md")
+	for _, block := range fencedOtherBlocksFound {
+		switch block["language"] {
+		case "js":
+			// Test that all of our JS snippets compile with the engine, pass smoke test, and successfully create a transformation function
+			testJSScriptCompiles(t, block["script"])
+		case "lua":
+			// Test that all of our Lua snippets compile with the engine, pass smoke test, and successfully create a transformation function
+			testLuaScriptCompiles(t, block["script"])
+		case "go":
+			// There is one go example which doesn't need testing
 
-		fencedBlocksFound, _ := getFencedHCLBlocksFromMd(markdownFilePath)
+		default:
+			// Otherwise it's likely a typo or error.
+			fmt.Println(block)
 
-		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound))
-		assert.LessOrEqual(len(fencedBlocksFound), 2)
-		// TODO: This won't give a very informative error. Fix that.
+		}
+	}
+}
 
-		// Sort by length to determine which is the minimal example.
-		sort.Slice(fencedBlocksFound, func(i, j int) bool {
-			return len(fencedBlocksFound[i]) < len(fencedBlocksFound[j])
-		})
+func testJSScriptCompiles(t *testing.T, script string) {
+	assert := assert.New(t)
 
-		// Test minimal config
-		// Shortest is always minimal
-		testMinimalTargetConfig(t, fencedBlocksFound[0])
-		// Test full config
-		// Longest is the full config. Where there are no required arguments, there is only one config.
-		// In that scenario, both tests should pass.
-		testFullTargetConfig(t, fencedBlocksFound[len(fencedBlocksFound)-1])
+	src := base64.StdEncoding.EncodeToString([]byte(script))
+	jsConfig := &engine.JSEngineConfig{
+		SourceB64:  src,
+		RunTimeout: 5, // This is needed here as we're providing config directly, not using defaults.
 	}
 
+	jsEngine, err := engine.NewJSEngine(jsConfig)
+	assert.NotNil(jsEngine)
+	if err != nil {
+		t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+	}
+
+	if err := jsEngine.SmokeTest("main"); err != nil {
+		t.Fatalf("smoke-test failed with error: %q", err.Error())
+	}
+
+	transFunction := jsEngine.MakeFunction("main")
+
+	assert.NotNil(transFunction)
 }
-*/
+
+// TODO: Make failures easier to debug by providing the scripts themselves when we fail.
+func testLuaScriptCompiles(t *testing.T, script string) {
+	assert := assert.New(t)
+
+	src := base64.StdEncoding.EncodeToString([]byte(script))
+	luaConfig := &engine.LuaEngineConfig{
+		SourceB64:  src,
+		RunTimeout: 5, // This is needed here as we're providing config directly, not using defaults.
+	}
+
+	luaEngine, err := engine.NewLuaEngine(luaConfig)
+	assert.NotNil(luaEngine)
+	if err != nil {
+		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
+	}
+
+	if err := luaEngine.SmokeTest("main"); err != nil {
+		t.Fatalf("smoke-test failed with error: %q", err.Error())
+	}
+
+	transFunction := luaEngine.MakeFunction("main")
+	assert.NotNil(transFunction)
+}

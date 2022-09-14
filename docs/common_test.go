@@ -55,7 +55,7 @@ func getFencedBlocksFromMd(markdownFilePath string) ([]string, []map[string]stri
 			if typ.Params == "hcl" {
 				fencedHCLBlocksFound = append(fencedHCLBlocksFound, typ.Content)
 			} else {
-				fencedOtherBlocksFound = append(fencedOtherBlocksFound, map[string]string{typ.Params: typ.Content})
+				fencedOtherBlocksFound = append(fencedOtherBlocksFound, map[string]string{"language": typ.Params, "script": typ.Content})
 			}
 		}
 	}
