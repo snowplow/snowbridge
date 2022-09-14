@@ -11,7 +11,6 @@ Use the log_level parameter to specify the log level.
 // TODO: Tests and templates for all of this
 
 ```hcl
-
 // log level configuration (default: "info")
 log_level = "info"
 ```

@@ -11,18 +11,142 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow-devops/stream-replicator/config"
 	kinesissource "github.com/snowplow-devops/stream-replicator/pkg/source/kinesis"
 	pubsubsource "github.com/snowplow-devops/stream-replicator/pkg/source/pubsub"
 	sqssource "github.com/snowplow-devops/stream-replicator/pkg/source/sqs"
 	stdinsource "github.com/snowplow-devops/stream-replicator/pkg/source/stdin"
+	"github.com/stretchr/testify/assert"
 )
 
-// TODO: This passes when we remove a case from targetsToTest. Is there an approach which fails if we miss a case?
+func TestSourceDocumentation(t *testing.T) {
+	assert := assert.New(t)
+
+	// Set env vars referenced in the config examples
+	t.Setenv("MY_AUTH_PASSWORD", "test")
+	t.Setenv("SASL_PASSWORD", "test")
+
+	sourcesToTest := []string{"kinesis", "pubsub", "sqs", "stdin"}
+
+	for _, src := range sourcesToTest {
+
+		// Read file:
+		markdownFilePath := filepath.Join("documentation", "configuration", "sources", src+".md")
+
+		fencedBlocksFound := getFencedHCLBlocksFromMd(markdownFilePath)
+
+		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
+		assert.NotEqual(0, len(fencedBlocksFound))
+		assert.LessOrEqual(len(fencedBlocksFound), 2)
+		// TODO: This won't give a very informative error. Fix that.
+
+		// Sort by length to determine which is the minimal example.
+		sort.Slice(fencedBlocksFound, func(i, j int) bool {
+			return len(fencedBlocksFound[i]) < len(fencedBlocksFound[j])
+		})
+
+		// Test minimal config
+		// Shortest is always minimal
+		testMinimalSourceConfig(t, fencedBlocksFound[0])
+		// Test full config
+		// Longest is the full config. Where there are no required arguments, there is only one config.
+		// In that scenario, both tests should pass.
+		testFullSourceConfig(t, fencedBlocksFound[len(fencedBlocksFound)-1])
+	}
+
+}
+
+func testMinimalSourceConfig(t *testing.T, codeBlock string) {
+	assert := assert.New(t)
+
+	c := createConfigFromCodeBlock(t, codeBlock)
+
+	// TODO: Can we factor out from here on, and basically just plug our tests in?
+	use := c.Data.Source.Use
+	decoderOpts := &config.DecoderOptions{
+		Input: use.Body,
+	}
+
+	var result interface{}
+	var err error
+
+	switch use.Name {
+	case "kinesis":
+		result, err = c.CreateComponent(mockKinesisSourceAdapter(), decoderOpts)
+	case "pubsub":
+		result, err = c.CreateComponent(mockPubSubSourceAdapter(), decoderOpts)
+	case "sqs":
+		result, err = c.CreateComponent(mockSQSSourceAdapter(), decoderOpts)
+	case "stdin":
+		result, err = c.CreateComponent(mockStdinSourceAdapter(), decoderOpts)
+	default:
+		result, err = nil, errors.New(fmt.Sprint("Source not recognised: ", use.Name))
+	}
+
+	assert.NotNil(result)
+	if err != nil {
+		assert.Fail(use.Name, err.Error())
+	}
+	assert.Nil(err)
+
+}
+
+func testFullSourceConfig(t *testing.T, codeBlock string) {
+	assert := assert.New(t)
+
+	c := createConfigFromCodeBlock(t, codeBlock)
+
+	// TODO: Can we factor out from here on, and basically just plug our tests in?
+	use := c.Data.Source.Use
+	decoderOpts := &config.DecoderOptions{
+		Input: use.Body,
+	}
+
+	var result interface{}
+	var err error
+
+	switch use.Name {
+	case "kinesis":
+		result, err = c.CreateComponent(mockKinesisSourceAdapterNoDefaults(), decoderOpts)
+	case "pubsub":
+		result, err = c.CreateComponent(mockPubSubSourceAdapterNoDefaults(), decoderOpts)
+	case "sqs":
+		result, err = c.CreateComponent(mockSQSSourceAdapterNoDefaults(), decoderOpts)
+	case "stdin":
+		result, err = c.CreateComponent(mockStdinSourceAdapterNoDefaults(), decoderOpts)
+	default:
+		result, err = nil, errors.New(fmt.Sprint("Source not recognised: ", use.Name))
+	}
+
+	if err != nil {
+		assert.Fail(use.Name, err.Error())
+	}
+	assert.Nil(err)
+	assert.NotNil(result)
+
+	// Skip the next bit if we failed the above - it will panic if result doesn't exist, making the debug annoying
+	if result == nil {
+		return
+	}
+
+	// Indirect dereferences the pointer for us
+	valOfRslt := reflect.Indirect(reflect.ValueOf(result))
+	typeOfRslt := valOfRslt.Type()
+
+	var zerosFound []string
+
+	for i := 0; i < typeOfRslt.NumField(); i++ {
+		if valOfRslt.Field(i).IsZero() {
+			zerosFound = append(zerosFound, typeOfRslt.Field(i).Name)
+		}
+	}
+
+	// Check for empty fields in example config
+	assert.Equal(0, len(zerosFound), fmt.Sprintf("Example config for %v -results in zero values for : %v - either fields are missing in the example, or are set to zero value", typeOfRslt, zerosFound))
+}
 
 // Tests of full example files require that we don't provide defaults, so we mock that method for anything that does so.
 
@@ -189,111 +313,5 @@ func mockStdinSourceAdapter() stdinsource.Adapter {
 		}
 
 		return cfg, nil
-	}
-}
-
-// TestSourceDocsFullConfigs tests config examples who have all options fully populated.
-// We use mocks to prevent default values from being set.
-// This test will fail if we either don't have an example config file for a target, or we do have one but not all values are set.
-// Because we can't tell between a missing and a zero value, zero values in the examples will cause a false negative.
-func TestSourceDocsFullConfigs(t *testing.T) {
-	assert := assert.New(t)
-
-	// Because we use `env` in examples, we need this to be set.
-	t.Setenv("MY_AUTH_PASSWORD", "test")
-
-	sourcesToTest := []string{"kinesis", "pubsub", "sqs", "stdin"}
-
-	for _, source := range sourcesToTest {
-		hclFilename := filepath.Join("configs", "source", "full", fmt.Sprintf("%s-full.hcl", source))
-		t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", hclFilename)
-
-		c, err := config.NewConfig()
-		assert.NotNil(c)
-		if err != nil {
-			t.Fatalf("function NewConfig failed with error: %q", err.Error())
-		}
-
-		use := c.Data.Source.Use
-		decoderOpts := &config.DecoderOptions{
-			Input: use.Body,
-		}
-
-		var result interface{}
-
-		switch use.Name {
-		case "kinesis":
-			result, err = c.CreateComponent(mockKinesisSourceAdapterNoDefaults(), decoderOpts)
-		case "pubsub":
-			result, err = c.CreateComponent(mockPubSubSourceAdapterNoDefaults(), decoderOpts)
-		case "sqs":
-			result, err = c.CreateComponent(mockSQSSourceAdapterNoDefaults(), decoderOpts)
-		case "stdin":
-			result, err = c.CreateComponent(mockStdinSourceAdapterNoDefaults(), decoderOpts)
-		default:
-			assert.Fail(fmt.Sprintf("Source not recognised: %v", source))
-		}
-
-		assert.Nil(err)
-		assert.NotNil(result)
-
-		// Indirect dereferences the pointer for us
-		valOfRslt := reflect.Indirect(reflect.ValueOf(result))
-		typeOfRslt := valOfRslt.Type()
-
-		var zerosFound []string
-
-		for i := 0; i < typeOfRslt.NumField(); i++ {
-			if valOfRslt.Field(i).IsZero() {
-				zerosFound = append(zerosFound, typeOfRslt.Field(i).Name)
-			}
-		}
-
-		// Check for empty fields in example config
-		assert.Equal(0, len(zerosFound), fmt.Sprintf("Example config %v - for %v -results in zero values for : %v - either fields are missing in the example, or are set to zero value", hclFilename, typeOfRslt, zerosFound))
-	}
-}
-
-// TestSourceDocsMinimalConfigs tests minimal config examples.
-func TestSourceDocsMinimalConfigs(t *testing.T) {
-	assert := assert.New(t)
-
-	// Because we use `env` in examples, we need this to be set.
-	t.Setenv("MY_AUTH_PASSWORD", "test")
-
-	sourcesToTest := []string{"kinesis", "pubsub", "sqs", "stdin"}
-
-	for _, source := range sourcesToTest {
-		hclFilename := filepath.Join("configs", "source", "minimal", fmt.Sprintf("%s-minimal.hcl", source))
-		t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", hclFilename)
-
-		c, err := config.NewConfig()
-		assert.NotNil(c)
-		if err != nil {
-			t.Fatalf("function NewConfig failed with error: %q", err.Error())
-		}
-
-		use := c.Data.Source.Use
-		decoderOpts := &config.DecoderOptions{
-			Input: use.Body,
-		}
-
-		var result interface{}
-
-		switch use.Name {
-		case "kinesis":
-			result, err = c.CreateComponent(mockKinesisSourceAdapter(), decoderOpts)
-		case "pubsub":
-			result, err = c.CreateComponent(mockPubSubSourceAdapter(), decoderOpts)
-		case "sqs":
-			result, err = c.CreateComponent(mockSQSSourceAdapter(), decoderOpts)
-		case "stdin":
-			result, err = c.CreateComponent(mockStdinSourceAdapter(), decoderOpts)
-		default:
-			assert.Fail(fmt.Sprintf("Source not recognised: %v", source))
-		}
-
-		assert.Nil(err)
-		assert.NotNil(result)
 	}
 }

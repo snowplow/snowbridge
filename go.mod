@@ -61,6 +61,13 @@ require (
 )
 
 require (
+	github.com/golang-commonmark/html v0.0.0-20180910111043-7d7c804e1d46 // indirect
+	github.com/golang-commonmark/linkify v0.0.0-20180910111149-f05efb453a0e // indirect
+	github.com/golang-commonmark/mdurl v0.0.0-20180910110917-8d018c6567d6 // indirect
+	github.com/golang-commonmark/puny v0.0.0-20180910110745-050be392d8b8 // indirect
+)
+
+require (
 	cloud.google.com/go/compute v1.7.0 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -76,6 +83,7 @@ require (
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
+	github.com/golang-commonmark/markdown v0.0.0-20180910011815-a8f139058164
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect

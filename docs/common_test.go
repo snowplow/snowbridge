@@ -9,15 +9,85 @@ package docs
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/golang-commonmark/markdown"
+	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
 	os.Clearenv()
+	// Create tmp directory if not exists
+	if _, err := os.Stat("tmp"); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir("tmp", os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	exitVal := m.Run()
+	// Remove tmp when done
+	os.RemoveAll("tmp")
 	os.Exit(exitVal)
+}
+
+func getFencedHCLBlocksFromMd(markdownFilePath string) []string {
+	mdContent, err := os.ReadFile(markdownFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	md := markdown.New(markdown.XHTMLOutput(true), markdown.Nofollow(true))
+
+	mdTokens := md.Parse(mdContent)
+
+	fencedBlocksFound := make([]string, 0, 0)
+
+	for _, token := range mdTokens {
+
+		switch typ := token.(type) {
+		case *markdown.Fence:
+			// only the hcl blocks (for now)
+			if typ.Params == "hcl" {
+				fencedBlocksFound = append(fencedBlocksFound, typ.Content)
+			}
+		}
+	}
+
+	return fencedBlocksFound
+}
+
+func createConfigFromCodeBlock(t *testing.T, block string) *config.Config {
+	assert := assert.New(t)
+
+	tmpConfigPath := filepath.Join("tmp", "config.hcl")
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", tmpConfigPath)
+
+	configFile, err := os.Create(tmpConfigPath)
+	if err != nil {
+		panic(err)
+	}
+
+	defer configFile.Close()
+
+	// Write shortest one to minimal
+	_, err2 := configFile.WriteString(block)
+	if err != nil {
+		assert.Fail(err.Error())
+		panic(err2)
+	}
+
+	c, err := config.NewConfig()
+	assert.NotNil(c)
+	assert.Nil(err)
+	if err != nil {
+		assert.Fail(err.Error())
+	}
+
+	return c
 }
 
 // Tests of full example files require that we don't provide defaults, so we mock that method for anything that does so.
