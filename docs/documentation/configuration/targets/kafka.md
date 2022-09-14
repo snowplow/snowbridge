@@ -1,4 +1,4 @@
-# Configure a Kafka Target
+# Kafka Target
 
 ## Authentication
 
@@ -13,10 +13,8 @@ TLS may be configured by providing the `key_file`, `cert_file` and `ca_file` opt
 
 Here is an example of the minimum required configuration:
 
-TODO: use embed/template of configs/target/minimal/kafka-minimal.hcl
-
 ```hcl
-# Simple configuration for Kafka as a target (only required options)
+# Minimal configuration for Kafka as a target (only required options)
 
 target {
   use "kafka" {
@@ -31,9 +29,7 @@ target {
 
 Here is an example of every configuration option:
 
-TODO: use embed/template of configs/target/full/kafka-full.hcl
-
-```hcl
+```hcl 
 # Extended configuration for Kafka as a target (all options)
 
 target {
@@ -64,7 +60,7 @@ target {
     # Exactly once writes - Also sets RequiredAcks = WaitForAll (default: false)
     idempotent          = true
 
-    # Whether to enable SASL support (defailt: false)
+    # Whether to enable SASL support (default: false)
     enable_sasl         = true
 
     # SASL AUTH

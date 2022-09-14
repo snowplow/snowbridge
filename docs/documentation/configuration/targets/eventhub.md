@@ -1,4 +1,4 @@
-# Configure an EventHub Target
+# EventHub Target
 
 ## Authentication
 
@@ -8,11 +8,8 @@ Authentication for the EventHub target is done by configuring any valid combinat
 
 Here is an example of the minimum required configuration:
 
-
-TODO: use embed/template of configs/target/minimal/eventhub-minimal.hcl
-
 ```hcl
-# Simple configuration for Eventhub as a target (only required options)
+# Minimal configuration for Eventhub as a target (only required options)
 
 target {
   use "eventhub" {
@@ -26,9 +23,6 @@ target {
 ```
 
 Here is an example of every configuration option:
-
-
-TODO: use embed/template of configs/target/full/eventhub-full.hcl
 
 ```hcl
 # Extended configuration for Eventhub as a target (all options)
@@ -59,6 +53,9 @@ target {
 
     # Default batch size of 1MB is the limit for Eventhub's high tier (default: 1048576)
     batch_byte_limit           = 1048576
+
+    # Sets the eventHub message partition key, which is used by the EventHub client's batching strategy
+    set_eh_partition_key = true
   }
 }
 ```

@@ -1,4 +1,4 @@
-# Configure an EventHub Failure Target
+# EventHub Failure Target
 
 Failure targets are only used when stream replicator hits an unrecoverable failure. In such cases, errors are sent to the configured failure target, for debugging.
 
@@ -15,7 +15,7 @@ Here is an example of the minimum required configuration:
 // TODO: add example configs and tests, and template for all of this.
 
 ```hcl
-# Simple configuration for Eventhub as a failure target (only required options)
+# Minimal configuration for Eventhub as a failure target (only required options)
 
 failure_target {
   use "eventhub" {
@@ -26,12 +26,13 @@ failure_target {
     name      = "testName"
   }
 }
-
 ```
 
 Here is an example of every configuration option:
 
 ```hcl
+# Extended configuration for Eventhub as a failure target (all options)
+
 failure_target {
   use "eventhub" {
     # Namespace housing Eventhub
@@ -58,7 +59,9 @@ failure_target {
 
     # Default batch size of 1MB is the limit for Eventhub's high tier
     batch_byte_limit           = 1048576
+
+    # Sets the eventHub message partition key, which is used by the EventHub client's batching strategy
+    set_eh_partition_key = true
   }
 }
-
 ```

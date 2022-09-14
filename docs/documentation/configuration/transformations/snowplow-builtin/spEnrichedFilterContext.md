@@ -17,15 +17,40 @@ The below example filters out events which contain `test-data` in the `test1` fi
 
 // TODO: unit test and template
 
+Minimal configuration:
+
 ```hcl
 transform {
   use "spEnrichedFilterContext" {
-    context_full_name = "contexts_nl_basjes_yauaa_context_1" 
+    # Full name of the context to match against
+    context_full_name = "contexts_nl_basjes_yauaa_context_1"
+
+    # Path to the field to filter on, within the context
     custom_field_path = "test1"
-    regex = "^((?!test-data).)*$"
-    regex_timeout = 10
+
+    # Regex pattern to match against. Matches will be kept
+    regex = "^test-data.*$"
   }
 }
 ```
 
-// TODO: Minimal and full config examples
+Every configuration option:
+
+```hcl
+transform {
+  use "spEnrichedFilterContext" {
+    # Full name of the context to match against
+    context_full_name = "contexts_nl_basjes_yauaa_context_1"
+
+    # Path to the field to filter on, within the context
+    custom_field_path = "test1"
+
+    # Regex pattern to match against. Matches will be kept
+    regex = "^test-data.*$"
+
+    # Regex timeout - if the regex takes longer than this timeout (in seconds), the transformation fails
+    # This exists as certain regex patterns (eg negaitve lookahead) are less performant
+    regex_timeout = 10
+  }
+}
+```

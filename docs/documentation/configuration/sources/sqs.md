@@ -1,4 +1,4 @@
-# Configure an SQS Source
+# SQS Source
 
 ## Authentication
 
@@ -8,16 +8,38 @@ Authentication is done via the [AWS authentication environment variables](https:
 
 Here is an example of the minimum required configuration:
 
-
-TODO: use embed/template of configs/source/minimal/sqs-minimal.hcl
-
 ```hcl
+# Minimal configuration for SQS as a source (only required options)
+
+source {
+  use "sqs" {
+    # SQS queue name
+    queue_name = "mySqsQueue"
+
+    # AWS region of SQS queue
+    region     = "us-west-1"
+  }
+}
 ```
 
 Here is an example of every configuration option:
 
-
-TODO: use embed/template of configs/source/full/sqs-full.hcl
-
 ```hcl
+# Extended configuration for SQS as a source (all options)
+
+source {
+  use "sqs" {
+    # SQS queue name
+    queue_name = "mySqsQueue"
+
+    # AWS region of SQS queue
+    region     = "us-west-1"
+
+    # Role ARN to use on source queue
+    role_arn   = "arn:aws:iam::123456789012:role/myrole"
+
+    # Maximum concurrent processes for the app (default: 50)
+    concurrent_writes = 20
+  }
+}
 ```

@@ -1,4 +1,4 @@
-# Configure a Kinesis Failure Target
+# Kinesis Failure Target
 
 Failure targets are only used when stream replicator hits an unrecoverable failure. In such cases, errors are sent to the configured failure target, for debugging.
 
@@ -12,18 +12,35 @@ Authentication is done via the [AWS authentication environment variables](https:
 
 Here is an example of the minimum required configuration:
 
-// TODO: add example configs and tests, and template for all of this.
-
-
 ```hcl
+# Minimal configuration for Kinesis as a failure target (only required options)
 
+failure_target {
+  use "kinesis" {
+    # Kinesis stream name to send data to
+    stream_name = "my-stream"
+
+    # AWS region of Kinesis stream
+    region      = "us-west-1"
+  }
+}
 ```
 
 Here is an example of every configuration option:
 
-
-
 ```hcl
+# Extended configuration for Kinesis as a failure target (all options)
 
+failure_target {
+  use "kinesis" {
+    # Kinesis stream name to send data to
+    stream_name = "my-stream"
 
+    # AWS region of Kinesis stream
+    region      = "us-west-1"
+
+    # Optional ARN to use on the stream (default: "")
+    role_arn    = "arn:aws:iam::123456789012:role/myrole"
+  }
+}
 ```

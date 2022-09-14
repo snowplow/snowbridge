@@ -12,7 +12,7 @@ Use the log_level parameter to specify the log level.
 
 ```hcl
 // log level configuration (default: "info")
-log_level = "info"
+log_level = "debug"
 ```
 
 ### Sentry Configuration
@@ -20,7 +20,7 @@ log_level = "info"
 ```hcl
 sentry {
   # The DSN to send Sentry alerts to
-  dsn   = "https://acme.com/1"
+  dsn   = "https://1234d@sentry.snplow.net/28"
 
   # Whether to put Sentry into debug mode (default: false)
   debug = true

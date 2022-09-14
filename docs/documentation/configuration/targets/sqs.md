@@ -1,4 +1,4 @@
-# Configure a SQS Target
+# SQS Target
 
 ## Authentication
 
@@ -9,10 +9,8 @@ Authentication is done via the [AWS authentication environment variables](https:
 
 Here is an example of the minimum required configuration:
 
-TODO: use embed/template of configs/target/minimal/sqs-minimal.hcl
-
 ```hcl
-# Simple configuration of SQS as a target (only required options)
+# Minimal configuration for SQS as a target (only required options)
 
 target {
   use "sqs" {
@@ -27,10 +25,8 @@ target {
 
 Here is an example of every configuration option:
 
-TODO: use embed/template of configs/target/full/sqs-full.hcl
-
 ```hcl
-# Extended configuration of SQS as a target (all options)
+# Extended configuration for SQS as a target (all options)
 
 target {
   use "sqs" {

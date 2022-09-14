@@ -1,4 +1,4 @@
-# Configure a PubSub Target
+# PubSub Target
 
 ## Authentication
 
@@ -7,12 +7,10 @@ Authentication is done using a [GCP Service Account](https://cloud.google.com/do
 
 ## Configuration options
 
-Here is an example of the minimum required configuration:
-
-TODO: use embed/template of configs/target/minimal/pubsub-minimal.hcl
+The PubSub Target has only two required options, and no optional ones.
 
 ```hcl
-# Configuration of PubSub as a target.
+# Extended configuration for PubSub as a target (all options)
 
 target {
   use "pubsub" {
@@ -23,24 +21,4 @@ target {
     topic_name = "some-acme-topic"
   }
 }
-
-```
-
-Here is an example of every configuration option:
-
-TODO: use embed/template of configs/target/full/pubsub-full.hcl
-
-```hcl
-# Configuration of PubSub as a target.
-
-target {
-  use "pubsub" {
-    # ID of the GCP Project
-    project_id = "acme-project"
-
-    # Name of the topic to send data into
-    topic_name = "some-acme-topic"
-  }
-}
-
 ```

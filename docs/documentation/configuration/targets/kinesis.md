@@ -1,4 +1,4 @@
-# Configure a Kinesis Target
+# Kinesis Target
 
 ## Authentication
 
@@ -9,10 +9,8 @@ Authentication is done via the [AWS authentication environment variables](https:
 
 Here is an example of the minimum required configuration:
 
-TODO: use embed/template of configs/target/minimal/kinesis-minimal.hcl
-
 ```hcl
-# Simple configuration of Kinesis as a target (only required options)
+# Minimal configuration for Kinesis as a target (only required options)
 
 target {
   use "kinesis" {
@@ -27,10 +25,8 @@ target {
 
 Here is an example of every configuration option:
 
-TODO: use embed/template of configs/target/full/kinesis-full.hcl
-
 ```hcl
-# Extended configuration of Kinesis as a target (all options)
+# Extended configuration for Kinesis as a target (all options)
 
 target {
   use "kinesis" {

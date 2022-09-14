@@ -1,4 +1,4 @@
-# Configure an HTTP Target
+# HTTP Target
 
 ## Authentication
 
@@ -12,10 +12,8 @@ TLS may be configured by providing the `key_file`, `cert_file` and `ca_file` opt
 
 Here is an example of the minimum required configuration:
 
-TODO: use embed/template of configs/target/minimal/http-minimal.hcl
-
 ```hcl
-# Simple configuration for HTTP target (only required options)
+# Minimal configuration for HTTP target (only required options)
 
 target {
   use "http" {
@@ -27,9 +25,6 @@ target {
 ```
 
 Here is an example of every configuration option:
-
-
-TODO: use embed/template of configs/target/full/http-full.hcl
 
 ```hcl
 # Extended configuration for HTTP target (all options)

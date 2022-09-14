@@ -1,4 +1,4 @@
-# Configure an HTTP Failure Target
+# HTTP Failure Target
 
 Failure targets are only used when stream replicator hits an unrecoverable failure. In such cases, errors are sent to the configured failure target, for debugging.
 
@@ -19,7 +19,7 @@ Here is an example of the minimum required configuration:
 // TODO: add example configs and tests, and template for all of this.
 
 ```hcl
-# Simple configuration for HTTP as a failure target (only required options)
+# Minimal configuration for HTTP as a failure target (only required options)
 
 failure_target {
   use "http" {
@@ -27,7 +27,6 @@ failure_target {
     url = "https://acme.com/x"
   }
 }
-
 ```
 
 Here is an example of every configuration option:
