@@ -21,7 +21,7 @@ Here is an example of a minimal configuration for the custom Lua script transfor
 transform {
   use "lua" {
 
-    # The script encoded in B64. The scriptmust define a `main` function which takes one argument and returns an object mapping to engineProtocol. (required)   
+    # The script encoded in Base 64. The script must define a `main` function which takes one argument and returns an object mapping to engineProtocol. (required)   
     source_b64 = "ZnVuY3Rpb24gbWFpbihpbnB1dCkKICByZXR1cm4gaW5wdXQKZW5k"
 
   }
@@ -35,7 +35,7 @@ Here is an example of every configuration option:
 transform {
   use "lua" {
 
-    # The script encoded in B64. The scriptmust define a `main` function which takes one argument and returns an object mapping to engineProtocol. (required)   
+    # The script encoded in Base 64. The script must define a `main` function which takes one argument and returns an object mapping to engineProtocol. (required)   
     source_b64 = "ZnVuY3Rpb24gbWFpbihpbnB1dCkKICByZXR1cm4gaW5wdXQKZW5k"
 
     # Timeout for execution of the script, in seconds. (optional)

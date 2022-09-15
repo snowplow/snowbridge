@@ -10,7 +10,7 @@ If you're working with any other type of data, you can create transformations vi
 
 ## Transformations and filters
 
-Transformations modify messages in-flight. They might rename fields, perform computations, set partition keys, or modify data. For example if I wanted to change a `snake_case` field name to `camelCase`, I would use a transformation to do this.
+Transformations modify messages in-flight. They might rename fields, perform computations, set partition keys, or modify data. For example if you wanted to change a `snake_case` field name to `camelCase`, you would use a transformation to do this.
 
 Filters are a type of transformation which prevent stream replicator from further processing data based on a condition. When data is filtered, stream replicator will ack the message without sending it to the target. For example if you only wanted to send page views to the destination, you would set up a filter with a condition where `event_name` matches the string `page_view`.
 

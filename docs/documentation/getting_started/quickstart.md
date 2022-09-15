@@ -11,4 +11,4 @@ The defaults for the app are stdin source, no transformations, and stdout target
 
 Next, the app can be configured using HCL - simply create a configuration file, and provide the path to it using the `STREAM_REPLICATOR_CONFIG_FILE` environment variable. 
 
-You can find a guide to configuration in the [configuration section](../configuration/)
+You can find a guide to configuration in the [configuration section](../configuration), and a guide to deployment in the [deployment page](./distribution-and-deployment.md)

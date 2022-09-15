@@ -17,7 +17,7 @@ Here is an example of a minimal configuration for the custom Javascript script t
 ```hcl
 transform {
   use "js" {
-    # The script encoded in B64. The scriptmust define a `main` function which takes one argument and returns an object mapping to engineProtocol. (required)
+    # The script encoded in Base 64. The script must define a `main` function which takes one argument and returns an object mapping to engineProtocol. (required)
     source_b64 = "ZnVuY3Rpb24gbWFpbihpbnB1dCkgewogICAgcmV0dXJuIHsgRGF0YTogIkhlbGxvIFdvcmxkIiB9Cn0="
   }
 }
@@ -30,7 +30,7 @@ Here is an example of every configuration option:
 transform {
   use "js" {
 
-    # The script encoded in B64. The scriptmust define a `main` function which takes one argument and returns an object mapping to engineProtocol. (required) 
+    # The script encoded in Base 64. The script must define a `main` function which takes one argument and returns an object mapping to engineProtocol. (required) 
     source_b64 = "ZnVuY3Rpb24gbWFpbihpbnB1dCkgewogICAgcmV0dXJuIHsgRGF0YTogIkhlbGxvIFdvcmxkIiB9Cn0="
 
     # Timeout for execution of the script, in seconds. (optional)
