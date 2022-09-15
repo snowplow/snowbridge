@@ -1,5 +1,8 @@
 # Custom Lua Script Configuration
 
+This section details how to configure the transformation, once a script is written. You can find a guide to creating the script itself in [the create a script section](./create-a-script.md).
+
+You can also find some complete example use cases in [the examples section](./examples/).
 
 The Custom Lua Script transformation uses the [gopher-lua](https://pkg.go.dev/github.com/yuin/gopher-lua) embedded Lua engine to run scripts upon the data.
 

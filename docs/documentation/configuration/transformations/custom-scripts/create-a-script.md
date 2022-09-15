@@ -138,3 +138,9 @@ function main(input)
     return { Data = jsonObj, ParititionKey = "myPk" }
 end
 ```
+
+## Configuration
+
+Once your script is ready, you can configure it in the app by following the [Javascript](./javascript-configuration.md) or [Lua](./lua-configuration.md) configuration pages.
+
+You can also find some complete example use cases in [the examples section](./examples/).

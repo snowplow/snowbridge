@@ -1,5 +1,9 @@
 # Custom Javascript Script Configuration
 
+This section details how to configure the transformation, once a script is written. You can find a guide to creating the script itself in [the create a script section](./create-a-script.md).
+
+You can also find some complete example use cases in [the examples section](./examples/).
+
 The Custom Javascript Script transformation uses the [goja](https://pkg.go.dev/github.com/dop251/goja) embedded Javascript engine to run scripts upon the data.
 
 You can find a guide to writing the scripts themselves - and how the script interfaces with the application - [in the create a script page](./create-a-script.md).
