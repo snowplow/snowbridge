@@ -34,7 +34,7 @@ transform {
     regex = "web|mobile"
 
     # Regex timeout - if the regex takes longer than this timeout (in seconds), the transformation fails
-    # This exists as certain regex patterns (eg negaitve lookahead) are less performant
+    # This exists as certain regex patterns are less performant
     regex_timeout = 10
   }
 }
