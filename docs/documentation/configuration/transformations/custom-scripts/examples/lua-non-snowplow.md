@@ -23,7 +23,7 @@ function main(input)
 	end
 	jsonObj.name = "Bruce Wayne"
 	return { Data = jsonObj, PartitionKey = jsonObj.id }
-  end
+end
 ```
 
 The configuration for this script is:

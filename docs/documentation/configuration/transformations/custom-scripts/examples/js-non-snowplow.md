@@ -24,8 +24,8 @@ function main(input) {
     jsonObj.name = "Bruce Wayne"
     return {
         Data: jsonObj,
-        PartitionKey: jsonObj.id
-};
+        PartitionKey: jsonObj.id }
+}
 ```
 
 The configuration for this script is:
