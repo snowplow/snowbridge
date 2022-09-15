@@ -40,10 +40,3 @@ transform {
   }
 }
 ```
-
-## Examples
-
-### Generic: Filter, transform and set destination partition key based on values in the data.
-
-
-### Snowplow Events: Filter, transform and set destination partition key based on values in the data.
