@@ -1,10 +1,10 @@
 # Guide to creating a custom script transformation
 
-Custom tranformation scripts may be defined in Javascript or Lua, and provided to stream replicator.
+Custom tranformation scripts may be defined in Javascript or Lua, and provided to Stream Replicator.
 
 ## The scripting interface
 
-The script - whether Lua or Javascript - must define a main function with a single argument. Stream replicator will pass the engineProtocol data structure as the argument:
+The script - whether Lua or Javascript - must define a main function with a single argument. Stream Replicator will pass the engineProtocol data structure as the argument:
 
 
 ```go
@@ -53,7 +53,7 @@ function main(input) {
     // set the name field
     jsonObj.name = "Bruce Wayne"
     return {
-        // Pass it back to stream replicator via the Data field
+        // Pass it back to Stream Replicator via the Data field
         Data: jsonObj
     };
 }
@@ -68,7 +68,7 @@ function main(input)
     -- set the name field
     jsonObj.name = "Bruce Wayne"
 
-    -- Pass it back to stream replicator via the Data field
+    -- Pass it back to Stream Replicator via the Data field
     return { Data = jsonObj }
 end
 ```
@@ -117,7 +117,7 @@ function main(input) {
     // set the name field
     jsonObj.name = "Bruce Wayne"
     return {
-        // Pass it back to stream replicator via the Data field
+        // Pass it back to Stream Replicator via the Data field
         Data: jsonObj,
         PartitionKey: "myPk"
     };
@@ -133,7 +133,7 @@ function main(input)
     -- set the name field
     jsonObj.name = "Bruce Wayne"
 
-    -- Pass it back to stream replicator via the Data field
+    -- Pass it back to Stream Replicator via the Data field
     return { Data = jsonObj, ParititionKey = "myPk" }
 end
 ```

@@ -10,7 +10,8 @@ You can find a guide to writing the scripts themselves - and how the script inte
 
 If a script errors or times out, a [transformation failre](../../../concepts/failure-model.md) occurs.
 
-Scripts are provided to the configuration as base-64 encoded strings.
+Scripts are provided to the configuration as base-64 encoded strings - you can base-64 encode a script with `cat script.js | base64`.
+
 
 Here is an example of a minimal configuration for the custom Lua script transformation:
 

@@ -1,6 +1,6 @@
 # Introduction
 
-Stream replicator is a flexible, low latency tool which can replicate streams of data of any type to external destinations, optionally filtering or transforming the data along the way. It can be used to consume, transform and relay data to any third party platform which supports HTTP or is listed as a target below - in real-time.
+Stream Replicator is a flexible, low latency tool which can replicate streams of data of any type to external destinations, optionally filtering or transforming the data along the way. It can be used to consume, transform and relay data to any third party platform which supports HTTP or is listed as a target below - in real-time.
 
 ## Features:
 
@@ -16,7 +16,7 @@ Stream replicator is a flexible, low latency tool which can replicate streams of
 
 ## Snowplow
 
-Stream replicator is a generic tool, built to work on any type of data, developed by the Snowplow team. It began life as a closed-source tool developed to deliver various requirements related to Snowplow data, and so many of the features are specific to that data.
+Stream Replicator is a generic tool, built to work on any type of data, developed by the Snowplow team. It began life as a closed-source tool developed to deliver various requirements related to Snowplow data, and so many of the features are specific to that data.
 
 Snowplow 
 

@@ -1,6 +1,6 @@
 # SQS Target
 
-Failure targets are only used when stream replicator hits an unrecoverable failure. In such cases, errors are sent to the configured failure target, for debugging.
+Failure targets are only used when Stream Replicator hits an unrecoverable failure. In such cases, errors are sent to the configured failure target, for debugging.
 
 Apart from the fact that the app only sends information about unrecoverable failures to them, failure targets are the same as targets in all other respects.
 

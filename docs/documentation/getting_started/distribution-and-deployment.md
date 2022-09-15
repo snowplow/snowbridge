@@ -2,7 +2,7 @@
 
 ## Distribution options
 
-Stream replicator is available on docker:
+Stream Replicator is available on docker:
 
 ```bash
 docker pull snowplow/stream-replicator-aws:{version}

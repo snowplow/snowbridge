@@ -4,7 +4,7 @@ Stream Replicator is configured using [HCL](https://github.com/hashicorp/hcl). T
 
 Inside the configuration, you can reference environment variables using the `env` object. For example, to refer to an environment variable named `MY_ENV_VAR` in your configuration, you can use  `env.MY_ENV_VAR`. We recommend employing environment variables for any sensitive value, such as a password, as opposed to adding the value to the configuration verbatim.
 
-For most options, stream replicator uses blocks for configuration. The `use` keyword specifies what you'd like to configure - for example a kinesis source is configured using `source { use "kinesis" {...}}`.
+For most options, Stream Replicator uses blocks for configuration. The `use` keyword specifies what you'd like to configure - for example a kinesis source is configured using `source { use "kinesis" {...}}`.
 
 For all configuration blocks except for transformations, you must provide only one block (or none, to use the defaults).
 
