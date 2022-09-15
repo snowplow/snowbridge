@@ -2,7 +2,7 @@
 
 ## Stats and metrics
 
-Stream Replicator comes with configurable logging, [pprof](https://github.com/google/pprof) profiling, [statsD](https://www.datadoghq.com/statsd-monitoring) statistics and [Sentry](https://sentry.io/welcome/) integrations to ensure that you know whats going on.
+Stream Replicator comes with configurable logging, [pprof](https://github.com/google/pprof) profiling, [statsD](https://www.datadoghq.com/statsd-monitoring) statistics and [Sentry](https://sentry.io/welcome/) integrations to ensure that you know what’s going on.
 
 ### Logging
 
@@ -54,7 +54,7 @@ stats_receiver {
 
 ### Profiling
 
-To assist in debugging performance issues and memory leaks you can turn on profiling mode for the standalone CLI binary like so:
+To facilitate debugging performance issues and memory leaks you can turn on profiling mode for the standalone CLI binary like so:
 
 ```bash
 ./stream-replicator -p

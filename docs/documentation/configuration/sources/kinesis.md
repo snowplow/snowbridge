@@ -11,7 +11,7 @@ The AWS kinesis source requires the additional setup of a set of dynamoDB tables
 1. Configure the above required variables in the HCL file.
 2. Create three DynamoDB tables which will be used for checkpointing the progress of the replicator on the stream (*Note*: details below)
 
-Under the hood we are using a fork of the [Twitch Kinsumer](https://github.com/snowplow-devops/kinsumer) library which has defined this DynamoDB table structure - these tables need to be made by hand before the application can launch.
+Under the hood we are using a fork of the [Twitch Kinsumer](https://github.com/snowplow-devops/kinsumer) library which has defined this DynamoDB table structure - these tables need to be created by hand before the application can launch.
 
 | TableName                                | DistKey        |
 |------------------------------------------|----------------|
@@ -19,7 +19,7 @@ Under the hood we are using a fork of the [Twitch Kinsumer](https://github.com/s
 | `${SOURCE_KINESIS_APP_NAME}_checkpoints` | Shard (String) |
 | `${SOURCE_KINESIS_APP_NAME}_metadata`    | Key (String)   |
 
-Assuming your AWS credentials have sufficient permission to Kinesis and DynamoDB your consumer should now be able to run by launching the executable.
+Assuming your AWS credentials have sufficient permission for Kinesis and DynamoDB, your consumer should now be able to run when you launch the executable.
 
 ## Configuration options
 

@@ -22,7 +22,7 @@ disable_telemetry = false
 Here is an example of every configuration option:
 
 ```hcl
-# Diables telemetry
+# Enable telemetry
 disable_telemetry = false
 
 # Optionally provide an email address to identify who is using the app.

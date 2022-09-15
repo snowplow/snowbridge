@@ -6,7 +6,6 @@ Custom tranformation scripts may be defined in Javascript or Lua, and provided t
 
 The script - whether Lua or Javascript - must define a main function with a single argument. Stream replicator will pass the engineProtocol data structure as the argument:
 
-The interface
 
 ```go
 type engineProtocol struct {

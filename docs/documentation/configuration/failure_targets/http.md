@@ -6,7 +6,7 @@ Apart from the fact that the app only sends information about unrecoverable fail
 
 ## Authentication
 
-Where basicauth is used, it may be configured using the `basic_auth_username` and `basic_auth_password` options. Where an authorisation header is used, it may be set via the `headers` option.
+Where HTTP Basic Auth is used, it may be configured using the `basic_auth_username` and `basic_auth_password` options. Where an authorisation header is used, it may be set via the `headers` option.
 
 It is recommended to use environment variables for sensitive values - which can be done via HCL's native `env.MY_ENV_VAR` format (as seen below).
 

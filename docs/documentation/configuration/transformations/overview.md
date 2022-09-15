@@ -1,6 +1,6 @@
 # Transformations Configuration Overview
 
-You can configure any number of transformations to run on the data one after another - transformations will run in the order provided. The same type of transformation may run more than once. All transformations operate on a single event basis.
+You can configure any number of transformations to run on the data one after another - transformations will run in the order provided. (You can repeatedly specify the same transformation more than once, if needed.) All transformations operate on a single event basis.
 
 If you're filtering the data, it's best to provide the filter first, for efficiency.
 
@@ -12,7 +12,7 @@ If you're working with any other type of data, you can create transformations vi
 
 Transformations modify messages in-flight. They might rename fields, perform computations, set partition keys, or modify data. For example if I wanted to change a `snake_case` field name to `camelCase`, I would use a transformation to do this.
 
-Filters are a type of transformation, which prevent stream replicator for further processing data based on a condition. When data is filtered, stream replicator will ack the message without sending it to the target. For example if I only wanted to send page views to the destination, I would set up a filter with a condition where `event_name` must match the string `page_view`.
+Filters are a type of transformation which prevent stream replicator from further processing data based on a condition. When data is filtered, stream replicator will ack the message without sending it to the target. For example if you only wanted to send page views to the destination, you would set up a filter with a condition where `event_name` matches the string `page_view`.
 
 ## Transformation Configuration
 

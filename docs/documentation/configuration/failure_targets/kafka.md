@@ -8,7 +8,7 @@ Apart from the fact that the app only sends information about unrecoverable fail
 
 Where SASL is used, it may be enabled via the `enable_sasl`, `sasl_username`, and `sasl_password` and `sasl_algorithm` options.
 
-It is recommended to use environment variables for sensitive values - which can be done via HCL's native `env.MY_ENV_VAR` format (as seen below).
+We recommend using environment variables for sensitive values - this can be done via HCL's native `env.MY_ENV_VAR` format (as seen below).
 
 TLS may be configured by providing the `key_file`, `cert_file` and `ca_file` options with paths to the relevant TLS files.
 

@@ -12,6 +12,6 @@ Stream replicator's architecture is fairly simple - it receives data from one st
 
 ## Operational details
 
-Data is processed on an at-least-once basis, and there is no guarantee of order of messages. The application is designed to minimise duplicates as much as possible, but there isn't a guarantee of avoiding them - for example where there's a failure scenario, it is possible for messages to be delivered without a successful response, and duplicates can occur. 
+Data is processed on an at-least-once basis, and there is no guarantee of order of messages. The application is designed to minimise duplicates as much as possible, but there isn't a guarantee of avoiding them - for example if there's a failure, it is possible for messages to be delivered without a successful response, and duplicates can occur. 
 
 Stream replicator is built to suit a horizontal scaling model, and internally handles multiple instances consuming the same input (the kinesis source requires Dynamo DB tables to be created for this purpose). Within each instance, concurrency may be managed via the `source_concurrent_writes` setting.

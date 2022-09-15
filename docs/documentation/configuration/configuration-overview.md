@@ -1,22 +1,27 @@
 # Configuration Overview
 
-Stream Replicator cis configured using [HCL](https://github.com/hashicorp/hcl). To configure Stream Replicator, create your configuration in a file with `.hcl` extension, and set the `STREAM_REPLICATOR_CONFIG_FILE` environment variable to the path to your file.
+Stream Replicator is configured using [HCL](https://github.com/hashicorp/hcl). To configure Stream Replicator, create your configuration in a file with `.hcl` extension, and set the `STREAM_REPLICATOR_CONFIG_FILE` environment variable to the path to your file.
 
-For any option, you can reference an environment variable using the `env` object. So, to refer to an environment variable named `MY_ENV_VAR` in your configuration, you can use  `env.MY_ENV_VAR`. It is recommended that you use enviornment variables for any sensitive value, such as a password.
+Inside the configuration, you can reference environment variables using the `env` object. For example, to refer to an environment variable named `MY_ENV_VAR` in your configuration, you can use  `env.MY_ENV_VAR`. We recommend employing environment variables for any sensitive value, such as a password, as opposed to adding the value to the configuration verbatim.
 
 For most options, stream replicator uses blocks for configuration. The `use` keyword specifies what you'd like to configure - for example a kinesis source is configured using `source { use "kinesis" {...}}`.
 
 For all configuration blocks except for transformations, you must provide only one block (or none, to use the defaults).
 
-For transformations, you may provide 0 or more `transform` configuration blocks. All provided `transform` blocks will be applied to the data, one after another, in the order provided. The exception to this is when a filter is applied and the filter condition is met - in this case the message will be acked and subsequent transformations will not be applied (neither will the data be sent to the destination).
+For transformations, you may provide 0 or more `transform` configuration blocks. They will be applied to the data, one after another, in the order they appear in the configuration. The exception to this is when a filter is applied and the filter condition is met - in this case the message will be acked and subsequent transformations will not be applied (neither will the data be sent to the destination).
 
 Some application-level options are not contained in a transformation block, rather are top-level options in the configuration. For example, to set the log level of the application, we just set the top-level variable `log_level`.
 
-If you do not provide a configuration, or provide an empty one, the defaults of `stdin` source, no transformations, `stdout` target, and `stdout` failure target will be used. No external statistics reporting or sentry error reporting will be used.
+If you do not provide a configuration, or provide an empty one, the application will use the defaults:
+* `stdin` source;
+* no transformations;
+* `stdout` target;
+* `stdout` failure target.
+There’ll be no external statistics reporting or sentry error reporting.
 
-The below example is a complete configuration, which configures a kinesis source, a builtin Snowplow filter (which may only be used if the input is Snowplow enriched data), a custom javascript transformation, and a pubsub target, as well as the statsD stats receiver, and sentry for error reporting.
+The below example is a complete configuration, which specifies a kinesis source, a builtin Snowplow filter (which may only be used if the input is Snowplow enriched data), a custom javascript transformation, and a pubsub target, as well as the statsD stats receiver, and sentry for error reporting.
 
-In layman's terms, this configuration will read data from a kinesis stream, filter out any data whose `event_name` field is not `page_view`, run a custom Javascript script upon the data to change the app_id to `"1"`, and send the transformed page view data to pubsub. It will also send statistics about what it's doing to a statsD endpoint, and will send information about errors to a sentry endpoint.
+In layman's terms, this configuration will read data from a kinesis stream, filter out any data whose `event_name` field is not `page_view`, run a custom Javascript script upon the data to change the `app_id` to `"1"`, and send the transformed page view data to pubsub. It will also send statistics about what it's doing to a statsD endpoint, and will send information about errors to a sentry endpoint.
 
 ```hcl
 source {
@@ -100,6 +105,9 @@ stats_receiver {
 
 // log level configuration (default: "info")
 log_level = "info"
-disable_telemetry = true
-user_provided_id = "hello-this-is-us"
+# share usage data (TODO: brief description) with Snowplow to improve the application
+disable_telemetry = false
+# how you would like to be identified — an email or an UUID4 is fine
+# we will only use emails for product updates
+user_provided_id = "you@company.com"
 ```
