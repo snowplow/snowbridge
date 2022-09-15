@@ -70,7 +70,7 @@ target {
 
 sentry {
   # The DSN to send Sentry alerts to
-  dsn   = "https://acme.com/1"
+  dsn   = "https://1234d@sentry.acme.net/28"
 
   # Whether to put Sentry into debug mode (default: false)
   debug = true
