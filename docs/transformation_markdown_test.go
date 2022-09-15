@@ -22,6 +22,7 @@ import (
 
 // Until transformation configs are refactored, we can't do the same checks on full configurations.
 // TODO: Refactor transformation config then implement the same null checks as other examples.
+
 func TestBuiltinTransformationDocumentation(t *testing.T) {
 	assert := assert.New(t)
 
@@ -130,4 +131,33 @@ func testLuaScriptCompiles(t *testing.T, script string) {
 
 	transFunction := luaEngine.MakeFunction("main")
 	assert.NotNil(transFunction)
+}
+
+func TestScriptTransformationConfigurations(t *testing.T) {
+	assert := assert.New(t)
+
+	casesToTest := []string{"javascript", "lua"}
+
+	for _, language := range casesToTest {
+		// Read file:
+		markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", language+"-configuration.md")
+
+		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
+
+		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
+		assert.NotEqual(0, len(fencedBlocksFound))
+		assert.LessOrEqual(len(fencedBlocksFound), 2)
+		// TODO: This won't give a very informative error. Fix that.
+
+		for _, block := range fencedBlocksFound {
+			c := createConfigFromCodeBlock(t, block)
+
+			// GetTransformations here will run smoke test
+			transformFunc, err := transformconfig.GetTransformations(c)
+
+			// For now, we're just testing that the config is valid here
+			assert.NotNil(transformFunc)
+			assert.Nil(err)
+		}
+	}
 }
