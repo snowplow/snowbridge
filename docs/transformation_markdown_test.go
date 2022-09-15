@@ -8,7 +8,6 @@ package docs
 
 import (
 	"encoding/base64"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -79,8 +78,7 @@ func TestScriptTransformationCreateAScript(t *testing.T) {
 
 		default:
 			// Otherwise it's likely a typo or error.
-			fmt.Println(block)
-
+			assert.Fail("unexpected code block found: %v", block)
 		}
 	}
 }
@@ -149,6 +147,48 @@ func TestScriptTransformationConfigurations(t *testing.T) {
 		assert.LessOrEqual(len(fencedBlocksFound), 2)
 		// TODO: This won't give a very informative error. Fix that.
 
+		for _, block := range fencedBlocksFound {
+			c := createConfigFromCodeBlock(t, block)
+
+			// GetTransformations here will run smoke test
+			transformFunc, err := transformconfig.GetTransformations(c)
+
+			// For now, we're just testing that the config is valid here
+			assert.NotNil(transformFunc)
+			assert.Nil(err)
+		}
+	}
+}
+
+func TestScriptTransformationExamples(t *testing.T) {
+	assert := assert.New(t)
+
+	casesToTest := []string{"js-non-snowplow", "js-snowplow", "lua-non-snowplow", "lua-snowplow"}
+
+	for _, example := range casesToTest {
+
+		markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", "examples", example+".md")
+
+		fencedBlocksFound, fencedOtherBlocksFound := getFencedBlocksFromMd(markdownFilePath)
+
+		// Test that script code examples compile
+		for _, block := range fencedOtherBlocksFound {
+			switch block["language"] {
+			case "js":
+				// Test that all of our JS snippets compile with the engine, pass smoke test, and successfully create a transformation function
+				testJSScriptCompiles(t, block["script"])
+			case "lua":
+				// Test that all of our Lua snippets compile with the engine, pass smoke test, and successfully create a transformation function
+				testLuaScriptCompiles(t, block["script"])
+			case "json":
+				// There is one json example which doesn't need testing
+			default:
+				// Otherwise it's likely a typo or error.
+				assert.Fail("unexpected code block found: %v", block)
+			}
+		}
+
+		// Test that config examples compile
 		for _, block := range fencedBlocksFound {
 			c := createConfigFromCodeBlock(t, block)
 
