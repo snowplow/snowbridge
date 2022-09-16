@@ -4,7 +4,7 @@
 
 When Stream Replicator hits an unrecoverable error - for example oversized or invalid data - it will emit a [failed event](https://docs.snowplow.io/docs/managing-data-quality/failed-events/understanding-failed-events#what-is-a-failed-event) to the configured failure target. A failure target is the same as a target, the only difference is that the configured destination will receive failed events.
 
-You can find more detail on setting up a failure target, in the [getting started section](../configuration/failure-targets/)
+You can find more detail on setting up a failure target, in the [configuration section](../configuration/failure-targets/)
 
 ## Failure cases
 
