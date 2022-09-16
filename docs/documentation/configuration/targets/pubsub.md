@@ -22,3 +22,5 @@ target {
   }
 }
 ```
+
+If you want to use this as a [failure target](../../concepts/failure-model.md#failure-targets), then use failure_target instead of target.
