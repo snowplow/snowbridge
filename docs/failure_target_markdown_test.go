@@ -31,7 +31,7 @@ func TestFailureTargetDocumentation(t *testing.T) {
 	for _, tgt := range targetsToTest {
 
 		// Read file:
-		markdownFilePath := filepath.Join("documentation", "configuration", "failure_targets", tgt+".md")
+		markdownFilePath := filepath.Join("documentation", "configuration", "failure-targets", tgt+".md")
 
 		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
