@@ -11,8 +11,6 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 )
 
-// TODO: Perhaps we should consider restructuring the tests so that these only need to be used in one place.
-
 // Mocks in this file are used in both config tests and docs tests, so we define them here and export them, rather than defining in the tests.
 
 // MockSQSTargetAdapter mocks an SQS Target Adapter to return an SQS config.

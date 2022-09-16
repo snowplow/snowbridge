@@ -25,8 +25,8 @@ var snowplowTsv4 = []byte(`test-data3	pc	2019-05-10 14:40:30.836	2019-05-10 14:4
 
 var nonSnowplowString = []byte(`not	a	snowplow	event`)
 
-// Messages contains a set of test Snowplow messages
-var Messages = []*models.Message{
+// messages contains a set of test Snowplow messages
+var messages = []*models.Message{
 	{
 		Data:         snowplowTsv1,
 		PartitionKey: "some-key",

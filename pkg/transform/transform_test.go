@@ -34,14 +34,14 @@ func TestNewTransformation_Passthrough(t *testing.T) {
 			PartitionKey: "some-key2",
 		},
 		{
-			Data: []byte(`not	a	snowplow	event`),
+			Data:         []byte(`not	a	snowplow	event`),
 			PartitionKey: "some-key4",
 		},
 	}
 
 	expectedNoTransformRes := models.NewTransformationResult(expected, make([]*models.Message, 0, 0), make([]*models.Message, 0, 0))
 	noTransform := NewTransformation(make([]TransformationFunction, 0, 0)...)
-	noTransformResult := noTransform(Messages)
+	noTransformResult := noTransform(messages)
 
 	assert.Equal(expectedNoTransformRes, noTransformResult)
 }
@@ -65,7 +65,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	}
 
 	tranformEnrichJSON := NewTransformation(SpEnrichedToJSON)
-	enrichJSONRes := tranformEnrichJSON(Messages)
+	enrichJSONRes := tranformEnrichJSON(messages)
 
 	for index, value := range enrichJSONRes.Result {
 		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
@@ -73,9 +73,9 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 		assert.NotNil(expectedGood[index].TimeTransformed)
 
 		// assertions to ensure we don't accidentally modify the input
-		assert.NotEqual(Messages[index].Data, value.Data)
+		assert.NotEqual(messages[index].Data, value.Data)
 		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
-		assert.Equal(time.Time{}, Messages[index].TimeTransformed)
+		assert.Equal(time.Time{}, messages[index].TimeTransformed)
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
@@ -92,7 +92,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 func Benchmark_Transform_EnrichToJson(b *testing.B) {
 	tranformEnrichJSON := NewTransformation(SpEnrichedToJSON)
 	for i := 0; i < b.N; i++ {
-		tranformEnrichJSON(Messages)
+		tranformEnrichJSON(messages)
 	}
 }
 
@@ -103,7 +103,7 @@ func testfunc(message *models.Message, intermediateState interface{}) (*models.M
 func Benchmark_Transform_Passthrough(b *testing.B) {
 	tranformPassthrough := NewTransformation(testfunc)
 	for i := 0; i < b.N; i++ {
-		tranformPassthrough(Messages)
+		tranformPassthrough(messages)
 	}
 }
 
@@ -128,7 +128,7 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	setPkToAppID := NewSpEnrichedSetPkFunction("app_id")
 	tranformMultiple := NewTransformation(setPkToAppID, SpEnrichedToJSON)
 
-	enrichJSONRes := tranformMultiple(Messages)
+	enrichJSONRes := tranformMultiple(messages)
 
 	for index, value := range enrichJSONRes.Result {
 		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
@@ -137,10 +137,10 @@ func TestNewTransformation_Multiple(t *testing.T) {
 		assert.NotNil(value.TimeTransformed)
 
 		// assertions to ensure we don't accidentally modify the input
-		assert.NotEqual(Messages[index].Data, value.Data)
-		assert.NotEqual(Messages[index].PartitionKey, value.PartitionKey)
+		assert.NotEqual(messages[index].Data, value.Data)
+		assert.NotEqual(messages[index].PartitionKey, value.PartitionKey)
 		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
-		assert.Equal(time.Time{}, Messages[index].TimeTransformed)
+		assert.Equal(time.Time{}, messages[index].TimeTransformed)
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
