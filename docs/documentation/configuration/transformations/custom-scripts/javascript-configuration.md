@@ -36,7 +36,7 @@ transform {
     # Timeout for execution of the script, in seconds. (optional)
     timeout_sec         = 20
 
-    # optional, disables JS source maps, which allow access to the filesystm. It is recommended to set to true where possible.
+    # optional, disables JS source maps, which allow access to the filesystm. 
     disable_source_maps = true
 
     # optional, may be used when the input is a Snowplow enriched TSV. This will transform the data so that the `Data` field contains an object representation of the event - with keys as returned by the Snowplow Analytics SDK.
