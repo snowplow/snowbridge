@@ -27,9 +27,7 @@ func TestConfigurationOverview(t *testing.T) {
 
 	fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
-	// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-	assert.Equal(1, len(fencedBlocksFound))
-	// TODO: This won't give a very informative error. Fix that.
+	assert.Equal(1, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
 
 	// Test that source compiles
 	testMinimalSourceConfig(t, fencedBlocksFound[0])

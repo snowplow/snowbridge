@@ -36,9 +36,8 @@ func TestTargetDocumentation(t *testing.T) {
 		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
 		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound))
-		assert.LessOrEqual(len(fencedBlocksFound), 2)
-		// TODO: This won't give a very informative error. Fix that.
+		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
+		assert.LessOrEqual(2, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
 
 		// Sort by length to determine which is the minimal example.
 		sort.Slice(fencedBlocksFound, func(i, j int) bool {
@@ -60,7 +59,6 @@ func testMinimalTargetConfig(t *testing.T, codeBlock string) {
 
 	c := createConfigFromCodeBlock(t, codeBlock)
 
-	// TODO: Can we factor out from here on, and basically just plug our tests in?
 	use := c.Data.Target.Use
 	decoderOpts := &config.DecoderOptions{
 		Input: use.Body,
@@ -101,7 +99,6 @@ func testFullTargetConfig(t *testing.T, codeBlock string) {
 
 	c := createConfigFromCodeBlock(t, codeBlock)
 
-	// TODO: Can we factor out from here on, and basically just plug our tests in?
 	use := c.Data.Target.Use
 	decoderOpts := &config.DecoderOptions{
 		Input: use.Body,

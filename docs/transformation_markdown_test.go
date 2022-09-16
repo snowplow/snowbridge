@@ -35,9 +35,8 @@ func TestBuiltinTransformationDocumentation(t *testing.T) {
 		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
 		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound))
-		assert.LessOrEqual(len(fencedBlocksFound), 2)
-		// TODO: This won't give a very informative error. Fix that.
+		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
+		assert.LessOrEqual(2, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
 
 		for _, block := range fencedBlocksFound {
 			c := createConfigFromCodeBlock(t, block)
@@ -93,21 +92,20 @@ func testJSScriptCompiles(t *testing.T, script string) {
 	}
 
 	jsEngine, err := engine.NewJSEngine(jsConfig)
-	assert.NotNil(jsEngine)
+	assert.NotNil(jsEngine, script)
 	if err != nil {
-		t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+		t.Fatalf("NewJSEngine failed with error: %s. Script: %s", err.Error(), script)
+
 	}
 
 	if err := jsEngine.SmokeTest("main"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
+		t.Fatalf("smoke-test failed with error: %s. Script: %s", err.Error(), script)
 	}
 
 	transFunction := jsEngine.MakeFunction("main")
-
-	assert.NotNil(transFunction)
+	assert.NotNil(transFunction, script)
 }
 
-// TODO: Make failures easier to debug by providing the scripts themselves when we fail.
 func testLuaScriptCompiles(t *testing.T, script string) {
 	assert := assert.New(t)
 
@@ -118,17 +116,17 @@ func testLuaScriptCompiles(t *testing.T, script string) {
 	}
 
 	luaEngine, err := engine.NewLuaEngine(luaConfig)
-	assert.NotNil(luaEngine)
+	assert.NotNil(luaEngine, script)
 	if err != nil {
-		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
+		t.Fatalf("NewLuaEngine failed with error: %s. Script: %s", err.Error(), script)
 	}
 
 	if err := luaEngine.SmokeTest("main"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
+		t.Fatalf("smoke-test failed with error: %s. Script: %s", err.Error(), script)
 	}
 
 	transFunction := luaEngine.MakeFunction("main")
-	assert.NotNil(transFunction)
+	assert.NotNil(transFunction, script)
 }
 
 func TestScriptTransformationConfigurations(t *testing.T) {
@@ -143,9 +141,8 @@ func TestScriptTransformationConfigurations(t *testing.T) {
 		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
 		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound))
-		assert.LessOrEqual(len(fencedBlocksFound), 2)
-		// TODO: This won't give a very informative error. Fix that.
+		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
+		assert.LessOrEqual(2, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
 
 		for _, block := range fencedBlocksFound {
 			c := createConfigFromCodeBlock(t, block)
@@ -210,9 +207,8 @@ func TestTransformationsOverview(t *testing.T) {
 	fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
 
 	// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-	assert.NotEqual(0, len(fencedBlocksFound))
-	assert.LessOrEqual(len(fencedBlocksFound), 2)
-	// TODO: This won't give a very informative error. Fix that.
+	assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
+	assert.LessOrEqual(2, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
 
 	for _, block := range fencedBlocksFound {
 		c := createConfigFromCodeBlock(t, block)
