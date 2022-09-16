@@ -35,7 +35,7 @@ source {
     # subscription ID for the pubsub subscription
     subscription_id   = "subscription-id"
 
-    # Maximum concurrent processes for the app (default: 50)
+    # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
     concurrent_writes = 20
   }
 }

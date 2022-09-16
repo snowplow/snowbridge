@@ -38,7 +38,7 @@ source {
     # Role ARN to use on source queue
     role_arn   = "arn:aws:iam::123456789012:role/myrole"
 
-    # Maximum concurrent processes for the app (default: 50)
+    # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
     concurrent_writes = 20
   }
 }

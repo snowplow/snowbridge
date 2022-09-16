@@ -66,7 +66,7 @@ source {
     # (default: TRIM_HORIZON)
     start_timestamp   = "2020-01-01 10:00:00"
 
-    # Maximum concurrent processes for the app (default: 50)
+    # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
     concurrent_writes = 15
   }
 }

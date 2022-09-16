@@ -26,7 +26,7 @@ Here is an example of every configuration option:
 
 source {
   use "stdin" {
-    # Maximum concurrent processes for the app (default: 50)
+    # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
     concurrent_writes = 20
   }    
 }
