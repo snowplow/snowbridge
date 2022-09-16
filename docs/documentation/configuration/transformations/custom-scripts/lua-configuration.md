@@ -15,8 +15,6 @@ Scripts are provided to the configuration as base-64 encoded strings - you can b
 
 Here is an example of a minimal configuration for the custom Lua script transformation:
 
-// TODO: Replace with tested config?
-
 ```hcl
 # lua configuration
 transform {

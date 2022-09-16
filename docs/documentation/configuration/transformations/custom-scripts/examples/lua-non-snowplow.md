@@ -2,8 +2,6 @@
 
 For this example, the input data is a json string which looks like this: 
 
-// TODO: Tests and templating through this whole file.
-
 ```json
 {
   "name": "Bruce",

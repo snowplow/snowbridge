@@ -43,8 +43,6 @@ The output of the script must be an object (Javascript) or a table (Lua) which m
 
 To modify the messages data, return an object which conforms to EngineProtocol, with the `Data` field set to the modified data. The `Data` field may be returned as either a string, or an object (Javascript) / table (Lua).
 
-// TODO: Tests and template/embed these
-
 ```js
 function main(input) {
     // input is a string, so we parse it

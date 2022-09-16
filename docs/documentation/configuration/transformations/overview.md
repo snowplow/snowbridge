@@ -22,8 +22,6 @@ Example:
 
 The below first filters out any `event_name` which does not match the regex `^page_view$`, then runs a custom javascript script to change the app_id value to `"1"`
 
-// TODO: instrument unit tests and template example
-
 ```hcl
 transform {
   use "spEnrichedFilter" {

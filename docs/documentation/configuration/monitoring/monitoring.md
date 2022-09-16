@@ -8,8 +8,6 @@ Stream Replicator comes with configurable logging, [pprof](https://github.com/go
 
 Use the log_level parameter to specify the log level.
 
-// TODO: Tests and templates for all of this
-
 ```hcl
 // log level configuration (default: "info")
 log_level = "debug"
