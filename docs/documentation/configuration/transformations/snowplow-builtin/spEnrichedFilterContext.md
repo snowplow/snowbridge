@@ -10,7 +10,7 @@ The full parsed context name must be provided, in camel case, in the format retu
 
 The path to the field to be matched must then be provided as a jsonpath (dot notation and square braces only) - for example `test1.test2[0].test3`.
 
-The below example filters out events which contain `test-data` in the `test1` field of the `contexts_nl_basjes_yauaa_context_1` context. Note that the `contexts_nl_basjes_yauaa_context_1` context is attached more than once, if _any_ of the values at `test1` don't match `test-data`, the event will be kept.
+The below example filters out messages which contain `test-data` in the `test1` field of the `contexts_nl_basjes_yauaa_context_1` context. Note that the `contexts_nl_basjes_yauaa_context_1` context is attached more than once, if _any_ of the values at `test1` don't match `test-data`, the message will be kept.
 
 // TODO: Make a new example, this one's too confusing
 // Also don't use contexts_nl_basjes_yauaa_context_1 - it's also confusing to do so.

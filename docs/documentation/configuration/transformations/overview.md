@@ -1,10 +1,10 @@
 # Transformations Configuration Overview
 
-You can configure any number of transformations to run on the data one after another - transformations will run in the order provided. (You can repeatedly specify the same transformation more than once, if needed.) All transformations operate on a single event basis.
+You can configure any number of transformations to run on the data one after another - transformations will run in the order provided. (You can repeatedly specify the same transformation more than once, if needed.) All transformations operate on a single message basis.
 
 If you're filtering the data, it's best to provide the filter first, for efficiency.
 
-If you're working with Snowplow enriched events, you can configure scripting transformations, or any of the built-in transformations, which are specific to Snowplow data.
+If you're working with Snowplow enriched messages, you can configure scripting transformations, or any of the built-in transformations, which are specific to Snowplow data.
 
 If you're working with any other type of data, you can create transformations via scripting transformations.
 

@@ -90,7 +90,7 @@ failure_target {
     # Emits as fast as possible but may limit performance.
     force_sync_producer = true
 
-    # Milliseconds between flushes of events (default: 0)
+    # Milliseconds between flushes of messages (default: 0)
     # Setting to 0 means as fast as possible.
     flush_frequency     = 2
 
