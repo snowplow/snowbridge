@@ -105,9 +105,4 @@ stats_receiver {
 
 // log level configuration (default: "info")
 log_level = "info"
-# share usage data (TODO: brief description) with Snowplow to improve the application
-disable_telemetry = false
-# how you would like to be identified — an email or an UUID4 is fine
-# we will only use emails for product updates
-user_provided_id = "you@company.com"
 ```
