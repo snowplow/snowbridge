@@ -2,7 +2,7 @@
 
 ## Failure targets
 
-When Stream Replicator hits an unrecoverable error - for example oversized or invalid data - it will emit a [failed event](https://docs.snowplow.io/docs/managing-data-quality/failed-events/understanding-failed-events#what-is-a-failed-event) to the configured failure target. A failure target is the same as a target, the only difference is that the configured destination will receive failed events.
+When Stream Replicator hits an unrecoverable error - for example [oversized](#oversized-data) or [invalid](#invalid-data) data - it will emit a [failed event](https://docs.snowplow.io/docs/managing-data-quality/failed-events/understanding-failed-events#what-is-a-failed-event) to the configured failure target. A failure target is the same as a target, the only difference is that the configured destination will receive failed events.
 
 You can find more detail on setting up a failure target, in the [configuration section](../configuration/failure-targets/)
 
@@ -12,12 +12,12 @@ There are several different failures that Stream Replicator may hit:
 
 ### Target failure
 
-This is where a request to the destination technology fails or is rejected - for example a http 400 response is received. When Stream Replicator hits this failure, it will retry 5 times. If all 5 attempts fail, it will be reported as a 'MsgFailed' for monitoring purposes, and will proceed without acking those Messages. As long as the source's acking model allows for it, these will be re-processed through Stream Replicator again.
+This is where a request to the destination technology fails or is rejected - for example a http 400 response is received. When Stream Replicator hits this failure, it will retry 5 times. If all 5 attempts fail, it will be reported as a 'MsgFailed' for monitoring purposes, and will proceed without acking the failed Messages. As long as the source's acking model allows for it, these will be re-processed through Stream Replicator again.
 
-Note that this means failures on the receiving end (eg. if an endpoint is unavailable), then Stream Replicator will continue to attempt to process the data until the issue is fixed.
+Note that this means failures on the receiving end (eg. if an endpoint is unavailable), mean Stream Replicator will continue to attempt to process the data until the issue is fixed.
 
 
-### Oversised data
+### Oversized data
 
 Targets have limits to the size of a single message or request. Where the destination technology has a hard limit, targets are hardcoded to that limit. Otherwise, this is a configurable option in the target configuration. When a message's data is above this limit, stream-replicator will produce a [size violation failed event](https://docs.snowplow.io/docs/managing-data-quality/failed-events/understanding-failed-events/#size-violation), and emit it to the failure target.
 
