@@ -1,6 +1,6 @@
 # Batching model
 
-Messages are processed in batches according to how the source provides data. The Kinesis and Pubsub sources provide data in single-events, so no batching is possible at present. The SQS source is batched according to how the SQS queue returns them.
+Messages are processed in batches according to how the source provides data. The Kinesis and Pubsub sources provide data in event-by-event, data is handled in batches of 1 event. The SQS source is batched according to how the SQS queue returns events.
 
 Transformations always handle individual messages at a time.
 
