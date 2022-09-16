@@ -36,7 +36,7 @@ func TestBuiltinTransformationDocumentation(t *testing.T) {
 
 		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
 		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
-		assert.LessOrEqual(2, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
+		assert.LessOrEqual(len(fencedBlocksFound), 2, "Unexpected number of hcl blocks found")
 
 		for _, block := range fencedBlocksFound {
 			c := createConfigFromCodeBlock(t, block)
@@ -142,7 +142,7 @@ func TestScriptTransformationConfigurations(t *testing.T) {
 
 		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
 		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
-		assert.LessOrEqual(2, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
+		assert.LessOrEqual(len(fencedBlocksFound), 2, "Unexpected number of hcl blocks found")
 
 		for _, block := range fencedBlocksFound {
 			c := createConfigFromCodeBlock(t, block)
@@ -208,7 +208,7 @@ func TestTransformationsOverview(t *testing.T) {
 
 	// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
 	assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
-	assert.LessOrEqual(2, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
+	assert.LessOrEqual(len(fencedBlocksFound), 2, "Unexpected number of hcl blocks found")
 
 	for _, block := range fencedBlocksFound {
 		c := createConfigFromCodeBlock(t, block)
