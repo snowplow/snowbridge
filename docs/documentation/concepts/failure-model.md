@@ -10,7 +10,7 @@ You can find more detail on setting up a failure target, in the [getting started
 
 There are several different failures that Stream Replicator may hit:
 
-### Target failureß
+### Target failure
 
 This is where a request to the destination technology fails or is rejected - for example a http 400 response is received. When Stream Replicator hits this failure, it will retry 5 times. If all 5 attempts fail, it will be reported as a 'MsgFailed' for monitoring purposes, and will proceed without acking those Messages. As long as the source's acking model allows for it, these will be re-processed through Stream Replicator again.
 
