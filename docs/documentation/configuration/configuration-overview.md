@@ -10,7 +10,7 @@ For all configuration blocks except for transformations, you must provide only o
 
 For transformations, you may provide 0 or more `transform` configuration blocks. They will be applied to the data, one after another, in the order they appear in the configuration. The exception to this is when a filter is applied and the filter condition is met - in this case the message will be acked and subsequent transformations will not be applied (neither will the data be sent to the destination).
 
-Some application-level options are not contained in a transformation block, rather are top-level options in the configuration. For example, to set the log level of the application, we just set the top-level variable `log_level`.
+Some application-level options are not contained in a block, instead they're top-level options in the configuration. For example, to set the log level of the application, we just set the top-level variable `log_level`.
 
 If you do not provide a configuration, or provide an empty one, the application will use the defaults:
 * `stdin` source;
