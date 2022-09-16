@@ -14,4 +14,4 @@ The latter use case, and further nuanced use cases can, however, be achieved usi
 
 Custom scripting transformations allow you to provide a script to transform the data, set the destination's partition key, or filter the data according to your own logic. For scripting, you can use Lua or Javascript. Stream Replicator uses a runtime engine to run the script against the data. Scipts interface with the rest of the app via the `EngineProtocol` interface, which provides a means to pass data into the scripting layer, and return data from the scripting layer back to the app.
 
-You can find more detail on setting up custom scripts [in the getting started section](../getting_started/transformations/overview.md)
+You can find more detail on setting up custom scripts [in the getting started section](../configuration/transformations/overview.md)
