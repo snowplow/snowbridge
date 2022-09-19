@@ -38,5 +38,5 @@ done
 
 # TODO:
 
-# For now, running each test as part of this script.. Might be better to do that as its own GH action though.
-# Also need to run it once each for gcp and aws
+# For now, running each test as part of this script.. Might be better to do that as its own step in the GH action though.
+# Also need to run it once each for gcp and aws images
