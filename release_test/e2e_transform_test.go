@@ -155,7 +155,7 @@ func evaluateTestCasePK(t *testing.T, actual []byte, testCase string) {
 	assert.Equal([]string{"test-data1", "test-data2"}, foundData)
 }
 
-func TestDockerRunBuiltinFilters(t *testing.T) {
+func TestE2ETransformTSVCases(t *testing.T) {
 	assert := assert.New(t)
 
 	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct"}
@@ -180,39 +180,51 @@ func TestDockerRunBuiltinFilters(t *testing.T) {
 	}
 }
 
-func TestDockerRunSpEnrichedToJson(t *testing.T) {
+func TestE2ETransformJSONCases(t *testing.T) {
 	assert := assert.New(t)
 
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "spEnrichedToJson", "config.hcl"))
-	if err != nil {
-		panic(err)
+	casesToTest := []string{"spEnrichedToJson", "jsSnowplowFilter", "jsSnowplowTransform"}
+
+	for _, testCase := range casesToTest {
+
+		// docker --mount command expects absolute filepath
+		configFilePath, err := filepath.Abs(filepath.Join("cases", testCase, "config.hcl"))
+		if err != nil {
+			panic(err)
+		}
+
+		stdOut, cmdErr := runDockerCommand(configFilePath)
+
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
+		}
+
+		expectedFilePath := filepath.Join("cases", testCase, "expected_data.txt")
+
+		evaluateTestCaseJSON(t, stdOut, expectedFilePath, testCase)
 	}
-
-	stdOut, cmdErr := runDockerCommand(configFilePath)
-
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for spEnrichedToJson")
-	}
-
-	expectedFilePath := filepath.Join("cases", "spEnrichedToJson", "expected_data.txt")
-
-	evaluateTestCaseJSON(t, stdOut, expectedFilePath, "spEnrichedToJson")
 
 }
 
-func TestDockerRunSpEnrichedSetPK(t *testing.T) {
+func TestE2ETransformSetPK(t *testing.T) {
 	assert := assert.New(t)
 
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "spEnrichedSetPk", "config.hcl"))
-	if err != nil {
-		panic(err)
+	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk"}
+
+	for _, testCase := range casesToTest {
+
+		// docker --mount command expects absolute filepath
+		configFilePath, err := filepath.Abs(filepath.Join("cases", testCase, "config.hcl"))
+		if err != nil {
+			panic(err)
+		}
+
+		stdOut, cmdErr := runDockerCommand(configFilePath)
+
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
+		}
+
+		evaluateTestCasePK(t, stdOut, "spEnrichedSetPk")
 	}
-
-	stdOut, cmdErr := runDockerCommand(configFilePath)
-
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for spEnrichedSetPk")
-	}
-
-	evaluateTestCasePK(t, stdOut, "spEnrichedSetPk")
 }
