@@ -125,7 +125,7 @@ func evaluateTestCaseJSON(t *testing.T, actual []byte, expectedFilePath string, 
 
 	for i, expected := range expectedData {
 		// Check that the data is equal
-		assert.JSONEq(expected, foundData[i])
+		assert.JSONEq(expected, foundData[i], testCase)
 	}
 }
 
@@ -183,7 +183,7 @@ func TestE2ETransformTSVCases(t *testing.T) {
 func TestE2ETransformJSONCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedToJson", "jsSnowplowFilter", "jsSnowplowTransform"}
+	casesToTest := []string{"spEnrichedToJson", "jsSnowplowFilter", "jsSnowplowTransform", "luaSnowplowFilter", "luaSnowplowTransform"} // TODO: luaSnowplowTransform is failing, can't work out why
 
 	for _, testCase := range casesToTest {
 
@@ -206,7 +206,7 @@ func TestE2ETransformJSONCases(t *testing.T) {
 
 }
 
-func TestE2ETransformSetPK(t *testing.T) {
+func TestE2ETransformPKCases(t *testing.T) {
 	assert := assert.New(t)
 
 	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk"}
@@ -225,6 +225,6 @@ func TestE2ETransformSetPK(t *testing.T) {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
 		}
 
-		evaluateTestCasePK(t, stdOut, "spEnrichedSetPk")
+		evaluateTestCasePK(t, stdOut, testCase)
 	}
 }
