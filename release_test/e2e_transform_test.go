@@ -158,7 +158,7 @@ func evaluateTestCasePK(t *testing.T, actual []byte, testCase string) {
 func TestE2ETransformTSVCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct"}
+	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct", "jsPlainFilter", "jsPlainTransform"}
 
 	for _, testCase := range casesToTest {
 
@@ -209,7 +209,7 @@ func TestE2ETransformJSONCases(t *testing.T) {
 func TestE2ETransformSetPK(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk"}
+	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk"}
 
 	for _, testCase := range casesToTest {
 
