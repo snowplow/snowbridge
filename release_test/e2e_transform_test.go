@@ -212,7 +212,7 @@ func TestE2ETransformJSONCases(t *testing.T) {
 func TestE2ETransformPKCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk"}
+	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk", "luaSnowplowSetPk"}
 
 	for _, testCase := range casesToTest {
 
