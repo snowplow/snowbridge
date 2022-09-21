@@ -5,3 +5,5 @@ transform {
     snowplow_mode       = true 
   }
 }
+
+disable_telemetry = true
