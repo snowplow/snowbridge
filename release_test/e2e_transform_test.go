@@ -163,7 +163,7 @@ func TestE2ETransformTSVCases(t *testing.T) {
 	for _, testCase := range casesToTest {
 
 		// docker --mount command expects absolute filepath
-		configFilePath, err := filepath.Abs(filepath.Join("cases", testCase, "config.hcl"))
+		configFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "config.hcl"))
 		if err != nil {
 			panic(err)
 		}
@@ -174,7 +174,7 @@ func TestE2ETransformTSVCases(t *testing.T) {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
 		}
 
-		expectedFilePath := filepath.Join("cases", testCase, "expected_data.txt")
+		expectedFilePath := filepath.Join("cases", "transformations", testCase, "expected_data.txt")
 
 		evaluateTestCaseTSV(t, stdOut, expectedFilePath, testCase)
 	}
@@ -191,7 +191,7 @@ func TestE2ETransformJSONCases(t *testing.T) {
 	for _, testCase := range casesToTest {
 
 		// docker --mount command expects absolute filepath
-		configFilePath, err := filepath.Abs(filepath.Join("cases", testCase, "config.hcl"))
+		configFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "config.hcl"))
 		if err != nil {
 			panic(err)
 		}
@@ -202,7 +202,7 @@ func TestE2ETransformJSONCases(t *testing.T) {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
 		}
 
-		expectedFilePath := filepath.Join("cases", testCase, "expected_data.txt")
+		expectedFilePath := filepath.Join("cases", "transformations", testCase, "expected_data.txt")
 
 		evaluateTestCaseJSON(t, stdOut, expectedFilePath, testCase)
 	}
@@ -217,7 +217,7 @@ func TestE2ETransformPKCases(t *testing.T) {
 	for _, testCase := range casesToTest {
 
 		// docker --mount command expects absolute filepath
-		configFilePath, err := filepath.Abs(filepath.Join("cases", testCase, "config.hcl"))
+		configFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "config.hcl"))
 		if err != nil {
 			panic(err)
 		}
