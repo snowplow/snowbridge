@@ -30,13 +30,13 @@ import (
 // -i keeps stdin open
 // --mount mounts the config file
 // --env sets env var for config file resolution
-var cmdTemplate = `cat %s | docker run -i \
+var cmdTemplateStdIO = `cat %s | docker run -i \
 --mount type=bind,source=%s,target=/config.hcl \
 --env STREAM_REPLICATOR_CONFIG_FILE=/config.hcl \
 snowplow/stream-replicator-aws:` + cmd.AppVersion
 
 // Helper function to run docker command
-func runDockerCommand(configFilePath string) ([]byte, error) {
+func runDockerCommand(cmdTemplate string, configFilePath string) ([]byte, error) {
 
 	inputFilePath := filepath.Join("input.txt")
 
@@ -80,14 +80,8 @@ func evaluateTestCaseTSV(t *testing.T, actual []byte, expectedFilePath string, t
 
 	expectedData := strings.Split(string(expectedChunk), "\n")
 
-	// We sort by length as a sort of janky workaround, since for JSON we don't have a guarntee of order
-	sort.Slice(expectedData, func(i, j int) bool {
-		return len(expectedData[i]) < len(expectedData[j])
-	})
-
-	sort.Slice(foundData, func(i, j int) bool {
-		return len(foundData[i]) < len(foundData[j])
-	})
+	sort.Strings(expectedData)
+	sort.Strings(foundData)
 
 	// Check that we got the correct number of results
 	assert.Equal(len(expectedData), len(foundData), testCase)
@@ -168,7 +162,7 @@ func TestE2ETransformTSVCases(t *testing.T) {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(configFilePath)
+		stdOut, cmdErr := runDockerCommand(cmdTemplateStdIO, configFilePath)
 
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
@@ -196,7 +190,7 @@ func TestE2ETransformJSONCases(t *testing.T) {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(configFilePath)
+		stdOut, cmdErr := runDockerCommand(cmdTemplateStdIO, configFilePath)
 
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
@@ -222,7 +216,7 @@ func TestE2ETransformPKCases(t *testing.T) {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(configFilePath)
+		stdOut, cmdErr := runDockerCommand(cmdTemplateStdIO, configFilePath)
 
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
