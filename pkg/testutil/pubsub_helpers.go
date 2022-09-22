@@ -52,8 +52,8 @@ func InitMockPubsubServer(port int, opts []pstest.ServerReactorOption, t *testin
 	return srv, conn
 }
 
-// CreatePubsubResourcesAndWrite creates PubSub integration resources, and writes numMsgs
-func CreatePubsubResourcesAndWrite(numMsgs int, t *testing.T) {
+// CreatePubSubTopic creates a pubsub topic using the pubsub emulator, and returns a client and the topic.
+func CreatePubSubTopic(t *testing.T, topicName string) (*pubsub.Client, *pubsub.Topic) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 	t.Setenv("PUBSUB_PROJECT_ID", `project-test`)
@@ -63,14 +63,25 @@ func CreatePubsubResourcesAndWrite(numMsgs int, t *testing.T) {
 	if err != nil {
 		t.Fatal(errors.Wrap(err, "Failed to create PubSub client"))
 	}
-	defer client.Close()
 
-	topic, err := client.CreateTopic(ctx, `test-topic`)
+	topic, err := client.CreateTopic(ctx, "test-topic")
 	if err != nil {
 		t.Fatal(errors.Wrap(err, "Failed to create pubsub topic"))
 	}
 
-	_, err = client.CreateSubscription(ctx, `test-sub`, pubsub.SubscriptionConfig{
+	return client, topic
+}
+
+// CreatePubsubResourcesAndWrite creates PubSub integration resources, and writes numMsgs
+func CreatePubsubResourcesAndWrite(numMsgs int, t *testing.T) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
+	t.Setenv("PUBSUB_PROJECT_ID", `project-test`)
+	t.Setenv(`PUBSUB_EMULATOR_HOST`, "localhost:8432")
+
+	client, topic := CreatePubSubTopic(t, "test-topic")
+
+	_, err := client.CreateSubscription(ctx, `test-sub`, pubsub.SubscriptionConfig{
 		Topic:       topic,
 		AckDeadline: 10 * time.Second,
 	})
