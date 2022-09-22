@@ -64,7 +64,7 @@ func CreatePubSubTopic(t *testing.T, topicName string) (*pubsub.Client, *pubsub.
 		t.Fatal(errors.Wrap(err, "Failed to create PubSub client"))
 	}
 
-	topic, err := client.CreateTopic(ctx, "test-topic")
+	topic, err := client.CreateTopic(ctx, topicName)
 	if err != nil {
 		t.Fatal(errors.Wrap(err, "Failed to create pubsub topic"))
 	}
