@@ -14,35 +14,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/cmd"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 
 	"github.com/stretchr/testify/assert"
 )
 
-// Next:
-// - Start on sources, use localstack/integration test resources.
-// - Factor the helper functions to help this
-// - Add tests for gcp asset too.
-
-// 	t.Setenv("PUBSUB_PROJECT_ID", `project-test`)
-// t.Setenv(`PUBSUB_EMULATOR_HOST`, "localhost:8432")
-
-// explanation of arguments:
-// -i keeps stdin open
-// --mount mounts the config file
-// --env sets env var for config file resolution
-var cmdTemplatePubSub = `cat %s | docker run -i \
---name srSource \
---net=integration_default \
---mount type=bind,source=%s,target=/config.hcl \
---env STREAM_REPLICATOR_CONFIG_FILE=/config.hcl --env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432 \
-snowplow/stream-replicator-aws:` + cmd.AppVersion
-
-// --net=integration_default runs the container on the network that contains our pubsub emulator
-// --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432 connects directly to that specific host
-
-// TODO: Should I name these specifically in the docker compose file?
+// TODO: Next steps:
+// - Add a config option to use localstack endpoint
+//
 
 func TestE2EPubsubSource(t *testing.T) {
 	assert := assert.New(t)
@@ -66,33 +45,19 @@ func TestE2EPubsubSource(t *testing.T) {
 		cmd.Output()
 	}()
 
-	defer func() {
-		cmd := exec.Command("bash", "-c", "docker rm srSource") // Remove container, existing stopped container will cause next docker run to fail.
-
-		cmd.Stderr = os.Stderr
-		cmd.Output()
-
-	}()
-
-	stdOut, cmdErr := runDockerCommand(cmdTemplatePubSub, configFilePath)
+	// Additional env var options allow us to connect to the pubsub emulator
+	stdOut, cmdErr := runDockerCommand(cmdTemplate, "pubsubsource", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
 	}
 
 	expectedFilePath := filepath.Join("cases", "sources", "pubsub", "expected_data.txt")
 
-	// TODO: Rename the evaluate function
-	evaluateTestCaseTSV(t, stdOut, expectedFilePath, "PubSub source")
+	evaluateTestCaseString(t, stdOut, expectedFilePath, "PubSub source")
 
 }
 
-// TODO: Next steps:
-//		// - Factor common stuff out of the transform file and rename approriately
-
-//
-
-// There doesn't seem to be a viable way to do e2e tests for AWS resources without full resources, while adding more value than existing integration tests.
-// We could attempt to make using the mock interfaces configurable but this is relatively self-defeating.
+// TODO: Circle back to AWS stuff after adding option to change endpoint
 /*
 func TestE2ESQSSource(t *testing.T) {
 	assert := assert.New(t)
