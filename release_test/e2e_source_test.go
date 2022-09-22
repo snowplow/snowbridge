@@ -8,11 +8,8 @@ package releasetest
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 
@@ -35,15 +32,6 @@ func TestE2EPubsubSource(t *testing.T) {
 	}
 
 	fmt.Println("Running docker command")
-
-	// Goroutine to stop SR after a bit (this can probably be factored nicer)
-	go func() {
-		time.Sleep(3 * time.Second)
-		cmd := exec.Command("bash", "-c", "docker stop srSource")
-		// Ensure we print stderr to logs, to make debugging a bit more manageable
-		cmd.Stderr = os.Stderr
-		cmd.Output()
-	}()
 
 	// Additional env var options allow us to connect to the pubsub emulator
 	stdOut, cmdErr := runDockerCommand(cmdTemplate, "pubsubsource", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
