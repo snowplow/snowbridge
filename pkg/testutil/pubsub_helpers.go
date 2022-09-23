@@ -52,10 +52,8 @@ func InitMockPubsubServer(port int, opts []pstest.ServerReactorOption, t *testin
 	return srv, conn
 }
 
-// TODO: Do we need to return the client?
-
 // CreatePubSubTopicAndSubscription creates a pubsub topic using the pubsub emulator, and returns a client and the topic.
-func CreatePubSubTopicAndSubscription(t *testing.T, topicName string, subscriptionName string) (*pubsub.Client, *pubsub.Topic, *pubsub.Subscription) {
+func CreatePubSubTopicAndSubscription(t *testing.T, topicName string, subscriptionName string) (*pubsub.Topic, *pubsub.Subscription) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 	t.Setenv("PUBSUB_PROJECT_ID", `project-test`)
@@ -79,17 +77,13 @@ func CreatePubSubTopicAndSubscription(t *testing.T, topicName string, subscripti
 		t.Fatal(fmt.Errorf("error creating subscription: %v", err))
 	}
 
-	return client, topic, subscription
+	return topic, subscription
 }
 
-// CreatePubsubResourcesAndWrite creates PubSub integration resources, and writes numMsgs
-func CreatePubsubResourcesAndWrite(numMsgs int, topicName string, t *testing.T) {
+// WriteToPubSubTopic simply writes data to a provided PubSub topic, blocking until all msgs are sent
+func WriteToPubSubTopic(t *testing.T, topic *pubsub.Topic, numMsgs int) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
-	t.Setenv("PUBSUB_PROJECT_ID", `project-test`)
-	t.Setenv(`PUBSUB_EMULATOR_HOST`, "localhost:8432")
-
-	_, topic, _ := CreatePubSubTopicAndSubscription(t, topicName, "test-sub")
 
 	var wg sync.WaitGroup
 	var totalErrors uint64
@@ -113,32 +107,9 @@ func CreatePubsubResourcesAndWrite(numMsgs int, topicName string, t *testing.T) 
 	wg.Wait()
 }
 
-// DeletePubsubResources tears down Pubsub integration resources
-func DeletePubsubResources(t *testing.T, topicName string) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelFunc()
-	t.Setenv("PUBSUB_PROJECT_ID", `project-test`)
-	t.Setenv(`PUBSUB_EMULATOR_HOST`, "localhost:8432")
+// CreatePubsubResourcesAndWrite creates PubSub integration resources, and writes numMsgs
+func CreatePubsubResourcesAndWrite(numMsgs int, topicName string, t *testing.T) {
+	topic, _ := CreatePubSubTopicAndSubscription(t, topicName, "test-sub")
 
-	client, err := pubsub.NewClient(ctx, `project-test`)
-	if err != nil {
-		t.Fatal(errors.Wrap(err, "Failed to create PubSub client"))
-	}
-	defer client.Close()
-
-	subscription := client.Subscription(`test-sub`)
-	err = subscription.Delete(ctx)
-	if err != nil {
-		t.Fatal(errors.Wrap(err, "Failed to delete subscription"))
-	}
-
-	topic := client.Topic(topicName)
-	if err != nil {
-		t.Fatal(errors.Wrap(err, "Failed to get topic"))
-	}
-
-	err = topic.Delete(ctx)
-	if err != nil {
-		t.Fatal(errors.Wrap(err, "Failed to delete topic"))
-	}
+	WriteToPubSubTopic(t, topic, numMsgs)
 }

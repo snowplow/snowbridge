@@ -28,8 +28,12 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	testutil.CreatePubsubResourcesAndWrite(0, "test-topic", t)
-	defer testutil.DeletePubsubResources(t, "test-topic")
+	// Create topic and subscription
+	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
+	defer topic.Delete(context.Background())
+	defer subscription.Delete(context.Background())
+	// Write to topic
+	testutil.WriteToPubSubTopic(t, topic, 10)
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)
@@ -55,8 +59,12 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	testutil.CreatePubsubResourcesAndWrite(0, "test-topic", t)
-	defer testutil.DeletePubsubResources(t, "test-topic")
+	// Create topic and subscription
+	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
+	defer topic.Delete(context.Background())
+	defer subscription.Delete(context.Background())
+	// Write to topic
+	testutil.WriteToPubSubTopic(t, topic, 10)
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)
@@ -76,8 +84,12 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	testutil.CreatePubsubResourcesAndWrite(0, "test-topic", t)
-	defer testutil.DeletePubsubResources(t, "test-topic")
+	// Create topic and subscription
+	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
+	defer topic.Delete(context.Background())
+	defer subscription.Delete(context.Background())
+	// Write to topic
+	testutil.WriteToPubSubTopic(t, topic, 10)
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)
