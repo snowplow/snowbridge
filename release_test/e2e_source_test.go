@@ -7,6 +7,7 @@
 package releasetest
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -23,8 +24,12 @@ import (
 func TestE2EPubsubSource(t *testing.T) {
 	assert := assert.New(t)
 
-	testutil.CreatePubsubResourcesAndWrite(50, "e2e-pubsub-source-topic", t)
-	defer testutil.DeletePubsubResources(t, "e2e-pubsub-source-topic")
+	// Create topic and subscription
+	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-pubsub-source-topic", "e2e-pubsub-source-subscription")
+	defer topic.Delete(context.Background())
+	defer subscription.Delete(context.Background())
+	// Write to topic
+	testutil.WriteToPubSubTopic(t, topic, 50)
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "pubsub", "config.hcl"))
 	if err != nil {

@@ -18,19 +18,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO:
-// - Refactor pubsub helpers
-// 	//	- We don't need the client to be returned
-//	// 	- We can separate the writing of data out
-//	//	- We should remove the delete function altogether and just call delete directly on subscription and topic in all the tests, as we do here
-
 func TestE2EPubsubTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	_, topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
+	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
 	defer topic.Delete(context.Background())
 	defer subscription.Delete(context.Background())
-	// TODO: should probably use a timed out context here to prevent hangs
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "pubsub", "config.hcl"))
 	if err != nil {

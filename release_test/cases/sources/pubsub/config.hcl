@@ -3,7 +3,7 @@ source {
 
     project_id      = "project-test"
 
-    subscription_id = "test-sub"
+    subscription_id = "e2e-pubsub-source-subscription"
   }
 }
 
