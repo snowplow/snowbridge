@@ -34,23 +34,23 @@ snowplow/stream-replicator-aws:` + cmd.AppVersion
 // Helper function to run docker command
 // This assumes that docker assets are built (make container) and integration resources exist (make integration-up)
 func runDockerCommand(cmdTemplate string, containerName string, configFilePath string, additionalOpts string) ([]byte, error) {
-
 	inputFilePath := filepath.Join("input.txt")
 
 	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts)
-
-	fmt.Println(cmdFull)
 
 	cmd := exec.Command("bash", "-c", cmdFull)
 
 	// Ensure we print stderr to logs, to make debugging a bit more manageable
 	cmd.Stderr = os.Stderr
 
-	// Goroutine to stop SR after a bit, in case it hangs
-	// TODO: we might want to make this configurable.
+	// Goroutine to stop SR after a bit - we do this because:
+	// a) source tests don't self-stop
+	// b) if some other test hangs for whatever reason, we should exit and fail (exiting isn't a feature we need to test for)
+	// Note that for the test which use stdin source, we expect to exit with a stopped container before we get to this function - and so it won't be called.
 	go func() {
 		time.Sleep(3 * time.Second)
 		cmd := exec.Command("bash", "-c", "docker stop "+containerName)
+
 		// Ensure we print stderr to logs, to make debugging a bit more manageable
 		cmd.Stderr = os.Stderr
 		cmd.Output()
@@ -62,6 +62,7 @@ func runDockerCommand(cmdTemplate string, containerName string, configFilePath s
 		// Remove container before exiting, existing stopped container will cause next docker run to fail.
 		rmCmd := exec.Command("bash", "-c", "docker rm "+containerName)
 
+		// Ensure we print stderr to logs, to make debugging a bit more manageable
 		rmCmd.Stderr = os.Stderr
 		rmCmd.Output()
 
@@ -71,7 +72,7 @@ func runDockerCommand(cmdTemplate string, containerName string, configFilePath s
 }
 
 // Helper function to grab just the 'Data' portion from the result
-func getDataFromResult(result []byte) []string {
+func getDataFromStdoutResult(result []byte) []string {
 	// Trim trailing newline then split on newline
 	foundOutput := strings.Split(strings.TrimSuffix(string(result), "\n"), "\n")
 
@@ -87,15 +88,13 @@ func getDataFromResult(result []byte) []string {
 }
 
 // Helper function to evaluate tests for String data (TSV and others)
-func evaluateTestCaseString(t *testing.T, actual []byte, expectedFilePath string, testCase string) {
+func evaluateTestCaseString(t *testing.T, foundData []string, expectedFilePath string, testCase string) {
 	assert := assert.New(t)
 
 	expectedChunk, err := os.ReadFile(expectedFilePath)
 	if err != nil {
 		panic(err)
 	}
-
-	foundData := getDataFromResult(actual)
 
 	expectedData := strings.Split(string(expectedChunk), "\n")
 

@@ -23,8 +23,8 @@ import (
 func TestE2EPubsubSource(t *testing.T) {
 	assert := assert.New(t)
 
-	testutil.CreatePubsubResourcesAndWrite(50, t)
-	defer testutil.DeletePubsubResources(t)
+	testutil.CreatePubsubResourcesAndWrite(50, "e2e-pubsub-source-topic", t)
+	defer testutil.DeletePubsubResources(t, "e2e-pubsub-source-topic")
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "pubsub", "config.hcl"))
 	if err != nil {
@@ -34,14 +34,15 @@ func TestE2EPubsubSource(t *testing.T) {
 	fmt.Println("Running docker command")
 
 	// Additional env var options allow us to connect to the pubsub emulator
-	stdOut, cmdErr := runDockerCommand(cmdTemplate, "pubsubsource", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
+	stdOut, cmdErr := runDockerCommand(cmdTemplate, "pubsubSource", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
 	}
 
 	expectedFilePath := filepath.Join("cases", "sources", "pubsub", "expected_data.txt")
 
-	evaluateTestCaseString(t, stdOut, expectedFilePath, "PubSub source")
+	data := getDataFromStdoutResult(stdOut)
+	evaluateTestCaseString(t, data, expectedFilePath, "PubSub source")
 
 }
 

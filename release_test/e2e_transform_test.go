@@ -25,7 +25,7 @@ func evaluateTestCaseJSON(t *testing.T, actual []byte, expectedFilePath string, 
 		panic(err)
 	}
 
-	foundData := getDataFromResult(actual)
+	foundData := getDataFromStdoutResult(actual)
 
 	expectedData := strings.Split(string(expectedChunk), "\n")
 
@@ -94,7 +94,8 @@ func TestE2ETransformTSVCases(t *testing.T) {
 
 		expectedFilePath := filepath.Join("cases", "transformations", testCase, "expected_data.txt")
 
-		evaluateTestCaseString(t, stdOut, expectedFilePath, testCase)
+		data := getDataFromStdoutResult(stdOut)
+		evaluateTestCaseString(t, data, expectedFilePath, testCase)
 	}
 }
 
