@@ -28,8 +28,8 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	testutil.CreatePubsubResourcesAndWrite(0, t)
-	defer testutil.DeletePubsubResources(t)
+	testutil.CreatePubsubResourcesAndWrite(0, "test-topic", t)
+	defer testutil.DeletePubsubResources(t, "test-topic")
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)
@@ -55,8 +55,8 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	testutil.CreatePubsubResourcesAndWrite(0, t)
-	defer testutil.DeletePubsubResources(t)
+	testutil.CreatePubsubResourcesAndWrite(0, "test-topic", t)
+	defer testutil.DeletePubsubResources(t, "test-topic")
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)
@@ -76,8 +76,8 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	testutil.CreatePubsubResourcesAndWrite(0, t)
-	defer testutil.DeletePubsubResources(t)
+	testutil.CreatePubsubResourcesAndWrite(0, "test-topic", t)
+	defer testutil.DeletePubsubResources(t, "test-topic")
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)

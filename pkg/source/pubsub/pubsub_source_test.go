@@ -34,8 +34,8 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	assert := assert.New(t)
 
 	// Create pubsub integration resource and populate with 10 messages
-	testutil.CreatePubsubResourcesAndWrite(10, t)
-	defer testutil.DeletePubsubResources(t)
+	testutil.CreatePubsubResourcesAndWrite(10, "test-topic", t)
+	defer testutil.DeletePubsubResources(t, "test-topic")
 
 	t.Setenv("SOURCE_NAME", "pubsub")
 	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
