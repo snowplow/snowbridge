@@ -14,7 +14,7 @@ services:
         max-size: 1M
         max-file: "10"
     environment:
-      - SERVICES=sqs,kinesis,dynamodb
+      - SERVICES=sqs,kinesis,dynamodb,sts
       - DATA_DIR=/tmp/localstack/data
   pubsub:
     image: bigtruedata/gcloud-pubsub-emulator
