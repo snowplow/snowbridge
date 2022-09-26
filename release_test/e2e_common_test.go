@@ -35,7 +35,7 @@ snowplow/stream-replicator-aws:` + cmd.AppVersion
 
 // Helper function to run docker command
 // This assumes that docker assets are built (make all) and integration resources exist (make integration-up)
-func runDockerCommand(cmdTemplate string, containerName string, configFilePath string, additionalOpts string) ([]byte, error) {
+func runDockerCommand(cmdTemplate string, secondsBeforeShutdown time.Duration, containerName string, configFilePath string, additionalOpts string) ([]byte, error) {
 	inputFilePath := filepath.Join("input.txt")
 
 	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts)
@@ -49,8 +49,10 @@ func runDockerCommand(cmdTemplate string, containerName string, configFilePath s
 	// a) source tests don't self-stop
 	// b) if some other test hangs for whatever reason, we should exit and fail (exiting isn't a feature we need to test for)
 	// Note that for the test which use stdin source, we expect to exit with a stopped container before we get to this function - and so it won't be called.
+
 	go func() {
-		time.Sleep(3 * time.Second)
+		// TODO: Make this configurable
+		time.Sleep(secondsBeforeShutdown)
 		cmd := exec.Command("bash", "-c", "docker stop "+containerName)
 
 		// Ensure we print stderr to logs, to make debugging a bit more manageable

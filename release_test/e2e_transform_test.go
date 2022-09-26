@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -86,7 +87,7 @@ func TestE2ETransformTSVCases(t *testing.T) {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(cmdTemplate, testCase, configFilePath, "")
+		stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, "")
 
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
@@ -115,7 +116,7 @@ func TestE2ETransformJSONCases(t *testing.T) {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(cmdTemplate, testCase, configFilePath, "")
+		stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, "")
 
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
@@ -141,7 +142,7 @@ func TestE2ETransformPKCases(t *testing.T) {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(cmdTemplate, testCase, configFilePath, "")
+		stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, "")
 
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)

@@ -38,7 +38,7 @@ func TestE2EPubsubTarget(t *testing.T) {
 	fmt.Println("Running docker command")
 
 	// Additional env var options allow us to connect to the pubsub emulator
-	_, cmdErr := runDockerCommand(cmdTemplate, "pubsubTarget", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
+	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "pubsubTarget", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
 	}
@@ -117,7 +117,7 @@ func TestE2EHttpTarget(t *testing.T) {
 	fmt.Println("Running docker command")
 
 	// Additional env var options allow us to connect to the pubsub emulator
-	_, cmdErr := runDockerCommand(cmdTemplate, "httpTarget", configFilePath, "")
+	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "httpTarget", configFilePath, "")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
 	}

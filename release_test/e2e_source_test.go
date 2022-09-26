@@ -11,11 +11,19 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// TODO: Localstack stuff seems a bit flaky. See if running a more recent version improves things.
+// TODO: Is it worth the effort to change all the helpers etc., so that we always use the same input data?
+//			// Pro: makes tests more consistent, can remove expected data files
+// 			// Pro: Could standardise test cases with other projects
+//			// Pro: Same input to everything = one change in one place to update all tests
+//			// Con: A fair bit of effort for perhaps not a huge payoff...
 
 func TestE2EPubsubSource(t *testing.T) {
 	assert := assert.New(t)
@@ -35,7 +43,7 @@ func TestE2EPubsubSource(t *testing.T) {
 	fmt.Println("Running docker command")
 
 	// Additional env var options allow us to connect to the pubsub emulator
-	stdOut, cmdErr := runDockerCommand(cmdTemplate, "pubsubSource", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
+	stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "pubsubSource", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
 	}
@@ -44,7 +52,6 @@ func TestE2EPubsubSource(t *testing.T) {
 
 	data := getDataFromStdoutResult(stdOut)
 	evaluateTestCaseString(t, data, expectedFilePath, "PubSub source")
-
 }
 
 // Commented out as it fails due to: https://github.com/snowplow-devops/stream-replicator/issues/215
@@ -53,9 +60,6 @@ func TestE2EPubsubSource(t *testing.T) {
 /*
 func TestE2ESQSSource(t *testing.T) {
 	assert := assert.New(t)
-
-	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
-	t.Setenv("AWS_SECRET_ACCESS_KEY", "var")
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
@@ -74,7 +78,7 @@ func TestE2ESQSSource(t *testing.T) {
 
 	fmt.Println("Running docker command")
 
-	stdOut, cmdErr := runDockerCommand(cmdTemplate, "sqsSource", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "sqsSource", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for SQS source")
 		// We seem to keep hitting 'connection reset by peer' error, which kills the job.
@@ -96,3 +100,56 @@ func TestE2ESQSSource(t *testing.T) {
 	evaluateTestCaseString(t, data, expectedFilePath, "SQS source")
 }
 */
+
+func TestE2EKinesisSource(t *testing.T) {
+	assert := assert.New(t)
+
+	appName := "e2eKinesisSource"
+
+	ddbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+	fmt.Println("Got client...")
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(ddbClient, appName)
+	if ddbErr != nil {
+		panic(ddbErr)
+	}
+	defer testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, appName)
+
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+
+	kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, appName)
+	if kinErr != nil {
+		panic(kinErr)
+	}
+
+	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName)
+
+	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, appName, "e2e test Kinesis")
+	if putErr != nil {
+		panic(putErr)
+	}
+
+	fmt.Println("Data done")
+	fmt.Println("Done setting up resources")
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kinesis", "config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Running docker command")
+
+	// 3 seconds isn't enough time to wait for this test it seems.
+	// TODO: Make the wait configurable - no point slowing all the others down.
+	stdOut, cmdErr := runDockerCommand(cmdTemplate, 10*time.Second, "kinesisSource", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	if cmdErr != nil {
+		assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis source")
+		// TODO: These errors could probably reference the command I guess?
+	}
+
+	expectedFilePath := filepath.Join("cases", "sources", "kinesis", "expected_data.txt")
+
+	data := getDataFromStdoutResult(stdOut)
+	evaluateTestCaseString(t, data, expectedFilePath, "Kinesis source")
+
+}
