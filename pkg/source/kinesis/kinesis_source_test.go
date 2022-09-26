@@ -8,16 +8,12 @@ package kinesissource
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
@@ -132,7 +128,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
 	// Put ten records into kinesis stream
-	putErr := putNRecordsIntoKinesis(kinesisClient, 10, streamName, "Test")
+	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "Test")
 	if putErr != nil {
 		t.Fatal(putErr)
 	}
@@ -178,7 +174,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
 	// Put two batches of 10 records into kinesis stream, grabbing a timestamp in between
-	putErr := putNRecordsIntoKinesis(kinesisClient, 10, streamName, "First batch")
+	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "First batch")
 	if putErr != nil {
 		t.Fatal(putErr)
 	}
@@ -187,7 +183,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	timeToStart := time.Now()
 	time.Sleep(1 * time.Second)
 
-	putErr2 := putNRecordsIntoKinesis(kinesisClient, 10, streamName, "Second batch")
+	putErr2 := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "Second batch")
 	if putErr2 != nil {
 		t.Fatal(putErr2)
 	}
@@ -208,17 +204,6 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	for _, msg := range successfulReads {
 		assert.Contains(string(msg.Data), "Second batch")
 	}
-}
-
-func putNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, streamName string, dataPrefix string) error {
-	// Put N records into kinesis stream
-	for i := 0; i < n; i++ {
-		_, err := kinesisClient.PutRecord(&kinesis.PutRecordInput{Data: []byte(fmt.Sprint(dataPrefix, " ", i)), PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func TestGetSource_WithKinesisSource(t *testing.T) {
