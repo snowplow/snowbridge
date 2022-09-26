@@ -60,11 +60,12 @@ func DecodeB64ToFile(b64String, filename string) error {
 // GetAWSSession is a general tool to handle generating an AWS session
 // using the standard auth flow.  We also have the ability to pass a role ARN
 // to allow for roles to be assumed in cross-account access flows.
-func GetAWSSession(region string, roleARN string) (sess *session.Session, cfg *aws.Config, accountID *string, err error) {
+func GetAWSSession(region string, roleARN string, endpoint string) (sess *session.Session, cfg *aws.Config, accountID *string, err error) {
 	sess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 		Config: aws.Config{
-			Region: aws.String(region),
+			Region:   aws.String(region),
+			Endpoint: aws.String(endpoint),
 		},
 	}))
 
