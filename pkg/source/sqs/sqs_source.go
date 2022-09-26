@@ -27,10 +27,11 @@ import (
 
 // configuration configures the source for records pulled
 type configuration struct {
-	QueueName        string `hcl:"queue_name" env:"SOURCE_SQS_QUEUE_NAME"`
-	Region           string `hcl:"region" env:"SOURCE_SQS_REGION"`
-	RoleARN          string `hcl:"role_arn,optional" env:"SOURCE_SQS_ROLE_ARN"`
-	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	QueueName         string `hcl:"queue_name" env:"SOURCE_SQS_QUEUE_NAME"`
+	Region            string `hcl:"region" env:"SOURCE_SQS_REGION"`
+	RoleARN           string `hcl:"role_arn,optional" env:"SOURCE_SQS_ROLE_ARN"`
+	ConcurrentWrites  int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	CustomAWSEndpoint string `hcl:"custom_aws_edpoint,optional" env:"SOURCE_CUSTOM_AWS_ENDPOINT"`
 }
 
 // sqsSource holds a new client for reading messages from SQS
@@ -62,7 +63,7 @@ func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID 
 
 // configFunction returns an SQS source from a config.
 func configFunction(c *configuration) (sourceiface.Source, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN)
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN, c.CustomAWSEndpoint)
 	if err != nil {
 		return nil, err
 	}

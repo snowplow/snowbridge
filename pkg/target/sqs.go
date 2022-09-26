@@ -34,9 +34,10 @@ const (
 
 // SQSTargetConfig configures the destination for records consumed
 type SQSTargetConfig struct {
-	QueueName string `hcl:"queue_name" env:"TARGET_SQS_QUEUE_NAME"`
-	Region    string `hcl:"region" env:"TARGET_SQS_REGION"`
-	RoleARN   string `hcl:"role_arn,optional" env:"TARGET_SQS_ROLE_ARN"`
+	QueueName         string `hcl:"queue_name" env:"TARGET_SQS_QUEUE_NAME"`
+	Region            string `hcl:"region" env:"TARGET_SQS_REGION"`
+	RoleARN           string `hcl:"role_arn,optional" env:"TARGET_SQS_ROLE_ARN"`
+	CustomAWSEndpoint string `hcl:"custom_aws_edpoint,optional" env:"SOURCE_CUSTOM_AWS_ENDPOINT"`
 }
 
 // SQSTarget holds a new client for writing messages to sqs
@@ -51,8 +52,8 @@ type SQSTarget struct {
 }
 
 // newSQSTarget creates a new client for writing messages to sqs
-func newSQSTarget(region string, queueName string, roleARN string) (*SQSTarget, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
+func newSQSTarget(region string, queueName string, roleARN string, customAWSendpoint string) (*SQSTarget, error) {
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN, customAWSendpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func newSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, reg
 
 // SQSTargetConfigFunction creates an SQSTarget from an SQSTargetConfig
 func SQSTargetConfigFunction(c *SQSTargetConfig) (*SQSTarget, error) {
-	return newSQSTarget(c.Region, c.QueueName, c.RoleARN)
+	return newSQSTarget(c.Region, c.QueueName, c.RoleARN, c.CustomAWSEndpoint)
 }
 
 // The SQSTargetAdapter type is an adapter for functions to be used as
