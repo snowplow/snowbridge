@@ -33,9 +33,10 @@ const (
 
 // KinesisTargetConfig configures the destination for records consumed
 type KinesisTargetConfig struct {
-	StreamName string `hcl:"stream_name" env:"TARGET_KINESIS_STREAM_NAME"`
-	Region     string `hcl:"region" env:"TARGET_KINESIS_REGION"`
-	RoleARN    string `hcl:"role_arn,optional" env:"TARGET_KINESIS_ROLE_ARN"`
+	StreamName        string `hcl:"stream_name" env:"TARGET_KINESIS_STREAM_NAME"`
+	Region            string `hcl:"region" env:"TARGET_KINESIS_REGION"`
+	RoleARN           string `hcl:"role_arn,optional" env:"TARGET_KINESIS_ROLE_ARN"`
+	CustomAWSEndpoint string `hcl:"custom_aws_endpoint,optional" env:"SOURCE_CUSTOM_AWS_ENDPOINT"`
 }
 
 // KinesisTarget holds a new client for writing messages to kinesis
@@ -49,8 +50,8 @@ type KinesisTarget struct {
 }
 
 // newKinesisTarget creates a new client for writing messages to kinesis
-func newKinesisTarget(region string, streamName string, roleARN string) (*KinesisTarget, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN)
+func newKinesisTarget(region string, streamName string, roleARN string, customAWSEndpoint string) (*KinesisTarget, error) {
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN, customAWSEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ func newKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID
 
 // KinesisTargetConfigFunction creates KinesisTarget from KinesisTargetConfig.
 func KinesisTargetConfigFunction(c *KinesisTargetConfig) (*KinesisTarget, error) {
-	return newKinesisTarget(c.Region, c.StreamName, c.RoleARN)
+	return newKinesisTarget(c.Region, c.StreamName, c.RoleARN, c.CustomAWSEndpoint)
 }
 
 // The KinesisTargetAdapter type is an adapter for functions to be used as

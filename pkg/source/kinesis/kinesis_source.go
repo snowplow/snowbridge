@@ -29,12 +29,13 @@ import (
 
 // configuration configures the source for records pulled
 type configuration struct {
-	StreamName       string `hcl:"stream_name" env:"SOURCE_KINESIS_STREAM_NAME"`
-	Region           string `hcl:"region" env:"SOURCE_KINESIS_REGION"`
-	AppName          string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
-	RoleARN          string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
-	StartTimestamp   string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
-	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	StreamName        string `hcl:"stream_name" env:"SOURCE_KINESIS_STREAM_NAME"`
+	Region            string `hcl:"region" env:"SOURCE_KINESIS_REGION"`
+	AppName           string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
+	RoleARN           string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
+	StartTimestamp    string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
+	ConcurrentWrites  int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	CustomAWSEndpoint string `hcl:"custom_aws_endpoint,optional" env:"SOURCE_CUSTOM_AWS_ENDPOINT"`
 }
 
 // --- Kinesis source
@@ -81,7 +82,7 @@ func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 
 // configFunction returns a kinesis source from a config
 func configFunction(c *configuration) (sourceiface.Source, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN)
+	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN, c.CustomAWSEndpoint)
 	if err != nil {
 		return nil, err
 	}
