@@ -17,10 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: Next steps:
-// - Add a config option to use localstack endpoint
-//
-
 func TestE2EPubsubSource(t *testing.T) {
 	assert := assert.New(t)
 
@@ -51,17 +47,15 @@ func TestE2EPubsubSource(t *testing.T) {
 
 }
 
-// TODO: Circle back to AWS stuff after adding option to change endpoint
+// Commented out as it fails due to: https://github.com/snowplow-devops/stream-replicator/issues/215
+// We could make this pass if we inored error coming from runDockerCommand,
+// but this would hide the genuine issue that sqs produces unnecessary crashes.
 /*
 func TestE2ESQSSource(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "var")
-
-	// Won't resolve...
-	// https://docs.aws.amazon.com/sdk-for-go/api/aws/endpoints/#hdr-Using_Custom_Endpoints
-	// Might need to use that...
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
@@ -80,12 +74,25 @@ func TestE2ESQSSource(t *testing.T) {
 
 	fmt.Println("Running docker command")
 
-	stdOut, cmdErr := runDockerCommand(configFilePath)
+	stdOut, cmdErr := runDockerCommand(cmdTemplate, "sqsSource", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	if cmdErr != nil {
+		assert.Fail(cmdErr.Error(), "Docker run returned error for SQS source")
+		// We seem to keep hitting 'connection reset by peer' error, which kills the job.
+		// We're still getting the 10 messages back though. Hard to determine what's causing it...
+		// fmt.Println(string(stdOut))
 
-	fmt.Println(stdOut)
-	fmt.Println(cmdErr)
+		// Looks like it's related to this:
+		// Connection reset is classed as non-retryable as requests may not be idempotent.
+		// In our case, requests are idempotent, so we can just instrument a retryer for this.
 
-	assert.Nil(nil)
+		// https://github.com/aws/aws-sdk-go/issues/3027#issuecomment-567269161
+		// https://github.com/aws/aws-sdk-go/issues/3971
+		// https://pkg.go.dev/github.com/aws/aws-sdk-go/aws/request#Retryer
+	}
 
+	expectedFilePath := filepath.Join("cases", "sources", "sqs", "expected_data.txt")
+
+	data := getDataFromStdoutResult(stdOut)
+	evaluateTestCaseString(t, data, expectedFilePath, "SQS source")
 }
 */

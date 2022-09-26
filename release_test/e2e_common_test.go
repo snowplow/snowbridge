@@ -20,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO: cmdTemplate doesn't need to be an argument to runDockerCommand if we are able to use the same template for all.
+
 // explanation of arguments:
 // -i keeps stdin open
 // --mount mounts the config file
@@ -32,7 +34,7 @@ var cmdTemplate = `cat %s | docker run -i \
 snowplow/stream-replicator-aws:` + cmd.AppVersion
 
 // Helper function to run docker command
-// This assumes that docker assets are built (make container) and integration resources exist (make integration-up)
+// This assumes that docker assets are built (make all) and integration resources exist (make integration-up)
 func runDockerCommand(cmdTemplate string, containerName string, configFilePath string, additionalOpts string) ([]byte, error) {
 	inputFilePath := filepath.Join("input.txt")
 
