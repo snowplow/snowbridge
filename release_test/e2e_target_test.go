@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Shopify/sarama"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -247,9 +248,81 @@ func TestE2ESQSTarget(t *testing.T) {
 		if len(msgResult.Messages) == 0 {
 			break
 		}
-
 	}
 
 	// Expected is equal to input.
 	evaluateTestCaseString(t, foundData, inputFilePath, "SQS target")
+}
+
+// Kafka:
+
+// https://docs.confluent.io/platform/current/clients/confluent-kafka-go/index.html#NewAdminClient
+// https://docs.confluent.io/platform/current/clients/confluent-kafka-go/index.html#AdminClient.CreateTopics
+
+// OR: https://pkg.go.dev/github.com/Shopify/sarama#pkg-index
+
+func TestE2EKafkaTarget(t *testing.T) {
+	assert := assert.New(t)
+
+	// Looks like it's better to use cluster admin for the create/delete: https://github.com/Shopify/sarama/blob/v1.36.0/admin.go#L16
+
+	// We use localhost:9092 here as we're running from host machine.
+	// The address in our stream replicator config is different ("broker:29092"), since they're on the shared docker network.
+	adminClient, err := sarama.NewClusterAdmin([]string{"localhost:9092"}, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	topicName := "e2e-kafka-target"
+
+	err2 := adminClient.CreateTopic(topicName, &sarama.TopicDetail{NumPartitions: 1, ReplicationFactor: 1}, false)
+	if err2 != nil {
+		panic(err2)
+	}
+	defer adminClient.DeleteTopic(topicName)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "kafka", "config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Running docker command")
+
+	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "kafkaTarget", configFilePath, "")
+	if cmdErr != nil {
+		assert.Fail(cmdErr.Error(), "Docker run returned error for Kafka target")
+	}
+
+	// Set up consumer
+
+	// We use localhost:9092 here as we're running from host machine.
+	// The address in our stream replicator config is different ("broker:29092"), since they're on the shared docker network.
+	consumer, err := sarama.NewConsumer([]string{"localhost:9092"}, nil)
+
+	partitions, err := consumer.Partitions(topicName)
+	if err != nil {
+		panic(err)
+	}
+
+	partitionConsumer, err := consumer.ConsumePartition(topicName, partitions[0], 0)
+	if err != nil {
+		panic(err)
+	}
+
+	msgChan := partitionConsumer.Messages()
+
+	// start a goroutine to stop consuming messages
+
+	go func() {
+		time.Sleep(3 * time.Second)
+		partitionConsumer.AsyncClose()
+	}()
+
+	var foundData []string
+	for msg := range msgChan {
+		foundData = append(foundData, string(msg.Value))
+	}
+
+	// Expected is equal to input.
+	evaluateTestCaseString(t, foundData, inputFilePath, "Kafka target")
 }
