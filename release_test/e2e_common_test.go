@@ -20,6 +20,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var inputFilePath, inputErr = filepath.Abs("input.txt")
+
+// TODO: Add a testmain to panic if inputErr != nil.
+
 // TODO: cmdTemplate doesn't need to be an argument to runDockerCommand if we are able to use the same template for all.
 
 // explanation of arguments:
@@ -36,7 +40,6 @@ snowplow/stream-replicator-aws:` + cmd.AppVersion
 // Helper function to run docker command
 // This assumes that docker assets are built (make all) and integration resources exist (make integration-up)
 func runDockerCommand(cmdTemplate string, secondsBeforeShutdown time.Duration, containerName string, configFilePath string, additionalOpts string) ([]byte, error) {
-	inputFilePath := filepath.Join("input.txt")
 
 	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts)
 

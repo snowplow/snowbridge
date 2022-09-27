@@ -65,7 +65,7 @@ func TestE2ESQSSource(t *testing.T) {
 
 	fmt.Println("Setting up queue")
 
-	queueName := "sqs-queue-e2e"
+	queueName := "sqs-queue-e2e-source"
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 10, "Hello SQS!!")
 	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
 

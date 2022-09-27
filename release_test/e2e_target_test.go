@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
@@ -78,7 +79,7 @@ receiveLoop:
 func TestE2EHttpTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	var results []string
+	var foundData []string
 
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
 		srv := &http.Server{Addr: ":8998"}
@@ -89,7 +90,7 @@ func TestE2EHttpTarget(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			results = append(results, string(body))
+			foundData = append(foundData, string(body))
 
 		})
 
@@ -128,9 +129,8 @@ func TestE2EHttpTarget(t *testing.T) {
 
 	srvExitWg.Wait()
 
-	expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
-
-	evaluateTestCaseString(t, results, expectedFilePath, "HTTP target")
+	// Expected is equal to input.
+	evaluateTestCaseString(t, foundData, inputFilePath, "HTTP target")
 }
 
 func TestE2EKinesisTarget(t *testing.T) {
@@ -189,8 +189,67 @@ func TestE2EKinesisTarget(t *testing.T) {
 		foundData = append(foundData, string(record.Data))
 	}
 
-	expectedFilePath := filepath.Join("cases", "targets", "kinesis", "expected_data.txt")
+	// Expected is equal to input.
+	evaluateTestCaseString(t, foundData, inputFilePath, "Kinesis target")
+}
 
-	evaluateTestCaseString(t, foundData, expectedFilePath, "Kinesis target")
+func TestE2ESQSTarget(t *testing.T) {
+	assert := assert.New(t)
 
+	client := testutil.GetAWSLocalstackSQSClient()
+
+	queueName := "sqs-queue-e2e-target"
+	out, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
+	if err != nil {
+		panic(err)
+	}
+
+	defer testutil.DeleteAWSLocalstackSQSQueue(client, out.QueueUrl)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "sqs", "config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Running docker command")
+
+	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "sqsTarget", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	if cmdErr != nil {
+		assert.Fail(cmdErr.Error(), "Docker run returned error for SQS target")
+	}
+
+	urlResult, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{
+		QueueName: aws.String(queueName),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	var foundData []string
+
+	// since we can only fetch 10 at a time, loop until we have no data left.
+	for {
+		msgResult, err := client.ReceiveMessage(&sqs.ReceiveMessageInput{
+			MessageAttributeNames: []*string{
+				aws.String(sqs.QueueAttributeNameAll),
+			},
+			QueueUrl:            urlResult.QueueUrl,
+			MaxNumberOfMessages: aws.Int64(10),
+		})
+		if err != nil {
+			panic(err)
+		}
+
+		for _, msg := range msgResult.Messages {
+			foundData = append(foundData, *msg.Body)
+		}
+
+		if len(msgResult.Messages) == 0 {
+			break
+		}
+
+	}
+
+	// Expected is equal to input.
+	evaluateTestCaseString(t, foundData, inputFilePath, "SQS target")
 }
