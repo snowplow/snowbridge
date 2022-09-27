@@ -140,7 +140,6 @@ func TestE2EKinesisSource(t *testing.T) {
 	fmt.Println("Running docker command")
 
 	// 3 seconds isn't enough time to wait for this test it seems.
-	// TODO: Make the wait configurable - no point slowing all the others down.
 	stdOut, cmdErr := runDockerCommand(cmdTemplate, 10*time.Second, "kinesisSource", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis source")
@@ -151,5 +150,4 @@ func TestE2EKinesisSource(t *testing.T) {
 
 	data := getDataFromStdoutResult(stdOut)
 	evaluateTestCaseString(t, data, expectedFilePath, "Kinesis source")
-
 }

@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
@@ -114,12 +116,10 @@ func TestE2EHttpTarget(t *testing.T) {
 		panic(err)
 	}
 
-	fmt.Println("Running docker command")
-
 	// Additional env var options allow us to connect to the pubsub emulator
 	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "httpTarget", configFilePath, "")
 	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
+		assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 	}
 
 	if err := srv.Shutdown(context.TODO()); err != nil {
@@ -131,4 +131,66 @@ func TestE2EHttpTarget(t *testing.T) {
 	expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
 
 	evaluateTestCaseString(t, results, expectedFilePath, "HTTP target")
+}
+
+func TestE2EKinesisTarget(t *testing.T) {
+	assert := assert.New(t)
+
+	appName := "e2eKinesisTarget"
+
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+
+	kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, appName)
+	if kinErr != nil {
+		panic(kinErr)
+	}
+
+	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "kinesis", "config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	// Additional env var options allow us to connect to the pubsub emulator
+	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "kinesisTarget", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	if cmdErr != nil {
+		assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis target")
+	}
+
+	streamDescription, err := kinesisClient.DescribeStream(&kinesis.DescribeStreamInput{StreamName: aws.String(appName)})
+	if err != nil {
+		panic(err)
+	}
+	shardID := streamDescription.StreamDescription.Shards[0].ShardId
+	// TODO: Do we want to test with more than one shard?
+
+	iterator, err := kinesisClient.GetShardIterator(&kinesis.GetShardIteratorInput{
+		// Shard Id is provided when making put record(s) request.
+		ShardId:           shardID,
+		ShardIteratorType: aws.String("TRIM_HORIZON"),
+		// ShardIteratorType: aws.String("AT_SEQUENCE_NUMBER"),
+		// ShardIteratorType: aws.String("LATEST"),
+		StreamName: aws.String(appName),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	records, err := kinesisClient.GetRecords(&kinesis.GetRecordsInput{
+		ShardIterator: iterator.ShardIterator,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	var foundData []string
+	for _, record := range records.Records {
+		foundData = append(foundData, string(record.Data))
+	}
+
+	expectedFilePath := filepath.Join("cases", "targets", "kinesis", "expected_data.txt")
+
+	evaluateTestCaseString(t, foundData, expectedFilePath, "Kinesis target")
+
 }
