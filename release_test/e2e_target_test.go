@@ -333,5 +333,3 @@ func TestE2EKafkaTarget(t *testing.T) {
 	// Expected is equal to input.
 	evaluateTestCaseString(t, foundData, inputFilePath, "Kafka target")
 }
-
-// TODO: Add gcp asset to all

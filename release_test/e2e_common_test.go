@@ -26,13 +26,22 @@ var inputFilePath, inputErr = filepath.Abs("input.txt")
 
 // TODO: cmdTemplate doesn't need to be an argument to runDockerCommand if we are able to use the same template for all.
 
+// TODO: Add gcp asset to all
+
+// TODO: Failing for http on CI, host.docker.internal doesn't resolve on CI.
+// We might be able to resolve this by running that test with --net:"host", rather than --net:"integration_default"
+// then we should be able to just refer to localhost.
+
+// Note: Pointing to the actual localhost address of http://172.17.0.1 does work on CI, but not local.
+
 // explanation of arguments:
 // -i keeps stdin open
 // --mount mounts the config file
 // --env sets env var for config file resolution
 var cmdTemplate = `cat %s | docker run -i \
 --name %s \
---net=integration_default \
+--network=integration_default \
+--add-host host.docker.internal:host-gateway \
 --mount type=bind,source=%s,target=/config.hcl \
 --env STREAM_REPLICATOR_CONFIG_FILE=/config.hcl %s \
 snowplow/stream-replicator-aws:` + cmd.AppVersion
