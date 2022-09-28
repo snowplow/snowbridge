@@ -265,13 +265,6 @@ func TestE2ESQSTarget(t *testing.T) {
 	evaluateTestCaseString(t, foundData, inputFilePath, "SQS target")
 }
 
-// Kafka:
-
-// https://docs.confluent.io/platform/current/clients/confluent-kafka-go/index.html#NewAdminClient
-// https://docs.confluent.io/platform/current/clients/confluent-kafka-go/index.html#AdminClient.CreateTopics
-
-// OR: https://pkg.go.dev/github.com/Shopify/sarama#pkg-index
-
 func TestE2EKafkaTarget(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -341,6 +334,4 @@ func TestE2EKafkaTarget(t *testing.T) {
 	evaluateTestCaseString(t, foundData, inputFilePath, "Kafka target")
 }
 
-// TODO: Look at the makefile commands - we don't need kafka for normal integration tests.
-// TODO: Add -short flag handler to all
 // TODO: Add gcp asset to all
