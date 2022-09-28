@@ -26,6 +26,9 @@ import (
 //			// Con: A fair bit of effort for perhaps not a huge payoff...
 
 func TestE2EPubsubSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	// Create topic and subscription
@@ -59,6 +62,9 @@ func TestE2EPubsubSource(t *testing.T) {
 // but this would hide the genuine issue that sqs produces unnecessary crashes.
 /*
 func TestE2ESQSSource(t *testing.T) {
+if testing.Short() {
+	t.Skip("skipping integration test")
+}
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
@@ -102,6 +108,9 @@ func TestE2ESQSSource(t *testing.T) {
 */
 
 func TestE2EKinesisSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	appName := "e2eKinesisSource"

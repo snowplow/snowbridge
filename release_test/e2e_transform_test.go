@@ -75,6 +75,9 @@ func evaluateTestCasePK(t *testing.T, actual []byte, testCase string) {
 }
 
 func TestE2ETransformTSVCases(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct", "jsPlainFilter", "jsPlainTransform", "luaPlainFilter", "luaPlainTransform"}
@@ -101,6 +104,9 @@ func TestE2ETransformTSVCases(t *testing.T) {
 }
 
 func TestE2ETransformJSONCases(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	casesToTest := []string{"spEnrichedToJson", "jsSnowplowFilter", "jsSnowplowTransform", "luaSnowplowFilter"}
@@ -130,6 +136,9 @@ func TestE2ETransformJSONCases(t *testing.T) {
 }
 
 func TestE2ETransformPKCases(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk", "luaSnowplowSetPk"}

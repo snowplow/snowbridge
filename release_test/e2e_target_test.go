@@ -28,6 +28,9 @@ import (
 )
 
 func TestE2EPubsubTarget(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
@@ -50,7 +53,6 @@ func TestE2EPubsubTarget(t *testing.T) {
 	receiverChannel := make(chan string)
 
 	subReceiver := func(c context.Context, msg *pubsub.Message) {
-		fmt.Println(string(msg.Data))
 		receiverChannel <- string(msg.Data) // stringify and pass to channel
 	}
 
@@ -78,6 +80,9 @@ receiveLoop:
 }
 
 func TestE2EHttpTarget(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	var foundData []string
@@ -135,6 +140,9 @@ func TestE2EHttpTarget(t *testing.T) {
 }
 
 func TestE2EKinesisTarget(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	appName := "e2eKinesisTarget"
@@ -195,6 +203,9 @@ func TestE2EKinesisTarget(t *testing.T) {
 }
 
 func TestE2ESQSTarget(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
@@ -262,6 +273,9 @@ func TestE2ESQSTarget(t *testing.T) {
 // OR: https://pkg.go.dev/github.com/Shopify/sarama#pkg-index
 
 func TestE2EKafkaTarget(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 	assert := assert.New(t)
 
 	// Looks like it's better to use cluster admin for the create/delete: https://github.com/Shopify/sarama/blob/v1.36.0/admin.go#L16
@@ -326,3 +340,7 @@ func TestE2EKafkaTarget(t *testing.T) {
 	// Expected is equal to input.
 	evaluateTestCaseString(t, foundData, inputFilePath, "Kafka target")
 }
+
+// TODO: Look at the makefile commands - we don't need kafka for normal integration tests.
+// TODO: Add -short flag handler to all
+// TODO: Add gcp asset to all
