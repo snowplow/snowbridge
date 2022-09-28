@@ -22,7 +22,7 @@ services:
     ports:
       - "0.0.0.0:8432:8432"
 
-zookeeper:
+  zookeeper:
     image: confluentinc/cp-zookeeper:7.0.1
     container_name: zookeeper
     environment:
