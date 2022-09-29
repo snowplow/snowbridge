@@ -20,14 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: Localstack stuff seems a bit flaky. See if running a more recent version improves things.
-
-// TODO: Is it worth the effort to change all the helpers etc., so that we always use the same input data?
-//			// Pro: makes tests more consistent, can remove expected data files
-// 			// Pro: Could standardise test cases with other projects
-//			// Pro: Same input to everything = one change in one place to update all tests
-//			// Con: A fair bit of effort for perhaps not a huge payoff...
-
 func getSliceFromInput(filepath string) []string {
 	inputData, err := os.ReadFile(inputFilePath)
 	if err != nil {

@@ -24,6 +24,10 @@ import (
 var inputFilePath, inputErr = filepath.Abs("input.txt")
 
 // TODO: Extend the input data
+// Add more sample events
+// Update transformation expected_data files.
+
+// TODO: Remove unused expected_data.txt files.
 
 // TODO: Update localstack
 //	// See if it fixes sqs jank (for now - issue should still be fixed)
@@ -31,6 +35,13 @@ var inputFilePath, inputErr = filepath.Abs("input.txt")
 
 // Template used for all docker run commands
 // We pipe in input.txt regardless of whether it's used - if a source is configured it's just ignored.
+var cmdTemplate = `cat %s | docker run -i \
+--name %s \
+--network=integration_default \
+--add-host host.docker.internal:host-gateway \
+--mount type=bind,source=%s,target=/config.hcl \
+--env STREAM_REPLICATOR_CONFIG_FILE=/config.hcl %s \
+snowplow/stream-replicator-%s:` + cmd.AppVersion
 
 // explanation of arguments:
 // -i keeps stdin open
@@ -39,13 +50,6 @@ var inputFilePath, inputErr = filepath.Abs("input.txt")
 // --add-host host.docker.internal:host-gateway adds a host mapping to the container,
 // which infers and automatically maps the container's host.docker.internal IP to the host machine's localhost
 // This allows us to refer to host.docker.internal to reference the host machine's localhost in GH actions as well as on local machines
-var cmdTemplate = `cat %s | docker run -i \
---name %s \
---network=integration_default \
---add-host host.docker.internal:host-gateway \
---mount type=bind,source=%s,target=/config.hcl \
---env STREAM_REPLICATOR_CONFIG_FILE=/config.hcl %s \
-snowplow/stream-replicator-%s:` + cmd.AppVersion
 
 // Helper function to run docker command
 // This assumes that docker assets are built (make all) and integration resources exist (make integration-up)
