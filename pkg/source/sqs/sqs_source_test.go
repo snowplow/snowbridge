@@ -84,7 +84,7 @@ func TestSQSSource_ReadFailure(t *testing.T) {
 	err = source.Read(nil)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to get SQS queue URL: AWS.SimpleQueueService.NonExistentQueue: AWS.SimpleQueueService.NonExistentQueue; see the SQS docs.\n\tstatus code: 400, request id: 00000000-0000-0000-0000-000000000000", err.Error())
+		assert.Contains(err.Error(), "Failed to get SQS queue URL:")
 	}
 }
 
