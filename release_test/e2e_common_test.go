@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/snowplow-devops/stream-replicator/cmd"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,13 +42,14 @@ var cmdTemplate = `cat %s | docker run -i \
 --add-host host.docker.internal:host-gateway \
 --mount type=bind,source=%s,target=/config.hcl \
 --env STREAM_REPLICATOR_CONFIG_FILE=/config.hcl %s \
-snowplow/stream-replicator-aws:` + cmd.AppVersion
+snowplow/stream-replicator-%s:` + cmd.AppVersion
 
 // Helper function to run docker command
 // This assumes that docker assets are built (make all) and integration resources exist (make integration-up)
-func runDockerCommand(cmdTemplate string, secondsBeforeShutdown time.Duration, containerName string, configFilePath string, additionalOpts string) ([]byte, error) {
+func runDockerCommand(cmdTemplate string, secondsBeforeShutdown time.Duration, testName string, configFilePath string, binaryVersion string, additionalOpts string) ([]byte, error) {
 
-	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts)
+	containerName := testName + "-" + binaryVersion
+	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts, binaryVersion)
 
 	cmd := exec.Command("bash", "-c", cmdFull)
 
@@ -78,6 +80,8 @@ func runDockerCommand(cmdTemplate string, secondsBeforeShutdown time.Duration, c
 		rmCmd.Output()
 
 	}()
+
+	err = errors.Wrap(err, containerName+": Error running Docker Command: "+cmdFull)
 
 	return out, err
 }

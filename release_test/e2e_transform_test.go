@@ -75,38 +75,31 @@ func evaluateTestCasePK(t *testing.T, actual []byte, testCase string) {
 }
 
 func TestE2ETransformTSVCases(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
 	assert := assert.New(t)
 
 	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct", "jsPlainFilter", "jsPlainTransform", "luaPlainFilter", "luaPlainTransform"}
 
 	for _, testCase := range casesToTest {
 
-		// docker --mount command expects absolute filepath
 		configFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "config.hcl"))
 		if err != nil {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, "")
+		for _, binary := range []string{"aws", "gcp"} {
+			stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, binary, "")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error())
+			}
+			expectedFilePath := filepath.Join("cases", "transformations", testCase, "expected_data.txt")
 
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
+			data := getDataFromStdoutResult(stdOut)
+			evaluateTestCaseString(t, data, expectedFilePath, testCase+binary)
 		}
-
-		expectedFilePath := filepath.Join("cases", "transformations", testCase, "expected_data.txt")
-
-		data := getDataFromStdoutResult(stdOut)
-		evaluateTestCaseString(t, data, expectedFilePath, testCase)
 	}
 }
 
 func TestE2ETransformJSONCases(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
 	assert := assert.New(t)
 
 	casesToTest := []string{"spEnrichedToJson", "jsSnowplowFilter", "jsSnowplowTransform", "luaSnowplowFilter"}
@@ -116,29 +109,26 @@ func TestE2ETransformJSONCases(t *testing.T) {
 
 	for _, testCase := range casesToTest {
 
-		// docker --mount command expects absolute filepath
 		configFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "config.hcl"))
 		if err != nil {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, "")
+		for _, binary := range []string{"aws", "gcp"} {
+			stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, binary, "")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error())
+			}
 
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
+			expectedFilePath := filepath.Join("cases", "transformations", testCase, "expected_data.txt")
+
+			evaluateTestCaseJSON(t, stdOut, expectedFilePath, testCase+binary)
 		}
-
-		expectedFilePath := filepath.Join("cases", "transformations", testCase, "expected_data.txt")
-
-		evaluateTestCaseJSON(t, stdOut, expectedFilePath, testCase)
 	}
 
 }
 
 func TestE2ETransformPKCases(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
 	assert := assert.New(t)
 
 	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk", "luaSnowplowSetPk"}
@@ -151,12 +141,13 @@ func TestE2ETransformPKCases(t *testing.T) {
 			panic(err)
 		}
 
-		stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, "")
+		for _, binary := range []string{"aws", "gcp"} {
+			stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, binary, "")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error())
+			}
 
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for "+testCase)
+			evaluateTestCasePK(t, stdOut, testCase+binary)
 		}
-
-		evaluateTestCasePK(t, stdOut, testCase)
 	}
 }

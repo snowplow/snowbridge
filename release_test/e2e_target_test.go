@@ -27,6 +27,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO: all container names and errors should contain binary name to make debugging more manageable
+// 	//	// Container names can be done in the runDocker function
+
 func TestE2EPubsubTarget(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -44,39 +47,39 @@ func TestE2EPubsubTarget(t *testing.T) {
 
 	fmt.Println("Running docker command")
 
-	// Additional env var options allow us to connect to the pubsub emulator
-	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "pubsubTarget", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
-	}
-
 	receiverChannel := make(chan string)
 
-	subReceiver := func(c context.Context, msg *pubsub.Message) {
-		receiverChannel <- string(msg.Data) // stringify and pass to channel
-	}
-
-	subCtx, subCncl := context.WithTimeout(context.Background(), 2*time.Second) //context.WithTimeout
-	defer subCncl()
-
-	// Receive data in goroutine
-	go subscription.Receive(subCtx, subReceiver)
-
-	var foundData []string
-
-receiveLoop:
-	for {
-		select {
-		case res := <-receiverChannel:
-			foundData = append(foundData, res)
-		case <-time.After(1 * time.Second):
-			break receiveLoop // after 1s with no data, break the loop
+	for _, binary := range []string{"aws", "gcp"} {
+		// Additional env var options allow us to connect to the pubsub emulator
+		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "pubsubTarget"+binary, configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
 		}
+
+		subReceiver := func(c context.Context, msg *pubsub.Message) {
+			receiverChannel <- string(msg.Data) // stringify and pass to channel
+		}
+
+		// Receive data in goroutine
+		go subscription.Receive(context.TODO(), subReceiver)
+
+		var foundData []string
+
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+			case <-time.After(1 * time.Second):
+				break receiveLoop // after 1s with no data, break the loop
+			}
+		}
+
+		expectedFilePath := filepath.Join("cases", "targets", "pubsub", "expected_data.txt")
+
+		evaluateTestCaseString(t, foundData, expectedFilePath, "PubSub target "+binary)
 	}
 
-	expectedFilePath := filepath.Join("cases", "targets", "pubsub", "expected_data.txt")
-
-	evaluateTestCaseString(t, foundData, expectedFilePath, "PubSub target")
 }
 
 func TestE2EHttpTarget(t *testing.T) {
@@ -123,10 +126,18 @@ func TestE2EHttpTarget(t *testing.T) {
 		panic(err)
 	}
 
-	// Additional env var options allow us to connect to the pubsub emulator
-	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "httpTarget", configFilePath, "")
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+	for _, binary := range []string{"aws", "gcp"} {
+		// Additional env var options allow us to connect to the pubsub emulator
+		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "httpTarget", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		}
+
+		// Expected is equal to input.
+		evaluateTestCaseString(t, foundData, inputFilePath, "HTTP target "+binary)
+
+		// Remove data when done, so next iteration starts afresh
+		foundData = []string{}
 	}
 
 	if err := srv.Shutdown(context.TODO()); err != nil {
@@ -134,9 +145,6 @@ func TestE2EHttpTarget(t *testing.T) {
 	}
 
 	srvExitWg.Wait()
-
-	// Expected is equal to input.
-	evaluateTestCaseString(t, foundData, inputFilePath, "HTTP target")
 }
 
 func TestE2EKinesisTarget(t *testing.T) {
@@ -161,45 +169,67 @@ func TestE2EKinesisTarget(t *testing.T) {
 		panic(err)
 	}
 
-	// Additional env var options allow us to connect to the pubsub emulator
-	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "kinesisTarget", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis target")
-	}
-
 	streamDescription, err := kinesisClient.DescribeStream(&kinesis.DescribeStreamInput{StreamName: aws.String(appName)})
 	if err != nil {
 		panic(err)
 	}
 	shardID := streamDescription.StreamDescription.Shards[0].ShardId
-	// TODO: Do we want to test with more than one shard?
+	// Note: if we want to test on streams with more than one shard, this needs to change.
 
+	// iterator to start at the beginning.
 	iterator, err := kinesisClient.GetShardIterator(&kinesis.GetShardIteratorInput{
 		// Shard Id is provided when making put record(s) request.
 		ShardId:           shardID,
 		ShardIteratorType: aws.String("TRIM_HORIZON"),
-		// ShardIteratorType: aws.String("AT_SEQUENCE_NUMBER"),
-		// ShardIteratorType: aws.String("LATEST"),
-		StreamName: aws.String(appName),
+		StreamName:        aws.String(appName),
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	records, err := kinesisClient.GetRecords(&kinesis.GetRecordsInput{
-		ShardIterator: iterator.ShardIterator,
-	})
-	if err != nil {
-		panic(err)
-	}
+	seqNum := ""
+	for _, binary := range []string{"aws", "gcp"} {
+		// Additional env var options allow us to connect to the pubsub emulator
+		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "kinesisTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis target")
+		}
 
-	var foundData []string
-	for _, record := range records.Records {
-		foundData = append(foundData, string(record.Data))
-	}
+		// On the second iteration, start after the last sequence number
+		if seqNum != "" {
+			iterator, err = kinesisClient.GetShardIterator(&kinesis.GetShardIteratorInput{
+				// Shard Id is provided when making put record(s) request.
+				ShardId:                shardID,
+				ShardIteratorType:      aws.String("AFTER_SEQUENCE_NUMBER"),
+				StartingSequenceNumber: aws.String(seqNum),
+				StreamName:             aws.String(appName),
+			})
+			if err != nil {
+				panic(err)
+			}
+		}
 
-	// Expected is equal to input.
-	evaluateTestCaseString(t, foundData, inputFilePath, "Kinesis target")
+		records, err := kinesisClient.GetRecords(&kinesis.GetRecordsInput{
+			ShardIterator: iterator.ShardIterator,
+		})
+		if err != nil {
+			panic(err)
+		}
+
+		var foundData []string
+		for _, record := range records.Records {
+			if *record.SequenceNumber > seqNum {
+				seqNum = *record.SequenceNumber
+			}
+			foundData = append(foundData, string(record.Data))
+		}
+
+		// Expected is equal to input.
+		evaluateTestCaseString(t, foundData, inputFilePath, "Kinesis target "+binary)
+
+		// Remove data when done, so next iteration starts afresh
+		foundData = []string{}
+	}
 }
 
 func TestE2ESQSTarget(t *testing.T) {
@@ -223,46 +253,46 @@ func TestE2ESQSTarget(t *testing.T) {
 		panic(err)
 	}
 
-	fmt.Println("Running docker command")
+	for _, binary := range []string{"aws", "gcp"} {
+		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "sqsTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error())
+		}
 
-	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "sqsTarget", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for SQS target")
-	}
-
-	urlResult, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{
-		QueueName: aws.String(queueName),
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	var foundData []string
-
-	// since we can only fetch 10 at a time, loop until we have no data left.
-	for {
-		msgResult, err := client.ReceiveMessage(&sqs.ReceiveMessageInput{
-			MessageAttributeNames: []*string{
-				aws.String(sqs.QueueAttributeNameAll),
-			},
-			QueueUrl:            urlResult.QueueUrl,
-			MaxNumberOfMessages: aws.Int64(10),
+		urlResult, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{
+			QueueName: aws.String(queueName),
 		})
 		if err != nil {
 			panic(err)
 		}
 
-		for _, msg := range msgResult.Messages {
-			foundData = append(foundData, *msg.Body)
+		var foundData []string
+
+		// since we can only fetch 10 at a time, loop until we have no data left.
+		for {
+			msgResult, err := client.ReceiveMessage(&sqs.ReceiveMessageInput{
+				MessageAttributeNames: []*string{
+					aws.String(sqs.QueueAttributeNameAll),
+				},
+				QueueUrl:            urlResult.QueueUrl,
+				MaxNumberOfMessages: aws.Int64(10),
+			})
+			if err != nil {
+				panic(err)
+			}
+
+			for _, msg := range msgResult.Messages {
+				foundData = append(foundData, *msg.Body)
+			}
+
+			if len(msgResult.Messages) == 0 {
+				break
+			}
 		}
 
-		if len(msgResult.Messages) == 0 {
-			break
-		}
+		// Expected is equal to input.
+		evaluateTestCaseString(t, foundData, inputFilePath, "SQS target "+binary)
 	}
-
-	// Expected is equal to input.
-	evaluateTestCaseString(t, foundData, inputFilePath, "SQS target")
 }
 
 func TestE2EKafkaTarget(t *testing.T) {
@@ -293,13 +323,6 @@ func TestE2EKafkaTarget(t *testing.T) {
 		panic(err)
 	}
 
-	fmt.Println("Running docker command")
-
-	_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "kafkaTarget", configFilePath, "")
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for Kafka target")
-	}
-
 	// Set up consumer
 
 	// We use localhost:9092 here as we're running from host machine.
@@ -318,18 +341,25 @@ func TestE2EKafkaTarget(t *testing.T) {
 
 	msgChan := partitionConsumer.Messages()
 
-	// start a goroutine to stop consuming messages
+	for _, binary := range []string{"aws", "gcp"} {
+		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "kafkaTarget", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error())
+		}
 
-	go func() {
-		time.Sleep(3 * time.Second)
-		partitionConsumer.AsyncClose()
-	}()
+		var foundData []string
+	receiveLoop:
+		for {
+			select {
+			case res := <-msgChan:
+				foundData = append(foundData, string(res.Value))
+			case <-time.After(1 * time.Second):
+				break receiveLoop // after 1s with no data, break the loop
+			}
+		}
 
-	var foundData []string
-	for msg := range msgChan {
-		foundData = append(foundData, string(msg.Value))
+		// Expected is equal to input.
+		evaluateTestCaseString(t, foundData, inputFilePath, "Kafka target "+binary)
 	}
-
-	// Expected is equal to input.
-	evaluateTestCaseString(t, foundData, inputFilePath, "Kafka target")
+	partitionConsumer.AsyncClose()
 }

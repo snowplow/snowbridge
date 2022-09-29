@@ -35,26 +35,28 @@ func TestE2EPubsubSource(t *testing.T) {
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-pubsub-source-topic", "e2e-pubsub-source-subscription")
 	defer topic.Delete(context.Background())
 	defer subscription.Delete(context.Background())
-	// Write to topic
-	testutil.WriteToPubSubTopic(t, topic, 50)
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "pubsub", "config.hcl"))
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Running docker command")
+	for _, binary := range []string{"aws", "gcp"} {
+		// Write to topic
+		testutil.WriteToPubSubTopic(t, topic, 50)
 
-	// Additional env var options allow us to connect to the pubsub emulator
-	stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "pubsubSource", configFilePath, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
+		// Additional env var options allow us to connect to the pubsub emulator
+		stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "pubsubSource", configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error())
+		}
+
+		expectedFilePath := filepath.Join("cases", "sources", "pubsub", "expected_data.txt")
+
+		data := getDataFromStdoutResult(stdOut)
+		evaluateTestCaseString(t, data, expectedFilePath, "PubSub source "+binary)
 	}
 
-	expectedFilePath := filepath.Join("cases", "sources", "pubsub", "expected_data.txt")
-
-	data := getDataFromStdoutResult(stdOut)
-	evaluateTestCaseString(t, data, expectedFilePath, "PubSub source")
 }
 
 // Commented out as it fails due to: https://github.com/snowplow-devops/stream-replicator/issues/215
@@ -65,6 +67,8 @@ func TestE2ESQSSource(t *testing.T) {
 if testing.Short() {
 	t.Skip("skipping integration test")
 }
+
+// TODO: Test both binaries in this test
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
@@ -84,7 +88,7 @@ if testing.Short() {
 
 	fmt.Println("Running docker command")
 
-	stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "sqsSource", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "sqsSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for SQS source")
 		// We seem to keep hitting 'connection reset by peer' error, which kills the job.
@@ -146,17 +150,16 @@ func TestE2EKinesisSource(t *testing.T) {
 		panic(err)
 	}
 
-	fmt.Println("Running docker command")
+	// Kinesis source may only use the aws binary
 
 	// 3 seconds isn't enough time to wait for this test it seems.
-	stdOut, cmdErr := runDockerCommand(cmdTemplate, 10*time.Second, "kinesisSource", configFilePath, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	stdOut, cmdErr := runDockerCommand(cmdTemplate, 10*time.Second, "kinesisSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis source")
-		// TODO: These errors could probably reference the command I guess?
+		assert.Fail(cmdErr.Error())
 	}
 
 	expectedFilePath := filepath.Join("cases", "sources", "kinesis", "expected_data.txt")
 
 	data := getDataFromStdoutResult(stdOut)
-	evaluateTestCaseString(t, data, expectedFilePath, "Kinesis source")
+	evaluateTestCaseString(t, data, expectedFilePath, "Kinesis source aws")
 }
