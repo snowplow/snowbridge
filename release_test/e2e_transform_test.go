@@ -87,7 +87,7 @@ func TestE2ETransformTSVCases(t *testing.T) {
 		}
 
 		for _, binary := range []string{"aws", "gcp"} {
-			stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, binary, "")
+			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, "")
 			if cmdErr != nil {
 				assert.Fail(cmdErr.Error())
 			}
@@ -115,7 +115,7 @@ func TestE2ETransformJSONCases(t *testing.T) {
 		}
 
 		for _, binary := range []string{"aws", "gcp"} {
-			stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, binary, "")
+			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, "")
 			if cmdErr != nil {
 				assert.Fail(cmdErr.Error())
 			}
@@ -142,7 +142,7 @@ func TestE2ETransformPKCases(t *testing.T) {
 		}
 
 		for _, binary := range []string{"aws", "gcp"} {
-			stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, testCase, configFilePath, binary, "")
+			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, "")
 			if cmdErr != nil {
 				assert.Fail(cmdErr.Error())
 			}

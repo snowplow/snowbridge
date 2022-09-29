@@ -27,9 +27,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: all container names and errors should contain binary name to make debugging more manageable
-// 	//	// Container names can be done in the runDocker function
-
 func TestE2EPubsubTarget(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -51,7 +48,7 @@ func TestE2EPubsubTarget(t *testing.T) {
 
 	for _, binary := range []string{"aws", "gcp"} {
 		// Additional env var options allow us to connect to the pubsub emulator
-		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "pubsubTarget"+binary, configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
+		_, cmdErr := runDockerCommand(3*time.Second, "pubsubTarget"+binary, configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
 		}
@@ -128,7 +125,7 @@ func TestE2EHttpTarget(t *testing.T) {
 
 	for _, binary := range []string{"aws", "gcp"} {
 		// Additional env var options allow us to connect to the pubsub emulator
-		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "httpTarget", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 		}
@@ -190,7 +187,7 @@ func TestE2EKinesisTarget(t *testing.T) {
 	seqNum := ""
 	for _, binary := range []string{"aws", "gcp"} {
 		// Additional env var options allow us to connect to the pubsub emulator
-		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "kinesisTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+		_, cmdErr := runDockerCommand(3*time.Second, "kinesisTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis target")
 		}
@@ -254,7 +251,7 @@ func TestE2ESQSTarget(t *testing.T) {
 	}
 
 	for _, binary := range []string{"aws", "gcp"} {
-		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "sqsTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+		_, cmdErr := runDockerCommand(3*time.Second, "sqsTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error())
 		}
@@ -342,7 +339,7 @@ func TestE2EKafkaTarget(t *testing.T) {
 	msgChan := partitionConsumer.Messages()
 
 	for _, binary := range []string{"aws", "gcp"} {
-		_, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "kafkaTarget", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(3*time.Second, "kafkaTarget", configFilePath, binary, "")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error())
 		}

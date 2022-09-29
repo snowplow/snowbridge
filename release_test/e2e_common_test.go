@@ -25,9 +25,8 @@ var inputFilePath, inputErr = filepath.Abs("input.txt")
 
 // TODO: Add a testmain to panic if inputErr != nil.
 
-// TODO: cmdTemplate doesn't need to be an argument to runDockerCommand if we are able to use the same template for all.
-
-// TODO: Add gcp asset to all
+// Template used for all docker run commands
+// We pipe in input.txt regardless of whether it's used - if a source is configured it's just ignored.
 
 // explanation of arguments:
 // -i keeps stdin open
@@ -46,7 +45,7 @@ snowplow/stream-replicator-%s:` + cmd.AppVersion
 
 // Helper function to run docker command
 // This assumes that docker assets are built (make all) and integration resources exist (make integration-up)
-func runDockerCommand(cmdTemplate string, secondsBeforeShutdown time.Duration, testName string, configFilePath string, binaryVersion string, additionalOpts string) ([]byte, error) {
+func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, configFilePath string, binaryVersion string, additionalOpts string) ([]byte, error) {
 
 	containerName := testName + "-" + binaryVersion
 	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts, binaryVersion)

@@ -46,7 +46,7 @@ func TestE2EPubsubSource(t *testing.T) {
 		testutil.WriteToPubSubTopic(t, topic, 50)
 
 		// Additional env var options allow us to connect to the pubsub emulator
-		stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "pubsubSource", configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
+		stdOut, cmdErr := runDockerCommand(3*time.Second, "pubsubSource", configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error())
 		}
@@ -88,7 +88,7 @@ if testing.Short() {
 
 	fmt.Println("Running docker command")
 
-	stdOut, cmdErr := runDockerCommand(cmdTemplate, 3*time.Second, "sqsSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	stdOut, cmdErr := runDockerCommand( 3*time.Second, "sqsSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error(), "Docker run returned error for SQS source")
 		// We seem to keep hitting 'connection reset by peer' error, which kills the job.
@@ -153,7 +153,7 @@ func TestE2EKinesisSource(t *testing.T) {
 	// Kinesis source may only use the aws binary
 
 	// 3 seconds isn't enough time to wait for this test it seems.
-	stdOut, cmdErr := runDockerCommand(cmdTemplate, 10*time.Second, "kinesisSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	stdOut, cmdErr := runDockerCommand(10*time.Second, "kinesisSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error())
 	}
