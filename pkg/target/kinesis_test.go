@@ -37,7 +37,7 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 	writeRes, err := target.Write(messages)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Error writing messages to Kinesis stream: 1 error occurred:\n\t* Failed to send message batch to Kinesis stream: ResourceNotFoundException: Stream not-exists under account 000000000000 not found.\n\n", err.Error())
+		assert.Contains(err.Error(), "Error writing messages to Kinesis stream: 1 error occurred:")
 	}
 	assert.NotNil(writeRes)
 
