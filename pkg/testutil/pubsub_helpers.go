@@ -107,6 +107,33 @@ func WriteToPubSubTopic(t *testing.T, topic *pubsub.Topic, numMsgs int) {
 	wg.Wait()
 }
 
+// WriteProvidedDataToPubSubTopic writes the provided data to a provided PubSub topic, blocking until all msgs are sent
+func WriteProvidedDataToPubSubTopic(t *testing.T, topic *pubsub.Topic, data []string) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
+
+	var wg sync.WaitGroup
+	var totalErrors uint64
+
+	// publish n messages
+	for _, msg := range data {
+		wg.Add(1)
+		result := topic.Publish(ctx, &pubsub.Message{
+			Data: []byte(msg),
+		})
+		go func(res *pubsub.PublishResult) {
+			defer wg.Done()
+			_, err := res.Get(ctx)
+			if err != nil {
+				atomic.AddUint64(&totalErrors, 1)
+				return
+			}
+		}(result)
+	}
+
+	wg.Wait()
+}
+
 // CreatePubsubResourcesAndWrite creates PubSub integration resources, and writes numMsgs
 func CreatePubsubResourcesAndWrite(numMsgs int, topicName string, t *testing.T) {
 	topic, _ := CreatePubSubTopicAndSubscription(t, topicName, "test-sub")

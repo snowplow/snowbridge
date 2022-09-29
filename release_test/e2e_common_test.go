@@ -23,8 +23,6 @@ import (
 
 var inputFilePath, inputErr = filepath.Abs("input.txt")
 
-// TODO: Refactor to always use the same input data
-
 // TODO: Extend the input data
 
 // TODO: Update localstack

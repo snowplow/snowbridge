@@ -9,7 +9,9 @@ package releasetest
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,11 +21,21 @@ import (
 )
 
 // TODO: Localstack stuff seems a bit flaky. See if running a more recent version improves things.
+
 // TODO: Is it worth the effort to change all the helpers etc., so that we always use the same input data?
 //			// Pro: makes tests more consistent, can remove expected data files
 // 			// Pro: Could standardise test cases with other projects
 //			// Pro: Same input to everything = one change in one place to update all tests
 //			// Con: A fair bit of effort for perhaps not a huge payoff...
+
+func getSliceFromInput(filepath string) []string {
+	inputData, err := os.ReadFile(inputFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	return strings.Split(string(inputData), "\n")
+}
 
 func TestE2EPubsubSource(t *testing.T) {
 	if testing.Short() {
@@ -41,9 +53,11 @@ func TestE2EPubsubSource(t *testing.T) {
 		panic(err)
 	}
 
+	dataToSend := getSliceFromInput(inputFilePath)
+
 	for _, binary := range []string{"aws", "gcp"} {
-		// Write to topic
-		testutil.WriteToPubSubTopic(t, topic, 50)
+
+		testutil.WriteProvidedDataToPubSubTopic(t, topic, dataToSend)
 
 		// Additional env var options allow us to connect to the pubsub emulator
 		stdOut, cmdErr := runDockerCommand(3*time.Second, "pubsubSource", configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
@@ -51,10 +65,9 @@ func TestE2EPubsubSource(t *testing.T) {
 			assert.Fail(cmdErr.Error())
 		}
 
-		expectedFilePath := filepath.Join("cases", "sources", "pubsub", "expected_data.txt")
-
 		data := getDataFromStdoutResult(stdOut)
-		evaluateTestCaseString(t, data, expectedFilePath, "PubSub source "+binary)
+		// Output should exactly match input.
+		evaluateTestCaseString(t, data, inputFilePath, "PubSub source "+binary)
 	}
 
 }
@@ -121,7 +134,6 @@ func TestE2EKinesisSource(t *testing.T) {
 
 	ddbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	fmt.Println("Got client...")
 	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(ddbClient, appName)
 	if ddbErr != nil {
 		panic(ddbErr)
@@ -137,7 +149,9 @@ func TestE2EKinesisSource(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName)
 
-	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, appName, "e2e test Kinesis")
+	dataToSend := getSliceFromInput(inputFilePath)
+
+	putErr := testutil.PutProvidedDataIntoKinesis(kinesisClient, appName, dataToSend)
 	if putErr != nil {
 		panic(putErr)
 	}
@@ -158,8 +172,7 @@ func TestE2EKinesisSource(t *testing.T) {
 		assert.Fail(cmdErr.Error())
 	}
 
-	expectedFilePath := filepath.Join("cases", "sources", "kinesis", "expected_data.txt")
-
 	data := getDataFromStdoutResult(stdOut)
-	evaluateTestCaseString(t, data, expectedFilePath, "Kinesis source aws")
+	// Output should exactly match input.
+	evaluateTestCaseString(t, data, inputFilePath, "Kinesis source aws")
 }

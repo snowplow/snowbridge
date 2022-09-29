@@ -205,3 +205,15 @@ func PutNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, stream
 	}
 	return nil
 }
+
+// PutProvidedDataIntoKinesis puts n records into a kinesis stream. The records will contain `{dataPrefix} {n}` as their data.
+func PutProvidedDataIntoKinesis(kinesisClient kinesisiface.KinesisAPI, streamName string, data []string) error {
+	// Put N records into kinesis stream
+	for _, msg := range data {
+		_, err := kinesisClient.PutRecord(&kinesis.PutRecordInput{Data: []byte(msg), PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
