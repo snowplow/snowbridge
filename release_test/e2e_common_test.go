@@ -23,7 +23,13 @@ import (
 
 var inputFilePath, inputErr = filepath.Abs("input.txt")
 
-// TODO: Add a testmain to panic if inputErr != nil.
+// TODO: Refactor to always use the same input data
+
+// TODO: Extend the input data
+
+// TODO: Update localstack
+//	// See if it fixes sqs jank (for now - issue should still be fixed)
+// https://github.com/localstack/localstack/releases/tag/v1.0.0
 
 // Template used for all docker run commands
 // We pipe in input.txt regardless of whether it's used - if a source is configured it's just ignored.
@@ -46,6 +52,10 @@ snowplow/stream-replicator-%s:` + cmd.AppVersion
 // Helper function to run docker command
 // This assumes that docker assets are built (make all) and integration resources exist (make integration-up)
 func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, configFilePath string, binaryVersion string, additionalOpts string) ([]byte, error) {
+	if inputErr != nil {
+		errors.Wrap(inputErr, "Error getting input file: ")
+		panic(inputErr)
+	}
 
 	containerName := testName + "-" + binaryVersion
 	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts, binaryVersion)
