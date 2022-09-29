@@ -32,6 +32,9 @@ var inputFilePath, inputErr = filepath.Abs("input.txt")
 // -i keeps stdin open
 // --mount mounts the config file
 // --env sets env var for config file resolution
+// --add-host host.docker.internal:host-gateway adds a host mapping to the container,
+// which infers and automatically maps the container's host.docker.internal IP to the host machine's localhost
+// This allows us to refer to host.docker.internal to reference the host machine's localhost in GH actions as well as on local machines
 var cmdTemplate = `cat %s | docker run -i \
 --name %s \
 --network=integration_default \
@@ -55,9 +58,7 @@ func runDockerCommand(cmdTemplate string, secondsBeforeShutdown time.Duration, c
 	// a) source tests don't self-stop
 	// b) if some other test hangs for whatever reason, we should exit and fail (exiting isn't a feature we need to test for)
 	// Note that for the test which use stdin source, we expect to exit with a stopped container before we get to this function - and so it won't be called.
-
 	go func() {
-		// TODO: Make this configurable
 		time.Sleep(secondsBeforeShutdown)
 		cmd := exec.Command("bash", "-c", "docker stop "+containerName)
 
