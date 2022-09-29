@@ -8,7 +8,6 @@ package releasetest
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,54 +66,41 @@ func TestE2EPubsubSource(t *testing.T) {
 // Commented out as it fails due to: https://github.com/snowplow-devops/stream-replicator/issues/215
 // We could make this pass if we inored error coming from runDockerCommand,
 // but this would hide the genuine issue that sqs produces unnecessary crashes.
-/*
-func TestE2ESQSSource(t *testing.T) {
-if testing.Short() {
-	t.Skip("skipping integration test")
-}
 
-// TODO: Test both binaries in this test
+func TestE2ESQSSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	fmt.Println("Setting up queue")
-
 	queueName := "sqs-queue-e2e-source"
-	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 10, "Hello SQS!!")
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
+	res, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
+	if err != nil {
+		panic(err)
+	}
 
-	fmt.Println("Done setting up queue")
+	dataToSend := getSliceFromInput(inputFilePath)
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "sqs", "config.hcl"))
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Running docker command")
+	for _, binary := range []string{"aws", "gcp"} {
+		testutil.PutProvidedDataIntoSQS(client, *res.QueueUrl, dataToSend)
 
-	stdOut, cmdErr := runDockerCommand( 3*time.Second, "sqsSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error(), "Docker run returned error for SQS source")
-		// We seem to keep hitting 'connection reset by peer' error, which kills the job.
-		// We're still getting the 10 messages back though. Hard to determine what's causing it...
-		// fmt.Println(string(stdOut))
-
-		// Looks like it's related to this:
-		// Connection reset is classed as non-retryable as requests may not be idempotent.
-		// In our case, requests are idempotent, so we can just instrument a retryer for this.
-
-		// https://github.com/aws/aws-sdk-go/issues/3027#issuecomment-567269161
-		// https://github.com/aws/aws-sdk-go/issues/3971
-		// https://pkg.go.dev/github.com/aws/aws-sdk-go/aws/request#Retryer
+		stdOut, cmdErr := runDockerCommand(3*time.Second, "sqsSource", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for SQS source")
+		}
+		data := getDataFromStdoutResult(stdOut)
+		evaluateTestCaseString(t, data, inputFilePath, "SQS source "+binary)
 	}
 
-	expectedFilePath := filepath.Join("cases", "sources", "sqs", "expected_data.txt")
-
-	data := getDataFromStdoutResult(stdOut)
-	evaluateTestCaseString(t, data, expectedFilePath, "SQS source")
 }
-*/
 
 func TestE2EKinesisSource(t *testing.T) {
 	if testing.Short() {
@@ -147,9 +133,6 @@ func TestE2EKinesisSource(t *testing.T) {
 	if putErr != nil {
 		panic(putErr)
 	}
-
-	fmt.Println("Data done")
-	fmt.Println("Done setting up resources")
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kinesis", "config.hcl"))
 	if err != nil {

@@ -180,6 +180,17 @@ func SetupAWSLocalstackSQSQueueWithMessages(client sqsiface.SQSAPI, queueName st
 	return res.QueueUrl
 }
 
+// PutProvidedDataIntoSQS puts the provided data into an SQS queue
+func PutProvidedDataIntoSQS(client sqsiface.SQSAPI, queueURL string, data []string) {
+	for _, msg := range data {
+		client.SendMessage(&sqs.SendMessageInput{
+			DelaySeconds: aws.Int64(0),
+			MessageBody:  aws.String(msg),
+			QueueUrl:     aws.String(queueURL),
+		})
+	}
+}
+
 // CreateAWSLocalstackSQSQueue creates a new SQS queue
 func CreateAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueName string) (*sqs.CreateQueueOutput, error) {
 	return client.CreateQueue(&sqs.CreateQueueInput{
