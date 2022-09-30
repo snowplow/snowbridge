@@ -1,11 +1,11 @@
 transform {
   use "spEnrichedFilterUnstructEvent" {
 
-    unstruct_event_name = "add_to_cart"
+    unstruct_event_name = "link_click"
 
-    custom_field_path = "sku"
+    custom_field_path = "targetUrl"
 
-    regex = "item41"
+    regex = "^https"
   }
 }
 

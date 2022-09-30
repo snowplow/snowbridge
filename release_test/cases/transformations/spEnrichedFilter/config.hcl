@@ -1,7 +1,7 @@
 transform {
   use "spEnrichedFilter" {
     atomic_field = "app_id"
-    regex = "^test-data1$"
+    regex = "^aid_6"
   }
 }
 
