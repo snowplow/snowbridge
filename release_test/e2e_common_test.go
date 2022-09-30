@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/snowplow-devops/stream-replicator/cmd"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var inputFilePath, inputErr = filepath.Abs("input.txt")
@@ -28,10 +29,6 @@ var inputFilePath, inputErr = filepath.Abs("input.txt")
 // Update transformation expected_data files.
 
 // TODO: Remove unused expected_data.txt files.
-
-// TODO: Update localstack
-//	// See if it fixes sqs jank (for now - issue should still be fixed)
-// https://github.com/localstack/localstack/releases/tag/v1.0.0
 
 // Template used for all docker run commands
 // We pipe in input.txt regardless of whether it's used - if a source is configured it's just ignored.
@@ -125,7 +122,7 @@ func evaluateTestCaseString(t *testing.T, foundData []string, expectedFilePath s
 	expectedData := strings.Split(string(expectedChunk), "\n")
 
 	// Check that we got the correct number of results
-	assert.Equal(len(expectedData), len(foundData), testCase)
+	require.Equal(t, len(expectedData), len(foundData), testCase)
 
 	// Check that the data is equal
 	sort.Strings(expectedData)

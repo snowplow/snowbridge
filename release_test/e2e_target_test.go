@@ -72,9 +72,7 @@ func TestE2EPubsubTarget(t *testing.T) {
 			}
 		}
 
-		expectedFilePath := filepath.Join("cases", "targets", "pubsub", "expected_data.txt")
-
-		evaluateTestCaseString(t, foundData, expectedFilePath, "PubSub target "+binary)
+		evaluateTestCaseString(t, foundData, inputFilePath, "PubSub target "+binary)
 	}
 
 }
@@ -85,7 +83,9 @@ func TestE2EHttpTarget(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	var foundData []string
+	// size of 200 to prevent blocking which causes a lot of retrys
+	// pattern might be improvable - for now we can adjust to measure if we add more data
+	receiverChannel := make(chan string, 200)
 
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
 		srv := &http.Server{Addr: ":8998"}
@@ -96,13 +96,12 @@ func TestE2EHttpTarget(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			foundData = append(foundData, string(body))
+			receiverChannel <- string(body)
 
 		})
 
 		go func() {
 			defer wg.Done()
-
 			// always returns error. ErrServerClosed on graceful close
 			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 				log.Fatalf("ListenAndServe(): %v", err)
@@ -124,17 +123,27 @@ func TestE2EHttpTarget(t *testing.T) {
 	}
 
 	for _, binary := range []string{"aws", "gcp"} {
-		// Additional env var options allow us to connect to the pubsub emulator
+
 		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 		}
 
+		var foundData []string
+
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+			case <-time.After(1 * time.Second):
+				break receiveLoop // after 1s with no data, break the loop
+			}
+		}
+
 		// Expected is equal to input.
 		evaluateTestCaseString(t, foundData, inputFilePath, "HTTP target "+binary)
 
-		// Remove data when done, so next iteration starts afresh
-		foundData = []string{}
 	}
 
 	if err := srv.Shutdown(context.TODO()); err != nil {
@@ -144,6 +153,14 @@ func TestE2EHttpTarget(t *testing.T) {
 	srvExitWg.Wait()
 }
 
+// When we originally increased the sample size for the below test to 200 events, this failed ~1 in 5 times with:
+// fatal error: concurrent map read and map write
+// or
+// fatal error: concurrent map writes
+// Which would indicate a race condition in the test or in the kinesis target itself.
+// It was resolved by adding concurrent_writes = 1 to the stdinSource config for the test,
+// Which might indicate that it's the target. However we have this target running in production in several places and are yet to encounter it.
+// TODO: Investigate this issue.
 func TestE2EKinesisTarget(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -297,8 +314,6 @@ func TestE2EKafkaTarget(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 	assert := assert.New(t)
-
-	// Looks like it's better to use cluster admin for the create/delete: https://github.com/Shopify/sarama/blob/v1.36.0/admin.go#L16
 
 	// We use localhost:9092 here as we're running from host machine.
 	// The address in our stream replicator config is different ("broker:29092"), since they're on the shared docker network.

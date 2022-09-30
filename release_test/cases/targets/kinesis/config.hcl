@@ -1,3 +1,10 @@
+source {
+  use "stdin" {
+    concurrent_writes = 1
+  }
+}
+
+
 target {
   use "kinesis" {
 
@@ -8,3 +15,5 @@ target {
     custom_aws_edpoint = "http://integration-localstack-1:4566"
   }
 }
+
+disable_telemetry = true

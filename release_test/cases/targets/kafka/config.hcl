@@ -4,3 +4,5 @@ target {
     topic_name = "e2e-kafka-target"
   }
 }
+
+disable_telemetry = true

@@ -63,10 +63,6 @@ func TestE2EPubsubSource(t *testing.T) {
 
 }
 
-// Commented out as it fails due to: https://github.com/snowplow-devops/stream-replicator/issues/215
-// We could make this pass if we inored error coming from runDockerCommand,
-// but this would hide the genuine issue that sqs produces unnecessary crashes.
-
 func TestE2ESQSSource(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -141,8 +137,8 @@ func TestE2EKinesisSource(t *testing.T) {
 
 	// Kinesis source may only use the aws binary
 
-	// 3 seconds isn't enough time to wait for this test it seems.
-	stdOut, cmdErr := runDockerCommand(10*time.Second, "kinesisSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	// Since setup is slower for kinesis source, if this test is flaky we may need to add more time here
+	stdOut, cmdErr := runDockerCommand(5*time.Second, "kinesisSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error())
 	}

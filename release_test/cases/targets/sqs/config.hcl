@@ -8,3 +8,5 @@ target {
     custom_aws_edpoint = "http://integration-localstack-1:4566"
   }
 }
+
+disable_telemetry = true
