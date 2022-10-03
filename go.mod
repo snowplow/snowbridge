@@ -51,7 +51,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dlclark/regexp2 v1.7.0
 	github.com/dop251/goja v0.0.0-20220722151623-4765a9872229
-	github.com/goccy/go-json v0.9.10
 	github.com/hashicorp/hcl/v2 v2.13.0
 	github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1
 	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7

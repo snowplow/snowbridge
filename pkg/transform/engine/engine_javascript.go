@@ -8,13 +8,13 @@ package engine
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	goja "github.com/dop251/goja"
 	gojaparser "github.com/dop251/goja/parser"
-	gojson "github.com/goccy/go-json"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -153,7 +153,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			message.Data = []byte(protoData)
 		case map[string]interface{}:
 			// encode
-			encoded, err := gojson.MarshalWithOption(protoData, gojson.DisableHTMLEscape())
+			encoded, err := json.Marshal(protoData)
 			if err != nil {
 				message.SetError(fmt.Errorf("error encoding message data"))
 				return nil, nil, message, nil
