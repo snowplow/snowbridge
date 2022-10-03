@@ -7,8 +7,12 @@
 package engine
 
 import (
+	jsoniter "github.com/json-iterator/go"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
+
+// make a jsoniter instance that won't escape html
+var json = jsoniter.Config{}.Froze()
 
 // functionMaker is the interface that wraps the MakeFunction method
 type functionMaker interface {

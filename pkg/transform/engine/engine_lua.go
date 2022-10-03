@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	gojson "github.com/goccy/go-json"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/yuin/gluamapper"
@@ -189,7 +188,7 @@ func (e *LuaEngine) MakeFunction(funcName string) transform.TransformationFuncti
 
 		// encode
 		if encode {
-			encoded, err := gojson.MarshalWithOption(protocol.Data, gojson.DisableHTMLEscape())
+			encoded, err := json.Marshal(protocol.Data)
 			if err != nil {
 				message.SetError(fmt.Errorf("error encoding message data"))
 				return nil, nil, message, nil
