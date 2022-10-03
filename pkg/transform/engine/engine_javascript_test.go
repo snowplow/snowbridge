@@ -3,7 +3,6 @@
 // Unauthorized copying of this file via any medium is strictly prohibited.
 //
 // Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
-//
 package engine
 
 import (
@@ -19,6 +18,19 @@ import (
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
+
+type JSTestCase struct {
+	Scenario          string
+	Src               string
+	DisableSourceMaps bool
+	SpMode            bool
+	Input             *models.Message
+	InterState        interface{}
+	Expected          map[string]*models.Message
+	ExpInterState     interface{}
+	IsJSON            bool
+	Error             error
+}
 
 func TestJSLayer(t *testing.T) {
 	assert := assert.New(t)
@@ -36,15 +48,7 @@ func TestJSLayer(t *testing.T) {
 func TestJSEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
 	var testInterState interface{} = nil
 	var testSpMode = false
-	testCases := []struct {
-		Src               string
-		Scenario          string
-		DisableSourceMaps bool
-		Input             *models.Message
-		Expected          map[string]*models.Message
-		ExpInterState     interface{}
-		Error             error
-	}{
+	testCases := []JSTestCase{
 		{
 			Src: `
 function main(x) {
@@ -191,7 +195,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         string(testJsJSON),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Src: `
@@ -224,7 +229,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         string(testJsJSONChanged1),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Src: `
@@ -260,7 +266,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         string(testJsJSONChanged2),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Src: `
@@ -291,6 +298,7 @@ function main(x) {
 				"failed": nil,
 			},
 			ExpInterState: nil,
+			IsJSON:        true,
 			Error:         nil,
 		},
 		{
@@ -478,9 +486,9 @@ function main(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
@@ -488,15 +496,7 @@ function main(x) {
 func TestJSEngineMakeFunction_SpModeTrue_IntermediateNil(t *testing.T) {
 	var testInterState interface{} = nil
 	var testSpMode bool = true
-	testCases := []struct {
-		Scenario          string
-		Src               string
-		DisableSourceMaps bool
-		Input             *models.Message
-		Expected          map[string]*models.Message
-		ExpInterState     interface{}
-		Error             error
-	}{
+	testCases := []JSTestCase{
 		{
 			Scenario: "identity",
 			Src: `
@@ -522,7 +522,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         testJSMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "filtering",
@@ -674,25 +675,16 @@ function main(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
 
 func TestJSEngineMakeFunction_IntermediateState_SpModeFalse(t *testing.T) {
 	testSpMode := false
-	testCases := []struct {
-		Scenario          string
-		Src               string
-		DisableSourceMaps bool
-		Input             *models.Message
-		InterState        interface{}
-		Expected          map[string]*models.Message
-		ExpInterState     interface{}
-		Error             error
-	}{
+	testCases := []JSTestCase{
 		{
 			Scenario: "intermediateState_EngineProtocol_Map",
 			Src: `
@@ -723,7 +715,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         testJSMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_EngineProtocol_String",
@@ -755,7 +748,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         string(testJsJSON),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_not_EngineProtocol_spMode_true",
@@ -783,7 +777,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         string(testJsJSON),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_not_EngineProtocol_spMode_false",
@@ -811,7 +806,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         string(testJsJSON),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 	}
 
@@ -860,25 +856,16 @@ function main(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
 
 func TestJSEngineMakeFunction_IntermediateState_SpModeTrue(t *testing.T) {
 	testSpMode := true
-	testCases := []struct {
-		Scenario          string
-		Src               string
-		DisableSourceMaps bool
-		Input             *models.Message
-		InterState        interface{}
-		Expected          map[string]*models.Message
-		ExpInterState     interface{}
-		Error             error
-	}{
+	testCases := []JSTestCase{
 		{
 			Scenario: "intermediateState_EngineProtocol_Map",
 			Src: `
@@ -909,7 +896,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         testJSMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_EngineProtocol_String",
@@ -941,7 +929,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         string(testJsJSON),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_notEngineProtocol_notSpEnriched",
@@ -965,6 +954,7 @@ function main(x) {
 				},
 			},
 			ExpInterState: nil,
+			IsJSON:        true,
 			Error:         fmt.Errorf("Cannot parse"),
 		},
 		{
@@ -993,7 +983,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         testJSMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 	}
 
@@ -1042,25 +1033,16 @@ function main(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
 
 func TestJSEngineMakeFunction_SetPK(t *testing.T) {
 	var testInterState interface{} = nil
-	testCases := []struct {
-		Scenario          string
-		Src               string
-		DisableSourceMaps bool
-		SpMode            bool
-		Input             *models.Message
-		Expected          map[string]*models.Message
-		ExpInterState     interface{}
-		Error             error
-	}{
+	testCases := []JSTestCase{
 		{
 			Scenario: "onlySetPk_spModeTrue",
 			Src: `
@@ -1088,7 +1070,8 @@ function main(x) {
 				PartitionKey: "newPk",
 				Data:         testJSMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "onlySetPk_spModeFalse",
@@ -1194,9 +1177,9 @@ function main(x) {
 				}
 			}
 
-			assertMessagesCompareJs(t, s, tt.Expected["success"])
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"])
-			assertMessagesCompareJs(t, e, tt.Expected["failed"])
+			assertMessagesCompareJs(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
@@ -1433,7 +1416,7 @@ func testJSEngineFunc(c *JSEngineConfig) (*JSEngineConfig, error) {
 
 // Helper function to compare messages and avoid using reflect.DeepEqual
 // on errors. Compares all but the error field of messages.
-func assertMessagesCompareJs(t *testing.T, act, exp *models.Message) {
+func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJSON bool) {
 	t.Helper()
 
 	ok := false
@@ -1444,7 +1427,11 @@ func assertMessagesCompareJs(t *testing.T, act, exp *models.Message) {
 	default:
 		var dataOk bool
 		pkOk := act.PartitionKey == exp.PartitionKey
-		dataOk = reflect.DeepEqual(act.Data, exp.Data)
+		if isJSON {
+			dataOk = assert.JSONEq(t, string(exp.Data), string(act.Data))
+		} else {
+			dataOk = reflect.DeepEqual(act.Data, exp.Data)
+		}
 		cTimeOk := reflect.DeepEqual(act.TimeCreated, exp.TimeCreated)
 		pTimeOk := reflect.DeepEqual(act.TimePulled, exp.TimePulled)
 		tTimeOk := reflect.DeepEqual(act.TimeTransformed, exp.TimeTransformed)
@@ -1519,7 +1506,6 @@ var testJSMap = map[string]interface{}{
 
 var testJsTsv = []byte(`test-data<>	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	1.2.3.4				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`)
 
-//
 // corresponding JSON to previous TSV
 var testJsJSON = []byte(`{"app_id":"test-data<>","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"1.2.3.4","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
