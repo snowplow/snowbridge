@@ -1,10 +1,3 @@
-source {
-  use "stdin" {
-    concurrent_writes = 1
-  }
-}
-
-
 target {
   use "kinesis" {
 

@@ -153,14 +153,6 @@ func TestE2EHttpTarget(t *testing.T) {
 	srvExitWg.Wait()
 }
 
-// When we originally increased the sample size for the below test to 200 events, this failed ~1 in 5 times with:
-// fatal error: concurrent map read and map write
-// or
-// fatal error: concurrent map writes
-// Which would indicate a race condition in the test or in the kinesis target itself.
-// It was resolved by adding concurrent_writes = 1 to the stdinSource config for the test,
-// Which might indicate that it's the target. However we have this target running in production in several places and are yet to encounter it.
-// TODO: Investigate this issue.
 func TestE2EKinesisTarget(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -171,7 +163,7 @@ func TestE2EKinesisTarget(t *testing.T) {
 
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 
-	kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, appName, 1)
+	kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, appName, 5)
 	if kinErr != nil {
 		panic(kinErr)
 	}
@@ -187,55 +179,42 @@ func TestE2EKinesisTarget(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	shardID := streamDescription.StreamDescription.Shards[0].ShardId
+	shardDescriptions := streamDescription.StreamDescription.Shards
 	// Note: if we want to test on streams with more than one shard, this needs to change.
 
-	// iterator to start at the beginning.
-	iterator, err := kinesisClient.GetShardIterator(&kinesis.GetShardIteratorInput{
-		// Shard Id is provided when making put record(s) request.
-		ShardId:           shardID,
-		ShardIteratorType: aws.String("TRIM_HORIZON"),
-		StreamName:        aws.String(appName),
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	seqNum := ""
 	for _, binary := range []string{"aws", "gcp"} {
+		startTstamp := time.Now()
 		// Additional env var options allow us to connect to the pubsub emulator
 		_, cmdErr := runDockerCommand(3*time.Second, "kinesisTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis target")
 		}
 
-		// On the second iteration, start after the last sequence number
-		if seqNum != "" {
-			iterator, err = kinesisClient.GetShardIterator(&kinesis.GetShardIteratorInput{
+		var foundData []string
+		// Get data from each shard one by one
+		for _, shard := range shardDescriptions {
+			iterator, err := kinesisClient.GetShardIterator(&kinesis.GetShardIteratorInput{
 				// Shard Id is provided when making put record(s) request.
-				ShardId:                shardID,
-				ShardIteratorType:      aws.String("AFTER_SEQUENCE_NUMBER"),
-				StartingSequenceNumber: aws.String(seqNum),
-				StreamName:             aws.String(appName),
+				ShardId:           shard.ShardId,
+				ShardIteratorType: aws.String("AT_TIMESTAMP"),
+				Timestamp:         &startTstamp,
+				StreamName:        aws.String(appName),
 			})
 			if err != nil {
 				panic(err)
 			}
-		}
 
-		records, err := kinesisClient.GetRecords(&kinesis.GetRecordsInput{
-			ShardIterator: iterator.ShardIterator,
-		})
-		if err != nil {
-			panic(err)
-		}
-
-		var foundData []string
-		for _, record := range records.Records {
-			if *record.SequenceNumber > seqNum {
-				seqNum = *record.SequenceNumber
+			records, err := kinesisClient.GetRecords(&kinesis.GetRecordsInput{
+				ShardIterator: iterator.ShardIterator,
+			})
+			if err != nil {
+				panic(err)
 			}
-			foundData = append(foundData, string(record.Data))
+
+			for _, record := range records.Records {
+				foundData = append(foundData, string(record.Data))
+			}
+
 		}
 
 		// Expected is equal to input.
@@ -243,6 +222,8 @@ func TestE2EKinesisTarget(t *testing.T) {
 
 		// Remove data when done, so next iteration starts afresh
 		foundData = []string{}
+		// Sleep for 1 sec so our timestamp based iterator doesn't overlap tests
+		time.Sleep(1 * time.Second)
 	}
 }
 
