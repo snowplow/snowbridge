@@ -41,7 +41,7 @@ func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
 	streamName := "kinesis-source-integration-1"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
@@ -114,7 +114,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
 	streamName := "kinesis-source-integration-2"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
@@ -159,7 +159,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
 	streamName := "kinesis-source-integration-3"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
@@ -218,7 +218,7 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
 	streamName := "kinesis-source-config-integration-1"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}

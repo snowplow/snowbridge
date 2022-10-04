@@ -125,10 +125,10 @@ func GetAWSLocalstackKinesisClient() kinesisiface.KinesisAPI {
 
 // CreateAWSLocalstackKinesisStream creates a new Kinesis stream and polls until
 // the stream is in an ACTIVE state
-func CreateAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName string) error {
+func CreateAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName string, shardCount int64) error {
 	_, err := client.CreateStream(&kinesis.CreateStreamInput{
 		StreamName: aws.String(streamName),
-		ShardCount: aws.Int64(1),
+		ShardCount: aws.Int64(shardCount),
 	})
 	if err != nil {
 		return err

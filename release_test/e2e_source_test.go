@@ -116,7 +116,7 @@ func TestE2EKinesisSource(t *testing.T) {
 
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 
-	kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, appName)
+	kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, appName, 1)
 	if kinErr != nil {
 		panic(kinErr)
 	}
