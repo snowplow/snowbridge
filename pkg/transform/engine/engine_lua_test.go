@@ -20,6 +20,19 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
 
+type LuaTestCase struct {
+	Scenario      string
+	Src           string
+	Sandbox       bool
+	SpMode        bool
+	Input         *models.Message
+	InterState    interface{}
+	Expected      map[string]*models.Message
+	ExpInterState interface{}
+	IsJSON        bool
+	Error         error
+}
+
 func TestLuaLayer(t *testing.T) {
 	assert := assert.New(t)
 	layer, err := LuaEngineConfigFunction(&LuaEngineConfig{
@@ -35,15 +48,7 @@ func TestLuaLayer(t *testing.T) {
 func TestLuaEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
 	var testInterState interface{} = nil
 	var testSpMode bool = false
-	testCases := []struct {
-		Src           string
-		Scenario      string
-		Sandbox       bool
-		Input         *models.Message
-		Expected      map[string]*models.Message
-		ExpInterState interface{}
-		Error         error
-	}{
+	testCases := []LuaTestCase{
 		{
 			Src: `
 function main(x)
@@ -188,7 +193,8 @@ end
 				PartitionKey: "",
 				Data:         string(snowplowJSON1),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Src: `
@@ -227,7 +233,8 @@ end
 				PartitionKey: "",
 				Data:         string(snowplowJSON1ChangedLua),
 			},
-			Error: nil,
+			Error:  nil,
+			IsJSON: true,
 		},
 		{
 			Src: `
@@ -259,6 +266,7 @@ end
 				"failed": nil,
 			},
 			ExpInterState: nil,
+			IsJSON:        true,
 			Error:         nil,
 		},
 		{
@@ -448,9 +456,9 @@ end
 				}
 			}
 
-			assertMessagesCompareLua(t, s, tt.Expected["success"])
-			assertMessagesCompareLua(t, f, tt.Expected["filtered"])
-			assertMessagesCompareLua(t, e, tt.Expected["failed"])
+			assertMessagesCompareLua(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareLua(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareLua(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
@@ -458,15 +466,7 @@ end
 func TestLuaEngineMakeFunction_SpModeTrue_IntermediateNil(t *testing.T) {
 	var testInterState interface{} = nil
 	var testSpMode bool = true
-	testCases := []struct {
-		Scenario      string
-		Src           string
-		Sandbox       bool
-		Input         *models.Message
-		Expected      map[string]*models.Message
-		ExpInterState interface{}
-		Error         error
-	}{
+	testCases := []LuaTestCase{
 		{
 			Scenario: "main",
 			Src: `
@@ -492,7 +492,8 @@ end
 				PartitionKey: "",
 				Data:         testLuaMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "filtering",
@@ -643,25 +644,16 @@ end
 				}
 			}
 
-			assertMessagesCompareLua(t, s, tt.Expected["success"])
-			assertMessagesCompareLua(t, f, tt.Expected["filtered"])
-			assertMessagesCompareLua(t, e, tt.Expected["failed"])
+			assertMessagesCompareLua(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareLua(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareLua(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
 
 func TestLuaEngineMakeFunction_IntermediateState_SpModeFalse(t *testing.T) {
 	testSpMode := false
-	testCases := []struct {
-		Scenario      string
-		Src           string
-		Sandbox       bool
-		Input         *models.Message
-		InterState    interface{}
-		Expected      map[string]*models.Message
-		ExpInterState interface{}
-		Error         error
-	}{
+	testCases := []LuaTestCase{
 		{
 			Scenario: "intermediateState_EngineProtocol_Map",
 			Src: `
@@ -692,7 +684,8 @@ end
 				PartitionKey: "",
 				Data:         testLuaMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_EngineProtocol_String",
@@ -724,7 +717,8 @@ end
 				PartitionKey: "",
 				Data:         string(testLuaJSON),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_not_EngineProtocol_nonSpEnriched",
@@ -752,7 +746,8 @@ end
 				PartitionKey: "",
 				Data:         string(testLuaJSON),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_not_EngineProtocol_SpEnriched",
@@ -829,9 +824,9 @@ end
 				}
 			}
 
-			assertMessagesCompareLua(t, s, tt.Expected["success"])
-			assertMessagesCompareLua(t, f, tt.Expected["filtered"])
-			assertMessagesCompareLua(t, e, tt.Expected["failed"])
+			assertMessagesCompareLua(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareLua(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareLua(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
@@ -839,16 +834,7 @@ end
 func TestLuaEngineMakeFunction_IntermediateState_SpModeTrue(t *testing.T) {
 	testSpMode := true
 
-	testCases := []struct {
-		Scenario      string
-		Src           string
-		Sandbox       bool
-		Input         *models.Message
-		InterState    interface{}
-		Expected      map[string]*models.Message
-		ExpInterState interface{}
-		Error         error
-	}{
+	testCases := []LuaTestCase{
 		{
 			Scenario: "intermediateState_EngineProtocol_Map",
 			Src: `
@@ -879,7 +865,8 @@ end
 				PartitionKey: "",
 				Data:         testLuaMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_EngineProtocol_String",
@@ -911,7 +898,8 @@ end
 				PartitionKey: "",
 				Data:         string(testLuaJSON),
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "intermediateState_notEngineProtocol_notSpEnriched",
@@ -935,6 +923,7 @@ end
 				},
 			},
 			ExpInterState: nil,
+			IsJSON:        true,
 			Error:         fmt.Errorf("Cannot parse"),
 		},
 		{
@@ -963,7 +952,8 @@ end
 				PartitionKey: "",
 				Data:         testLuaMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 	}
 
@@ -1012,25 +1002,16 @@ end
 				}
 			}
 
-			assertMessagesCompareLua(t, s, tt.Expected["success"])
-			assertMessagesCompareLua(t, f, tt.Expected["filtered"])
-			assertMessagesCompareLua(t, e, tt.Expected["failed"])
+			assertMessagesCompareLua(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareLua(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareLua(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
 
 func TestLuaEngineMakeFunction_SetPK(t *testing.T) {
 	var testInterState interface{} = nil
-	testCases := []struct {
-		Scenario      string
-		Src           string
-		Sandbox       bool
-		SpMode        bool
-		Input         *models.Message
-		Expected      map[string]*models.Message
-		ExpInterState interface{}
-		Error         error
-	}{
+	testCases := []LuaTestCase{
 		{
 			Scenario: "onlySetPk_spModeTrue",
 			Src: `
@@ -1058,7 +1039,8 @@ end
 				PartitionKey: "newPk",
 				Data:         testLuaMap,
 			},
-			Error: nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Scenario: "onlySetPk_spModeFalse",
@@ -1165,9 +1147,9 @@ end
 				}
 			}
 
-			assertMessagesCompareLua(t, s, tt.Expected["success"])
-			assertMessagesCompareLua(t, f, tt.Expected["filtered"])
-			assertMessagesCompareLua(t, e, tt.Expected["failed"])
+			assertMessagesCompareLua(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareLua(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareLua(t, e, tt.Expected["failed"], tt.IsJSON)
 		})
 	}
 }
@@ -1695,7 +1677,7 @@ end
 
 // Helper function to compare messages and avoid using reflect.DeepEqual
 // on errors. Compares all but the error field of messages.
-func assertMessagesCompareLua(t *testing.T, act, exp *models.Message) {
+func assertMessagesCompareLua(t *testing.T, act, exp *models.Message, IsJSON bool) {
 	t.Helper()
 
 	ok := false
@@ -1705,7 +1687,13 @@ func assertMessagesCompareLua(t *testing.T, act, exp *models.Message) {
 	case exp == nil:
 	default:
 		pkOk := act.PartitionKey == exp.PartitionKey
-		dataOk := reflect.DeepEqual(act.Data, exp.Data)
+		var dataOk bool
+		if IsJSON {
+			dataOk = assert.JSONEq(t, string(exp.Data), string(act.Data))
+		} else {
+			dataOk = reflect.DeepEqual(act.Data, exp.Data)
+		}
+
 		cTimeOk := reflect.DeepEqual(act.TimeCreated, exp.TimeCreated)
 		pTimeOk := reflect.DeepEqual(act.TimePulled, exp.TimePulled)
 		tTimeOk := reflect.DeepEqual(act.TimeTransformed, exp.TimeTransformed)
