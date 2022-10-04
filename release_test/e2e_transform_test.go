@@ -7,6 +7,7 @@
 package releasetest
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Helper function to evaluate tests for JSON data
@@ -30,27 +32,56 @@ func evaluateTestCaseJSON(t *testing.T, actual []byte, expectedFilePath string, 
 
 	expectedData := strings.Split(string(expectedChunk), "\n")
 
-	// We sort by length as a sort of janky workaround, since for JSON we don't have a guarntee of order
-	sort.Slice(expectedData, func(i, j int) bool {
-		return len(expectedData[i]) < len(expectedData[j])
-	})
+	require.Equal(t, len(expectedData), len(foundData), testCase)
 
-	sort.Slice(foundData, func(i, j int) bool {
-		return len(foundData[i]) < len(foundData[j])
-	})
+	// Make maps of eid:data, so that we can match like for like events later
+	foundWithEids := make(map[string]string)
+	expectedWithEids := make(map[string]string)
 
-	// Check that we got the correct number of results
-	assert.Equal(len(expectedData), len(foundData), testCase)
+	for _, row := range foundData {
+		var asMap map[string]interface{}
+		err = json.Unmarshal([]byte(row), &asMap)
+		if err != nil {
+			panic(err)
+		}
+		eid, ok := asMap["event_id"].(string)
+		require.True(t, ok)
+		// Make a map entry with Eid Key
+		foundWithEids[eid] = row
 
-	for i, expected := range expectedData {
-		// Check that the data is equal
-		assert.JSONEq(expected, foundData[i], testCase)
 	}
+
+	for _, row := range expectedData {
+
+		var asMap map[string]interface{}
+		err = json.Unmarshal([]byte(row), &asMap)
+		if err != nil {
+			panic(err)
+		}
+		eid, ok := asMap["event_id"].(string)
+		require.True(t, ok)
+		expectedWithEids[eid] = row
+	}
+
+	// Iterate and assert against the values. Since we require equal lengths above, we don't need to check for entries existing in one but not the other.
+	for foundEid, foundValue := range foundWithEids {
+
+		assert.JSONEq(foundValue, expectedWithEids[foundEid], testCase)
+
+	}
+
 }
 
 // Helper function to evaluate tests for Partition Keys
-func evaluateTestCasePK(t *testing.T, actual []byte, testCase string) {
+func evaluateTestCasePK(t *testing.T, actual []byte, expectedFilePath string, testCase string) {
 	assert := assert.New(t)
+
+	expectedChunk, err := os.ReadFile(expectedFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	expectedData := strings.Split(string(expectedChunk), "\n")
 
 	// Trim trailing newline then split on newline
 	foundOutput := strings.Split(strings.TrimSuffix(string(actual), "\n"), "\n")
@@ -67,13 +98,15 @@ func evaluateTestCasePK(t *testing.T, actual []byte, testCase string) {
 
 	// We can just define the test here too
 	sort.Strings(foundData)
+	sort.Strings(expectedData)
 
-	assert.Equal(2, len(foundData))
+	//assert.Equal(2, len(foundData))
 
 	// This is simple enough to just hardcode the expected data.
-	assert.Equal([]string{"test-data1", "test-data2"}, foundData)
+	assert.Equal(expectedData, foundData)
 }
 
+// THis is failing for spEnrichedFilterUnstruct because the event_name fields in the sample are all null...
 func TestE2ETransformTSVCases(t *testing.T) {
 	assert := assert.New(t)
 
@@ -102,9 +135,9 @@ func TestE2ETransformTSVCases(t *testing.T) {
 func TestE2ETransformJSONCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedToJson", "jsSnowplowFilter", "jsSnowplowTransform", "luaSnowplowFilter"}
+	casesToTest := []string{"spEnrichedToJson", "jsSnowplowFilter", "jsSnowplowTransform"}
 
-	// TODO: skipping "luaSnowplowTransform" for now due to: https://github.com/snowplow-devops/stream-replicator/issues/214
+	// TODO: skipping "luaSnowplowTransform" and "luaSnowplowFilter" for now due to: https://github.com/snowplow-devops/stream-replicator/issues/214
 	// When that's fixed, add it back in here.
 
 	for _, testCase := range casesToTest {
@@ -128,6 +161,26 @@ func TestE2ETransformJSONCases(t *testing.T) {
 
 }
 
+/*
+// TODO: Log bug:
+
+interface conversion: interface {} is nil, not string [recovered]
+	panic: interface conversion: interface {} is nil, not string
+// Most likely occurs because stdin exits, or the container is disturbed before it's done? https://stackoverflow.com/questions/71622424/golang-panic-interface-conversion-interface-is-nil-not-string
+
+// In attempting to repro, we get only:
+
+// fatal error: found pointer to free object
+or
+// panic: runtime error: invalid memory address or nil pointer dereference
+
+This is super fishy. goccy/go-json seems potentially responsible for at least some of it.
+Alternatively it might be to do with hitting the EOF before the program is finished.
+
+// Issue pinned down to go-json package. Swapping it out for encoding/json fully resolves it.
+	// encoding/json is slower, but for now I think we sacrifice speed for reliability.
+*/
+
 func TestE2ETransformPKCases(t *testing.T) {
 	assert := assert.New(t)
 
@@ -147,7 +200,9 @@ func TestE2ETransformPKCases(t *testing.T) {
 				assert.Fail(cmdErr.Error())
 			}
 
-			evaluateTestCasePK(t, stdOut, testCase+binary)
+			expectedFilePath := filepath.Join("cases", "transformations", testCase, "expected_data.txt")
+
+			evaluateTestCasePK(t, stdOut, expectedFilePath, testCase+binary)
 		}
 	}
 }

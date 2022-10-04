@@ -1,6 +1,6 @@
 transform {
   use "spEnrichedSetPk" {
-    atomic_field = "app_id"
+    atomic_field = "event_id"
   }
 }
 

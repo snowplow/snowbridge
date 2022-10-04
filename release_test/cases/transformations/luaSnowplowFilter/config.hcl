@@ -1,8 +1,9 @@
 transform {
   use "lua" {
-    source_b64 = "ZnVuY3Rpb24gbWFpbihpbnB1dCkKICAgIGlmIGlucHV0WyJEYXRhIl1bImFwcF9pZCJdIH49ICJ0ZXN0LWRhdGExIiB0aGVuCiAgICAgICAgcmV0dXJuIHtGaWx0ZXJPdXQgPSB0cnVlfQogICAgZWxzZQogICAgICAgIHJldHVybiBpbnB1dAogICAgZW5kCmVuZA=="
+    source_b64 = "ZnVuY3Rpb24gbWFpbihpbnB1dCkKCiAgICBhaWQgPSBpbnB1dC5EYXRhLmFwcF9pZAogICAgaWYgYWlkIH49IG5pbCBhbmQgc3RyaW5nLmZpbmQoIGFpZCwgImFpZF82IiwgMCwgdHJ1ZSkgfj0gbmlsIHRoZW4KCiAgICAgICAgcmV0dXJuIGlucHV0CiAgICBlbHNlCiAgICAgICAgcmV0dXJuIHtGaWx0ZXJPdXQgPSB0cnVlfQogICAgZW5kCmVuZA=="
     
-    snowplow_mode       = true # Snowplow mode enabled - this transforms the tsv to an object on input
+    snowplow_mode       = true 
+    sandbox = false
   }
 }
 
