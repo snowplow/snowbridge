@@ -161,26 +161,6 @@ func TestE2ETransformJSONCases(t *testing.T) {
 
 }
 
-/*
-// TODO: Log bug:
-
-interface conversion: interface {} is nil, not string [recovered]
-	panic: interface conversion: interface {} is nil, not string
-// Most likely occurs because stdin exits, or the container is disturbed before it's done? https://stackoverflow.com/questions/71622424/golang-panic-interface-conversion-interface-is-nil-not-string
-
-// In attempting to repro, we get only:
-
-// fatal error: found pointer to free object
-or
-// panic: runtime error: invalid memory address or nil pointer dereference
-
-This is super fishy. goccy/go-json seems potentially responsible for at least some of it.
-Alternatively it might be to do with hitting the EOF before the program is finished.
-
-// Issue pinned down to go-json package. Swapping it out for encoding/json fully resolves it.
-	// encoding/json is slower, but for now I think we sacrifice speed for reliability.
-*/
-
 func TestE2ETransformPKCases(t *testing.T) {
 	assert := assert.New(t)
 
