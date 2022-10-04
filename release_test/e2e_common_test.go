@@ -24,12 +24,6 @@ import (
 
 var inputFilePath, inputErr = filepath.Abs("input.txt")
 
-// TODO: Extend the input data
-// Add more sample events
-// Update transformation expected_data files.
-
-// TODO: Remove unused expected_data.txt files.
-
 // Template used for all docker run commands
 // We pipe in input.txt regardless of whether it's used - if a source is configured it's just ignored.
 var cmdTemplate = `cat %s | docker run -i \
@@ -51,6 +45,7 @@ snowplow/stream-replicator-%s:` + cmd.AppVersion
 // Helper function to run docker command
 // This assumes that docker assets are built (make all) and integration resources exist (make integration-up)
 func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, configFilePath string, binaryVersion string, additionalOpts string) ([]byte, error) {
+	// Check for inputErr as it won't throw outside the function
 	if inputErr != nil {
 		errors.Wrap(inputErr, "Error getting input file: ")
 		panic(inputErr)
