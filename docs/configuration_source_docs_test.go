@@ -111,6 +111,8 @@ func testFullSourceConfig(t *testing.T, filepath string) {
 		return
 	}
 
+	// TODO: We can replace this with checkComponentForZeros.
+
 	// Indirect dereferences the pointer for us
 	valOfRslt := reflect.Indirect(reflect.ValueOf(result))
 	typeOfRslt := valOfRslt.Type()
