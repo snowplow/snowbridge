@@ -9,10 +9,8 @@ package docs
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"
@@ -24,21 +22,16 @@ import (
 func TestMonitoringDocumentation(t *testing.T) {
 	assert := assert.New(t)
 
-	markdownFilePath := filepath.Join("documentation", "configuration", "monitoring", "monitoring.md")
+	statsDFilePath := filepath.Join("documentation-examples", "configuration", "monitoring", "statsd-example.hcl")
 
-	fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
+	statsDConf := getConfigFromFilepath(t, statsDFilePath)
 
-	// Since all code blocks are separate here we can just join them into one
-	codeBlock := strings.Join(fencedBlocksFound, "\n")
-
-	c := createConfigFromCodeBlock(t, codeBlock)
-
-	use := c.Data.StatsReceiver.Receiver
+	use := statsDConf.Data.StatsReceiver.Receiver
 	decoderOptsFull := &config.DecoderOptions{
 		Input: use.Body,
 	}
 
-	statsd, err := c.CreateComponent(MockAdaptStatsDStatsReceiverNoDefaults(), decoderOptsFull)
+	statsd, err := statsDConf.CreateComponent(MockAdaptStatsDStatsReceiverNoDefaults(), decoderOptsFull)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -49,31 +42,22 @@ func TestMonitoringDocumentation(t *testing.T) {
 	checkComponentForZeros(t, statsd)
 
 	// Check the config values that are outside the statsreceiver part
-	assert.NotZero(c.Data.StatsReceiver.BufferSec)
-	assert.NotZero(c.Data.StatsReceiver.TimeoutSec)
+	assert.NotZero(statsDConf.Data.StatsReceiver.BufferSec)
+	assert.NotZero(statsDConf.Data.StatsReceiver.TimeoutSec)
+
+	loglevelFilePath := filepath.Join("documentation-examples", "configuration", "monitoring", "log-level-example.hcl")
+
+	loglevelConf := getConfigFromFilepath(t, loglevelFilePath)
 
 	// Check that loglevel isn't the default.
-	assert.NotEqual("info", c.Data.LogLevel)
+	assert.NotEqual("info", loglevelConf.Data.LogLevel)
 
 	// Repeating some code from  createConfigFromCodeBlock here so we can call init.
 	// We can prob factor better.
 
-	tmpConfigPath := filepath.Join("tmp", "config.hcl")
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", tmpConfigPath)
+	sentryFilePath := filepath.Join("documentation-examples", "configuration", "monitoring", "sentry-example.hcl")
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", sentryFilePath)
 
-	configFile, err := os.Create(tmpConfigPath)
-	if err != nil {
-		panic(err)
-	}
-
-	defer configFile.Close()
-
-	// Write shortest one to minimal
-	_, err2 := configFile.WriteString(codeBlock)
-	if err != nil {
-		assert.Fail(err.Error())
-		panic(err2)
-	}
 	// Since sentry lives in cmd, we call Init to test it.
 	cfgSentry, sentryEnabled, initErr := cmd.Init()
 
