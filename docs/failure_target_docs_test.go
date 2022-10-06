@@ -99,10 +99,10 @@ import (
 */
 
 // This is used in the configuration overview test so we keep it.
-func testFullFailureTargetConfig(t *testing.T, codeBlock string) {
+func testFullFailureTargetConfig(t *testing.T, filepath string) {
 	assert := assert.New(t)
 
-	c := createConfigFromCodeBlock(t, codeBlock)
+	c := getConfigFromFilepath(t, filepath)
 
 	use := c.Data.FailureTarget.Target
 	decoderOpts := &config.DecoderOptions{

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/snowplow-devops/stream-replicator/config"
@@ -20,7 +19,6 @@ import (
 )
 
 func TestTargetDocumentation(t *testing.T) {
-	assert := assert.New(t)
 
 	// Set env vars referenced in the config examples
 	t.Setenv("MY_AUTH_PASSWORD", "test")
@@ -31,33 +29,22 @@ func TestTargetDocumentation(t *testing.T) {
 	for _, tgt := range targetsToTest {
 
 		// Read file:
-		markdownFilePath := filepath.Join("documentation", "configuration", "targets", tgt+".md")
-
-		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
-
-		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
-		assert.LessOrEqual(len(fencedBlocksFound), 2, "Unexpected number of hcl blocks found")
-
-		// Sort by length to determine which is the minimal example.
-		sort.Slice(fencedBlocksFound, func(i, j int) bool {
-			return len(fencedBlocksFound[i]) < len(fencedBlocksFound[j])
-		})
+		minimalFilePath := filepath.Join("documentation-examples", "configuration", "targets", tgt+"-minimal-example.hcl")
+		fullFilePath := filepath.Join("documentation-examples", "configuration", "targets", tgt+"-full-example.hcl")
 
 		// Test minimal config
-		// Shortest is always minimal
-		testMinimalTargetConfig(t, fencedBlocksFound[0])
+		testMinimalTargetConfig(t, minimalFilePath)
 		// Test full config
 		// Longest is the full config. Where there are no required arguments, there is only one config.
 		// In that scenario, both tests should pass.
-		testFullTargetConfig(t, fencedBlocksFound[len(fencedBlocksFound)-1])
+		testFullTargetConfig(t, fullFilePath)
 	}
 }
 
-func testMinimalTargetConfig(t *testing.T, codeBlock string) {
+func testMinimalTargetConfig(t *testing.T, filepath string) {
 	assert := assert.New(t)
 
-	c := createConfigFromCodeBlock(t, codeBlock)
+	c := getConfigFromFilepath(t, filepath)
 
 	use := c.Data.Target.Use
 	decoderOpts := &config.DecoderOptions{
@@ -94,10 +81,10 @@ func testMinimalTargetConfig(t *testing.T, codeBlock string) {
 	assert.Nil(err)
 }
 
-func testFullTargetConfig(t *testing.T, codeBlock string) {
+func testFullTargetConfig(t *testing.T, filepath string) {
 	assert := assert.New(t)
 
-	c := createConfigFromCodeBlock(t, codeBlock)
+	c := getConfigFromFilepath(t, filepath)
 
 	use := c.Data.Target.Use
 	decoderOpts := &config.DecoderOptions{

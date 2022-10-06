@@ -7,8 +7,6 @@
 package docs
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -20,26 +18,24 @@ import (
 
 // TODO: We might be able to factor the tests better and avoid some duplication here. Nice to have at this point.
 
+// TODO: When we provide the examples as full hcl files, we can factor all of the tests better & remove code.
+
 func TestConfigurationOverview(t *testing.T) {
 	assert := assert.New(t)
-	// Read file:
-	markdownFilePath := filepath.Join("documentation", "configuration", "configuration-overview.md")
 
-	fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
-
-	assert.Equal(1, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
+	hclFilePath := filepath.Join("documentation-examples", "configuration", "overview-full-example.hcl")
 
 	// Test that source compiles
-	testMinimalSourceConfig(t, fencedBlocksFound[0])
+	testMinimalSourceConfig(t, hclFilePath)
 
 	// Thest that target compiles
-	testMinimalTargetConfig(t, fencedBlocksFound[0])
+	testMinimalTargetConfig(t, hclFilePath)
 
 	// Test that failure target compiles
-	testFullFailureTargetConfig(t, fencedBlocksFound[0])
+	testFullFailureTargetConfig(t, hclFilePath)
 
 	// Test that transformations compile
-	c := createConfigFromCodeBlock(t, fencedBlocksFound[0])
+	c := getConfigFromFilepath(t, hclFilePath)
 
 	transformFunc, err := transformconfig.GetTransformations(c)
 
@@ -55,7 +51,7 @@ func TestConfigurationOverview(t *testing.T) {
 
 	statsd, err := c.CreateComponent(MockAdaptStatsDStatsReceiverNoDefaults(), decoderOptsStatsd)
 	if err != nil {
-		fmt.Println(err.Error())
+		assert.Fail(err.Error())
 	}
 
 	assert.Nil(err)
@@ -64,25 +60,10 @@ func TestConfigurationOverview(t *testing.T) {
 	// Test that sentry compiles
 	// repeating some stuff here which can probably be factored better later.
 
-	tmpConfigPath := filepath.Join("tmp", "config.hcl")
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", tmpConfigPath)
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", hclFilePath)
 
-	configFile, err := os.Create(tmpConfigPath)
-	if err != nil {
-		panic(err)
-	}
-
-	defer configFile.Close()
-
-	// Write shortest one to minimal
-	_, err2 := configFile.WriteString(fencedBlocksFound[0])
-	if err != nil {
-		assert.Fail(err.Error())
-		panic(err2)
-	}
 	// Since sentry lives in cmd, we call Init to test it.
 	cfgSentry, sentryEnabled, initErr := cmd.Init()
-	fmt.Println(cfgSentry.Data.Sentry)
 
 	assert.NotNil(cfgSentry)
 	assert.True(sentryEnabled)

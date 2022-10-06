@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/snowplow-devops/stream-replicator/config"
@@ -23,8 +22,6 @@ import (
 )
 
 func TestSourceDocumentation(t *testing.T) {
-	assert := assert.New(t)
-
 	// Set env vars referenced in the config examples
 	t.Setenv("MY_AUTH_PASSWORD", "test")
 	t.Setenv("SASL_PASSWORD", "test")
@@ -34,34 +31,20 @@ func TestSourceDocumentation(t *testing.T) {
 	for _, src := range sourcesToTest {
 
 		// Read file:
-		markdownFilePath := filepath.Join("documentation", "configuration", "sources", src+".md")
-
-		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
-
-		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
-		assert.LessOrEqual(len(fencedBlocksFound), 2, "Unexpected number of hcl blocks found")
-
-		// Sort by length to determine which is the minimal example.
-		sort.Slice(fencedBlocksFound, func(i, j int) bool {
-			return len(fencedBlocksFound[i]) < len(fencedBlocksFound[j])
-		})
+		minimalFilePath := filepath.Join("documentation-examples", "configuration", "sources", src+"-minimal-example.hcl")
+		fullFilePath := filepath.Join("documentation-examples", "configuration", "sources", src+"-full-example.hcl")
 
 		// Test minimal config
-		// Shortest is always minimal
-		testMinimalSourceConfig(t, fencedBlocksFound[0])
+		testMinimalSourceConfig(t, minimalFilePath)
 		// Test full config
-		// Longest is the full config. Where there are no required arguments, there is only one config.
-		// In that scenario, both tests should pass.
-		testFullSourceConfig(t, fencedBlocksFound[len(fencedBlocksFound)-1])
+		testFullSourceConfig(t, fullFilePath)
 	}
-
 }
 
-func testMinimalSourceConfig(t *testing.T, codeBlock string) {
+func testMinimalSourceConfig(t *testing.T, filepath string) {
 	assert := assert.New(t)
 
-	c := createConfigFromCodeBlock(t, codeBlock)
+	c := getConfigFromFilepath(t, filepath)
 
 	use := c.Data.Source.Use
 	decoderOpts := &config.DecoderOptions{
@@ -89,13 +72,12 @@ func testMinimalSourceConfig(t *testing.T, codeBlock string) {
 		assert.Fail(use.Name, err.Error())
 	}
 	assert.Nil(err)
-
 }
 
-func testFullSourceConfig(t *testing.T, codeBlock string) {
+func testFullSourceConfig(t *testing.T, filepath string) {
 	assert := assert.New(t)
 
-	c := createConfigFromCodeBlock(t, codeBlock)
+	c := getConfigFromFilepath(t, filepath)
 
 	use := c.Data.Source.Use
 	decoderOpts := &config.DecoderOptions{

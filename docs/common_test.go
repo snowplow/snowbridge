@@ -62,6 +62,20 @@ func getFencedBlocksFromMd(markdownFilePath string) ([]string, []map[string]stri
 	return fencedHCLBlocksFound, fencedOtherBlocksFound
 }
 
+func getConfigFromFilepath(t *testing.T, filepath string) *config.Config {
+	assert := assert.New(t)
+	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filepath)
+	c, newConfErr := config.NewConfig()
+	assert.NotNil(c)
+	assert.Nil(newConfErr)
+	if newConfErr != nil {
+		assert.Fail(newConfErr.Error())
+	}
+
+	return c
+}
+
+// TODO: We don't actually need this anymore I think...
 func createConfigFromCodeBlock(t *testing.T, block string) *config.Config {
 	assert := assert.New(t)
 
