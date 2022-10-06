@@ -24,7 +24,7 @@ func TestTargetDocumentation(t *testing.T) {
 	t.Setenv("MY_AUTH_PASSWORD", "test")
 	t.Setenv("SASL_PASSWORD", "test")
 
-	targetsToTest := []string{"eventhub", "http", "kafka", "kinesis", "pubsub", "sqs"}
+	targetsToTest := []string{"eventhub", "http", "kafka", "kinesis", "pubsub", "sqs", "stdout"}
 
 	for _, tgt := range targetsToTest {
 
