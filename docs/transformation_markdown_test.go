@@ -43,7 +43,7 @@ func TestBuiltinTransformationDocumentation(t *testing.T) {
 		assert.NotNil(transformFunc1)
 		assert.Nil(err)
 
-		// Hacky workaround for the fact that some only have one - eventually we'll refactor the tests to look more like soruces & targets, once the config issues are dealt with.
+		// Hacky workaround for the fact that some only have one config - eventually we'll refactor the tests to look more like soruces & targets, once the config issues are dealt with.
 		// So a little hack is acceptable for now.
 		if tfm == "spEnrichedSetPk" || tfm == "spEnrichedToJson" {
 			continue
@@ -64,24 +64,44 @@ func TestBuiltinTransformationDocumentation(t *testing.T) {
 func TestScriptTransformationCustomScripts(t *testing.T) {
 	assert := assert.New(t)
 
-	assetDir := filepath.Join("documentation-examples", "configuration", "transformations", "custom-scripts")
+	baseDir := filepath.Join("documentation-examples", "configuration", "transformations", "custom-scripts")
 
-	filesInDir, err := ioutil.ReadDir(assetDir)
+	filesInBaseDir, err := ioutil.ReadDir(baseDir)
 	if err != nil {
 		panic(err)
 	}
+
+	filesToTest := make([]string, 0)
+	for _, file := range filesInBaseDir {
+		if !file.IsDir() {
+			filesToTest = append(filesToTest, filepath.Join(baseDir, file.Name()))
+		}
+	}
+
+	examplesDir := filepath.Join("documentation-examples", "configuration", "transformations", "custom-scripts", "examples")
+
+	filesInDir, err := ioutil.ReadDir(examplesDir)
+	if err != nil {
+		panic(err)
+	}
+
 	for _, file := range filesInDir {
-		assetPath := filepath.Join(assetDir, file.Name())
-		switch filepath.Ext(file.Name()) {
+		if !file.IsDir() {
+			filesToTest = append(filesToTest, filepath.Join(examplesDir, file.Name()))
+		}
+	}
+
+	for _, file := range filesToTest {
+		switch filepath.Ext(file) {
 		case ".js":
 			// Test that all of our JS snippets compile with the engine, pass smoke test, and successfully create a transformation function
-			testJSScriptCompiles(t, assetPath)
+			testJSScriptCompiles(t, file)
 		case ".lua":
 			// Test that all of our Lua snippets compile with the engine, pass smoke test, and successfully create a transformation function
-			testLuaScriptCompiles(t, assetPath)
+			testLuaScriptCompiles(t, file)
 		case ".hcl":
 			// Test that the example hcl block can be parsed to a valid transformFunc
-			c := getConfigFromFilepath(t, assetPath)
+			c := getConfigFromFilepath(t, file)
 
 			transformFunc, err := transformconfig.GetTransformations(c)
 
@@ -89,13 +109,13 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 			assert.NotNil(transformFunc)
 			assert.Nil(err)
 		case "":
-			// If there's no extension, it should be a directory. If it isn't, fail the test.
-			if !file.IsDir() {
-				assert.Fail("File with no extension found: %v", assetPath)
-			}
+			// If there's no extension, fail the test.
+
+			assert.Fail("File with no extension found: %v", file)
+
 		default:
 			// Otherwise it's likely a typo or error.
-			assert.Fail("unexpected file extension found: %v", assetPath)
+			assert.Fail("unexpected file extension found: %v", file)
 		}
 
 	}
@@ -158,76 +178,6 @@ func testLuaScriptCompiles(t *testing.T, scriptPath string) {
 	assert.NotNil(transFunction, script)
 }
 
-func TestScriptTransformationConfigurations(t *testing.T) {
-	assert := assert.New(t)
-
-	casesToTest := []string{"javascript", "lua"}
-
-	for _, language := range casesToTest {
-		// Read file:
-		markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", language+"-configuration.md")
-
-		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
-
-		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
-		assert.LessOrEqual(len(fencedBlocksFound), 2, "Unexpected number of hcl blocks found")
-
-		for _, block := range fencedBlocksFound {
-			c := createConfigFromCodeBlock(t, block)
-
-			// GetTransformations here will run smoke test
-			transformFunc, err := transformconfig.GetTransformations(c)
-
-			// For now, we're just testing that the config is valid here
-			assert.NotNil(transformFunc)
-			assert.Nil(err)
-		}
-	}
-}
-
-func TestScriptTransformationExamples(t *testing.T) {
-	assert := assert.New(t)
-
-	casesToTest := []string{"js-non-snowplow", "js-snowplow", "lua-non-snowplow", "lua-snowplow"}
-
-	for _, example := range casesToTest {
-
-		markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", "examples", example+".md")
-
-		fencedBlocksFound, fencedOtherBlocksFound := getFencedBlocksFromMd(markdownFilePath)
-
-		// Test that script code examples compile
-		for _, block := range fencedOtherBlocksFound {
-			switch block["language"] {
-			case "js":
-				// Test that all of our JS snippets compile with the engine, pass smoke test, and successfully create a transformation function
-				testJSScriptCompiles(t, block["script"])
-			case "lua":
-				// Test that all of our Lua snippets compile with the engine, pass smoke test, and successfully create a transformation function
-				testLuaScriptCompiles(t, block["script"])
-			case "json":
-				// There is one json example which doesn't need testing
-			default:
-				// Otherwise it's likely a typo or error.
-				assert.Fail("unexpected code block found: %v", block)
-			}
-		}
-
-		// Test that config examples compile
-		for _, block := range fencedBlocksFound {
-			c := createConfigFromCodeBlock(t, block)
-
-			// GetTransformations here will run smoke test
-			transformFunc, err := transformconfig.GetTransformations(c)
-
-			// For now, we're just testing that the config is valid here
-			assert.NotNil(transformFunc)
-			assert.Nil(err)
-		}
-	}
-}
-
 func TestTransformationsOverview(t *testing.T) {
 	assert := assert.New(t)
 	// Read file:
@@ -241,146 +191,4 @@ func TestTransformationsOverview(t *testing.T) {
 	assert.NotNil(transformFunc)
 	assert.Nil(err)
 
-}
-
-// // TEMP:
-
-//
-
-//
-
-///
-
-//
-
-/*
-func TestBuiltinTransformationDocumentationWriteConfigs(t *testing.T) {
-	assert := assert.New(t)
-
-	transformationsToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstructEvent", "spEnrichedSetPk", "spEnrichedToJson"}
-
-	for _, tfm := range transformationsToTest {
-
-		// Read file:
-		markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "snowplow-builtin", tfm+".md")
-
-		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
-
-		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
-		assert.LessOrEqual(len(fencedBlocksFound), 2, "Unexpected number of hcl blocks found")
-
-		for i, block := range fencedBlocksFound {
-			var typ string
-			if i == 0 {
-				typ = "-minimal"
-			} else {
-				typ = "-full"
-			}
-
-			configFilePath := filepath.Join("documentation-examples", "configuration", "transformations", "snowplow-builtin", tfm+typ+"-example.hcl")
-
-	}
-}
-
-// These are likely to be more complicated/harder to read, so creating a separate function to test teh different parts of the docs.
-func TestScriptTransformationCreateAScriptWriteConfigs(t *testing.T) {
-	assert := assert.New(t)
-
-	// Read file:
-	markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", "create-a-script.md")
-
-	fencedHCLBlocksFound, fencedOtherBlocksFound := getFencedBlocksFromMd(markdownFilePath)
-
-	// No HCL, and some other blocks should be in there
-	assert.Equal(0, len(fencedHCLBlocksFound))
-	assert.NotEqual(0, len(fencedOtherBlocksFound))
-
-	for _, block := range fencedOtherBlocksFound {
-		switch block["language"] {
-		case "js":
-			// Test that all of our JS snippets compile with the engine, pass smoke test, and successfully create a transformation function
-			testJSScriptCompiles(t, block["script"])
-		case "lua":
-			// Test that all of our Lua snippets compile with the engine, pass smoke test, and successfully create a transformation function
-			testLuaScriptCompiles(t, block["script"])
-		case "go":
-			// There is one go example which doesn't need testing
-
-		default:
-			// Otherwise it's likely a typo or error.
-			assert.Fail("unexpected code block found: %v", block)
-		}
-	}
-}
-*/
-
-func TestScriptTransformationConfigurationsWriteConfigs(t *testing.T) {
-	assert := assert.New(t)
-
-	casesToTest := []string{"javascript", "lua"}
-
-	for _, language := range casesToTest {
-		// Read file:
-		markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", language+"-configuration.md")
-
-		fencedBlocksFound, _ := getFencedBlocksFromMd(markdownFilePath)
-
-		// TODO: perhaps this can be better, but since sometimes we can have one and sometimes two:
-		assert.NotEqual(0, len(fencedBlocksFound), "Unexpected number of hcl blocks found")
-		assert.LessOrEqual(len(fencedBlocksFound), 2, "Unexpected number of hcl blocks found")
-
-		for _, block := range fencedBlocksFound {
-			c := createConfigFromCodeBlock(t, block)
-
-			// GetTransformations here will run smoke test
-			transformFunc, err := transformconfig.GetTransformations(c)
-
-			// For now, we're just testing that the config is valid here
-			assert.NotNil(transformFunc)
-			assert.Nil(err)
-		}
-	}
-}
-
-func TestScriptTransformationExamplesWriteConfigs(t *testing.T) {
-	assert := assert.New(t)
-
-	casesToTest := []string{"js-non-snowplow", "js-snowplow", "lua-non-snowplow", "lua-snowplow"}
-
-	for _, example := range casesToTest {
-
-		markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", "examples", example+".md")
-
-		fencedBlocksFound, fencedOtherBlocksFound := getFencedBlocksFromMd(markdownFilePath)
-
-		// Test that script code examples compile
-		for _, block := range fencedOtherBlocksFound {
-			switch block["language"] {
-			case "js":
-				// Test that all of our JS snippets compile with the engine, pass smoke test, and successfully create a transformation function
-				testJSScriptCompiles(t, block["script"])
-			case "lua":
-				// Test that all of our Lua snippets compile with the engine, pass smoke test, and successfully create a transformation function
-				testLuaScriptCompiles(t, block["script"])
-			case "json":
-				// There is one json example which doesn't need testing
-			default:
-				// Otherwise it's likely a typo or error.
-				assert.Fail("unexpected code block found: %v", block)
-			}
-		}
-
-		// Test that config examples compile
-		for _, block := range fencedBlocksFound {
-			c := createConfigFromCodeBlock(t, block)
-
-			// GetTransformations here will run smoke test
-			transformFunc, err := transformconfig.GetTransformations(c)
-
-			// For now, we're just testing that the config is valid here
-			assert.NotNil(transformFunc)
-			assert.Nil(err)
-		}
-	}
 }

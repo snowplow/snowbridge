@@ -1,0 +1,7 @@
+transform {
+  use "js" {
+    source_b64 = "ZnVuY3Rpb24gbWFpbihpbnB1dCkgewovLyBpbnB1dCBpcyBhbiBvYmplY3QKICAgIHZhciBzcERhdGEgPSBpbnB1dC5EYXRhOwoKICAgIGlmIChzcERhdGFbInBsYXRmb3JtIl0gIT0gIndlYiIpIHsKICAgICAgICByZXR1cm4gewogICAgICAgICAgICBGaWx0ZXJPdXQ6IHRydWUKICAgICAgICB9OwogICAgfQoKICAgIGlmICgidXNlcl9pZCIgaW4gc3BEYXRhKSB7CiAgICAgICAgc3BEYXRhWyJ1aWQiXSA9IHNwRGF0YVsidXNlcl9pZCJdCiAgICB9IGVsc2UgewogICAgICAgIHNwRGF0YVsidWlkIl0gPSBzcERhdGFbImRvbWFpbl91c2VyaWQiXQogICAgfQoKICAgIHJldHVybiB7CiAgICAgICAgRGF0YTogc3BEYXRhLAogICAgICAgIFBhcnRpdGlvbktleTogc3BEYXRhWyJhcHBfaWQiXQogICAgfTsKfQ=="
+    
+    snowplow_mode       = true # Snowplow mode enabled - this transforms the tsv to an object on input
+  }
+}
