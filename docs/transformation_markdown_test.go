@@ -8,6 +8,8 @@ package docs
 
 import (
 	"encoding/base64"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -59,40 +61,55 @@ func TestBuiltinTransformationDocumentation(t *testing.T) {
 }
 
 // These are likely to be more complicated/harder to read, so creating a separate function to test teh different parts of the docs.
-func TestScriptTransformationCreateAScript(t *testing.T) {
+func TestScriptTransformationCustomScripts(t *testing.T) {
 	assert := assert.New(t)
 
-	// Read file:
-	markdownFilePath := filepath.Join("documentation", "configuration", "transformations", "custom-scripts", "create-a-script.md")
+	assetDir := filepath.Join("documentation-examples", "configuration", "transformations", "custom-scripts")
 
-	fencedHCLBlocksFound, fencedOtherBlocksFound := getFencedBlocksFromMd(markdownFilePath)
-
-	// No HCL, and some other blocks should be in there
-	assert.Equal(0, len(fencedHCLBlocksFound))
-	assert.NotEqual(0, len(fencedOtherBlocksFound))
-
-	for _, block := range fencedOtherBlocksFound {
-		switch block["language"] {
-		case "js":
+	filesInDir, err := ioutil.ReadDir(assetDir)
+	if err != nil {
+		panic(err)
+	}
+	for _, file := range filesInDir {
+		assetPath := filepath.Join(assetDir, file.Name())
+		switch filepath.Ext(file.Name()) {
+		case ".js":
 			// Test that all of our JS snippets compile with the engine, pass smoke test, and successfully create a transformation function
-			testJSScriptCompiles(t, block["script"])
-		case "lua":
+			testJSScriptCompiles(t, assetPath)
+		case ".lua":
 			// Test that all of our Lua snippets compile with the engine, pass smoke test, and successfully create a transformation function
-			testLuaScriptCompiles(t, block["script"])
-		case "go":
-			// There is one go example which doesn't need testing
+			testLuaScriptCompiles(t, assetPath)
+		case ".hcl":
+			// Test that the example hcl block can be parsed to a valid transformFunc
+			c := getConfigFromFilepath(t, assetPath)
 
+			transformFunc, err := transformconfig.GetTransformations(c)
+
+			// For now, we're just testing that the config is valid here
+			assert.NotNil(transformFunc)
+			assert.Nil(err)
+		case "":
+			// If there's no extension, it should be a directory. If it isn't, fail the test.
+			if !file.IsDir() {
+				assert.Fail("File with no extension found: %v", assetPath)
+			}
 		default:
 			// Otherwise it's likely a typo or error.
-			assert.Fail("unexpected code block found: %v", block)
+			assert.Fail("unexpected file extension found: %v", assetPath)
 		}
+
 	}
 }
 
-func testJSScriptCompiles(t *testing.T, script string) {
+func testJSScriptCompiles(t *testing.T, scriptPath string) {
 	assert := assert.New(t)
 
-	src := base64.StdEncoding.EncodeToString([]byte(script))
+	script, err := os.ReadFile(scriptPath)
+	if err != nil {
+		panic(err)
+	}
+
+	src := base64.StdEncoding.EncodeToString(script)
 	jsConfig := &engine.JSEngineConfig{
 		SourceB64:  src,
 		RunTimeout: 5, // This is needed here as we're providing config directly, not using defaults.
@@ -101,22 +118,27 @@ func testJSScriptCompiles(t *testing.T, script string) {
 	jsEngine, err := engine.NewJSEngine(jsConfig)
 	assert.NotNil(jsEngine, script)
 	if err != nil {
-		t.Fatalf("NewJSEngine failed with error: %s. Script: %s", err.Error(), script)
+		t.Fatalf("NewJSEngine failed with error: %s. Script: %s", err.Error(), string(script))
 
 	}
 
 	if err := jsEngine.SmokeTest("main"); err != nil {
-		t.Fatalf("smoke-test failed with error: %s. Script: %s", err.Error(), script)
+		t.Fatalf("smoke-test failed with error: %s. Script: %s", err.Error(), string(script))
 	}
 
 	transFunction := jsEngine.MakeFunction("main")
 	assert.NotNil(transFunction, script)
 }
 
-func testLuaScriptCompiles(t *testing.T, script string) {
+func testLuaScriptCompiles(t *testing.T, scriptPath string) {
 	assert := assert.New(t)
 
-	src := base64.StdEncoding.EncodeToString([]byte(script))
+	script, err := os.ReadFile(scriptPath)
+	if err != nil {
+		panic(err)
+	}
+
+	src := base64.StdEncoding.EncodeToString(script)
 	luaConfig := &engine.LuaEngineConfig{
 		SourceB64:  src,
 		RunTimeout: 5, // This is needed here as we're providing config directly, not using defaults.
@@ -125,11 +147,11 @@ func testLuaScriptCompiles(t *testing.T, script string) {
 	luaEngine, err := engine.NewLuaEngine(luaConfig)
 	assert.NotNil(luaEngine, script)
 	if err != nil {
-		t.Fatalf("NewLuaEngine failed with error: %s. Script: %s", err.Error(), script)
+		t.Fatalf("NewLuaEngine failed with error: %s. Script: %s", err.Error(), string(script))
 	}
 
 	if err := luaEngine.SmokeTest("main"); err != nil {
-		t.Fatalf("smoke-test failed with error: %s. Script: %s", err.Error(), script)
+		t.Fatalf("smoke-test failed with error: %s. Script: %s", err.Error(), string(script))
 	}
 
 	transFunction := luaEngine.MakeFunction("main")
@@ -260,7 +282,6 @@ func TestBuiltinTransformationDocumentationWriteConfigs(t *testing.T) {
 
 	}
 }
-*/
 
 // These are likely to be more complicated/harder to read, so creating a separate function to test teh different parts of the docs.
 func TestScriptTransformationCreateAScriptWriteConfigs(t *testing.T) {
@@ -292,6 +313,7 @@ func TestScriptTransformationCreateAScriptWriteConfigs(t *testing.T) {
 		}
 	}
 }
+*/
 
 func TestScriptTransformationConfigurationsWriteConfigs(t *testing.T) {
 	assert := assert.New(t)
