@@ -688,7 +688,7 @@ end
 	}
 
 	luaFunc := luaEngine.MakeFunction(funcname)
-	setPkToAppID := transform.NewSpEnrichedSetPkFunction("app_id")
+	setPkToAppID, _ := transform.NewSpEnrichedSetPkFunction("app_id")
 	spEnrichedToJSON := transform.SpEnrichedToJSON
 
 	testCases := []struct {
@@ -752,7 +752,7 @@ end
 	luaFuncPk := luaEngine.MakeFunction("setPk")
 
 	// Builtins
-	setPkToAppID := transform.NewSpEnrichedSetPkFunction("app_id")
+	setPkToAppID, _ := transform.NewSpEnrichedSetPkFunction("app_id")
 	spEnrichedToJSON := transform.SpEnrichedToJSON
 
 	testCases := []struct {

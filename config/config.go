@@ -27,6 +27,14 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
 )
 
+// ConfigurationPair allows modular packages to define their own configuration and function to interpret the configuration.
+// This allows us to interpret configurations without needing to import those packages, and allows the packages to define
+// how their own configurations should be interpreted.
+type ConfigurationPair struct {
+	Name   string
+	Handle Pluggable
+}
+
 // Config holds the configuration data along with the Decoder to Decode them
 type Config struct {
 	Data    *configurationData
