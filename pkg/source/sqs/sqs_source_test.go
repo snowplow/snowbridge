@@ -170,8 +170,8 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	sqsSourceConfigFunctionWithLocalStack := configFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
 	adaptedHandle := adapterGenerator(sqsSourceConfigFunctionWithLocalStack)
 
-	sqsSourceConfigPairWithInterfaces := sourceconfig.ConfigPair{Name: "sqs", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{sqsSourceConfigPairWithInterfaces}
+	sqsSourceConfigPairWithInterfaces := config.ConfigurationPair{Name: "sqs", Handle: adaptedHandle}
+	supportedSources := []config.ConfigurationPair{sqsSourceConfigPairWithInterfaces}
 
 	source, err := sourceconfig.GetSource(c, supportedSources)
 	assert.NotNil(source)

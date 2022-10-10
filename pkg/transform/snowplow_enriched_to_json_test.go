@@ -18,7 +18,7 @@ func TestSpEnrichedToJson(t *testing.T) {
 	assert := assert.New(t)
 
 	var messageGood = models.Message{
-		Data:         snowplowTsv1,
+		Data:         SnowplowTsv1,
 		PartitionKey: "some-key",
 	}
 
@@ -37,7 +37,7 @@ func TestSpEnrichedToJson(t *testing.T) {
 
 	assert.Equal(expectedGood.PartitionKey, transformSuccess.PartitionKey)
 	assert.JSONEq(string(expectedGood.Data), string(transformSuccess.Data))
-	assert.Equal(spTsv1Parsed, intermediate)
+	assert.Equal(SpTsv1Parsed, intermediate)
 	assert.Nil(failure)
 
 	// Simple failure case
@@ -60,7 +60,7 @@ func TestSpEnrichedToJson(t *testing.T) {
 	// Nuanced success case
 	// Test to assert behaviour when there's an incompatible IntermediateState in the input
 	incompatibleIntermediateMessage := models.Message{
-		Data:         snowplowTsv1,
+		Data:         SnowplowTsv1,
 		PartitionKey: "some-key",
 	}
 
@@ -71,6 +71,6 @@ func TestSpEnrichedToJson(t *testing.T) {
 
 	assert.Equal(expectedGood.PartitionKey, transformSuccess2.PartitionKey)
 	assert.JSONEq(string(expectedGood.Data), string(transformSuccess2.Data))
-	assert.Equal(spTsv1Parsed, intermediate2)
+	assert.Equal(SpTsv1Parsed, intermediate2)
 	assert.Nil(failure2)
 }

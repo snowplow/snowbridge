@@ -16,8 +16,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
+	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
@@ -82,7 +82,7 @@ func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adap
 }
 
 // ConfigPair is passed to configuration to determine when to build a Pubsub source.
-var ConfigPair = sourceconfig.ConfigPair{
+var ConfigPair = config.ConfigurationPair{
 	Name:   "pubsub",
 	Handle: adapterGenerator(configFunction),
 }

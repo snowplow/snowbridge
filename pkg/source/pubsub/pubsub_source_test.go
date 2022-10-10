@@ -47,8 +47,8 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 
 	adaptedHandle := adapterGenerator(configFunction)
 
-	pubsubSourceConfigPair := sourceconfig.ConfigPair{Name: "pubsub", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{pubsubSourceConfigPair}
+	pubsubSourceConfigPair := config.ConfigurationPair{Name: "pubsub", Handle: adaptedHandle}
+	supportedSources := []config.ConfigurationPair{pubsubSourceConfigPair}
 
 	pubsubConfig, err := config.NewConfig()
 	assert.NotNil(pubsubConfig)
@@ -162,8 +162,8 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 
 	adaptedHandle := adapterGenerator(configFunction)
 
-	pubsubSourceConfigPair := sourceconfig.ConfigPair{Name: "pubsub", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{pubsubSourceConfigPair}
+	pubsubSourceConfigPair := config.ConfigurationPair{Name: "pubsub", Handle: adaptedHandle}
+	supportedSources := []config.ConfigurationPair{pubsubSourceConfigPair}
 
 	pubsubConfig, err := config.NewConfig()
 	assert.NotNil(pubsubConfig)

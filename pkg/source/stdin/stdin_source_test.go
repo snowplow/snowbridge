@@ -70,7 +70,7 @@ func TestGetSource_WithStdinSource(t *testing.T) {
 
 	assert := assert.New(t)
 
-	supportedSources := []sourceconfig.ConfigPair{ConfigPair}
+	supportedSources := []config.ConfigurationPair{ConfigPair}
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

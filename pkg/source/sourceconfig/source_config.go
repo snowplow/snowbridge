@@ -14,15 +14,8 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
-// ConfigPair contains the name of a source and its handle that satisfies the
-// Pluggable interface.
-type ConfigPair struct {
-	Name   string
-	Handle config.Pluggable
-}
-
 // GetSource creates and returns the source that is configured.
-func GetSource(c *config.Config, supportedSources []ConfigPair) (sourceiface.Source, error) {
+func GetSource(c *config.Config, supportedSources []config.ConfigurationPair) (sourceiface.Source, error) {
 	useSource := c.Data.Source.Use
 	decoderOpts := &config.DecoderOptions{
 		Input: useSource.Body,

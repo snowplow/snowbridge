@@ -60,7 +60,7 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 	return cfg, nil
 }
 
-var mockConfigPair = ConfigPair{
+var mockConfigPair = config.ConfigurationPair{
 	Name:   "mock",
 	Handle: adapterGenerator(configfunction),
 }
@@ -77,7 +77,7 @@ func TestGetSource_ValidSource(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	supportedSources := []ConfigPair{mockConfigPair}
+	supportedSources := []config.ConfigurationPair{mockConfigPair}
 
 	source, err := GetSource(c, supportedSources)
 
@@ -97,7 +97,7 @@ func TestGetSource_InvalidSource(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	supportedSources := []ConfigPair{}
+	supportedSources := []config.ConfigurationPair{}
 
 	source, err := GetSource(c, supportedSources)
 	assert.Nil(source)
@@ -114,7 +114,7 @@ func brokenAdapterGenerator(f func(c *configuration) (sourceiface.Source, error)
 	}
 }
 
-var mockUnhappyConfigPair = ConfigPair{
+var mockUnhappyConfigPair = config.ConfigurationPair{
 	Name:   "mockUnhappy",
 	Handle: brokenAdapterGenerator(configfunction),
 }
@@ -131,7 +131,7 @@ func TestGetSource_BadConfig(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	supportedSources := []ConfigPair{mockUnhappyConfigPair}
+	supportedSources := []config.ConfigurationPair{mockUnhappyConfigPair}
 
 	source, err := GetSource(c, supportedSources)
 
