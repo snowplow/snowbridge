@@ -247,8 +247,8 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
 	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
 
-	kinesisSourceConfigPairWithLocalstack := sourceconfig.ConfigPair{Name: "kinesis", Handle: adaptedHandle}
-	supportedSources := []sourceconfig.ConfigPair{kinesisSourceConfigPairWithLocalstack}
+	kinesisSourceConfigPairWithLocalstack := config.ConfigurationPair{Name: "kinesis", Handle: adaptedHandle}
+	supportedSources := []config.ConfigurationPair{kinesisSourceConfigPairWithLocalstack}
 
 	source, err := sourceconfig.GetSource(c, supportedSources)
 	assert.NotNil(source)

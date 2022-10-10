@@ -18,7 +18,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	assert := assert.New(t)
 
 	var messageGood = models.Message{
-		Data:         snowplowTsv3,
+		Data:         SnowplowTsv3,
 		PartitionKey: "some-key",
 	}
 
@@ -28,28 +28,28 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	}
 
 	// Simple success cases for different datatypes
-	aidSetPkFunc := NewSpEnrichedSetPkFunction("app_id")
+	aidSetPkFunc, _ := NewSpEnrichedSetPkFunction("app_id")
 
 	stringAsPk, _, fail, intermediate := aidSetPkFunc(&messageGood, nil)
 
 	assert.Equal("test-data3", stringAsPk.PartitionKey)
-	assert.Equal(spTsv3Parsed, intermediate)
+	assert.Equal(SpTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
-	ctstampSetPkFunc := NewSpEnrichedSetPkFunction("collector_tstamp")
+	ctstampSetPkFunc, _ := NewSpEnrichedSetPkFunction("collector_tstamp")
 
 	tstampAsPk, _, fail, intermediate := ctstampSetPkFunc(&messageGood, nil)
 
 	assert.Equal("2019-05-10 14:40:29.576 +0000 UTC", tstampAsPk.PartitionKey)
-	assert.Equal(spTsv3Parsed, intermediate)
+	assert.Equal(SpTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
-	pgurlportSetPkFunc := NewSpEnrichedSetPkFunction("page_urlport")
+	pgurlportSetPkFunc, _ := NewSpEnrichedSetPkFunction("page_urlport")
 
 	intAsPk, _, fail, intermediate := pgurlportSetPkFunc(&messageGood, nil)
 
 	assert.Equal("80", intAsPk.PartitionKey)
-	assert.Equal(spTsv3Parsed, intermediate)
+	assert.Equal(SpTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
 	// Simple failure case
@@ -66,12 +66,12 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	// Nuanced success case
 	// Test to assert behaviour when there's an incompatible intermediateState in the input
 	incompatibleIntermediateMessage := models.Message{
-		Data:         snowplowTsv1,
+		Data:         SnowplowTsv1,
 		PartitionKey: "some-key",
 	}
 
 	expected := models.Message{
-		Data:         snowplowTsv1,
+		Data:         SnowplowTsv1,
 		PartitionKey: "test-data1",
 	}
 	incompatibleIntermediate := "Incompatible intermediate state"
@@ -80,6 +80,6 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	stringAsPkIncompat, _, failIncompat, intermediate := aidSetPkFunc(&incompatibleIntermediateMessage, incompatibleIntermediate)
 
 	assert.Equal(&expected, stringAsPkIncompat)
-	assert.Equal(spTsv1Parsed, intermediate)
+	assert.Equal(SpTsv1Parsed, intermediate)
 	assert.Nil(failIncompat)
 }

@@ -19,6 +19,7 @@ import (
 	luaparse "github.com/yuin/gopher-lua/parse"
 	luajson "layeh.com/gopher-json"
 
+	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
@@ -54,7 +55,7 @@ func NewLuaEngine(c *LuaEngineConfig, script string) (*LuaEngine, error) {
 }
 
 // The LuaEngineAdapter type is an adapter for functions to be used as
-// pluggable components for Lua Engine. It implements the Pluggable interface.
+// pluggable components for Lua transformation. It implements the Pluggable interface.
 type LuaEngineAdapter func(i interface{}) (interface{}, error)
 
 // AdaptLuaEngineFunc returns a LuaEngineAdapter.
@@ -86,16 +87,42 @@ func (f LuaEngineAdapter) ProvideDefault() (interface{}, error) {
 	return cfg, nil
 }
 
-// LuaEngineConfigFunction returns the Pluggable transformation layer implemented in Lua.
-func LuaEngineConfigFunction(t *LuaEngineConfig) (*LuaEngine, error) {
-	script, err := os.ReadFile(t.ScriptPath)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("Error reading script at path %s", t.ScriptPath))
+// LuaAdapterGenerator returns a lua transformation adapter.
+func LuaAdapterGenerator(f func(c *LuaEngineConfig) (transform.TransformationFunction, error)) LuaEngineAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*LuaEngineConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
+		}
+
+		return f(cfg)
 	}
-	return NewLuaEngine(&LuaEngineConfig{
-		RunTimeout: t.RunTimeout,
-		Sandbox:    t.Sandbox,
-	}, string(script))
+}
+
+// LuaConfigFunction returns a lua transformation function, from a LuaEngineConfig.
+func LuaConfigFunction(c *LuaEngineConfig) (transform.TransformationFunction, error) {
+	script, err := os.ReadFile(c.ScriptPath)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("Error reading script at path %s", c.ScriptPath))
+	}
+
+	engine, err := NewLuaEngine(c, string(script))
+	if err != nil {
+		return nil, errors.Wrap(err, "error building Lua engine")
+	}
+
+	smkTestErr := engine.SmokeTest("main")
+	if smkTestErr != nil {
+		return nil, errors.Wrap(smkTestErr, "error smoke testing Lua function")
+	}
+
+	return engine.MakeFunction("main"), nil
+}
+
+// LuaConfigPair is a configuration pair for the lua transformation
+var LuaConfigPair = config.ConfigurationPair{
+	Name:   "lua",
+	Handle: LuaAdapterGenerator(LuaConfigFunction),
 }
 
 // SmokeTest implements smokeTester.

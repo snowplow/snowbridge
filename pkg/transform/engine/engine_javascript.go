@@ -16,6 +16,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 
+	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
 )
@@ -35,7 +36,7 @@ type JSEngine struct {
 }
 
 // The JSEngineAdapter type is an adapter for functions to be used as
-// pluggable components for a JS Engine. It implements the Pluggable interface.
+// pluggable components for a JS transformation. It implements the Pluggable interface.
 type JSEngineAdapter func(i interface{}) (interface{}, error)
 
 // ProvideDefault returns a JSEngineConfig with default configuration values
@@ -50,16 +51,42 @@ func (f JSEngineAdapter) Create(i interface{}) (interface{}, error) {
 	return f(i)
 }
 
-// JSEngineConfigFunction creates a JSEngine from a JSEngineConfig
-func JSEngineConfigFunction(c *JSEngineConfig) (*JSEngine, error) {
+// JSAdapterGenerator returns a js transformation adapter.
+func JSAdapterGenerator(f func(c *JSEngineConfig) (transform.TransformationFunction, error)) JSEngineAdapter {
+	return func(i interface{}) (interface{}, error) {
+		cfg, ok := i.(*JSEngineConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
+		}
+
+		return f(cfg)
+	}
+}
+
+// JSConfigFunction returns a js transformation function, from a JSEngineConfig.
+func JSConfigFunction(c *JSEngineConfig) (transform.TransformationFunction, error) {
 	script, err := os.ReadFile(c.ScriptPath)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("Error reading script at path %s", c.ScriptPath))
 	}
-	return NewJSEngine(&JSEngineConfig{
-		RunTimeout: c.RunTimeout,
-		SpMode:     c.SpMode,
-	}, string(script))
+
+	engine, err := NewJSEngine(c, string(script))
+	if err != nil {
+		return nil, errors.Wrap(err, "error building JS engine")
+	}
+
+	smkTestErr := engine.SmokeTest("main")
+	if smkTestErr != nil {
+		return nil, errors.Wrap(smkTestErr, "error smoke testing JS function")
+	}
+
+	return engine.MakeFunction("main"), nil
+}
+
+// JSConfigPair is a configuration pair for the js transformation
+var JSConfigPair = config.ConfigurationPair{
+	Name:   "js",
+	Handle: JSAdapterGenerator(JSConfigFunction),
 }
 
 // AdaptJSEngineFunc returns an JSEngineAdapter.
