@@ -1,5 +1,5 @@
-FROM alpine:3.14
-MAINTAINER TechOps "tech-ops-team@snowplowanalytics.com"
+FROM alpine:latest
+LABEL org.opencontainers.image.authors="Data Processing <data-processing@snowplow.io>"
 
 ADD build/output/linux/gcp/cli/stream-replicator /root/
 
