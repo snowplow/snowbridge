@@ -21,9 +21,9 @@ import (
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
 
+	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
 )
 
@@ -129,7 +129,7 @@ func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adap
 }
 
 // ConfigPair is passed to configuration to determine when to build a Kinesis source.
-var ConfigPair = sourceconfig.ConfigPair{
+var ConfigPair = config.ConfigurationPair{
 	Name:   "kinesis",
 	Handle: adapterGenerator(configFunction),
 }

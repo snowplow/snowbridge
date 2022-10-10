@@ -22,6 +22,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/snowplow-devops/stream-replicator/cmd"
+	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/common"
 	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -42,7 +43,7 @@ const (
 )
 
 // RunCli runs the app
-func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
+func RunCli(supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) {
 	cfg, sentryEnabled, err := cmd.Init()
 	if err != nil {
 		exitWithError(err, sentryEnabled)
@@ -76,12 +77,12 @@ func RunCli(supportedSourceConfigPairs []sourceconfig.ConfigPair) {
 			}()
 		}
 
-		s, err := sourceconfig.GetSource(cfg, supportedSourceConfigPairs)
+		s, err := sourceconfig.GetSource(cfg, supportedSources)
 		if err != nil {
 			return err
 		}
 
-		tr, err := transformconfig.GetTransformations(cfg)
+		tr, err := transformconfig.GetTransformations(cfg, supportedTransformations)
 		if err != nil {
 			return err
 		}

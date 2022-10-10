@@ -9,6 +9,7 @@ package transformconfig
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,337 +18,49 @@ import (
 
 	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform/engine"
 )
 
-func TestMkEngineFunction(t *testing.T) {
-	var eng engine.Engine
-	eng = &engine.JSEngine{
-		Code:       nil,
-		RunTimeout: 15,
-		SpMode:     false,
-	}
-	testCases := []struct {
-		Name           string
-		Engines        []engine.Engine
-		Transformation *Transformation
-		ExpectedErr    error
-	}{
-		{
-			Name:    "no engine",
-			Engines: nil,
-			Transformation: &Transformation{
-				Name: "js",
-			},
-			ExpectedErr: fmt.Errorf("could not find engine for transformation"),
-		},
-		{
-			Name:    "success",
-			Engines: []engine.Engine{eng},
-			Transformation: &Transformation{
-				Name:   "js",
-				Engine: eng,
-			},
-		},
-	}
+func TestGetTransformations(t *testing.T) {
+	assert := assert.New(t)
 
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
+	jsScriptPath := filepath.Join("scripts", "script.js")
+	luaScriptPath := filepath.Join("scripts", "script.lua")
 
-			fun, err := MkEngineFunction(tt.Transformation)
+	t.Setenv("JS_SCRIPT_PATH", jsScriptPath)
+	t.Setenv("LUA_SCRIPT_PATH", luaScriptPath)
 
-			if tt.ExpectedErr != nil {
-				assert.Equal(tt.ExpectedErr.Error(), err.Error())
-				assert.Nil(fun)
-			} else {
-				assert.Nil(err)
-				assert.NotNil(fun)
-			}
-		})
-	}
-}
+	// this function executes each test case
+	testConfig := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			panic(err)
+		}
 
-func TestValidateTransformations(t *testing.T) {
-	srcCode := `
-function main(x)
-  local jsonObj, _ = json.decode(x)
-  local result, _ = json.encode(jsonObj)
+		if info.IsDir() {
+			return nil
+		}
 
-  return result
-end
-`
-	luaConfig := &engine.LuaEngineConfig{
-		RunTimeout: 5,
-		Sandbox:    false,
+		t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", path)
+
+		c, err := config.NewConfig()
+		assert.NotNil(c)
+		if err != nil {
+			t.Fatalf("function NewConfig failed with error: %q", err.Error())
+		}
+
+		// get transformations, and run the transformations on the expected messages
+		tr, err := GetTransformations(c, SupportedTransformations)
+
+		// To test the config happy path, we just need to verify that a transformation function is produced, and there's no error.
+		assert.NotNil(tr)
+		if err != nil {
+			assert.Fail(err.Error())
+		}
+
+		return err
 	}
 
-	luaEngine, err := engine.NewLuaEngine(luaConfig, srcCode)
-	assert.NotNil(t, luaEngine)
-	if err != nil {
-		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
-	}
-
-	srcCode = `
-function notMain(x)
-  return x
-end
-`
-	luaConfig = &engine.LuaEngineConfig{
-		RunTimeout: 5,
-		Sandbox:    false,
-	}
-
-	luaEngineNoMain, err := engine.NewLuaEngine(luaConfig, srcCode)
-	assert.NotNil(t, luaEngineNoMain)
-	if err != nil {
-		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
-	}
-
-	srcCode = `
-function main(x) {
-   return x;
-}
-`
-	jsConfig := &engine.JSEngineConfig{
-		RunTimeout: 5,
-	}
-
-	jsEngine, err := engine.NewJSEngine(jsConfig, srcCode)
-	assert.NotNil(t, jsEngine)
-	if err != nil {
-		t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
-	}
-
-	srcCode = `
-function notMain(x) {
-   return x;
-}
-`
-	jsConfig = &engine.JSEngineConfig{
-		RunTimeout: 5,
-	}
-
-	jsEngineNoMain, err := engine.NewJSEngine(jsConfig, srcCode)
-	assert.NotNil(t, jsEngine)
-	if err != nil {
-		t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
-	}
-
-	testCases := []struct {
-		Name            string
-		Transformations []*Transformation
-		ExpectedErrs    []error
-	}{
-		{
-			Name: "invalid name",
-			Transformations: []*Transformation{{
-				Name: "wrongName",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("invalid transformation name: wrongName")},
-		},
-		{
-			Name: "spEnrichedSetPk success",
-			Transformations: []*Transformation{{
-				Name:        "spEnrichedSetPk",
-				AtomicField: `app_id`,
-			}},
-		},
-		{
-			Name: "spEnrichedSetPk no field",
-			Transformations: []*Transformation{{
-				Name: "spEnrichedSetPk",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedSetPk, empty atomic field")},
-		},
-		{
-			Name: "spEnrichedFilter success",
-			Transformations: []*Transformation{{
-				Name:         "spEnrichedFilter",
-				AtomicField:  "app_id",
-				Regex:        "test.+",
-				FilterAction: "keep",
-			}},
-		},
-		{
-			Name: "spEnrichedFilter regexp does not compile",
-			Transformations: []*Transformation{{
-				Name:         "spEnrichedFilter",
-				AtomicField:  "app_id",
-				Regex:        "?(?=-)",
-				FilterAction: "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
-		},
-		{
-			Name: "spEnrichedFilter empty atomic field",
-			Transformations: []*Transformation{{
-				Name:         "spEnrichedFilter",
-				Regex:        "test.+",
-				FilterAction: "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, empty atomic field")},
-		},
-		{
-			Name: "spEnrichedFilter empty regex",
-			Transformations: []*Transformation{{
-				Name:         "spEnrichedFilter",
-				AtomicField:  "app_id",
-				FilterAction: "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilter, empty regex")},
-		},
-		{
-			Name: "spEnrichedFilterContext success",
-			Transformations: []*Transformation{{
-				Name:            "spEnrichedFilterContext",
-				ContextFullName: "contexts_nl_basjes_yauaa_context_1",
-				CustomFieldPath: "test1.test2[0]",
-				Regex:           "test.+",
-				FilterAction:    "keep",
-			}},
-		},
-		{
-			Name: "spEnrichedFilterContext regexp does not compile",
-			Transformations: []*Transformation{{
-				Name:            "spEnrichedFilterContext",
-				ContextFullName: "contexts_nl_basjes_yauaa_context_1",
-				CustomFieldPath: "test1.test2[0]",
-				Regex:           "?(?=-)",
-				FilterAction:    "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
-		},
-		{
-			Name: "spEnrichedFilterContext empty custom field path",
-			Transformations: []*Transformation{{
-				Name:         "spEnrichedFilterContext",
-				Regex:        "test.+",
-				FilterAction: "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, empty context full name"), fmt.Errorf("validation error #0 spEnrichedFilterContext, empty custom field path")},
-		},
-		{
-			Name: "spEnrichedFilterContext empty regex",
-			Transformations: []*Transformation{{
-				Name:            "spEnrichedFilterContext",
-				ContextFullName: "contexts_nl_basjes_yauaa_context_1",
-				CustomFieldPath: "test1.test2[0]",
-				FilterAction:    "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterContext, empty regex")},
-		},
-		{
-			Name: "spEnrichedFilterUnstructEvent success",
-			Transformations: []*Transformation{{
-				Name:              "spEnrichedFilterUnstructEvent",
-				CustomFieldPath:   "sku",
-				Regex:             "test.+",
-				UnstructEventName: "add_to_cart",
-				FilterAction:      "keep",
-			}},
-		},
-		{
-			Name: "spEnrichedFilterUnstructEvent regexp does not compile",
-			Transformations: []*Transformation{{
-				Name:              "spEnrichedFilterUnstructEvent",
-				CustomFieldPath:   "sku",
-				Regex:             "?(?=-)",
-				UnstructEventName: "add_to_cart",
-				FilterAction:      "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, regex does not compile. error: error parsing regexp: missing argument to repetition operator: `?`")},
-		},
-		{
-			Name: "spEnrichedFilterUnstructEvent empty custom field path and event name",
-			Transformations: []*Transformation{{
-				Name:         "spEnrichedFilterUnstructEvent",
-				Regex:        "test.+",
-				FilterAction: "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty custom field path"), fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty event name")},
-		},
-		{
-			Name: "spEnrichedFilterUnstructEvent empty regex and event name",
-			Transformations: []*Transformation{{
-				Name:            "spEnrichedFilterUnstructEvent",
-				CustomFieldPath: "sku",
-				FilterAction:    "keep",
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty event name"), fmt.Errorf("validation error #0 spEnrichedFilterUnstructEvent, empty regex")},
-		},
-		{
-			Name: "lua success",
-			Transformations: []*Transformation{{
-				Name:   "lua",
-				Engine: luaEngine,
-			}},
-		},
-		{
-			Name: "lua main() smoke test failed",
-			Transformations: []*Transformation{{
-				Name:   "lua",
-				Engine: luaEngineNoMain,
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error in lua transformation #0, main() smoke test failed")},
-		},
-		{
-			Name: "js success",
-			Transformations: []*Transformation{{
-				Name:   "js",
-				Engine: jsEngine,
-			}},
-		},
-		{
-			Name: "js main() smoke test failed",
-			Transformations: []*Transformation{{
-				Name:   "js",
-				Engine: jsEngineNoMain,
-			}},
-			ExpectedErrs: []error{fmt.Errorf("validation error in js transformation #0, main() smoke test failed")},
-		},
-		{
-			Name: "multiple validation errors",
-			Transformations: []*Transformation{
-				{
-					Name:   "js",
-					Engine: jsEngineNoMain,
-				},
-				{
-					Name:         "spEnrichedFilter",
-					Regex:        "test.+",
-					FilterAction: "keep",
-				},
-				// a successful transformation mixed in to test transformation counter
-				{
-					Name: "spEnrichedToJson",
-				},
-				{
-					Name: "spEnrichedSetPk",
-				},
-			},
-			ExpectedErrs: []error{
-				fmt.Errorf("validation error in js transformation #0, main() smoke test failed"),
-				fmt.Errorf("validation error #1 spEnrichedFilter, empty atomic field"),
-				fmt.Errorf("validation error #3 spEnrichedSetPk, empty atomic field"),
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			valErrs := ValidateTransformations(tt.Transformations)
-			if tt.ExpectedErrs != nil {
-				for idx, valErr := range valErrs {
-					assert.Equal(tt.ExpectedErrs[idx].Error(), valErr.Error())
-				}
-			} else {
-				assert.Nil(valErrs)
-			}
-		})
-	}
+	// Walk iterates the directory & executes the function.
+	filepath.Walk("configs", testConfig)
 }
 
 func TestEnginesAndTransformations(t *testing.T) {
@@ -359,11 +72,10 @@ func TestEnginesAndTransformations(t *testing.T) {
 
 	testFixPath := "../../../config/test-fixtures"
 	testCases := []struct {
-		Description        string
-		File               string
-		ExpectedTransforms []Transformation
-		ExpectedMessages   expectedMessages
-		CompileErr         string
+		Description      string
+		File             string
+		ExpectedMessages expectedMessages
+		CompileErr       string
 	}{
 		{
 			Description: "simple transform success",
@@ -389,7 +101,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 				}},
 				After: []*models.Message{messageJSCompileErr},
 			},
-			CompileErr: `SyntaxError`,
+			CompileErr: `error building JS engine:`,
 		},
 		{
 			Description: `mixed success`,
@@ -430,7 +142,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 				}},
 				After: []*models.Message{messageJSCompileErr},
 			},
-			CompileErr: `SyntaxError`,
+			CompileErr: `error building JS engine:`,
 		},
 		{
 			Description: `mixed with filter success`,
@@ -490,8 +202,9 @@ func TestEnginesAndTransformations(t *testing.T) {
 			}
 
 			// get transformations, and run the transformations on the expected messages
-			tr, err := GetTransformations(c)
+			tr, err := GetTransformations(c, SupportedTransformations)
 			if tt.CompileErr != `` {
+				fmt.Println(err.Error())
 				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
 				assert.Nil(tr)
 				return
@@ -562,3 +275,20 @@ var snowplowJSON1Mixed = []byte(`Hello:{"app_id":"again","collector_tstamp":"201
 
 // snowplowJSON1 with 3 transformations applied, for order test
 var snowplowJSON1Order = []byte(`{"app_id":"3","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
+
+//
+
+//
+
+// TODO: CLEAN THIS UP!
+
+// TODO: Test each possible configuration
+// TODO: Organise the example configs sensibly
+// Idea there:
+//
+//	//	- Move testutil into root of project
+//	// 	- Create variables with aboslute paths to configs from there
+//	// 	- Put the docs test configs in there too
+//	//	- Test variables can probably all migrate there too (time permitting)
+// On this: https://stackoverflow.com/questions/43887759/read-file-from-relative-path-with-different-callers
+// Note: This may well end up simply being a bridge too far for this release, as resolving paths around the project might not be feasible
