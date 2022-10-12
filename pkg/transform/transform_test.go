@@ -34,7 +34,7 @@ func TestNewTransformation_Passthrough(t *testing.T) {
 			PartitionKey: "some-key2",
 		},
 		{
-			Data: []byte(`not	a	snowplow	event`),
+			Data:         []byte(`not	a	snowplow	event`),
 			PartitionKey: "some-key4",
 		},
 	}
