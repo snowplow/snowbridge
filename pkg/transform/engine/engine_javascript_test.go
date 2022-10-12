@@ -20,26 +20,24 @@ import (
 )
 
 type JSTestCase struct {
-	Scenario          string
-	Src               string
-	DisableSourceMaps bool
-	SpMode            bool
-	Input             *models.Message
-	InterState        interface{}
-	Expected          map[string]*models.Message
-	ExpInterState     interface{}
-	IsJSON            bool
-	Error             error
+	Scenario      string
+	Src           string
+	SpMode        bool
+	Input         *models.Message
+	InterState    interface{}
+	Expected      map[string]*models.Message
+	ExpInterState interface{}
+	IsJSON        bool
+	Error         error
 }
 
 func TestJSLayer(t *testing.T) {
 	assert := assert.New(t)
 
 	jsEngine, err := NewJSEngine(&JSEngineConfig{
-		SourceB64:         "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ",
-		RunTimeout:        15,
-		DisableSourceMaps: true,
-		SpMode:            false,
+		SourceB64:  "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ",
+		RunTimeout: 15,
+		SpMode:     false,
 	})
 	assert.NotNil(t, jsEngine)
 	assert.Nil(err)
@@ -55,8 +53,7 @@ function main(x) {
    return x;
 }
 `,
-			Scenario:          "identity",
-			DisableSourceMaps: true,
+			Scenario: "identity",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -84,8 +81,7 @@ function main(x) {
    return x;
 }
 `,
-			Scenario:          "concatHello",
-			DisableSourceMaps: true,
+			Scenario: "concatHello",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -112,8 +108,7 @@ function main(x) {
    return x;
 }
 `,
-			Scenario:          "filterIn",
-			DisableSourceMaps: true,
+			Scenario: "filterIn",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -148,8 +143,7 @@ function main(x) {
    };
 }
 `,
-			Scenario:          "filterOut",
-			DisableSourceMaps: true,
+			Scenario: "filterOut",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -176,8 +170,7 @@ function main(x) {
    };
 }
 `,
-			Scenario:          "jsonIdentity",
-			DisableSourceMaps: false,
+			Scenario: "jsonIdentity",
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -210,8 +203,7 @@ function main(x) {
    return x;
 }
 `,
-			Scenario:          "jsonTransformFieldNameRegex",
-			DisableSourceMaps: false,
+			Scenario: "jsonTransformFieldNameRegex",
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -247,8 +239,7 @@ function main(x) {
    };
 }
 `,
-			Scenario:          "jsonTransformFieldNameObj",
-			DisableSourceMaps: false,
+			Scenario: "jsonTransformFieldNameObj",
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -283,8 +274,7 @@ function main(x) {
    return x;
 }
 `,
-			Scenario:          "jsonFilterOut",
-			DisableSourceMaps: false,
+			Scenario: "jsonFilterOut",
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -307,8 +297,7 @@ function main(x) {
    return 0;
 }
 `,
-			Scenario:          "returnWrongType",
-			DisableSourceMaps: true,
+			Scenario: "returnWrongType",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -328,8 +317,7 @@ function main(x) {
 			Src: `
 function main(x) {}
 `,
-			Scenario:          "returnUndefined",
-			DisableSourceMaps: true,
+			Scenario: "returnUndefined",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -351,8 +339,7 @@ function main(x) {
  return null;
 }
 `,
-			Scenario:          "returnNull",
-			DisableSourceMaps: true,
+			Scenario: "returnNull",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -374,8 +361,7 @@ function main(x) {
    return x.toExponential(2);
 }
 `,
-			Scenario:          "causeRuntimeError",
-			DisableSourceMaps: true,
+			Scenario: "causeRuntimeError",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -397,8 +383,7 @@ function main(x) {
    throw("Failed");
 }
 `,
-			Scenario:          "callError",
-			DisableSourceMaps: false,
+			Scenario: "callError",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -422,8 +407,7 @@ function main(x) {
    }
 }
 `,
-			Scenario:          "sleepTenSecs",
-			DisableSourceMaps: false,
+			Scenario: "sleepTenSecs",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -447,10 +431,9 @@ function main(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:         src,
-				RunTimeout:        5,
-				DisableSourceMaps: tt.DisableSourceMaps,
-				SpMode:            testSpMode,
+				SourceB64:  src,
+				RunTimeout: 5,
+				SpMode:     testSpMode,
 			}
 
 			jsEngine, err := NewJSEngine(jsConfig)
@@ -504,7 +487,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsTsv,
 				PartitionKey: "some-test-key",
@@ -539,7 +521,6 @@ function main(input) {
    };
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsTsv,
 				PartitionKey: "some-test-key",
@@ -566,7 +547,6 @@ function main(x) {
    };
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsTsv,
 				PartitionKey: "some-test-key",
@@ -589,7 +569,6 @@ function main(x) {
   return x;
 }
 `,
-			DisableSourceMaps: false,
 			Input: &models.Message{
 				Data:         []byte("nonSpEnrichedEvent"),
 				PartitionKey: "some-test-key",
@@ -612,7 +591,6 @@ function main(x) {
    return 0;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsTsv,
 				PartitionKey: "some-test-key",
@@ -636,10 +614,9 @@ function main(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:         src,
-				RunTimeout:        5,
-				DisableSourceMaps: tt.DisableSourceMaps,
-				SpMode:            testSpMode,
+				SourceB64:  src,
+				RunTimeout: 5,
+				SpMode:     testSpMode,
 			}
 
 			jsEngine, err := NewJSEngine(jsConfig)
@@ -692,7 +669,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -725,7 +701,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -758,7 +733,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -787,7 +761,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -817,10 +790,9 @@ function main(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:         src,
-				RunTimeout:        5,
-				DisableSourceMaps: tt.DisableSourceMaps,
-				SpMode:            testSpMode,
+				SourceB64:  src,
+				RunTimeout: 5,
+				SpMode:     testSpMode,
 			}
 
 			jsEngine, err := NewJSEngine(jsConfig)
@@ -873,7 +845,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -906,7 +877,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -939,7 +909,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -964,7 +933,6 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
 			Input: &models.Message{
 				Data:         testJsTsv,
 				PartitionKey: "some-test-key",
@@ -994,10 +962,9 @@ function main(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:         src,
-				RunTimeout:        5,
-				DisableSourceMaps: tt.DisableSourceMaps,
-				SpMode:            testSpMode,
+				SourceB64:  src,
+				RunTimeout: 5,
+				SpMode:     testSpMode,
 			}
 
 			jsEngine, err := NewJSEngine(jsConfig)
@@ -1051,8 +1018,7 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
-			SpMode:            true,
+			SpMode: true,
 			Input: &models.Message{
 				Data:         testJsTsv,
 				PartitionKey: "oldPK",
@@ -1081,8 +1047,7 @@ function main(x) {
    return x;
 }
 `,
-			DisableSourceMaps: true,
-			SpMode:            false,
+			SpMode: false,
 			Input: &models.Message{
 				Data:         testJsTsv,
 				PartitionKey: "oldPK",
@@ -1113,8 +1078,7 @@ function main(x) {
    };
 }
 `,
-			DisableSourceMaps: true,
-			SpMode:            true,
+			SpMode: true,
 			Input: &models.Message{
 				Data:         testJsTsv,
 				PartitionKey: "oldPk",
@@ -1138,10 +1102,9 @@ function main(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:         src,
-				RunTimeout:        5,
-				DisableSourceMaps: tt.DisableSourceMaps,
-				SpMode:            tt.SpMode,
+				SourceB64:  src,
+				RunTimeout: 5,
+				SpMode:     tt.SpMode,
 			}
 
 			jsEngine, err := NewJSEngine(jsConfig)
@@ -1186,11 +1149,10 @@ function main(x) {
 
 func TestJSEngineSmokeTest(t *testing.T) {
 	testCases := []struct {
-		Src               string
-		FunName           string
-		DisableSourceMaps bool
-		CompileError      error
-		SmokeError        error
+		Src          string
+		FunName      string
+		CompileError error
+		SmokeError   error
 	}{
 		{
 			Src: `
@@ -1198,10 +1160,9 @@ function identity(x) {
    return x;
 }
 `,
-			FunName:           "identity",
-			DisableSourceMaps: true,
-			CompileError:      nil,
-			SmokeError:        nil,
+			FunName:      "identity",
+			CompileError: nil,
+			SmokeError:   nil,
 		},
 		{
 			Src: `
@@ -1209,10 +1170,9 @@ function notMain(x) {
    return x;
 }
 `,
-			FunName:           "notExists",
-			DisableSourceMaps: true,
-			CompileError:      nil,
-			SmokeError:        fmt.Errorf("could not assert as function"),
+			FunName:      "notExists",
+			CompileError: nil,
+			SmokeError:   fmt.Errorf("could not assert as function"),
 		},
 		{
 			Src: `
@@ -1220,10 +1180,9 @@ function main(x) {
    local y = 0;
 }
 `,
-			FunName:           "syntaxError",
-			DisableSourceMaps: false,
-			CompileError:      fmt.Errorf("SyntaxError"),
-			SmokeError:        nil,
+			FunName:      "syntaxError",
+			CompileError: fmt.Errorf("SyntaxError"),
+			SmokeError:   nil,
 		},
 	}
 
@@ -1233,9 +1192,8 @@ function main(x) {
 
 			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:         src,
-				RunTimeout:        5,
-				DisableSourceMaps: tt.DisableSourceMaps,
+				SourceB64:  src,
+				RunTimeout: 5,
 			}
 
 			jsEngine, compileErr := NewJSEngine(jsConfig)
@@ -1288,9 +1246,8 @@ function main(x) {
 	}
 
 	jsConfig := &JSEngineConfig{
-		SourceB64:         src,
-		RunTimeout:        5,
-		DisableSourceMaps: true,
+		SourceB64:  src,
+		RunTimeout: 5,
 	}
 
 	jsEngine, err := NewJSEngine(jsConfig)
@@ -1321,9 +1278,8 @@ function main(x) {
 	}
 
 	jsConfig := &JSEngineConfig{
-		SourceB64:         src,
-		RunTimeout:        5,
-		DisableSourceMaps: false,
+		SourceB64:  src,
+		RunTimeout: 5,
 	}
 
 	jsEngine, err := NewJSEngine(jsConfig)
@@ -1354,9 +1310,8 @@ function main(x) {
 	}
 
 	jsConfig := &JSEngineConfig{
-		SourceB64:         src,
-		RunTimeout:        5,
-		DisableSourceMaps: false,
+		SourceB64:  src,
+		RunTimeout: 5,
 	}
 
 	jsEngine, err := NewJSEngine(jsConfig)
@@ -1392,9 +1347,8 @@ function main(x) {
 	}
 
 	jsConfig := &JSEngineConfig{
-		SourceB64:         src,
-		RunTimeout:        5,
-		DisableSourceMaps: false,
+		SourceB64:  src,
+		RunTimeout: 5,
 	}
 
 	jsEngine, err := NewJSEngine(jsConfig)
