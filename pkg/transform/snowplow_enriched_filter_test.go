@@ -7,10 +7,10 @@
 package transform
 
 import (
+	"fmt"
 	"regexp"
 	"testing"
 
-	"github.com/dlclark/regexp2"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -35,7 +35,10 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert := assert.New(t)
 
 	// Single value cases
-	aidFilterFuncKeep, _ := NewSpEnrichedFilterFunction("app_id", "^test-data3$", 0)
+	aidFilterFuncKeep, err := NewSpEnrichedFilterFunction("app_id", "^test-data3$", "keep")
+	if err != nil {
+		panic(err)
+	}
 
 	aidKeepIn, aidKeepOut, fail, _ := aidFilterFuncKeep(&messageGood, nil)
 
@@ -43,7 +46,10 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(aidKeepOut)
 	assert.Nil(fail)
 
-	aidFilterFuncDiscard, _ := NewSpEnrichedFilterFunction("app_id", "failThis", 10)
+	aidFilterFuncDiscard, err := NewSpEnrichedFilterFunction("app_id", "failThis", "keep")
+	if err != nil {
+		panic(err)
+	}
 
 	aidDiscardIn, aidDiscardOut, fail2, _ := aidFilterFuncDiscard(&messageGood, nil)
 
@@ -52,7 +58,10 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail2)
 
 	// int value
-	urlPrtFilterFuncKeep, _ := NewSpEnrichedFilterFunction("page_urlport", "^80$", 10)
+	urlPrtFilterFuncKeep, err := NewSpEnrichedFilterFunction("page_urlport", "^80$", "keep")
+	if err != nil {
+		panic(err)
+	}
 
 	urlPrtKeepIn, urlPrtKeepOut, fail, _ := urlPrtFilterFuncKeep(&messageGood, nil)
 
@@ -61,76 +70,103 @@ func TestNewSpEnrichedFilterFunction(t *testing.T) {
 	assert.Nil(fail)
 
 	// Multiple value cases
-	aidFilterFuncKeepWithMultiple, _ := NewSpEnrichedFilterFunction("app_id", "^someotherValue|test-data3$", 10)
+	aidFilterFuncKeepWithMultiple, err := NewSpEnrichedFilterFunction("app_id", "^someotherValue|test-data3$", "keep")
+	if err != nil {
+		panic(err)
+	}
 
-	aidMultipleNegationFailedIn, aidMultipleKeepOut, fail3, _ := aidFilterFuncKeepWithMultiple(&messageGood, nil)
+	aidMultipleIn, aidMultipleOut, fail, _ := aidFilterFuncKeepWithMultiple(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, aidMultipleNegationFailedIn.Data)
-	assert.Nil(aidMultipleKeepOut)
-	assert.Nil(fail3)
+	assert.Equal(snowplowTsv3, aidMultipleIn.Data)
+	assert.Nil(aidMultipleOut)
+	assert.Nil(fail)
 
-	aidFilterFuncDiscardWithMultiple, _ := NewSpEnrichedFilterFunction("app_id", "^someotherValue|failThis$", 10)
+	aidFilterFuncDiscardWithMultiple, _ := NewSpEnrichedFilterFunction("app_id", "^someotherValue|failThis$", "keep")
+	if err != nil {
+		panic(err)
+	}
 
-	aidNegationMultipleIn, aidMultipleDiscardOut, fail3, _ := aidFilterFuncDiscardWithMultiple(&messageGood, nil)
+	aidNoneOfMultipleIn, aidNoneOfMultipleOut, fail, _ := aidFilterFuncDiscardWithMultiple(&messageGood, nil)
 
-	assert.Nil(aidNegationMultipleIn)
-	assert.Equal(snowplowTsv3, aidMultipleDiscardOut.Data)
-	assert.Nil(fail3)
+	assert.Nil(aidNoneOfMultipleIn)
+	assert.Equal(snowplowTsv3, aidNoneOfMultipleOut.Data)
+	assert.Nil(fail)
 
 	// Single value negation cases
-	aidFilterFuncNegationDiscard, _ := NewSpEnrichedFilterFunction("app_id", "^((?!test-data3).)*$", 10)
+	aidFilterFuncNegationDiscard, err := NewSpEnrichedFilterFunction("app_id", "^test-data3", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	aidNegationIn, aidNegationOut, fail4, _ := aidFilterFuncNegationDiscard(&messageGood, nil)
+	aidNegationIn, aidNegationOut, fail, _ := aidFilterFuncNegationDiscard(&messageGood, nil)
 
 	assert.Nil(aidNegationIn)
 	assert.Equal(snowplowTsv3, aidNegationOut.Data)
-	assert.Nil(fail4)
+	assert.Nil(fail)
 
-	aidFilterFuncNegationKeep, _ := NewSpEnrichedFilterFunction("app_id", "^((?!someValue).)*$", 10)
+	aidFilterFuncNegationKeep, err := NewSpEnrichedFilterFunction("app_id", "^someValue", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	aidNegationFailedIn, aidNegationFailedOut, fail5, _ := aidFilterFuncNegationKeep(&messageGood, nil)
+	aidNegationFailedIn, aidNegationFailedOut, fail, _ := aidFilterFuncNegationKeep(&messageGood, nil)
 
 	assert.Equal(snowplowTsv3, aidNegationFailedIn.Data)
 	assert.Nil(aidNegationFailedOut)
-	assert.Nil(fail5)
+	assert.Nil(fail)
 
 	// Multiple value negation cases
-	aidFilterFuncNegationDiscardMultiple, _ := NewSpEnrichedFilterFunction("app_id", "^((?!someotherValue|test-data1|test-data2|test-data3).)*$", 10)
+	aidFilterFuncNegationDiscardMultiple, err := NewSpEnrichedFilterFunction("app_id", "^(someotherValue|test-data1|test-data2|test-data3)", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	aidNegationMultipleIn, aidNegationMultipleOut, fail6, _ := aidFilterFuncNegationDiscardMultiple(&messageGood, nil)
+	aidNoneOfMultipleIn, aidNegationMultipleOut, fail, _ := aidFilterFuncNegationDiscardMultiple(&messageGood, nil)
 
-	assert.Nil(aidNegationMultipleIn)
+	assert.Nil(aidNoneOfMultipleIn)
 	assert.Equal(snowplowTsv3, aidNegationMultipleOut.Data)
-	assert.Nil(fail6)
+	assert.Nil(fail)
 
-	aidFilterFuncNegationKeptMultiple, _ := NewSpEnrichedFilterFunction("app_id", "^((?!someotherValue|failThis).)*$", 10)
+	aidFilterFuncNegationKeptMultiple, err := NewSpEnrichedFilterFunction("app_id", "^(someotherValue|failThis)$", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	aidMultipleNegationFailedIn, aidMultipleNegationFailedOut, fail7, _ := aidFilterFuncNegationKeptMultiple(&messageGood, nil)
+	aidMultipleIn, aidMultipleNegationFailedOut, fail, _ := aidFilterFuncNegationKeptMultiple(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, aidMultipleNegationFailedIn.Data)
+	assert.Equal(snowplowTsv3, aidMultipleIn.Data)
 	assert.Nil(aidMultipleNegationFailedOut)
-	assert.Nil(fail7)
+	assert.Nil(fail)
 
 	// Filters on a nil field
-	txnFilterFunctionAffirmation, _ := NewSpEnrichedFilterFunction("txn_id", "^something$", 10)
+	txnFilterFunctionAffirmation, err := NewSpEnrichedFilterFunction("txn_id", "^something$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	nilAffirmationIn, nilAffirmationOut, fail8, _ := txnFilterFunctionAffirmation(&messageGood, nil)
+	nilAffirmationIn, nilAffirmationOut, fail, _ := txnFilterFunctionAffirmation(&messageGood, nil)
 
 	// nil doesn't match the regex and should be filtered out.
 	assert.Nil(nilAffirmationIn)
 	assert.Equal(snowplowTsv3, nilAffirmationOut.Data)
-	assert.Nil(fail8)
+	assert.Nil(fail)
 
-	txnFilterFunctionNegation, _ := NewSpEnrichedFilterFunction("txn_id", "^((?!something).)*$", 10)
+	txnFilterFunctionNegation, err := NewSpEnrichedFilterFunction("txn_id", "^something", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	nilNegationIn, nilNegationOut, fail8, _ := txnFilterFunctionNegation(&messageGood, nil)
+	nilNegationIn, nilNegationOut, fail, _ := txnFilterFunctionNegation(&messageGood, nil)
 
 	// nil DOES match the negative lookup - it doesn't contain 'something'. So should be kept.
 	assert.Equal(snowplowTsv3, nilNegationIn.Data)
 	assert.Nil(nilNegationOut)
-	assert.Nil(fail8)
+	assert.Nil(fail)
 
-	fieldNotExistsFilter, _ := NewSpEnrichedFilterFunction("nothing", "", 10)
+	fieldNotExistsFilter, err := NewSpEnrichedFilterFunction("nothing", "", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	notExistsIn, notExistsOut, notExistsFail, _ := fieldNotExistsFilter(&messageGood, nil)
 
@@ -145,74 +181,198 @@ func TestNewSpEnrichedFilterFunctionContext(t *testing.T) {
 	// The relevant data in messageGood looks like this: "test1":{"test2":[{"test3":"testValue"}]
 
 	// context filter success
-	contextFuncKeep, _ := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^testValue$", 10)
+	contextFilterFunc, err := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^testValue$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	contextKeepIn, contextKeepOut, fail9, _ := contextFuncKeep(&messageGood, nil)
+	contextIn, contextOut, fail, _ := contextFilterFunc(&messageGood, nil)
 
-	assert.Equal(snowplowTsv3, contextKeepIn.Data)
-	assert.Nil(contextKeepOut)
-	assert.Nil(fail9)
+	assert.Equal(snowplowTsv3, contextIn.Data)
+	assert.Nil(contextOut)
+	assert.Nil(fail)
+
+	// same, with 'drop'
+	contextFilterFunc, err = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^testValue$", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	contextIn, contextOut, fail, _ = contextFilterFunc(&messageGood, nil)
+
+	assert.Nil(contextIn)
+	assert.Equal(snowplowTsv3, contextOut.Data)
+	assert.Nil(fail)
 
 	// The relevant data in messageGoodInt looks like this: "test1":{"test2":[{"test3":1}]
 
 	// context filter success (integer value)
-	contextFuncKeep, _ = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^1$", 10)
+	contextFilterFunc, err = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^1$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	contextKeepIn, contextKeepOut, fail9, _ = contextFuncKeep(&messageGoodInt, nil)
+	contextIn, contextOut, fail, _ = contextFilterFunc(&messageGoodInt, nil)
 
-	assert.Equal(snowplowTsv4, contextKeepIn.Data)
-	assert.Nil(contextKeepOut)
-	assert.Nil(fail9)
+	assert.Equal(snowplowTsv4, contextIn.Data)
+	assert.Nil(contextOut)
+	assert.Nil(fail)
 
-	// context filter wrong path
-	contextFuncKeep, _ = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_2", "test1.test2[0].test3", "^testValue$", 10)
+	// same, with 'drop'
+	contextFilterFunc, err = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^1$", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	contextKeepIn, contextKeepOut, fail9, _ = contextFuncKeep(&messageGood, nil)
+	contextIn, contextOut, fail, _ = contextFilterFunc(&messageGoodInt, nil)
 
-	assert.Nil(contextKeepIn)
-	assert.Equal(snowplowTsv3, contextKeepOut.Data)
-	assert.Nil(fail9)
+	assert.Nil(contextIn)
+	assert.Equal(snowplowTsv4, contextOut.Data)
+	assert.Nil(fail)
+
+	// context filter wrong context name
+	contextFilterFunc, err = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_2", "test1.test2[0].test3", "^testValue$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	contextIn, contextOut, fail, _ = contextFilterFunc(&messageGood, nil)
+
+	assert.Nil(contextIn)
+	assert.Equal(snowplowTsv3, contextOut.Data)
+	assert.Nil(fail)
+
+	// Context filter path doesn't exist
+
+	// This configuration is 'keep values that match "^testValue$"'. If the path is wrong, tha value is empty, which doesn't match that regex - so it should be filtered out.
+	contextFilterFunc, err = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_2", "test1.test2[0].nothingHere", "^testValue$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	contextIn, contextOut, fail, _ = contextFilterFunc(&messageGood, nil)
+
+	assert.Nil(contextIn)
+	assert.Equal(snowplowTsv3, contextOut.Data)
+	assert.Nil(fail)
+
+	// This says 'drop values that match "^testValue$"'. If the path is wrong, the value is empty, which doesn't match that regex - so it should be kept.
+	contextFilterFunc, err = NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_2", "test1.test2[0].nothingHere", "^testValue$", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	contextIn, contextOut, fail, _ = contextFilterFunc(&messageGood, nil)
+
+	assert.Equal(snowplowTsv3, contextIn.Data)
+	assert.Nil(contextOut)
+	assert.Nil(fail)
 }
 
 func TestNewSpEnrichedFilterFunctionUnstructEvent(t *testing.T) {
 	assert := assert.New(t)
 
 	// event filter success, filtered event name
-	eventFilterFuncKeep, _ := NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "1-*-*", "sku", "^item41$", 10)
+	eventFilterFunc, err := NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "1-*-*", "sku", "^item41$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	eventKeepIn, eventKeepOut, fail10, _ := eventFilterFuncKeep(&messageWithUnstructEvent, nil)
+	eventIn, eventOut, fail, _ := eventFilterFunc(&messageWithUnstructEvent, nil)
 
-	assert.Equal(snowplowTsv1, eventKeepIn.Data)
-	assert.Nil(eventKeepOut)
-	assert.Nil(fail10)
+	assert.Equal(snowplowTsv1, eventIn.Data)
+	assert.Nil(eventOut)
+	assert.Nil(fail)
 
-	// event filter success, filtered event name, no event ver
-	eventFilterFuncKeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "", "sku", "^item41$", 10)
+	// same, with 'drop'
+	eventFilterFunc, err = NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "1-*-*", "sku", "^item41$", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	eventKeepIn, eventKeepOut, fail10, _ = eventFilterFuncKeep(&messageWithUnstructEvent, nil)
+	eventIn, eventOut, fail, _ = eventFilterFunc(&messageWithUnstructEvent, nil)
 
-	assert.Equal(snowplowTsv1, eventKeepIn.Data)
-	assert.Nil(eventKeepOut)
-	assert.Nil(fail10)
+	assert.Nil(eventIn)
+	assert.Equal(snowplowTsv1, eventOut.Data)
+	assert.Nil(fail)
 
-	// event filter failure, wrong event name
-	eventFilterFuncKeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("wrong_name", "", "sku", "^item41$", 10)
+	// event filter success, filtered event name, no event version
+	eventFilterFunc, err = NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "", "sku", "^item41$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	eventKeepIn, eventKeepOut, fail11, _ := eventFilterFuncKeep(&messageWithUnstructEvent, nil)
+	eventIn, eventOut, fail, _ = eventFilterFunc(&messageWithUnstructEvent, nil)
 
-	assert.Nil(eventKeepIn)
-	assert.Equal(snowplowTsv1, eventKeepOut.Data)
-	assert.Nil(fail11)
+	assert.Equal(snowplowTsv1, eventIn.Data)
+	assert.Nil(eventOut)
+	assert.Nil(fail)
 
-	// event filter failure, field not found
-	eventFilterFuncKeep, _ = NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "", "ska", "item41", 10)
+	// same with 'drop'
+	eventFilterFunc, err = NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "", "sku", "^item41$", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	eventNoFieldIn, eventNoFieldOut, fail12, _ := eventFilterFuncKeep(&messageWithUnstructEvent, nil)
+	eventIn, eventOut, fail, _ = eventFilterFunc(&messageWithUnstructEvent, nil)
+
+	assert.Nil(eventIn)
+	assert.Equal(snowplowTsv1, eventOut.Data)
+	assert.Nil(fail)
+
+	// Wrong event name
+
+	// This configuration says 'keep only `wrong_name`` events whose `sku` field matches "^item41$"'.
+	// If the data is not a wrong_name event, the value is nil and it should be filtered out.
+	eventFilterFunc, err = NewSpEnrichedFilterFunctionUnstructEvent("wrong_name", "", "sku", "^item41$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	eventIn, eventOut, fail, _ = eventFilterFunc(&messageWithUnstructEvent, nil)
+
+	assert.Nil(eventIn)
+	assert.Equal(snowplowTsv1, eventOut.Data)
+	assert.Nil(fail)
+
+	// This configuration says 'keep only `wrong_name`` events whose `ska` field matches "item41"'.
+	// If the data the ska field doesn't exist, the value is nil and it should be filtered out.
+	eventFilterFunc, err = NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "", "ska", "item41", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	eventNoFieldIn, eventNoFieldOut, fail, _ := eventFilterFunc(&messageWithUnstructEvent, nil)
 
 	assert.Nil(eventNoFieldIn)
 	assert.Equal(snowplowTsv1, eventNoFieldOut.Data)
-	assert.Nil(fail12)
+	assert.Nil(fail)
 
+	// This configuration says 'drop `wrong_name`` events whose `sku` field matches "^item41$"'.
+	// If the data is not a wrong_name event, the value is nil and it should be kept.
+	eventFilterFunc, err = NewSpEnrichedFilterFunctionUnstructEvent("wrong_name", "", "sku", "^item41$", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	eventIn, eventOut, fail, _ = eventFilterFunc(&messageWithUnstructEvent, nil)
+
+	assert.Equal(snowplowTsv1, eventIn.Data)
+	assert.Nil(eventOut)
+	assert.Nil(fail)
+
+	// This configuration says 'drop `wrong_name`` events whose `ska` field matches "item41"'.
+	// If the data the ska field doesn't exist, the value is nil and it should be filtered out.
+	eventFilterFunc, err = NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "", "ska", "item41", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	eventNoFieldIn, eventNoFieldOut, fail, _ = eventFilterFunc(&messageWithUnstructEvent, nil)
+
+	assert.Equal(snowplowTsv1, eventNoFieldIn.Data)
+	assert.Nil(eventNoFieldOut)
+	assert.Nil(fail)
 }
 
 func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
@@ -236,7 +396,10 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filterFunc, _ := NewSpEnrichedFilterFunction("app_id", "^test-data1$", 10)
+	filterFunc, err := NewSpEnrichedFilterFunction("app_id", "^test-data1$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	filter1 := NewTransformation(filterFunc)
 	filter1Res := filter1(messages)
@@ -264,7 +427,10 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filterFunc2, _ := NewSpEnrichedFilterFunction("app_id", "^test-data1|test-data2$", 10)
+	filterFunc2, err := NewSpEnrichedFilterFunction("app_id", "^test-data1|test-data2$", "keep")
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	filter2 := NewTransformation(filterFunc2)
 	filter2Res := filter2(messages)
@@ -280,7 +446,10 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 		},
 	}
 
-	filterFunc3, _ := NewSpEnrichedFilterFunction("app_id", "^((?!test-data1|test-data2).)*$", 10)
+	filterFunc3, err := NewSpEnrichedFilterFunction("app_id", "^(test-data1|test-data2)$", "drop")
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	filter3 := NewTransformation(filterFunc3)
 	filter3Res := filter3(messages)
@@ -293,7 +462,7 @@ func TestSpEnrichedFilterFunction_Slice(t *testing.T) {
 func TestEvaluateSpEnrichedFilter(t *testing.T) {
 	assert := assert.New(t)
 
-	regex, err := regexp2.Compile("^yes$", 0)
+	regex, err := regexp.Compile("^yes$")
 	if err != nil {
 		panic(err)
 	}
@@ -304,7 +473,7 @@ func TestEvaluateSpEnrichedFilter(t *testing.T) {
 	valuesFound2 := []interface{}{"NO", "maybe", "nope", nil}
 	assert.False(evaluateSpEnrichedFilter(regex, valuesFound2))
 
-	regexInt, err := regexp2.Compile("^123$", 0)
+	regexInt, err := regexp.Compile("^123$")
 	if err != nil {
 		panic(err)
 	}
@@ -314,7 +483,7 @@ func TestEvaluateSpEnrichedFilter(t *testing.T) {
 
 	// This asserts that when any element of the input is nil, we assert against empty string.
 	// It exists to ensure we don't evaluate against the string `<nil>` since we're naively casting values to string.
-	regexNil, err := regexp2.Compile("^$", 0)
+	regexNil, err := regexp.Compile("^$")
 	if err != nil {
 		panic(err)
 	}
@@ -328,14 +497,6 @@ func TestEvaluateSpEnrichedFilter(t *testing.T) {
 	// This is important since we have negative lookaheads.
 
 	assert.True(evaluateSpEnrichedFilter(regexNil, nil))
-
-	// negative lookahead:
-	regexNegative, err := regexp2.Compile("^((?!failThis).)*$", 0)
-	if err != nil {
-		panic(err)
-	}
-
-	assert.True(evaluateSpEnrichedFilter(regexNegative, nil))
 }
 
 func TestMakeBaseValueGetter(t *testing.T) {
@@ -440,9 +601,15 @@ func BenchmarkBaseFieldFilter(b *testing.B) {
 		Data:         snowplowTsv3,
 		PartitionKey: "some-key",
 	}
-	aidFilterFuncKeep, _ := NewSpEnrichedFilterFunction("app_id", "^test-data3$", 0)
+	aidFilterFuncKeep, err := NewSpEnrichedFilterFunction("app_id", "^test-data3$", "keep")
+	if err != nil {
+		panic(err)
+	}
 
-	aidFilterFuncNegationKeep, _ := NewSpEnrichedFilterFunction("app_id", "^((?!failThis).)*$", 10)
+	aidFilterFuncNegationKeep, _ := NewSpEnrichedFilterFunction("app_id", "^failThis", "drop")
+	if err != nil {
+		panic(err)
+	}
 
 	for i := 0; i < b.N; i++ {
 
@@ -451,14 +618,20 @@ func BenchmarkBaseFieldFilter(b *testing.B) {
 	}
 }
 
-func BenchmarkContextFilterNew(b *testing.B) {
+func BenchmarkContextFilter(b *testing.B) {
 	var messageGood = models.Message{
 		Data:         snowplowTsv3,
 		PartitionKey: "some-key",
 	}
 
-	contextFuncAffirm, _ := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^testValue$", 10)
-	contextFuncNegate, _ := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^((?!failThis).)*$", 10)
+	contextFuncAffirm, err := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^testValue$", "keep")
+	if err != nil {
+		panic(err)
+	}
+	contextFuncNegate, err := NewSpEnrichedFilterFunctionContext("contexts_nl_basjes_yauaa_context_1", "test1.test2[0].test3", "^failThis", "drop")
+	if err != nil {
+		panic(err)
+	}
 
 	for i := 0; i < b.N; i++ {
 		contextFuncAffirm(&messageGood, nil)
@@ -466,14 +639,20 @@ func BenchmarkContextFilterNew(b *testing.B) {
 	}
 }
 
-func BenchmarkUnstructFilterNew(b *testing.B) {
+func BenchmarkUnstructFilter(b *testing.B) {
 	var messageGood = models.Message{
 		Data:         snowplowTsv1,
 		PartitionKey: "some-key",
 	}
 
-	unstructFilterFuncAffirm, _ := NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "1-*-*", "sku", "^item41$", 10)
-	unstructFilterFuncNegate, _ := NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "1-*-*", "sku", "^((?!failThis).)*$", 10)
+	unstructFilterFuncAffirm, err := NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "1-*-*", "sku", "^item41$", "keep")
+	if err != nil {
+		panic(err)
+	}
+	unstructFilterFuncNegate, err := NewSpEnrichedFilterFunctionUnstructEvent("add_to_cart", "1-*-*", "sku", "^failThis", "keep")
+	if err != nil {
+		panic(err)
+	}
 
 	for i := 0; i < b.N; i++ {
 		unstructFilterFuncAffirm(&messageGood, nil)

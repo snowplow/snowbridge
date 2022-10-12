@@ -28,7 +28,7 @@ type Transformation struct {
 	CustomFieldPath           string `hcl:"custom_field_path,optional"`
 	AtomicField               string `hcl:"atomic_field,optional"`
 	Regex                     string `hcl:"regex,optional"`
-	RegexTimeout              int    `hcl:"regex_timeout,optional"`
+	FilterAction              string `hcl:"filter_action,optional"`
 	// for JS and Lua transformations
 	SourceB64         string `hcl:"source_b64,optional"`
 	TimeoutSec        int    `hcl:"timeout_sec,optional"`
@@ -91,6 +91,9 @@ func ValidateTransformations(transformations []*Transformation) []error {
 			}
 			if transformation.Regex == `` {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, empty regex`, idx))
+			}
+			if transformation.FilterAction != "keep" && transformation.FilterAction != "drop" {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, filter_action must be 'keep' or 'drop'`, idx))
 			} else {
 				_, err := regexp.Compile(transformation.Regex)
 				if err != nil {
@@ -107,6 +110,9 @@ func ValidateTransformations(transformations []*Transformation) []error {
 			}
 			if transformation.Regex == `` {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterContext, empty regex`, idx))
+			}
+			if transformation.FilterAction != "keep" && transformation.FilterAction != "drop" {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, filter_action must be 'keep' or 'drop'`, idx))
 			} else {
 				_, err := regexp.Compile(transformation.Regex)
 				if err != nil {
@@ -123,6 +129,9 @@ func ValidateTransformations(transformations []*Transformation) []error {
 			}
 			if transformation.Regex == `` {
 				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilterUnstructEvent, empty regex`, idx))
+			}
+			if transformation.FilterAction != "keep" && transformation.FilterAction != "drop" {
+				validationErrors = append(validationErrors, fmt.Errorf(`validation error #%d spEnrichedFilter, filter_action must be 'keep' or 'drop'`, idx))
 			} else {
 				_, err := regexp.Compile(transformation.Regex)
 				if err != nil {
@@ -231,19 +240,19 @@ func GetTransformations(c *config.Config) (transform.TransformationApplyFunction
 		case "spEnrichedSetPk":
 			funcs = append(funcs, transform.NewSpEnrichedSetPkFunction(transformation.AtomicField))
 		case "spEnrichedFilter":
-			filterFunc, err := transform.NewSpEnrichedFilterFunction(transformation.AtomicField, transformation.Regex, transformation.RegexTimeout)
+			filterFunc, err := transform.NewSpEnrichedFilterFunction(transformation.AtomicField, transformation.Regex, transformation.FilterAction)
 			if err != nil {
 				return nil, err
 			}
 			funcs = append(funcs, filterFunc)
 		case "spEnrichedFilterContext":
-			filterFunc, err := transform.NewSpEnrichedFilterFunctionContext(transformation.ContextFullName, transformation.CustomFieldPath, transformation.Regex, transformation.RegexTimeout)
+			filterFunc, err := transform.NewSpEnrichedFilterFunctionContext(transformation.ContextFullName, transformation.CustomFieldPath, transformation.Regex, transformation.FilterAction)
 			if err != nil {
 				return nil, err
 			}
 			funcs = append(funcs, filterFunc)
 		case "spEnrichedFilterUnstructEvent":
-			filterFunc, err := transform.NewSpEnrichedFilterFunctionUnstructEvent(transformation.UnstructEventName, transformation.UnstructEventVersionRegex, transformation.CustomFieldPath, transformation.Regex, transformation.RegexTimeout)
+			filterFunc, err := transform.NewSpEnrichedFilterFunctionUnstructEvent(transformation.UnstructEventName, transformation.UnstructEventVersionRegex, transformation.CustomFieldPath, transformation.Regex, transformation.FilterAction)
 			if err != nil {
 				return nil, err
 			}

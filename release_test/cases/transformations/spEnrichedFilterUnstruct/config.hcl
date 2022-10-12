@@ -6,6 +6,8 @@ transform {
     custom_field_path = "targetUrl"
 
     regex = "^https"
+    
+    filter_action = "keep"
   }
 }
 
