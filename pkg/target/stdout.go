@@ -96,7 +96,8 @@ func (st *StdoutTarget) Close() {}
 // per message for this target
 //
 // Note: Technically no limit but we are putting in a limit of 10 MiB here
-//       to avoid trying to print out huge payloads
+//
+//	to avoid trying to print out huge payloads
 func (st *StdoutTarget) MaximumAllowedMessageSizeBytes() int {
 	return 10485760
 }
