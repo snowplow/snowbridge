@@ -22,10 +22,9 @@ import (
 
 // JSEngineConfig configures the JavaScript Engine.
 type JSEngineConfig struct {
-	SourceB64         string `hcl:"source_b64,optional"`
-	RunTimeout        int    `hcl:"timeout_sec,optional"`
-	DisableSourceMaps bool   `hcl:"disable_source_maps,optional"`
-	SpMode            bool   `hcl:"snowplow_mode,optional"`
+	SourceB64  string `hcl:"source_b64,optional"`
+	RunTimeout int    `hcl:"timeout_sec,optional"`
+	SpMode     bool   `hcl:"snowplow_mode,optional"`
 }
 
 // JSEngine handles the provision of a JavaScript runtime to run transformations.
@@ -42,8 +41,7 @@ type JSEngineAdapter func(i interface{}) (interface{}, error)
 // ProvideDefault returns a JSEngineConfig with default configuration values
 func (f JSEngineAdapter) ProvideDefault() (interface{}, error) {
 	return &JSEngineConfig{
-		RunTimeout:        15,
-		DisableSourceMaps: true,
+		RunTimeout: 15,
 	}, nil
 }
 
@@ -55,10 +53,9 @@ func (f JSEngineAdapter) Create(i interface{}) (interface{}, error) {
 // JSEngineConfigFunction creates a JSEngine from a JSEngineConfig
 func JSEngineConfigFunction(c *JSEngineConfig) (*JSEngine, error) {
 	return NewJSEngine(&JSEngineConfig{
-		SourceB64:         c.SourceB64,
-		RunTimeout:        c.RunTimeout,
-		DisableSourceMaps: c.DisableSourceMaps,
-		SpMode:            c.SpMode,
+		SourceB64:  c.SourceB64,
+		RunTimeout: c.RunTimeout,
+		SpMode:     c.SpMode,
 	})
 }
 
@@ -81,7 +78,7 @@ func NewJSEngine(c *JSEngineConfig) (*JSEngine, error) {
 		return nil, err
 	}
 
-	compiledCode, err := compileJS(string(jsSrc), c.SourceB64, c.DisableSourceMaps)
+	compiledCode, err := compileJS(string(jsSrc), c.SourceB64)
 	if err != nil {
 		return nil, err
 	}
@@ -180,12 +177,9 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 // which are implicitly run by the alternative RunString.
 // see also:
 // https://pkg.go.dev/github.com/dop251/goja#CompileAST
-func compileJS(code, name string, disableSrcMaps bool) (*goja.Program, error) {
+func compileJS(code, name string) (*goja.Program, error) {
 	parserOpts := make([]gojaparser.Option, 0, 1)
-
-	if disableSrcMaps == true {
-		parserOpts = append(parserOpts, gojaparser.WithDisableSourceMaps)
-	}
+	parserOpts = append(parserOpts, gojaparser.WithDisableSourceMaps)
 
 	ast, err := goja.Parse(name, code, parserOpts...)
 	if err != nil {
