@@ -10,7 +10,7 @@ transform {
   use "spEnrichedFilter" {
     atomic_field = "app_id"
     regex = "wrong"
-    regex_timeout = 10
+    filter_action = "keep"
   }
 }
 

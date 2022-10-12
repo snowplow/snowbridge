@@ -11,9 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/dlclark/regexp2"
 
 	"github.com/pkg/errors"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
@@ -21,7 +18,7 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
 
-func evaluateSpEnrichedFilter(re *regexp2.Regexp, valuesFound []interface{}) bool {
+func evaluateSpEnrichedFilter(re *regexp.Regexp, valuesFound []interface{}) bool {
 	// if valuesFound is nil, we found no value.
 	// Because negative matches are a thing, we still want to match against an empty string
 	if valuesFound == nil {
@@ -32,22 +29,26 @@ func evaluateSpEnrichedFilter(re *regexp2.Regexp, valuesFound []interface{}) boo
 			v = "" // because nil gets cast to `<nil>`
 		}
 
-		if ok, _ := re.MatchString(fmt.Sprintf("%v", v)); ok {
+		if ok := re.MatchString(fmt.Sprintf("%v", v)); ok {
 			return true
 		}
 	}
 	return false
 }
 
-func createSpEnrichedFilterFunction(regex string, regexTimeout int, getFunc valueGetter) (TransformationFunction, error) {
-	if regexTimeout == 0 {
-		// default timeout for regex is 10 seconds
-		regexTimeout = 10
+func createSpEnrichedFilterFunction(regex string, getFunc valueGetter, filterAction string) (TransformationFunction, error) {
+	var dropIfMatched bool
+	switch filterAction {
+	case "drop":
+		dropIfMatched = true
+	case "keep":
+		dropIfMatched = false
+	default:
+		return nil, fmt.Errorf("Invalid filter action found: %s - must be 'keep' or 'drop'", filterAction)
 	}
 
 	// regexToMatch is what we use to evaluate the actual filter, once we have the value.
-	regexToMatch, err := regexp2.Compile(regex, 0)
-	regexToMatch.MatchTimeout = time.Duration(regexTimeout) * time.Second
+	regexToMatch, err := regexp.Compile(regex)
 	if err != nil {
 		return nil, errors.Wrap(err, `error compiling regex for filter`)
 	}
@@ -69,10 +70,10 @@ func createSpEnrichedFilterFunction(regex string, regexTimeout int, getFunc valu
 		}
 
 		// evaluate whether the found value passes the filter, determining if the message should be kept
-		shouldKeepMessage := evaluateSpEnrichedFilter(regexToMatch, valueFound)
+		matchesRegex := evaluateSpEnrichedFilter(regexToMatch, valueFound)
 
 		// if message is not to be kept, return it as a filtered message to be acked in the main function
-		if !shouldKeepMessage {
+		if (!matchesRegex && !dropIfMatched) || (matchesRegex && dropIfMatched) {
 			return nil, message, nil, nil
 		}
 
@@ -103,12 +104,12 @@ func makeBaseValueGetter(field string) valueGetter {
 }
 
 // NewSpEnrichedFilterFunction returns a TransformationFunction which filters messages based on a field in the Snowplow enriched event.
-func NewSpEnrichedFilterFunction(field, regex string, regexTimeout int) (TransformationFunction, error) {
+func NewSpEnrichedFilterFunction(field, regex string, filterAction string) (TransformationFunction, error) {
 
 	// getBaseValueForMatch is responsible for retrieving data from the message for base fields
 	getBaseValueForMatch := makeBaseValueGetter(field)
 
-	return createSpEnrichedFilterFunction(regex, regexTimeout, getBaseValueForMatch)
+	return createSpEnrichedFilterFunction(regex, getBaseValueForMatch, filterAction)
 }
 
 // makeContextValueGetter creates a valueGetter for context data
@@ -137,7 +138,7 @@ func makeContextValueGetter(name string, path []interface{}) valueGetter {
 }
 
 // NewSpEnrichedFilterFunctionContext returns a TransformationFunction for filtering a context
-func NewSpEnrichedFilterFunctionContext(contextFullName, pathToField, regex string, regexTimeout int) (TransformationFunction, error) {
+func NewSpEnrichedFilterFunctionContext(contextFullName, pathToField, regex string, filterAction string) (TransformationFunction, error) {
 
 	path, err := parsePathToArguments(pathToField)
 	if err != nil {
@@ -147,7 +148,7 @@ func NewSpEnrichedFilterFunctionContext(contextFullName, pathToField, regex stri
 	// getContextValuesForMatch is responsible for retrieving data from the message for context fields
 	getContextValuesForMatch := makeContextValueGetter(contextFullName, path)
 
-	return createSpEnrichedFilterFunction(regex, regexTimeout, getContextValuesForMatch)
+	return createSpEnrichedFilterFunction(regex, getContextValuesForMatch, filterAction)
 }
 
 // makeUnstructValueGetter creates a valueGetter for unstruct data.
@@ -185,7 +186,7 @@ func makeUnstructValueGetter(eventName string, versionRegex *regexp.Regexp, path
 }
 
 // NewSpEnrichedFilterFunctionUnstructEvent returns a TransformationFunction for filtering an unstruct_event
-func NewSpEnrichedFilterFunctionUnstructEvent(eventNameToMatch, eventVersionToMatch, pathToField, regex string, regexTimeout int) (TransformationFunction, error) {
+func NewSpEnrichedFilterFunctionUnstructEvent(eventNameToMatch, eventVersionToMatch, pathToField, regex string, filterAction string) (TransformationFunction, error) {
 
 	path, err := parsePathToArguments(pathToField)
 	if err != nil {
@@ -201,7 +202,7 @@ func NewSpEnrichedFilterFunctionUnstructEvent(eventNameToMatch, eventVersionToMa
 	// It also checks that the correct event name and version are provided, and returns nil if not.
 	getUnstructValuesForMatch := makeUnstructValueGetter(eventNameToMatch, versionRegex, path)
 
-	return createSpEnrichedFilterFunction(regex, regexTimeout, getUnstructValuesForMatch)
+	return createSpEnrichedFilterFunction(regex, getUnstructValuesForMatch, filterAction)
 }
 
 // parsePathToArguments parses a string path to custom data (eg. `test1.test2[0].test3`)
