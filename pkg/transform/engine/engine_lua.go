@@ -8,8 +8,8 @@ package engine
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -26,7 +26,7 @@ import (
 
 // LuaEngineConfig configures the Lua Engine.
 type LuaEngineConfig struct {
-	SourceB64  string `hcl:"source_b64"`
+	ScriptPath string `hcl:"script_path,optional"`
 	RunTimeout int    `hcl:"timeout_sec,optional"`
 	Sandbox    bool   `hcl:"sandbox,optional"`
 	SpMode     bool   `hcl:"snowplow_mode,optional"`
@@ -41,13 +41,8 @@ type LuaEngine struct {
 }
 
 // NewLuaEngine returns a Lua Engine from a LuaEngineConfig.
-func NewLuaEngine(c *LuaEngineConfig) (*LuaEngine, error) {
-	luaSrc, err := base64.StdEncoding.DecodeString(c.SourceB64)
-	if err != nil {
-		return nil, err
-	}
-
-	compiledCode, err := compileLuaCode(string(luaSrc), c.SourceB64)
+func NewLuaEngine(c *LuaEngineConfig, script string) (*LuaEngine, error) {
+	compiledCode, err := compileLuaCode(script)
 	if err != nil {
 		return nil, err
 	}
@@ -97,12 +92,15 @@ func (f LuaEngineAdapter) ProvideDefault() (interface{}, error) {
 
 // LuaEngineConfigFunction returns the Pluggable transformation layer implemented in Lua.
 func LuaEngineConfigFunction(t *LuaEngineConfig) (*LuaEngine, error) {
+	script, err := os.ReadFile(t.ScriptPath)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("Error reading script at path %s", t.ScriptPath))
+	}
 	return NewLuaEngine(&LuaEngineConfig{
-		SourceB64:  t.SourceB64,
 		RunTimeout: t.RunTimeout,
 		Sandbox:    t.Sandbox,
 		SpMode:     t.SpMode,
-	})
+	}, string(script))
 }
 
 // SmokeTest implements smokeTester.
@@ -216,13 +214,13 @@ func (e *LuaEngine) MakeFunction(funcName string) transform.TransformationFuncti
 // see also:
 // https://github.com/yuin/gopher-lua/pull/193
 // https://github.com/yuin/gopher-lua#sharing-lua-byte-code-between-lstates
-func compileLuaCode(code, name string) (*lua.FunctionProto, error) {
+func compileLuaCode(code string) (*lua.FunctionProto, error) {
 	reader := strings.NewReader(code)
 	chunk, err := luaparse.Parse(reader, code)
 	if err != nil {
 		return nil, err
 	}
-	proto, err := lua.Compile(chunk, name)
+	proto, err := lua.Compile(chunk, "main")
 	if err != nil {
 		return nil, err
 	}

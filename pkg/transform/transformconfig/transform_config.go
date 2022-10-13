@@ -30,7 +30,7 @@ type Transformation struct {
 	Regex                     string `hcl:"regex,optional"`
 	FilterAction              string `hcl:"filter_action,optional"`
 	// for JS and Lua transformations
-	SourceB64  string `hcl:"source_b64,optional"`
+	ScriptPath string `hcl:"script_path,optional"`
 	TimeoutSec int    `hcl:"timeout_sec,optional"`
 	Sandbox    bool   `hcl:"sandbox,optional"`
 	SpMode     bool   `hcl:"snowplow_mode,optional"`

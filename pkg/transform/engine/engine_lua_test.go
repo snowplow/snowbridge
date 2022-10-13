@@ -7,7 +7,6 @@
 package engine
 
 import (
-	"encoding/base64"
 	"fmt"
 	"reflect"
 	"strings"
@@ -35,12 +34,17 @@ type LuaTestCase struct {
 
 func TestLuaLayer(t *testing.T) {
 	assert := assert.New(t)
-	layer, err := LuaEngineConfigFunction(&LuaEngineConfig{
-		SourceB64:  "CglmdW5jdGlvbiBmb28oeCkKICAgICAgICAgICByZXR1cm4geAogICAgICAgIGVuZAoJ",
+
+	script := `
+	function foo(x)
+           return x
+        end`
+
+	layer, err := NewLuaEngine(&LuaEngineConfig{
 		RunTimeout: 5,
 		Sandbox:    false,
 		SpMode:     false,
-	})
+	}, script)
 	assert.Nil(err)
 	assert.NotNil(layer)
 }
@@ -415,15 +419,13 @@ end
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &LuaEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
 				SpMode:     testSpMode,
 			}
 
-			luaEngine, err := NewLuaEngine(luaConfig)
+			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
 			assert.NotNil(luaEngine)
 			if err != nil {
 				t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
@@ -603,15 +605,13 @@ end
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &LuaEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
 				SpMode:     testSpMode,
 			}
 
-			luaEngine, err := NewLuaEngine(luaConfig)
+			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
 			assert.NotNil(luaEngine)
 			if err != nil {
 				t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
@@ -783,15 +783,13 @@ end
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &LuaEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
 				SpMode:     testSpMode,
 			}
 
-			luaEngine, err := NewLuaEngine(luaConfig)
+			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
 			assert.NotNil(luaEngine)
 			if err != nil {
 				t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
@@ -961,15 +959,13 @@ end
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &LuaEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
 				SpMode:     testSpMode,
 			}
 
-			luaEngine, err := NewLuaEngine(luaConfig)
+			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
 			assert.NotNil(luaEngine)
 			if err != nil {
 				t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
@@ -1106,15 +1102,13 @@ end
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &LuaEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
 				SpMode:     tt.SpMode,
 			}
 
-			luaEngine, err := NewLuaEngine(luaConfig)
+			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
 			assert.NotNil(luaEngine)
 			if err != nil {
 				t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
@@ -1211,14 +1205,12 @@ end
 		t.Run(tt.FunName, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			luaConfig := &LuaEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
 			}
 
-			luaEngine, compileErr := NewLuaEngine(luaConfig)
+			luaEngine, compileErr := NewLuaEngine(luaConfig, tt.Src)
 
 			if compileErr != nil {
 				if tt.CompileError == nil {
@@ -1275,14 +1267,12 @@ function main(x)
 end
 `
 	funcname := "main"
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	luaConfig := &LuaEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 1,
 		Sandbox:    true,
 	}
 
-	luaEngine, err := NewLuaEngine(luaConfig)
+	luaEngine, err := NewLuaEngine(luaConfig, srcCode)
 	if err != nil {
 		t.Fatalf("NewLuaEngine failed with error: %q", err)
 	}
@@ -1338,15 +1328,13 @@ function setPk(x)
 end
 `
 	// Lua
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	luaConfig := &LuaEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 1,
 		Sandbox:    true,
 		SpMode:     false,
 	}
 
-	luaEngine, err := NewLuaEngine(luaConfig)
+	luaEngine, err := NewLuaEngine(luaConfig, srcCode)
 	if err != nil {
 		t.Fatalf("NewLuaEngine failed with error: %q", err)
 	}
@@ -1466,15 +1454,13 @@ function setPk(x)
 end
 `
 	// Lua
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	luaConfig := &LuaEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 1,
 		Sandbox:    true,
 		SpMode:     true,
 	}
 
-	luaEngine, err := NewLuaEngine(luaConfig)
+	luaEngine, err := NewLuaEngine(luaConfig, srcCode)
 	if err != nil {
 		t.Fatalf("NewLuaEngine failed with error: %q", err)
 	}
@@ -1584,19 +1570,16 @@ function main(x)
   return x
 end
 `
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
-
 	inputMsg := &models.Message{
 		Data:         snowplowJSON1,
 		PartitionKey: "some-test-key",
 	}
 	luaConfig := &LuaEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 		Sandbox:    true,
 	}
 
-	luaEngine, err := NewLuaEngine(luaConfig)
+	luaEngine, err := NewLuaEngine(luaConfig, srcCode)
 	if err != nil {
 		b.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
 	}
@@ -1616,19 +1599,16 @@ function main(x)
   return x
 end
 `
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
-
 	inputMsg := &models.Message{
 		Data:         snowplowJSON1,
 		PartitionKey: "some-test-key",
 	}
 	luaConfig := &LuaEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 		Sandbox:    false,
 	}
 
-	luaEngine, err := NewLuaEngine(luaConfig)
+	luaEngine, err := NewLuaEngine(luaConfig, srcCode)
 	if err != nil {
 		b.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
 	}
@@ -1651,19 +1631,17 @@ function main(x)
   return result
 end
 `
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 
 	inputMsg := &models.Message{
 		Data:         snowplowJSON1,
 		PartitionKey: "some-test-key",
 	}
 	luaConfig := &LuaEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 		Sandbox:    false,
 	}
 
-	luaEngine, err := NewLuaEngine(luaConfig)
+	luaEngine, err := NewLuaEngine(luaConfig, srcCode)
 	if err != nil {
 		b.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
 	}
