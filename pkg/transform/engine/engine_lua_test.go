@@ -20,16 +20,15 @@ import (
 )
 
 type LuaTestCase struct {
-	Scenario      string
-	Src           string
-	Sandbox       bool
-	SpMode        bool
-	Input         *models.Message
-	InterState    interface{}
-	Expected      map[string]*models.Message
-	ExpInterState interface{}
-	IsJSON        bool
-	Error         error
+	Scenario   string
+	Src        string
+	Sandbox    bool
+	SpMode     bool
+	Input      *models.Message
+	InterState interface{}
+	Expected   map[string]*models.Message
+	IsJSON     bool
+	Error      error
 }
 
 func TestLuaLayer(t *testing.T) {
@@ -43,7 +42,6 @@ func TestLuaLayer(t *testing.T) {
 	layer, err := NewLuaEngine(&LuaEngineConfig{
 		RunTimeout: 5,
 		Sandbox:    false,
-		SpMode:     false,
 	}, script)
 	assert.Nil(err)
 	assert.NotNil(layer)
@@ -51,7 +49,6 @@ func TestLuaLayer(t *testing.T) {
 
 func TestLuaEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
 	var testInterState interface{} = nil
-	var testSpMode bool = false
 	testCases := []LuaTestCase{
 		{
 			Src: `
@@ -72,11 +69,6 @@ end
 				},
 				"filtered": nil,
 				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         "asdf",
 			},
 			Error: nil,
 		},
@@ -101,11 +93,6 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         "Hello:asdf",
-			},
 			Error: nil,
 		},
 		{
@@ -128,11 +115,6 @@ end
 				},
 				"filtered": nil,
 				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         "asdf",
 			},
 			Error: nil,
 		},
@@ -159,8 +141,7 @@ end
 				},
 				"failed": nil,
 			},
-			ExpInterState: nil,
-			Error:         nil,
+			Error: nil,
 		},
 		{
 			Src: `
@@ -191,11 +172,6 @@ end
 				},
 				"filtered": nil,
 				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(snowplowJSON1),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -232,11 +208,6 @@ end
 				"filtered": nil,
 				"failed":   nil,
 			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(snowplowJSON1ChangedLua),
-			},
 			Error:  nil,
 			IsJSON: true,
 		},
@@ -269,9 +240,8 @@ end
 				},
 				"failed": nil,
 			},
-			ExpInterState: nil,
-			IsJSON:        true,
-			Error:         nil,
+			IsJSON: true,
+			Error:  nil,
 		},
 		{
 			Src: `
@@ -293,8 +263,7 @@ end
 					PartitionKey: "some-test-key",
 				},
 			},
-			ExpInterState: nil,
-			Error:         fmt.Errorf("invalid return type from Lua transformation; expected Lua Table"),
+			Error: fmt.Errorf("invalid return type from Lua transformation; expected Lua Table"),
 		},
 		{
 			Src: `
@@ -315,8 +284,7 @@ end
 					PartitionKey: "some-test-key",
 				},
 			},
-			ExpInterState: nil,
-			Error:         fmt.Errorf("invalid return type from Lua transformation; expected Lua Table"),
+			Error: fmt.Errorf("invalid return type from Lua transformation; expected Lua Table"),
 		},
 		{
 			Src: `
@@ -338,8 +306,7 @@ end
 					PartitionKey: "some-test-key",
 				},
 			},
-			ExpInterState: nil,
-			Error:         fmt.Errorf("invalid return type from Lua transformation; expected Lua Table"),
+			Error: fmt.Errorf("invalid return type from Lua transformation; expected Lua Table"),
 		},
 		{
 			Src: `
@@ -361,8 +328,7 @@ end
 					PartitionKey: "some-test-key",
 				},
 			},
-			ExpInterState: nil,
-			Error:         fmt.Errorf("error running Lua function \"main\""),
+			Error: fmt.Errorf("error running Lua function \"main\""),
 		},
 		{
 			Src: `
@@ -384,8 +350,7 @@ end
 					PartitionKey: "some-test-key",
 				},
 			},
-			ExpInterState: nil,
-			Error:         fmt.Errorf("error running Lua function \"main\""),
+			Error: fmt.Errorf("error running Lua function \"main\""),
 		},
 		{
 			Src: `
@@ -410,8 +375,7 @@ end
 					PartitionKey: "some-test-key",
 				},
 			},
-			ExpInterState: nil,
-			Error:         fmt.Errorf("context deadline exceeded"),
+			Error: fmt.Errorf("context deadline exceeded"),
 		},
 	}
 
@@ -422,7 +386,6 @@ end
 			luaConfig := &LuaEngineConfig{
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
-				SpMode:     testSpMode,
 			}
 
 			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
@@ -436,553 +399,7 @@ end
 			}
 
 			transFunction := luaEngine.MakeFunction(tt.Scenario)
-			s, f, e, i := transFunction(tt.Input, testInterState)
-
-			if !reflect.DeepEqual(i, tt.ExpInterState) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(i),
-					spew.Sdump(tt.ExpInterState))
-			}
-
-			if e != nil {
-				gotErr := e.GetError()
-				expErr := tt.Error
-				if expErr == nil {
-					t.Fatalf("got unexpected error: %s", gotErr.Error())
-				}
-
-				if !strings.Contains(gotErr.Error(), expErr.Error()) {
-					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
-						gotErr.Error(),
-						expErr.Error())
-				}
-			}
-
-			assertMessagesCompareLua(t, s, tt.Expected["success"], tt.IsJSON)
-			assertMessagesCompareLua(t, f, tt.Expected["filtered"], tt.IsJSON)
-			assertMessagesCompareLua(t, e, tt.Expected["failed"], tt.IsJSON)
-		})
-	}
-}
-
-func TestLuaEngineMakeFunction_SpModeTrue_IntermediateNil(t *testing.T) {
-	var testInterState interface{} = nil
-	var testSpMode bool = true
-	testCases := []LuaTestCase{
-		{
-			Scenario: "main",
-			Src: `
-function main(x)
-  return x
-end
-`,
-			Sandbox: false,
-			Input: &models.Message{
-				Data:         testLuaTsv,
-				PartitionKey: "some-test-key",
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         testLuaMap,
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-		{
-			Scenario: "filtering",
-			Src: `
-function main(input)
-  -- input is a lua table
-  local spData = input["Data"]
-  if spData["app_id"] == "myApp" then
-     return input;
-  end
-  return { FilterOut = true }
-end
-`,
-			Sandbox: false,
-			Input: &models.Message{
-				Data:         testLuaTsv,
-				PartitionKey: "some-test-key",
-			},
-			Expected: map[string]*models.Message{
-				"success": nil,
-				"filtered": {
-					Data:         testLuaTsv,
-					PartitionKey: "some-test-key",
-				},
-				"failed": nil,
-			},
-			ExpInterState: nil,
-			Error:         nil,
-		},
-		{
-			Scenario: "filteringOut_ignoresData",
-			Src: `
-function main(x)
-  local ret = {
-     FilterOut = true,
-     Data = "shouldNotAppear",
-     PartitionKey = "notThis"
-  }
-  return ret
-end
-`,
-			Sandbox: false,
-			Input: &models.Message{
-				Data:         testLuaTsv,
-				PartitionKey: "some-test-key",
-			},
-			Expected: map[string]*models.Message{
-				"success": nil,
-				"filtered": {
-					Data:         testLuaTsv,
-					PartitionKey: "some-test-key",
-				},
-				"failed": nil,
-			},
-			ExpInterState: nil,
-			Error:         nil,
-		},
-		{
-			Scenario: "non_Snowplow_enriched_to_failed",
-			Src: `
-function main(x)
-  return x
-end
-`,
-			Sandbox: false,
-			Input: &models.Message{
-				Data:         []byte("nonSpEnrichedEvent"),
-				PartitionKey: "some-test-key",
-			},
-			Expected: map[string]*models.Message{
-				"success":  nil,
-				"filtered": nil,
-				"failed": {
-					Data:         []byte("nonSpEnrichedEvent"),
-					PartitionKey: "some-test-key",
-				},
-			},
-			ExpInterState: nil,
-			Error:         fmt.Errorf("Cannot parse"),
-		},
-		{
-			Scenario: "return_wrong_type",
-			Src: `
-function main(x)
-  return 0
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaTsv,
-				PartitionKey: "some-test-key",
-			},
-			Expected: map[string]*models.Message{
-				"success":  nil,
-				"filtered": nil,
-				"failed": {
-					Data:         testLuaTsv,
-					PartitionKey: "some-test-key",
-				},
-			},
-			ExpInterState: nil,
-			Error:         fmt.Errorf("invalid return type from Lua transformation; expected Lua Table"),
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Scenario, func(t *testing.T) {
-			assert := assert.New(t)
-
-			luaConfig := &LuaEngineConfig{
-				RunTimeout: 1,
-				Sandbox:    tt.Sandbox,
-				SpMode:     testSpMode,
-			}
-
-			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
-			assert.NotNil(luaEngine)
-			if err != nil {
-				t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
-			}
-
-			if err := luaEngine.SmokeTest(`main`); err != nil {
-				t.Fatalf("smoke-test failed with error: %q", err.Error())
-			}
-
-			transFunction := luaEngine.MakeFunction(`main`)
-			s, f, e, i := transFunction(tt.Input, testInterState)
-
-			if !reflect.DeepEqual(i, tt.ExpInterState) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(i),
-					spew.Sdump(tt.ExpInterState))
-			}
-
-			if e != nil {
-				gotErr := e.GetError()
-				expErr := tt.Error
-				if expErr == nil {
-					t.Fatalf("got unexpected error: %s", gotErr.Error())
-				}
-
-				if !strings.Contains(gotErr.Error(), expErr.Error()) {
-					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
-						gotErr.Error(),
-						expErr.Error())
-				}
-			}
-
-			assertMessagesCompareLua(t, s, tt.Expected["success"], tt.IsJSON)
-			assertMessagesCompareLua(t, f, tt.Expected["filtered"], tt.IsJSON)
-			assertMessagesCompareLua(t, e, tt.Expected["failed"], tt.IsJSON)
-		})
-	}
-}
-
-func TestLuaEngineMakeFunction_IntermediateState_SpModeFalse(t *testing.T) {
-	testSpMode := false
-	testCases := []LuaTestCase{
-		{
-			Scenario: "intermediateState_EngineProtocol_Map",
-			Src: `
-function main(x)
-  return x
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaJSON,
-				PartitionKey: "some-test-key",
-			},
-			InterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         testLuaMap,
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         testLuaMap,
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-		{
-			Scenario: "intermediateState_EngineProtocol_String",
-			Src: `
-function main(x)
-  return x
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaJSON,
-				PartitionKey: "some-test-key",
-			},
-			InterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testLuaJSON),
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testLuaJSON),
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-		{
-			Scenario: "intermediateState_not_EngineProtocol_nonSpEnriched",
-			Src: `
-function main(x)
-   return x;
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaJSON,
-				PartitionKey: "some-test-key",
-			},
-			InterState: "notEngineProtocol",
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testLuaJSON),
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-		{
-			Scenario: "intermediateState_not_EngineProtocol_SpEnriched",
-			Src: `
-function main(x)
-   return x;
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaTsv,
-				PartitionKey: "some-test-key",
-			},
-			InterState: "notEngineProtocol",
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaTsv,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testLuaTsv),
-			},
-			Error: nil,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Scenario, func(t *testing.T) {
-			assert := assert.New(t)
-
-			luaConfig := &LuaEngineConfig{
-				RunTimeout: 1,
-				Sandbox:    tt.Sandbox,
-				SpMode:     testSpMode,
-			}
-
-			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
-			assert.NotNil(luaEngine)
-			if err != nil {
-				t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
-			}
-
-			if err := luaEngine.SmokeTest(`main`); err != nil {
-				t.Fatalf("smoke-test failed with error: %q", err.Error())
-			}
-
-			transFunction := luaEngine.MakeFunction(`main`)
-			s, f, e, i := transFunction(tt.Input, tt.InterState)
-
-			if !reflect.DeepEqual(i, tt.ExpInterState) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(i),
-					spew.Sdump(tt.ExpInterState))
-			}
-
-			if e != nil {
-				gotErr := e.GetError()
-				expErr := tt.Error
-				if expErr == nil {
-					t.Fatalf("got unexpected error: %s", gotErr.Error())
-				}
-
-				if !strings.Contains(gotErr.Error(), expErr.Error()) {
-					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
-						gotErr.Error(),
-						expErr.Error())
-				}
-			}
-
-			assertMessagesCompareLua(t, s, tt.Expected["success"], tt.IsJSON)
-			assertMessagesCompareLua(t, f, tt.Expected["filtered"], tt.IsJSON)
-			assertMessagesCompareLua(t, e, tt.Expected["failed"], tt.IsJSON)
-		})
-	}
-}
-
-func TestLuaEngineMakeFunction_IntermediateState_SpModeTrue(t *testing.T) {
-	testSpMode := true
-
-	testCases := []LuaTestCase{
-		{
-			Scenario: "intermediateState_EngineProtocol_Map",
-			Src: `
-function main(x)
-  return x
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaJSON,
-				PartitionKey: "some-test-key",
-			},
-			InterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         testLuaMap,
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         testLuaMap,
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-		{
-			Scenario: "intermediateState_EngineProtocol_String",
-			Src: `
-function main(x)
-  return x
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaJSON,
-				PartitionKey: "some-test-key",
-			},
-			InterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testLuaJSON),
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testLuaJSON),
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-		{
-			Scenario: "intermediateState_notEngineProtocol_notSpEnriched",
-			Src: `
-function main(x)
-  return x
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaJSON,
-				PartitionKey: "some-test-key",
-			},
-			InterState: "notEngineProtocol",
-			Expected: map[string]*models.Message{
-				"success":  nil,
-				"filtered": nil,
-				"failed": {
-					Data:         testLuaJSON,
-					PartitionKey: "some-test-key",
-				},
-			},
-			ExpInterState: nil,
-			IsJSON:        true,
-			Error:         fmt.Errorf("Cannot parse"),
-		},
-		{
-			Scenario: "intermediateState_notEngineProtocol_SpEnriched",
-			Src: `
-function main(x)
-  return x
-end
-`,
-			Sandbox: true,
-			Input: &models.Message{
-				Data:         testLuaTsv,
-				PartitionKey: "some-test-key",
-			},
-			InterState: "notEngineProtocol",
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         testLuaMap,
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Scenario, func(t *testing.T) {
-			assert := assert.New(t)
-
-			luaConfig := &LuaEngineConfig{
-				RunTimeout: 1,
-				Sandbox:    tt.Sandbox,
-				SpMode:     testSpMode,
-			}
-
-			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
-			assert.NotNil(luaEngine)
-			if err != nil {
-				t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
-			}
-
-			if err := luaEngine.SmokeTest(`main`); err != nil {
-				t.Fatalf("smoke-test failed with error: %q", err.Error())
-			}
-
-			transFunction := luaEngine.MakeFunction(`main`)
-			s, f, e, i := transFunction(tt.Input, tt.InterState)
-
-			if !reflect.DeepEqual(i, tt.ExpInterState) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(i),
-					spew.Sdump(tt.ExpInterState))
-			}
+			s, f, e, _ := transFunction(tt.Input, testInterState)
 
 			if e != nil {
 				gotErr := e.GetError()
@@ -1008,36 +425,38 @@ end
 func TestLuaEngineMakeFunction_SetPK(t *testing.T) {
 	var testInterState interface{} = nil
 	testCases := []LuaTestCase{
-		{
-			Scenario: "onlySetPk_spModeTrue",
-			Src: `
-function main(x)
-   x["PartitionKey"] = "newPk"
-   return x
-end
-`,
-			Sandbox: true,
-			SpMode:  true,
-			Input: &models.Message{
-				Data:         testLuaTsv,
-				PartitionKey: "oldPK",
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testLuaJSON,
-					PartitionKey: "newPk",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "newPk",
-				Data:         testLuaMap,
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
+		/*
+		   		{
+		   			Scenario: "onlySetPk_spModeTrue",
+		   			Src: `
+		   function main(x)
+		      x["PartitionKey"] = "newPk"
+		      return x
+		   end
+		   `,
+		   			Sandbox: true,
+		   			SpMode:  true,
+		   			Input: &models.Message{
+		   				Data:         testLuaTsv,
+		   				PartitionKey: "oldPK",
+		   			},
+		   			Expected: map[string]*models.Message{
+		   				"success": {
+		   					Data:         testLuaJSON,
+		   					PartitionKey: "newPk",
+		   				},
+		   				"filtered": nil,
+		   				"failed":   nil,
+		   			},
+		   			ExpInterState: &engineProtocol{
+		   				FilterOut:    false,
+		   				PartitionKey: "newPk",
+		   				Data:         testLuaMap,
+		   			},
+		   			IsJSON: true,
+		   			Error:  nil,
+		   		},
+		*/
 		{
 			Scenario: "onlySetPk_spModeFalse",
 			Src: `
@@ -1059,11 +478,6 @@ end
 				},
 				"filtered": nil,
 				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "newPk",
-				Data:         string(testLuaTsv),
 			},
 			Error: nil,
 		},
@@ -1093,8 +507,7 @@ end
 				},
 				"failed": nil,
 			},
-			ExpInterState: nil,
-			Error:         nil,
+			Error: nil,
 		},
 	}
 
@@ -1105,7 +518,6 @@ end
 			luaConfig := &LuaEngineConfig{
 				RunTimeout: 1,
 				Sandbox:    tt.Sandbox,
-				SpMode:     tt.SpMode,
 			}
 
 			luaEngine, err := NewLuaEngine(luaConfig, tt.Src)
@@ -1119,13 +531,7 @@ end
 			}
 
 			transFunction := luaEngine.MakeFunction(`main`)
-			s, f, e, i := transFunction(tt.Input, testInterState)
-
-			if !reflect.DeepEqual(i, tt.ExpInterState) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(i),
-					spew.Sdump(tt.ExpInterState))
-			}
+			s, f, e, _ := transFunction(tt.Input, testInterState)
 
 			if e != nil {
 				gotErr := e.GetError()
@@ -1331,7 +737,6 @@ end
 	luaConfig := &LuaEngineConfig{
 		RunTimeout: 1,
 		Sandbox:    true,
-		SpMode:     false,
 	}
 
 	luaEngine, err := NewLuaEngine(luaConfig, srcCode)
@@ -1418,126 +823,6 @@ end
 				},
 				{
 					Data:         snowplowJSON3,
-					PartitionKey: "testKey",
-				},
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Name, func(t *testing.T) {
-			assert := assert.New(t)
-
-			result := tt.Transformation(tt.Input)
-			assert.NotNil(result)
-			assert.Equal(len(tt.ExpectedGood), len(result.Result))
-			for i, res := range result.Result {
-				if i < len(tt.ExpectedGood) {
-					exp := tt.ExpectedGood[i]
-					assert.JSONEq(string(res.Data), string(exp.Data))
-					assert.Equal(res.PartitionKey, exp.PartitionKey)
-				}
-			}
-		})
-	}
-}
-
-func TestLuaEngineWithBuiltinsSpModeTrue(t *testing.T) {
-	srcCode := `
-function main(x)
-  return x
-end
-
-function setPk(x)
-  x["PartitionKey"] = "testKey"
-  return x
-end
-`
-	// Lua
-	luaConfig := &LuaEngineConfig{
-		RunTimeout: 1,
-		Sandbox:    true,
-		SpMode:     true,
-	}
-
-	luaEngine, err := NewLuaEngine(luaConfig, srcCode)
-	if err != nil {
-		t.Fatalf("NewLuaEngine failed with error: %q", err)
-	}
-
-	if err := luaEngine.SmokeTest("main"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
-	}
-	if err := luaEngine.SmokeTest("setPk"); err != nil {
-		t.Fatalf("smoke-test failed with error: %q", err.Error())
-	}
-
-	luaFuncID := luaEngine.MakeFunction("main")
-	luaFuncPk := luaEngine.MakeFunction("setPk")
-
-	// Builtins
-	setPkToAppID := transform.NewSpEnrichedSetPkFunction("app_id")
-	spEnrichedToJSON := transform.SpEnrichedToJSON
-
-	testCases := []struct {
-		Name           string
-		Transformation transform.TransformationApplyFunction
-		Input          []*models.Message
-		ExpectedGood   []*models.Message
-	}{
-		{
-			Input: []*models.Message{
-				{
-					Data:         testLuaTsv,
-					PartitionKey: "prevKey",
-				},
-			},
-			Transformation: transform.NewTransformation(
-				setPkToAppID,
-				spEnrichedToJSON,
-				luaFuncID,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         testLuaJSON,
-					PartitionKey: "test-data<>",
-				},
-			},
-		},
-		{
-			Input: []*models.Message{
-				{
-					Data:         testLuaTsv,
-					PartitionKey: "prevKey",
-				},
-			},
-			Transformation: transform.NewTransformation(
-				setPkToAppID,
-				luaFuncPk,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         testLuaJSON,
-					PartitionKey: "testKey",
-				},
-			},
-		},
-		{
-			Input: []*models.Message{
-				{
-					Data:         testLuaTsv,
-					PartitionKey: "prevKey",
-				},
-			},
-			Transformation: transform.NewTransformation(
-				setPkToAppID,
-				luaFuncID,
-				luaFuncPk,
-				luaFuncID,
-			),
-			ExpectedGood: []*models.Message{
-				{
-					Data:         testLuaJSON,
 					PartitionKey: "testKey",
 				},
 			},

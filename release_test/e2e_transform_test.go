@@ -173,9 +173,6 @@ func testE2ETransformJSONCases(t *testing.T) {
 
 	casesToTest := []string{"spEnrichedToJson", "jsSnowplowFilter", "jsSnowplowTransform"}
 
-	// TODO: skipping "luaSnowplowTransform" and "luaSnowplowFilter" for now due to: https://github.com/snowplow-devops/stream-replicator/issues/214
-	// When that's fixed, add it back in here.
-
 	for _, testCase := range casesToTest {
 
 		configFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "config.hcl"))
@@ -202,7 +199,7 @@ func testE2ETransformJSONCases(t *testing.T) {
 func testE2ETransformPKCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk", "luaSnowplowSetPk"}
+	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk"}
 
 	for _, testCase := range casesToTest {
 
