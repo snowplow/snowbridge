@@ -1,0 +1,9 @@
+function main(x) {
+    whoops what is this
+    var jsonObj = JSON.parse(x.Data);
+    jsonObj["wrong_key"] = "why are you decoding this";
+
+    return {
+        Data: JSON.stringify(jsonObj)
+    };
+}

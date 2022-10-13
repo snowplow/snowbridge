@@ -8,6 +8,8 @@ package releasetest
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -111,6 +113,34 @@ func evaluateTestCasePK(t *testing.T, actual []byte, expectedFilePath string, te
 	assert.Equal(expectedData, foundData)
 }
 
+func getFileMountArg(testCase string) string {
+
+	JSScriptFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "script.js"))
+	if err != nil {
+		panic(err)
+	}
+
+	LuaScriptFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "script.lua"))
+	if err != nil {
+		panic(err)
+	}
+
+	// Check if we have a script & mount it if so
+	if _, err := os.Stat(JSScriptFilePath); err == nil {
+		return fmt.Sprintf("--mount type=bind,source=%s,target=/script.js", JSScriptFilePath)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		panic(err)
+	}
+
+	if _, err := os.Stat(LuaScriptFilePath); err == nil {
+		return fmt.Sprintf("--mount type=bind,source=%s,target=/script.lua", LuaScriptFilePath)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		panic(err)
+	}
+
+	return ""
+}
+
 func testE2ETransformTSVCases(t *testing.T) {
 	assert := assert.New(t)
 
@@ -123,8 +153,10 @@ func testE2ETransformTSVCases(t *testing.T) {
 			panic(err)
 		}
 
+		fileMountArg := getFileMountArg(testCase)
+
 		for _, binary := range []string{"aws", "gcp"} {
-			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, "")
+			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, fileMountArg)
 			if cmdErr != nil {
 				assert.Fail(cmdErr.Error())
 			}
@@ -151,8 +183,10 @@ func testE2ETransformJSONCases(t *testing.T) {
 			panic(err)
 		}
 
+		fileMountArg := getFileMountArg(testCase)
+
 		for _, binary := range []string{"aws", "gcp"} {
-			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, "")
+			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, fileMountArg)
 			if cmdErr != nil {
 				assert.Fail(cmdErr.Error())
 			}
@@ -178,8 +212,10 @@ func testE2ETransformPKCases(t *testing.T) {
 			panic(err)
 		}
 
+		fileMountArg := getFileMountArg(testCase)
+
 		for _, binary := range []string{"aws", "gcp"} {
-			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, "")
+			stdOut, cmdErr := runDockerCommand(3*time.Second, testCase, configFilePath, binary, fileMountArg)
 			if cmdErr != nil {
 				assert.Fail(cmdErr.Error())
 			}

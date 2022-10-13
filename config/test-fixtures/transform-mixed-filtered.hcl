@@ -2,7 +2,7 @@ transform {
   use "js" {
     timeout_sec = 15
     // return x;
-    source_b64 = "ZnVuY3Rpb24gbWFpbih4KSB7CiAgICByZXR1cm4geDsKfQ=="
+    script_path = env.JS_PASSTHROUGH_PATH
   }
 }
 
@@ -18,6 +18,6 @@ transform {
   use "js" {
     timeout_sec = 15
     // return x;
-    source_b64 = "ZnVuY3Rpb24gbWFpbih4KSB7CiAgICByZXR1cm4geDsKfQ=="
+    script_path = env.JS_PASSTHROUGH_PATH
   }
 }
