@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
@@ -29,7 +28,6 @@ type LuaEngineConfig struct {
 	ScriptPath string `hcl:"script_path,optional"`
 	RunTimeout int    `hcl:"timeout_sec,optional"`
 	Sandbox    bool   `hcl:"sandbox,optional"`
-	SpMode     bool   `hcl:"snowplow_mode,optional"`
 }
 
 // LuaEngine handles the provision of a Lua runtime to run transformations.
@@ -37,7 +35,6 @@ type LuaEngine struct {
 	Code       *lua.FunctionProto
 	RunTimeout time.Duration
 	Options    *lua.Options
-	SpMode     bool
 }
 
 // NewLuaEngine returns a Lua Engine from a LuaEngineConfig.
@@ -51,7 +48,6 @@ func NewLuaEngine(c *LuaEngineConfig, script string) (*LuaEngine, error) {
 		Code:       compiledCode,
 		RunTimeout: time.Duration(c.RunTimeout) * time.Second,
 		Options:    &lua.Options{SkipOpenLibs: c.Sandbox},
-		SpMode:     c.SpMode,
 	}
 
 	return eng, nil
@@ -99,7 +95,6 @@ func LuaEngineConfigFunction(t *LuaEngineConfig) (*LuaEngine, error) {
 	return NewLuaEngine(&LuaEngineConfig{
 		RunTimeout: t.RunTimeout,
 		Sandbox:    t.Sandbox,
-		SpMode:     t.SpMode,
 	}, string(script))
 }
 
@@ -200,7 +195,7 @@ func (e *LuaEngine) MakeFunction(funcName string) transform.TransformationFuncti
 			message.PartitionKey = pk
 		}
 
-		return message, nil, nil, protocol
+		return message, nil, nil, nil
 
 	}
 }
@@ -257,115 +252,11 @@ func initVM(e *LuaEngine, L *lua.LState, funcName string) error {
 // mkLuaEngineInput describes the process of constructing input to Lua engine.
 // No side effects.
 func mkLuaEngineInput(e *LuaEngine, message *models.Message, interState interface{}) (*lua.LTable, error) {
-	if interState != nil {
-		if i, ok := interState.(*engineProtocol); ok {
-			return toLuaTable(i)
-		}
-	}
-
-	candidate := &engineProtocol{
-		Data: string(message.Data),
-	}
-
-	if !e.SpMode {
-		return toLuaTable(candidate)
-	}
-
-	parsedMessage, err := transform.IntermediateAsSpEnrichedParsed(interState, message)
-	if err != nil {
-		// if spMode, error for non Snowplow enriched event data
-		return nil, err
-	}
-
-	spMap, err := parsedMessage.ToMap()
-	if err != nil {
-		return nil, err
-	}
-	candidate.Data = spMap
-
-	return toLuaTable(candidate)
-}
-
-// toLuaTable
-func toLuaTable(p *engineProtocol) (*lua.LTable, error) {
-	var tmpMap map[string]interface{}
-
-	err := mapstructure.Decode(p, &tmpMap)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding to map")
-	}
-
-	return mapToLTable(tmpMap)
-}
-
-// mapToLTable converts a Go map to a lua table
-// see: https://github.com/yuin/gopher-lua/issues/160#issuecomment-447608033
-func mapToLTable(m map[string]interface{}) (*lua.LTable, error) {
-	timeLayout := "2006-01-02T15:04:05.999Z07:00"
-
-	// Main table pointer
 	ltbl := &lua.LTable{}
 
-	// Loop map
-	for key, val := range m {
-
-		switch val.(type) {
-		case float64:
-			ltbl.RawSetString(key, lua.LNumber(val.(float64)))
-		case int64:
-			ltbl.RawSetString(key, lua.LNumber(val.(int64)))
-		case string:
-			ltbl.RawSetString(key, lua.LString(val.(string)))
-		case bool:
-			ltbl.RawSetString(key, lua.LBool(val.(bool)))
-		case []byte:
-			ltbl.RawSetString(key, lua.LString(string(val.([]byte))))
-		case map[string]interface{}:
-			// Get table from map
-			tmp, err := mapToLTable(val.(map[string]interface{}))
-			if err != nil {
-				return nil, err
-			}
-			ltbl.RawSetString(key, tmp)
-		case time.Time:
-			t := val.(time.Time).Format(timeLayout)
-			ltbl.RawSetString(key, lua.LString(t))
-		case []map[string]interface{}:
-			// Create slice table
-			sliceTable := &lua.LTable{}
-			for _, vv := range val.([]map[string]interface{}) {
-				next, err := mapToLTable(vv)
-				if err != nil {
-					return nil, err
-				}
-				sliceTable.Append(next)
-			}
-			ltbl.RawSetString(key, sliceTable)
-		case []interface{}:
-			// Create slice table
-			sliceTable := &lua.LTable{}
-			for _, vv := range val.([]interface{}) {
-				switch vv.(type) {
-				case map[string]interface{}:
-					// Convert map to table
-					m, err := mapToLTable(vv.(map[string]interface{}))
-					if err != nil {
-						return nil, err
-					}
-					sliceTable.Append(m)
-				case float64:
-					sliceTable.Append(lua.LNumber(vv.(float64)))
-				case string:
-					sliceTable.Append(lua.LString(vv.(string)))
-				case bool:
-					sliceTable.Append(lua.LBool(vv.(bool)))
-				}
-			}
-
-			// Append to main table
-			ltbl.RawSetString(key, sliceTable)
-		}
-	}
+	ltbl.RawSetString("Data", lua.LString(string(message.Data)))
+	ltbl.RawSetString("PartitionKey", lua.LString(message.PartitionKey))
+	ltbl.RawSetString("FilterOut", lua.LBool(false))
 
 	return ltbl, nil
 }
