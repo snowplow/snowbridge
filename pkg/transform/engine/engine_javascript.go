@@ -7,14 +7,14 @@
 package engine
 
 import (
-	"encoding/base64"
-	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	goja "github.com/dop251/goja"
 	gojaparser "github.com/dop251/goja/parser"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 	"github.com/snowplow-devops/stream-replicator/pkg/transform"
@@ -22,7 +22,7 @@ import (
 
 // JSEngineConfig configures the JavaScript Engine.
 type JSEngineConfig struct {
-	SourceB64  string `hcl:"source_b64,optional"`
+	ScriptPath string `hcl:"script_path,optional"`
 	RunTimeout int    `hcl:"timeout_sec,optional"`
 	SpMode     bool   `hcl:"snowplow_mode,optional"`
 }
@@ -52,11 +52,14 @@ func (f JSEngineAdapter) Create(i interface{}) (interface{}, error) {
 
 // JSEngineConfigFunction creates a JSEngine from a JSEngineConfig
 func JSEngineConfigFunction(c *JSEngineConfig) (*JSEngine, error) {
+	script, err := os.ReadFile(c.ScriptPath)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("Error reading script at path %s", c.ScriptPath))
+	}
 	return NewJSEngine(&JSEngineConfig{
-		SourceB64:  c.SourceB64,
 		RunTimeout: c.RunTimeout,
 		SpMode:     c.SpMode,
-	})
+	}, string(script))
 }
 
 // AdaptJSEngineFunc returns an JSEngineAdapter.
@@ -72,13 +75,8 @@ func AdaptJSEngineFunc(f func(c *JSEngineConfig) (*JSEngine, error)) JSEngineAda
 }
 
 // NewJSEngine returns a JSEngine from a JSEngineConfig.
-func NewJSEngine(c *JSEngineConfig) (*JSEngine, error) {
-	jsSrc, err := base64.StdEncoding.DecodeString(c.SourceB64)
-	if err != nil {
-		return nil, err
-	}
-
-	compiledCode, err := compileJS(string(jsSrc), c.SourceB64)
+func NewJSEngine(c *JSEngineConfig, script string) (*JSEngine, error) {
+	compiledCode, err := compileJS(script)
 	if err != nil {
 		return nil, err
 	}
@@ -177,11 +175,11 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 // which are implicitly run by the alternative RunString.
 // see also:
 // https://pkg.go.dev/github.com/dop251/goja#CompileAST
-func compileJS(code, name string) (*goja.Program, error) {
+func compileJS(code string) (*goja.Program, error) {
 	parserOpts := make([]gojaparser.Option, 0, 1)
 	parserOpts = append(parserOpts, gojaparser.WithDisableSourceMaps)
 
-	ast, err := goja.Parse(name, code, parserOpts...)
+	ast, err := goja.Parse("main", code, parserOpts...)
 	if err != nil {
 		return nil, err
 	}

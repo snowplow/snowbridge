@@ -7,7 +7,6 @@
 package transformconfig
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -78,15 +77,12 @@ function main(x)
   return result
 end
 `
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
-
 	luaConfig := &engine.LuaEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 		Sandbox:    false,
 	}
 
-	luaEngine, err := engine.NewLuaEngine(luaConfig)
+	luaEngine, err := engine.NewLuaEngine(luaConfig, srcCode)
 	assert.NotNil(t, luaEngine)
 	if err != nil {
 		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
@@ -97,15 +93,12 @@ function notMain(x)
   return x
 end
 `
-	src = base64.StdEncoding.EncodeToString([]byte(srcCode))
-
 	luaConfig = &engine.LuaEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 		Sandbox:    false,
 	}
 
-	luaEngineNoMain, err := engine.NewLuaEngine(luaConfig)
+	luaEngineNoMain, err := engine.NewLuaEngine(luaConfig, srcCode)
 	assert.NotNil(t, luaEngineNoMain)
 	if err != nil {
 		t.Fatalf("function NewLuaEngine failed with error: %q", err.Error())
@@ -116,13 +109,11 @@ function main(x) {
    return x;
 }
 `
-	src = base64.StdEncoding.EncodeToString([]byte(srcCode))
 	jsConfig := &engine.JSEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 	}
 
-	jsEngine, err := engine.NewJSEngine(jsConfig)
+	jsEngine, err := engine.NewJSEngine(jsConfig, srcCode)
 	assert.NotNil(t, jsEngine)
 	if err != nil {
 		t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
@@ -133,13 +124,11 @@ function notMain(x) {
    return x;
 }
 `
-	src = base64.StdEncoding.EncodeToString([]byte(srcCode))
 	jsConfig = &engine.JSEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 	}
 
-	jsEngineNoMain, err := engine.NewJSEngine(jsConfig)
+	jsEngineNoMain, err := engine.NewJSEngine(jsConfig, srcCode)
 	assert.NotNil(t, jsEngine)
 	if err != nil {
 		t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
@@ -458,6 +447,34 @@ func TestEnginesAndTransformations(t *testing.T) {
 			},
 		},
 	}
+
+	// Absolute paths to scripts
+	JSPassThroughPath := filepath.Join(testFixPath, "js-passthrough.js")
+	t.Setenv("JS_PASSTHROUGH_PATH", JSPassThroughPath)
+
+	JSParseJSONPath := filepath.Join(testFixPath, "js-json-parse.js")
+	t.Setenv("JS_PARSE_JSON_PATH", JSParseJSONPath)
+
+	JSAlterAID1Path := filepath.Join(testFixPath, "js-alter-aid-1.js")
+	t.Setenv("JS_ALTER_AID_1_PATH", JSAlterAID1Path)
+
+	JSAlterAID2Path := filepath.Join(testFixPath, "js-alter-aid-2.js")
+	t.Setenv("JS_ALTER_AID_2_PATH", JSAlterAID2Path)
+
+	LuaAddHelloPath := filepath.Join(testFixPath, "lua-add-hello.lua")
+	t.Setenv("LUA_ADD_HELLO_PATH", LuaAddHelloPath)
+
+	JSOrderTest1 := filepath.Join(testFixPath, "js-order-test-1.js")
+	t.Setenv("JS_ORDER_TEST_1", JSOrderTest1)
+
+	JSOrderTest2 := filepath.Join(testFixPath, "js-order-test-2.js")
+	t.Setenv("JS_ORDER_TEST_2", JSOrderTest2)
+
+	JSOrderTest3 := filepath.Join(testFixPath, "js-order-test-3.js")
+	t.Setenv("JS_ORDER_TEST_3", JSOrderTest3)
+
+	JSErrorPath := filepath.Join(testFixPath, "js-error.txt")
+	t.Setenv("JS_ERROR_PATH", JSErrorPath)
 
 	for _, tt := range testCases {
 		t.Run(tt.Description, func(t *testing.T) {

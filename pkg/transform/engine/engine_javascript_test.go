@@ -6,7 +6,6 @@
 package engine
 
 import (
-	"encoding/base64"
 	"fmt"
 	"reflect"
 	"strings"
@@ -34,11 +33,15 @@ type JSTestCase struct {
 func TestJSLayer(t *testing.T) {
 	assert := assert.New(t)
 
+	script := `
+	function foo(x) {
+	    return x;
+	}`
+
 	jsEngine, err := NewJSEngine(&JSEngineConfig{
-		SourceB64:  "CglmdW5jdGlvbiBmb28oeCkgewoJICAgIHJldHVybiB4OwoJfQoJ",
 		RunTimeout: 15,
 		SpMode:     false,
-	})
+	}, script)
 	assert.NotNil(t, jsEngine)
 	assert.Nil(err)
 }
@@ -429,14 +432,12 @@ function main(x) {
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 5,
 				SpMode:     testSpMode,
 			}
 
-			jsEngine, err := NewJSEngine(jsConfig)
+			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
 			assert.NotNil(jsEngine)
 			if err != nil {
 				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
@@ -612,14 +613,12 @@ function main(x) {
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 5,
 				SpMode:     testSpMode,
 			}
 
-			jsEngine, err := NewJSEngine(jsConfig)
+			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
 			assert.NotNil(jsEngine)
 			if err != nil {
 				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
@@ -788,14 +787,12 @@ function main(x) {
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 5,
 				SpMode:     testSpMode,
 			}
 
-			jsEngine, err := NewJSEngine(jsConfig)
+			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
 			assert.NotNil(jsEngine)
 			if err != nil {
 				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
@@ -960,14 +957,12 @@ function main(x) {
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 5,
 				SpMode:     testSpMode,
 			}
 
-			jsEngine, err := NewJSEngine(jsConfig)
+			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
 			assert.NotNil(jsEngine)
 			if err != nil {
 				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
@@ -1100,14 +1095,12 @@ function main(x) {
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 5,
 				SpMode:     tt.SpMode,
 			}
 
-			jsEngine, err := NewJSEngine(jsConfig)
+			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
 			assert.NotNil(jsEngine)
 			if err != nil {
 				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
@@ -1190,13 +1183,11 @@ function main(x) {
 		t.Run(tt.FunName, func(t *testing.T) {
 			assert := assert.New(t)
 
-			src := base64.StdEncoding.EncodeToString([]byte(tt.Src))
 			jsConfig := &JSEngineConfig{
-				SourceB64:  src,
 				RunTimeout: 5,
 			}
 
-			jsEngine, compileErr := NewJSEngine(jsConfig)
+			jsEngine, compileErr := NewJSEngine(jsConfig, tt.Src)
 
 			if compileErr != nil {
 				if tt.CompileError == nil {
@@ -1239,18 +1230,16 @@ function main(x) {
    return x;
 }
 `
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	inputMsg := &models.Message{
 		Data:         testJsJSON,
 		PartitionKey: "some-test-key",
 	}
 
 	jsConfig := &JSEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 	}
 
-	jsEngine, err := NewJSEngine(jsConfig)
+	jsEngine, err := NewJSEngine(jsConfig, srcCode)
 	if err != nil {
 		b.Fatalf("function NewJSEngine failed with error: %q", err.Error())
 	}
@@ -1271,18 +1260,16 @@ function main(x) {
    return x;
 }
 `
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	inputMsg := &models.Message{
 		Data:         testJsJSON,
 		PartitionKey: "some-test-key",
 	}
 
 	jsConfig := &JSEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 	}
 
-	jsEngine, err := NewJSEngine(jsConfig)
+	jsEngine, err := NewJSEngine(jsConfig, srcCode)
 	if err != nil {
 		b.Fatalf("function NewJSEngine failed with error: %q", err.Error())
 	}
@@ -1303,18 +1290,16 @@ function main(x) {
    return x;
 }
 `
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	inputMsg := &models.Message{
 		Data:         testJsTsv,
 		PartitionKey: "some-test-key",
 	}
 
 	jsConfig := &JSEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 	}
 
-	jsEngine, err := NewJSEngine(jsConfig)
+	jsEngine, err := NewJSEngine(jsConfig, srcCode)
 	if err != nil {
 		b.Fatalf("function NewJSEngine failed with error: %q", err.Error())
 	}
@@ -1340,18 +1325,16 @@ function main(x) {
    };
 }
 `
-	src := base64.StdEncoding.EncodeToString([]byte(srcCode))
 	inputMsg := &models.Message{
 		Data:         testJsJSON,
 		PartitionKey: "some-test-key",
 	}
 
 	jsConfig := &JSEngineConfig{
-		SourceB64:  src,
 		RunTimeout: 5,
 	}
 
-	jsEngine, err := NewJSEngine(jsConfig)
+	jsEngine, err := NewJSEngine(jsConfig, srcCode)
 	if err != nil {
 		b.Fatalf("function NewJSEngine failed with error: %q", err.Error())
 	}
