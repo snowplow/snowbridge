@@ -231,13 +231,13 @@ func mkJSEngineInput(e *JSEngine, message *models.Message, interState interface{
 		return candidate, nil
 	}
 
-	parsedMessage, err := transform.IntermediateAsSpEnrichedParsed(interState, message)
+	parsedEvent, err := transform.IntermediateAsSpEnrichedParsed(interState, message)
 	if err != nil {
 		// if spMode, error for non Snowplow enriched event data
 		return nil, err
 	}
 
-	spMap, err := parsedMessage.ToMap()
+	spMap, err := parsedEvent.ToMap()
 	if err != nil {
 		return nil, err
 	}

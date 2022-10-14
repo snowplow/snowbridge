@@ -15,14 +15,14 @@ import (
 // IntermediateAsSpEnrichedParsed returns the intermediate state as a ParsedEvent if valid or parses
 // the message as an event
 func IntermediateAsSpEnrichedParsed(intermediateState interface{}, message *models.Message) (analytics.ParsedEvent, error) {
-	var parsedMessage, ok = intermediateState.(analytics.ParsedEvent)
+	var parsedEvent, ok = intermediateState.(analytics.ParsedEvent)
 	var parseErr error
 	if ok {
-		return parsedMessage, nil
+		return parsedEvent, nil
 	}
-	parsedMessage, parseErr = analytics.ParseEvent(string(message.Data))
+	parsedEvent, parseErr = analytics.ParseEvent(string(message.Data))
 	if parseErr != nil {
 		return nil, parseErr
 	}
-	return parsedMessage, nil
+	return parsedEvent, nil
 }
