@@ -16,18 +16,18 @@ import (
 func NewSpEnrichedSetPkFunction(pkField string) TransformationFunction {
 	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 		// Evalute intermediateState to parsedEvent
-		parsedMessage, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
+		parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(parseErr)
 			return nil, nil, message, nil
 		}
 
-		pk, err := parsedMessage.GetValue(pkField)
+		pk, err := parsedEvent.GetValue(pkField)
 		if err != nil {
 			message.SetError(err)
 			return nil, nil, message, nil
 		}
 		message.PartitionKey = fmt.Sprintf("%v", pk)
-		return message, nil, nil, parsedMessage
+		return message, nil, nil, parsedEvent
 	}
 }
