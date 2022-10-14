@@ -56,14 +56,14 @@ func createSpEnrichedFilterFunction(regex string, getFunc valueGetter, filterAct
 	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 
 		// Evaluate intermediateState to parsedEvent
-		parsedMessage, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
+		parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(parseErr)
 			return nil, nil, message, nil
 		}
 
 		// get the value
-		valueFound, err := getFunc(parsedMessage)
+		valueFound, err := getFunc(parsedEvent)
 		if err != nil {
 			message.SetError(err)
 			return nil, nil, message, nil
@@ -78,7 +78,7 @@ func createSpEnrichedFilterFunction(regex string, getFunc valueGetter, filterAct
 		}
 
 		// otherwise, return the message and intermediateState for further processing.
-		return message, nil, nil, parsedMessage
+		return message, nil, nil, parsedEvent
 	}, nil
 }
 
@@ -92,9 +92,9 @@ type valueGetter func(analytics.ParsedEvent) ([]interface{}, error)
 
 // makeBaseValueGetter returns a valueGetter for base-level values.
 func makeBaseValueGetter(field string) valueGetter {
-	return func(parsedMessage analytics.ParsedEvent) (value []interface{}, err error) {
+	return func(parsedEvent analytics.ParsedEvent) (value []interface{}, err error) {
 		// find the value in the event
-		valueFound, err := parsedMessage.GetValue(field)
+		valueFound, err := parsedEvent.GetValue(field)
 		// We don't return an error for empty field since this just means the value is nil.
 		if err != nil && err.Error() != analytics.EmptyFieldErr {
 			return nil, err
@@ -114,8 +114,8 @@ func NewSpEnrichedFilterFunction(field, regex string, filterAction string) (Tran
 
 // makeContextValueGetter creates a valueGetter for context data
 func makeContextValueGetter(name string, path []interface{}) valueGetter {
-	return func(parsedMessage analytics.ParsedEvent) ([]interface{}, error) {
-		value, err := parsedMessage.GetContextValue(name, path...)
+	return func(parsedEvent analytics.ParsedEvent) ([]interface{}, error) {
+		value, err := parsedEvent.GetContextValue(name, path...)
 		// We don't return an error for empty field since this just means the value is nil.
 		if err != nil && err.Error() != analytics.EmptyFieldErr {
 			return nil, err
@@ -153,15 +153,15 @@ func NewSpEnrichedFilterFunctionContext(contextFullName, pathToField, regex stri
 
 // makeUnstructValueGetter creates a valueGetter for unstruct data.
 func makeUnstructValueGetter(eventName string, versionRegex *regexp.Regexp, path []interface{}) valueGetter {
-	return func(parsedMessage analytics.ParsedEvent) (value []interface{}, err error) {
-		eventNameFound, err := parsedMessage.GetValue(`event_name`)
+	return func(parsedEvent analytics.ParsedEvent) (value []interface{}, err error) {
+		eventNameFound, err := parsedEvent.GetValue(`event_name`)
 		if err != nil { // This field can't be empty for a valid event, so we return all errors here
 			return nil, err
 		}
 		if eventNameFound != eventName { // If we don't have an exact match on event name, we return nil value
 			return nil, nil
 		}
-		versionFound, err := parsedMessage.GetValue(`event_version`)
+		versionFound, err := parsedEvent.GetValue(`event_version`)
 		if err != nil { // This field can't be empty for a valid event, so we return all errors here
 			return nil, err
 		}
@@ -169,7 +169,7 @@ func makeUnstructValueGetter(eventName string, versionRegex *regexp.Regexp, path
 			return nil, nil
 		}
 
-		valueFound, err := parsedMessage.GetUnstructEventValue(path...)
+		valueFound, err := parsedEvent.GetUnstructEventValue(path...)
 		// We don't return an error for empty field since this just means the value is nil.
 		if err != nil && err.Error() != analytics.EmptyFieldErr && !strings.Contains(err.Error(), "not found") {
 			// This last clause exists because of this: https://github.com/snowplow/snowplow-golang-analytics-sdk/issues/37
