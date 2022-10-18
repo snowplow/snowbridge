@@ -81,6 +81,12 @@ func makeBaseValueGetter(field string) valueGetter {
 
 // NewAtomicFilterFunction returns a transform.TransformationFunction which filters messages based on a field in the Snowplow enriched event.
 func NewAtomicFilterFunction(field, regex string, filterAction string) (transform.TransformationFunction, error) {
+
+	// Validate the field provided
+	err := transform.ValidateAtomicField(field)
+	if err != nil {
+		return nil, err
+	}
 	// getBaseValueForMatch is responsible for retrieving data from the message for base fields
 	getBaseValueForMatch := makeBaseValueGetter(field)
 
