@@ -61,10 +61,15 @@ var SetPkConfigPair = config.ConfigurationPair{
 	Handle: setPkAdapterGenerator(setPkConfigFunction),
 }
 
-// TODO: This function should check if the field provided is a valid atomic field, and throw an error if not.
-
 // NewSpEnrichedSetPkFunction returns a TransformationFunction which sets the partition key of a message to a field within a Snowplow enriched event
 func NewSpEnrichedSetPkFunction(pkField string) (TransformationFunction, error) {
+
+	// Validate the field provided
+	err := ValidateAtomicField(pkField)
+	if err != nil {
+		return nil, err
+	}
+
 	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 		// Evalute intermediateState to parsedEvent
 		parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
