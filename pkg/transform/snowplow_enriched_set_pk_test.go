@@ -7,6 +7,7 @@
 package transform
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,4 +83,11 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	assert.Equal(&expected, stringAsPkIncompat)
 	assert.Equal(SpTsv1Parsed, intermediate)
 	assert.Nil(failIncompat)
+
+	// Invalid field
+	invalidFieldFunc, err := NewSpEnrichedSetPkFunction("notAnAtomicField")
+
+	assert.Nil(invalidFieldFunc)
+	assert.NotNil(err)
+	fmt.Println(err)
 }

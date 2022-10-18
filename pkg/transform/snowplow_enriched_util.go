@@ -7,6 +7,7 @@
 package transform
 
 import (
+	"github.com/pkg/errors"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
@@ -25,4 +26,20 @@ func IntermediateAsSpEnrichedParsed(intermediateState interface{}, message *mode
 		return nil, parseErr
 	}
 	return parsedEvent, nil
+}
+
+// ValidateAtomicField is a helper function to allow us to fail invalid atomic fields on startup
+func ValidateAtomicField(field string) error {
+	parsedEvent, parseErr := analytics.ParseEvent(string(SnowplowTsv1))
+	if parseErr != nil {
+		return parseErr
+	}
+
+	_, err := parsedEvent.GetValue(field)
+	// if our test data is empty for the field in question, we'll get an EmptyFieldErr.
+	if err != nil && err.Error() == analytics.EmptyFieldErr {
+		return nil
+	}
+
+	return errors.Wrap(err, "error validating atomic field")
 }

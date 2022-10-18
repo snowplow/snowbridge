@@ -27,6 +27,8 @@ func TestMakeBaseValueGetter(t *testing.T) {
 	assert.Equal([]interface{}{"test-data3"}, res)
 	assert.Nil(err)
 
+	// Leaving the test here as it accurately describes the getter's behaviour,
+	// but we now should never hit this in practice, since we valdiate in NewAtomicFilter.
 	nonExistentFieldGetter := makeBaseValueGetter("nope")
 
 	res2, err2 := nonExistentFieldGetter(transform.SpTsv3Parsed)
@@ -36,7 +38,6 @@ func TestMakeBaseValueGetter(t *testing.T) {
 	if err2 != nil {
 		assert.Equal("Key nope not a valid atomic field", err2.Error())
 	}
-	// TODO: currently we'll only hit this error while processing data. Ideally we should hit it on startup.
 }
 
 func TestNewAtomicFilter(t *testing.T) {
@@ -171,16 +172,11 @@ func TestNewAtomicFilter(t *testing.T) {
 	assert.Nil(nilNegationOut)
 	assert.Nil(fail)
 
+	// if the field provided isn't a valid atomic field, we should fail on startup.
 	fieldNotExistsFilter, err := NewAtomicFilterFunction("nothing", "", "keep")
-	if err != nil {
-		fmt.Println(err)
-	}
 
-	notExistsIn, notExistsOut, notExistsFail, _ := fieldNotExistsFilter(&messageGood, nil)
-
-	assert.Nil(notExistsIn)
-	assert.Nil(notExistsOut)
-	assert.NotNil(notExistsFail)
+	assert.Nil(fieldNotExistsFilter)
+	assert.NotNil(err)
 }
 
 func BenchmarkAtomicFilter(b *testing.B) {
