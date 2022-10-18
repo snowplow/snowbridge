@@ -15,6 +15,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow-devops/stream-replicator/assets"
 	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
 	"github.com/snowplow-devops/stream-replicator/pkg/target"
 )
@@ -173,7 +174,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		t.Run(tt.File, func(t *testing.T) {
 			assert := assert.New(t)
 
-			filename := filepath.Join("test-fixtures", tt.File)
+			filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", tt.File)
 			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 			c, err := NewConfig()
@@ -301,7 +302,7 @@ func TestCreateObserverComponentHCL(t *testing.T) {
 		t.Run(tt.File, func(t *testing.T) {
 			assert := assert.New(t)
 
-			filename := filepath.Join("test-fixtures", tt.File)
+			filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", tt.File)
 			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 			c, err := NewConfig()
