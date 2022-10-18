@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/snowplow-devops/stream-replicator/assets"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -208,7 +209,7 @@ func TestNewConfig_GetTags(t *testing.T) {
 func TestNewConfig_Hcl_invalids(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join("test-fixtures", "invalids.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "invalids.hcl")
 	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
@@ -240,7 +241,7 @@ func TestNewConfig_Hcl_invalids(t *testing.T) {
 func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join("test-fixtures", "empty.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
@@ -263,7 +264,7 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 func TestNewConfig_Hcl_sentry(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join("test-fixtures", "sentry.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "sentry.hcl")
 	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
@@ -280,7 +281,7 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 func TestNewConfig_HclTransformationOrder(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join("test-fixtures", "transform-mocked-order.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "transform-mocked-order.hcl")
 	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
