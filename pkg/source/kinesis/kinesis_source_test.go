@@ -17,6 +17,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow-devops/stream-replicator/assets"
 	config "github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
@@ -258,7 +259,7 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 }
 
 func TestKinesisSourceHCL(t *testing.T) {
-	testFixPath := "../../../config/test-fixtures"
+	testFixPath := filepath.Join(assets.AssetsRootDir, "test", "source", "configs")
 	testCases := []struct {
 		File     string
 		Plug     config.Pluggable

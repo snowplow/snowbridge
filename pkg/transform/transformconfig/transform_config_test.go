@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow-devops/stream-replicator/assets"
 	"github.com/snowplow-devops/stream-replicator/config"
 	"github.com/snowplow-devops/stream-replicator/pkg/models"
 )
@@ -23,8 +24,10 @@ import (
 func TestGetTransformations(t *testing.T) {
 	assert := assert.New(t)
 
-	jsScriptPath := filepath.Join("scripts", "script.js")
-	luaScriptPath := filepath.Join("scripts", "script.lua")
+	// Get absolute paths to test resources
+	jsScriptPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestGetTransformations", "scripts", "script.js")
+	luaScriptPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestGetTransformations", "scripts", "script.lua")
+	configPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestGetTransformations", "configs")
 
 	t.Setenv("JS_SCRIPT_PATH", jsScriptPath)
 	t.Setenv("LUA_SCRIPT_PATH", luaScriptPath)
@@ -60,7 +63,7 @@ func TestGetTransformations(t *testing.T) {
 	}
 
 	// Walk iterates the directory & executes the function.
-	filepath.Walk("configs", testConfig)
+	filepath.Walk(configPath, testConfig)
 }
 
 func TestEnginesAndTransformations(t *testing.T) {
@@ -70,7 +73,8 @@ func TestEnginesAndTransformations(t *testing.T) {
 	}
 	messageJSCompileErr.SetError(errors.New(`failed initializing JavaScript runtime: "could not assert as function: \"main\""`))
 
-	testFixPath := "../../../config/test-fixtures"
+	configDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "configs")
+	scriptDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "scripts")
 	testCases := []struct {
 		Description      string
 		File             string
@@ -161,38 +165,38 @@ func TestEnginesAndTransformations(t *testing.T) {
 	}
 
 	// Absolute paths to scripts
-	JSPassThroughPath := filepath.Join(testFixPath, "js-passthrough.js")
+	JSPassThroughPath := filepath.Join(scriptDirPath, "js-passthrough.js")
 	t.Setenv("JS_PASSTHROUGH_PATH", JSPassThroughPath)
 
-	JSParseJSONPath := filepath.Join(testFixPath, "js-json-parse.js")
+	JSParseJSONPath := filepath.Join(scriptDirPath, "js-json-parse.js")
 	t.Setenv("JS_PARSE_JSON_PATH", JSParseJSONPath)
 
-	JSAlterAID1Path := filepath.Join(testFixPath, "js-alter-aid-1.js")
+	JSAlterAID1Path := filepath.Join(scriptDirPath, "js-alter-aid-1.js")
 	t.Setenv("JS_ALTER_AID_1_PATH", JSAlterAID1Path)
 
-	JSAlterAID2Path := filepath.Join(testFixPath, "js-alter-aid-2.js")
+	JSAlterAID2Path := filepath.Join(scriptDirPath, "js-alter-aid-2.js")
 	t.Setenv("JS_ALTER_AID_2_PATH", JSAlterAID2Path)
 
-	LuaAddHelloPath := filepath.Join(testFixPath, "lua-add-hello.lua")
+	LuaAddHelloPath := filepath.Join(scriptDirPath, "lua-add-hello.lua")
 	t.Setenv("LUA_ADD_HELLO_PATH", LuaAddHelloPath)
 
-	JSOrderTest1 := filepath.Join(testFixPath, "js-order-test-1.js")
+	JSOrderTest1 := filepath.Join(scriptDirPath, "js-order-test-1.js")
 	t.Setenv("JS_ORDER_TEST_1", JSOrderTest1)
 
-	JSOrderTest2 := filepath.Join(testFixPath, "js-order-test-2.js")
+	JSOrderTest2 := filepath.Join(scriptDirPath, "js-order-test-2.js")
 	t.Setenv("JS_ORDER_TEST_2", JSOrderTest2)
 
-	JSOrderTest3 := filepath.Join(testFixPath, "js-order-test-3.js")
+	JSOrderTest3 := filepath.Join(scriptDirPath, "js-order-test-3.js")
 	t.Setenv("JS_ORDER_TEST_3", JSOrderTest3)
 
-	JSErrorPath := filepath.Join(testFixPath, "js-error.txt")
+	JSErrorPath := filepath.Join(scriptDirPath, "js-error.txt")
 	t.Setenv("JS_ERROR_PATH", JSErrorPath)
 
 	for _, tt := range testCases {
 		t.Run(tt.Description, func(t *testing.T) {
 			assert := assert.New(t)
 
-			filename := filepath.Join(testFixPath, tt.File)
+			filename := filepath.Join(configDirPath, tt.File)
 			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
 
 			c, err := config.NewConfig()
@@ -275,20 +279,3 @@ var snowplowJSON1Mixed = []byte(`Hello:{"app_id":"again","collector_tstamp":"201
 
 // snowplowJSON1 with 3 transformations applied, for order test
 var snowplowJSON1Order = []byte(`{"app_id":"3","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
-
-//
-
-//
-
-// TODO: CLEAN THIS UP!
-
-// TODO: Test each possible configuration
-// TODO: Organise the example configs sensibly
-// Idea there:
-//
-//	//	- Move testutil into root of project
-//	// 	- Create variables with aboslute paths to configs from there
-//	// 	- Put the docs test configs in there too
-//	//	- Test variables can probably all migrate there too (time permitting)
-// On this: https://stackoverflow.com/questions/43887759/read-file-from-relative-path-with-different-callers
-// Note: This may well end up simply being a bridge too far for this release, as resolving paths around the project might not be feasible
