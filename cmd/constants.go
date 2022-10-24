@@ -8,7 +8,7 @@ package cmd
 
 const (
 	// AppVersion is the current version of the replicator
-	AppVersion = "1.0.0"
+	AppVersion = "2.0.0"
 
 	// AppName is the name of the application to use in logging / places that require the artifact
 	AppName = "stream-replicator"
