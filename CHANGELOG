@@ -1,3 +1,22 @@
+Version 2.0.0 (2022-10-25)
+--------------------------
+Add documentation testing (#223)
+Kinesis source logging wrong error message (#209)
+Fix panic on failure target WriteOversized() and WriteInvalid() (#194)
+Fail on startup for invalid atomic fields (#231)
+Establish a single home for test files (#229)
+Improve transform config (#189)
+Rename parsedMessage to parsedEvent (#228)
+Use latest alpine base image (#224)
+Remove Lua spMode (#214)
+Provide path to script in custom transformation configuration (#226)
+Remove disable source maps option (#225)
+Change the filter API to avoid negative lookahead (#188)
+Replace goccy/go-json as it panics sometimes (#217)
+Update localstack to latest (#219)
+Add end-to-end release tests (#218)
+Add custom AWS endpoint configuration to AWS configurations (#220)
+
 Version 1.0.0 (2022-08-15)
 --------------------------
 Refactor v1 release filters (#192)
