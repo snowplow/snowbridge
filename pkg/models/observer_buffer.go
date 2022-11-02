@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
+	"github.com/snowplow/snowbridge/pkg/common"
 )
 
 // ObserverBuffer contains all the metrics we are processing

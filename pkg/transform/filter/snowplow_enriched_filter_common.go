@@ -15,8 +15,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/transform"
 )
 
 // evaluateSpEnrichedfilter takes a regex and a slice of values, and returns whether or not a value has been matched

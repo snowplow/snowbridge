@@ -11,8 +11,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/statsreceiver/statsreceiveriface"
 )
 
 // Observer holds the channels and settings for aggregating telemetry from processed messages

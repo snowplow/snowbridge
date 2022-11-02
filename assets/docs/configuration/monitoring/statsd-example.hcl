@@ -3,8 +3,8 @@ stats_receiver {
     # StatsD server address
     address = "127.0.0.1:8125"
 
-    # StatsD metric prefix (default: "snowplow.stream-replicator")
-    prefix  = "snowplow.stream-replicator"
+    # StatsD metric prefix (default: "snowplow.snowbridge")
+    prefix  = "snowplow.snowbridge"
 
     # Escaped JSON string with tags to send to StatsD (default: "{}")
     tags    = "{\"aKey\": \"aValue\"}"

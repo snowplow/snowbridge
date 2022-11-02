@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/snowplow-devops/stream-replicator/assets"
-	"github.com/snowplow-devops/stream-replicator/cmd"
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/assets"
+	"github.com/snowplow/snowbridge/cmd"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/statsreceiver"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -65,7 +65,7 @@ func testStatsDConfig(t *testing.T, configpath string, fullExample bool) {
 
 func testSentryConfig(t *testing.T, configpath string, fullExample bool) {
 	assert := assert.New(t)
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", configpath)
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", configpath)
 
 	// Since sentry lives in cmd, we call Init to test it.
 	cfgSentry, sentryEnabled, initErr := cmd.Init()

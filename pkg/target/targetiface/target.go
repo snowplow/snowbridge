@@ -7,7 +7,7 @@
 package targetiface
 
 import (
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // Target describes the interface for how to push the data pulled from the source

@@ -6,6 +6,6 @@ function main(input)
     -- set the name field
     jsonObj.name = "Bruce Wayne"
 
-    -- Pass it back to Stream Replicator via the Data field
+    -- Pass it back to Snowbridge via the Data field
     return { Data = jsonObj }
 end

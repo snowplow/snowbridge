@@ -10,8 +10,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // SetPkConfig is a configuration object for the spEnrichedSetPk transformation

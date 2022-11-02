@@ -12,7 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // StdoutTarget holds a new client for writing messages to stdout

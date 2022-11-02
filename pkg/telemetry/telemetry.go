@@ -6,7 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	conf "github.com/snowplow-devops/stream-replicator/config"
+	conf "github.com/snowplow/snowbridge/config"
 	gt "github.com/snowplow/snowplow-golang-tracker/v2/tracker"
 	"github.com/twinj/uuid"
 )

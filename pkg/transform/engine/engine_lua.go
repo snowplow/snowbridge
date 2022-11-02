@@ -19,9 +19,9 @@ import (
 	luaparse "github.com/yuin/gopher-lua/parse"
 	luajson "layeh.com/gopher-json"
 
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/transform"
 )
 
 // LuaEngineConfig configures the Lua Engine.

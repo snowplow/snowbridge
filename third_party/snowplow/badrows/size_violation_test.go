@@ -21,7 +21,7 @@ func TestNewSizeViolation(t *testing.T) {
 
 	sv, err := NewSizeViolation(
 		&SizeViolationInput{
-			ProcessorArtifact:              "stream-replicator",
+			ProcessorArtifact:              "snowbridge",
 			ProcessorVersion:               "0.1.0",
 			Payload:                        []byte("Hello World!"),
 			FailureTimestamp:               timeNow,
@@ -36,7 +36,7 @@ func TestNewSizeViolation(t *testing.T) {
 	compact, err := sv.Compact()
 	assert.Nil(err)
 	assert.NotNil(compact)
-	assert.Equal(fmt.Sprintf("{\"data\":{\"failure\":{\"actualSizeBytes\":12,\"expectation\":\"Not sure?\",\"maximumAllowedSizeBytes\":20,\"timestamp\":\"%s\"},\"payload\":\"Hello World!\",\"processor\":{\"artifact\":\"stream-replicator\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/size_violation/jsonschema/1-0-0\"}", timeNow.UTC().Format("2006-01-02T15:04:05Z07:00")), compact)
+	assert.Equal(fmt.Sprintf("{\"data\":{\"failure\":{\"actualSizeBytes\":12,\"expectation\":\"Not sure?\",\"maximumAllowedSizeBytes\":20,\"timestamp\":\"%s\"},\"payload\":\"Hello World!\",\"processor\":{\"artifact\":\"snowbridge\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/size_violation/jsonschema/1-0-0\"}", timeNow.UTC().Format("2006-01-02T15:04:05Z07:00")), compact)
 }
 
 func TestNewSizeViolation_Truncated(t *testing.T) {
@@ -46,9 +46,9 @@ func TestNewSizeViolation_Truncated(t *testing.T) {
 
 	sv, err := NewSizeViolation(
 		&SizeViolationInput{
-			ProcessorArtifact:              "stream-replicator",
+			ProcessorArtifact:              "snowbridge",
 			ProcessorVersion:               "0.1.0",
-			Payload:                        []byte("Hello World!"),
+			Payload:                        []byte("Hello World! This is a longer string than before, because the processor name is shorter than before!"),
 			FailureTimestamp:               timeNow,
 			FailureMaximumAllowedSizeBytes: 20,
 			FailureExpectation:             "Not sure?",
@@ -61,7 +61,7 @@ func TestNewSizeViolation_Truncated(t *testing.T) {
 	compact, err := sv.Compact()
 	assert.Nil(err)
 	assert.NotNil(compact)
-	assert.Equal(fmt.Sprintf("{\"data\":{\"failure\":{\"actualSizeBytes\":12,\"expectation\":\"Not sure?\",\"maximumAllowedSizeBytes\":20,\"timestamp\":\"%s\"},\"payload\":\"Hello Wor\",\"processor\":{\"artifact\":\"stream-replicator\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/size_violation/jsonschema/1-0-0\"}", timeNow.UTC().Format("2006-01-02T15:04:05Z07:00")), compact)
+	assert.Equal(fmt.Sprintf("{\"data\":{\"failure\":{\"actualSizeBytes\":100,\"expectation\":\"Not sure?\",\"maximumAllowedSizeBytes\":20,\"timestamp\":\"%s\"},\"payload\":\"Hello World! Th\",\"processor\":{\"artifact\":\"snowbridge\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/size_violation/jsonschema/1-0-0\"}", timeNow.UTC().Format("2006-01-02T15:04:05Z07:00")), compact)
 }
 
 func TestNewSizeViolation_NotEnoughBytes(t *testing.T) {
@@ -71,7 +71,7 @@ func TestNewSizeViolation_NotEnoughBytes(t *testing.T) {
 
 	sv, err := NewSizeViolation(
 		&SizeViolationInput{
-			ProcessorArtifact:              "stream-replicator",
+			ProcessorArtifact:              "snowbridge",
 			ProcessorVersion:               "0.1.0",
 			Payload:                        []byte("Hello World!"),
 			FailureTimestamp:               timeNow,

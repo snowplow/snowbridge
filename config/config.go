@@ -17,14 +17,14 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
-	"github.com/snowplow-devops/stream-replicator/pkg/failure"
-	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/observer"
-	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
-	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver/statsreceiveriface"
-	"github.com/snowplow-devops/stream-replicator/pkg/target"
-	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/pkg/common"
+	"github.com/snowplow/snowbridge/pkg/failure"
+	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
+	"github.com/snowplow/snowbridge/pkg/observer"
+	"github.com/snowplow/snowbridge/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/pkg/statsreceiver/statsreceiveriface"
+	"github.com/snowplow/snowbridge/pkg/target"
+	"github.com/snowplow/snowbridge/pkg/target/targetiface"
 )
 
 // ConfigurationPair allows modular packages to define their own configuration and function to interpret the configuration.
@@ -113,7 +113,7 @@ func defaultConfigData() *configurationData {
 
 // NewConfig returns a configuration
 func NewConfig() (*Config, error) {
-	filename := os.Getenv("STREAM_REPLICATOR_CONFIG_FILE")
+	filename := os.Getenv("SNOWBRIDGE_CONFIG_FILE")
 	if filename == "" {
 		return newEnvConfig()
 	}
@@ -323,7 +323,7 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 	return nil, fmt.Errorf("could not interpret failure target configuration for %q", useFailureTarget.Name)
 }
 
-// GetTags returns a list of tags to use in identifying this instance of stream-replicator with enough
+// GetTags returns a list of tags to use in identifying this instance of snowbridge with enough
 // entropy so as to avoid collisions as it should not be possible to have both the host and process_id be
 // the same.
 func (c *Config) GetTags() (map[string]string, error) {

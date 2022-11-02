@@ -19,8 +19,8 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/common"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // HTTPTargetConfig configures the destination for records consumed

@@ -15,6 +15,6 @@ jobs:
       uses: snyk/actions/golang@master
       with:
         command: monitor
-        args: --prune-repeated-subdependencies --project-name=stream-replicator
+        args: --prune-repeated-subdependencies --project-name=snowbridge
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}

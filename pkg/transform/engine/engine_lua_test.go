@@ -15,8 +15,8 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/transform"
 )
 
 type LuaTestCase struct {

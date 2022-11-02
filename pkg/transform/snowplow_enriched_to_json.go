@@ -9,8 +9,8 @@ package transform
 import (
 	"errors"
 
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // We could avoid all the config-related trimmings for this one, but providing them means that this

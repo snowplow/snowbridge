@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/transform"
 	"github.com/stretchr/testify/assert"
 )
 

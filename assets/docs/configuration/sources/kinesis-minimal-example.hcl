@@ -8,7 +8,7 @@ source {
     # AWS region of Kinesis stream
     region      = "us-west-1"
 
-    # App name for Stream Replicator
-    app_name    = "StreamReplicatorProd1"
+    # App name for Snowbridge
+    app_name    = "SnowbridgeProd1"
   }
 }

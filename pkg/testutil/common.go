@@ -13,7 +13,7 @@ import (
 
 	"github.com/twinj/uuid"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 const charset = "abcdefghijklmnopqrstuvwxyz" +

@@ -15,7 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	sentryhook "github.com/snowplow-devops/go-sentryhook"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
+	config "github.com/snowplow/snowbridge/config"
 )
 
 var (
