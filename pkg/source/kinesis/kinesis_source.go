@@ -21,10 +21,10 @@ import (
 	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
 
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/common"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 )
 
 // Configuration configures the source for records pulled

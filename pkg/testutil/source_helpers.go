@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 )
 
 // TODO: Refactor to provide a means to test errors without panicing

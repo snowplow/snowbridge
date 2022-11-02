@@ -8,8 +8,8 @@ package filter
 
 import (
 	"github.com/pkg/errors"
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/transform"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 

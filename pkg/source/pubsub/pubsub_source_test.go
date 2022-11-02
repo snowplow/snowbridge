@@ -17,9 +17,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
-	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -68,7 +68,7 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 }
 
-// newPubSubSource_Failure should fail if we can't reach PubSub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
+// newPubSubSource_Failure should fail if we can't reach PubSub, commented out this test until we look into https://github.com/snowplow/snowbridge/issues/151
 /*
 func TestNewPubSubSource_Failure(t *testing.T) {
 	if testing.Short() {

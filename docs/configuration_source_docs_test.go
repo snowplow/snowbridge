@@ -12,12 +12,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/snowplow-devops/stream-replicator/assets"
-	"github.com/snowplow-devops/stream-replicator/config"
-	kinesissource "github.com/snowplow-devops/stream-replicator/pkg/source/kinesis"
-	pubsubsource "github.com/snowplow-devops/stream-replicator/pkg/source/pubsub"
-	sqssource "github.com/snowplow-devops/stream-replicator/pkg/source/sqs"
-	stdinsource "github.com/snowplow-devops/stream-replicator/pkg/source/stdin"
+	"github.com/snowplow/snowbridge/assets"
+	"github.com/snowplow/snowbridge/config"
+	kinesissource "github.com/snowplow/snowbridge/pkg/source/kinesis"
+	pubsubsource "github.com/snowplow/snowbridge/pkg/source/pubsub"
+	sqssource "github.com/snowplow/snowbridge/pkg/source/sqs"
+	stdinsource "github.com/snowplow/snowbridge/pkg/source/stdin"
 	"github.com/stretchr/testify/assert"
 )
 

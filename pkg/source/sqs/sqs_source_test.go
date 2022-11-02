@@ -17,12 +17,12 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow-devops/stream-replicator/assets"
-	config "github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
+	"github.com/snowplow/snowbridge/assets"
+	config "github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -52,7 +52,7 @@ func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	assert.Nil(err)
 }
 
-// newSQSSourceWithInterfaces should fail if we can't reach SQS, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
+// newSQSSourceWithInterfaces should fail if we can't reach SQS, commented out this test until we look into https://github.com/snowplow/snowbridge/issues/151
 /*
 func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
 	// Unlike the success test, we don't require anything to exist for this one
@@ -67,7 +67,7 @@ func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
 }
 */
 
-// TODO: When we address https://github.com/snowplow-devops/stream-replicator/issues/151, this test will need to change.
+// TODO: When we address https://github.com/snowplow/snowbridge/issues/151, this test will need to change.
 func TestSQSSource_ReadFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -205,7 +205,7 @@ func TestSQSSourceHCL(t *testing.T) {
 			assert := assert.New(t)
 
 			filename := filepath.Join(testFixPath, tt.File)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 			c, err := config.NewConfig()
 			assert.NotNil(c)

@@ -20,7 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
+	"github.com/snowplow/snowbridge/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/stretchr/testify/assert"
@@ -289,7 +289,7 @@ func testE2EKafkaTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	// We use localhost:9092 here as we're running from host machine.
-	// The address in our stream replicator config is different ("broker:29092"), since they're on the shared docker network.
+	// The address in our Snowbridge config is different ("broker:29092"), since they're on the shared docker network.
 	adminClient, err := sarama.NewClusterAdmin([]string{"localhost:9092"}, nil)
 	if err != nil {
 		panic(err)

@@ -21,18 +21,18 @@ import (
 	// pprof imported for the side effect of registering its HTTP handlers
 	_ "net/http/pprof"
 
-	"github.com/snowplow-devops/stream-replicator/cmd"
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
-	"github.com/snowplow-devops/stream-replicator/pkg/failure/failureiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/observer"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
-	"github.com/snowplow-devops/stream-replicator/pkg/telemetry"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformconfig"
+	"github.com/snowplow/snowbridge/cmd"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/common"
+	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/observer"
+	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/pkg/telemetry"
+	"github.com/snowplow/snowbridge/pkg/transform"
+	"github.com/snowplow/snowbridge/pkg/transform/transformconfig"
 )
 
 const (

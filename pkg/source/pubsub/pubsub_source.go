@@ -16,9 +16,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 )
 
 // Configuration configures the source for records pulled

@@ -18,8 +18,8 @@ import (
 	pubsubV1 "google.golang.org/genproto/googleapis/pubsub/v1"
 	"google.golang.org/grpc/codes"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
 func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
@@ -210,7 +210,7 @@ func TestPubSubTarget_WriteFailureWithMocks(t *testing.T) {
 // TestPubSubTarget_WriteFailureRetryableWithMocks unit tests the unhappy path for PubSub target
 // This isn't an integration test, but takes a long time so we skip on short runs
 // This test demonstrates the case where retryable errors are obscured somewhat.
-// We should try to make these more transparent: https://github.com/snowplow-devops/stream-replicator/issues/156
+// We should try to make these more transparent: https://github.com/snowplow/snowbridge/issues/156
 func TestPubSubTarget_WriteFailureRetryableWithMocks(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping slow test")
@@ -262,7 +262,7 @@ func TestPubSubTarget_WriteFailureRetryableWithMocks(t *testing.T) {
 func TestNewPubSubTarget_Success(t *testing.T) {
 	assert := assert.New(t)
 
-	// This isn't needed at present, but adding it as we'll need it after https://github.com/snowplow-devops/stream-replicator/issues/151
+	// This isn't needed at present, but adding it as we'll need it after https://github.com/snowplow/snowbridge/issues/151
 	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
 	defer srv.Close()
 	defer conn.Close()
@@ -276,7 +276,7 @@ func TestNewPubSubTarget_Success(t *testing.T) {
 
 // TestnewPubSubTarget_Failure tests that we fail early when we cannot reach pubsub
 // Commented out as this behaviour is not currently instrumented.
-// This test serves to illustrate the desired behaviour for this issue: https://github.com/snowplow-devops/stream-replicator/issues/151
+// This test serves to illustrate the desired behaviour for this issue: https://github.com/snowplow/snowbridge/issues/151
 /*
 func TestnewPubSubTarget_Failure(t *testing.T) {
 	assert := assert.New(t)

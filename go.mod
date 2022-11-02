@@ -1,4 +1,4 @@
-module github.com/snowplow-devops/stream-replicator
+module github.com/snowplow/snowbridge
 
 go 1.17
 

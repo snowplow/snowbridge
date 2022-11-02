@@ -47,7 +47,7 @@ jobs:
       uses: snyk/actions/setup@master
 
     - name: Run Snyk to check for vulnerabilities
-      run: snyk test --project-name=stream-replicator --severity-threshold=high
+      run: snyk test --project-name=snowbridge --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 

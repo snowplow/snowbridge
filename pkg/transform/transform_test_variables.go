@@ -9,7 +9,7 @@ package transform
 import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // SnowplowTsv1 is test data

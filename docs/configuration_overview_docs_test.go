@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/snowplow-devops/stream-replicator/assets"
+	"github.com/snowplow/snowbridge/assets"
 )
 
 func TestConfigurationOverview(t *testing.T) {

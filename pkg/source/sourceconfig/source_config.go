@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"strings"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
+	config "github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 )
 
 // GetSource creates and returns the source that is configured.

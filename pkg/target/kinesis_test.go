@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
+	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
 func TestKinesisTarget_WriteFailure(t *testing.T) {

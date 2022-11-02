@@ -9,10 +9,10 @@ package transformconfig
 import (
 	"fmt"
 
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform/engine"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform/filter"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/transform"
+	"github.com/snowplow/snowbridge/pkg/transform/engine"
+	"github.com/snowplow/snowbridge/pkg/transform/filter"
 )
 
 // SupportedTransformations is a ConfigurationPair slice containing all the officially supported transformations.

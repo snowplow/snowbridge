@@ -26,8 +26,8 @@ linux_out_dir   = $(output_dir)/linux
 darwin_out_dir  = $(output_dir)/darwin
 windows_out_dir = $(output_dir)/windows
 
-aws_container_name = snowplow/stream-replicator-aws
-gcp_container_name = snowplow/stream-replicator-gcp
+aws_container_name = snowplow/snowbridge-aws
+gcp_container_name = snowplow/snowbridge-gcp
 
 # -----------------------------------------------------------------------------
 #  BUILDING
@@ -40,30 +40,30 @@ gox:
 	mkdir -p $(compiled_dir)
 
 cli: gox cli-linux cli-darwin cli-windows
-	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip stream-replicator)
+	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
 	mv $(linux_out_dir)/aws/cli/staging.zip $(compiled_dir)/aws_cli_stream_replicator_$(version)_linux_amd64.zip
-	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip stream-replicator)
+	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
 	mv $(darwin_out_dir)/aws/cli/staging.zip $(compiled_dir)/aws_cli_stream_replicator_$(version)_darwin_amd64.zip
-	(cd $(windows_out_dir)/aws/cli/ && zip -r staging.zip stream-replicator.exe)
+	(cd $(windows_out_dir)/aws/cli/ && zip -r staging.zip snowbridge.exe)
 	mv $(windows_out_dir)/aws/cli/staging.zip $(compiled_dir)/aws_cli_stream_replicator_$(version)_windows_amd64.zip
-	(cd $(linux_out_dir)/gcp/cli/ && zip -r staging.zip stream-replicator)
+	(cd $(linux_out_dir)/gcp/cli/ && zip -r staging.zip snowbridge)
 	mv $(linux_out_dir)/gcp/cli/staging.zip $(compiled_dir)/gcp_cli_stream_replicator_$(version)_linux_amd64.zip
-	(cd $(darwin_out_dir)/gcp/cli/ && zip -r staging.zip stream-replicator)
+	(cd $(darwin_out_dir)/gcp/cli/ && zip -r staging.zip snowbridge)
 	mv $(darwin_out_dir)/gcp/cli/staging.zip $(compiled_dir)/gcp_cli_stream_replicator_$(version)_darwin_amd64.zip
-	(cd $(windows_out_dir)/gcp/cli/ && zip -r staging.zip stream-replicator.exe)
+	(cd $(windows_out_dir)/gcp/cli/ && zip -r staging.zip snowbridge.exe)
 	mv $(windows_out_dir)/gcp/cli/staging.zip $(compiled_dir)/gcp_cli_stream_replicator_$(version)_windows_amd64.zip
 
 cli-linux: gox
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
+	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/gcp/cli/snowbridge ./cmd/gcp/cli/
 
 cli-darwin: gox
-	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/gcp/cli/snowbridge ./cmd/gcp/cli/
 
 cli-windows: gox
-	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/stream-replicator ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/gcp/cli/stream-replicator ./cmd/gcp/cli/
+	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/gcp/cli/snowbridge ./cmd/gcp/cli/
 
 container: cli-linux
 	docker build -t $(aws_container_name):$(version) -f Dockerfile.aws .

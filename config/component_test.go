@@ -15,9 +15,9 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow-devops/stream-replicator/assets"
-	"github.com/snowplow-devops/stream-replicator/pkg/statsreceiver"
-	"github.com/snowplow-devops/stream-replicator/pkg/target"
+	"github.com/snowplow/snowbridge/assets"
+	"github.com/snowplow/snowbridge/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/pkg/target"
 )
 
 func TestCreateTargetComponentHCL(t *testing.T) {
@@ -175,7 +175,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			assert := assert.New(t)
 
 			filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", tt.File)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 			c, err := NewConfig()
 			assert.NotNil(c)
@@ -235,7 +235,7 @@ func TestCreateFailureTargetComponentENV(t *testing.T) {
 
 	t.Run(testCase.Name, func(t *testing.T) {
 		assert := assert.New(t)
-		t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", "")
+		t.Setenv("SNOWBRIDGE_CONFIG_FILE", "")
 		t.Setenv("FAILURE_TARGET_NAME", "kafka")
 		t.Setenv("FAILURE_TARGET_KAFKA_BROKERS", "testBrokers")
 		t.Setenv("FAILURE_TARGET_KAFKA_TOPIC_NAME", "testTopic")
@@ -303,7 +303,7 @@ func TestCreateObserverComponentHCL(t *testing.T) {
 			assert := assert.New(t)
 
 			filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", tt.File)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 			c, err := NewConfig()
 			assert.NotNil(c)

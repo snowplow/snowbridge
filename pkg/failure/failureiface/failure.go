@@ -7,7 +7,7 @@
 package failureiface
 
 import (
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // Failure describes the interface for where to push data that
