@@ -10,9 +10,9 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/target/targetiface"
-	"github.com/snowplow-devops/stream-replicator/third_party/snowplow/badrows"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/third_party/snowplow/badrows"
 )
 
 // SnowplowFailure holds a new client for transforming failed messages and emitting

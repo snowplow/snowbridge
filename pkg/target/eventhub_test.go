@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/twinj/uuid"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
 var cfg = EventHubConfig{
@@ -402,7 +402,7 @@ func TestNewEventHubTarget_CredentialsNotFound(t *testing.T) {
 	assert.Nil(tgt)
 }
 
-// NewEventHubTarget should fail if we can't reach EventHub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
+// NewEventHubTarget should fail if we can't reach EventHub, commented out this test until we look into https://github.com/snowplow/snowbridge/issues/151
 // Note that when we do so, the above tests will need to be changed to use some kind of mock
 /*
 func TestNewEventHubTarget_Failure(t *testing.T) {

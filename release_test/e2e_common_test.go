@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/snowplow-devops/stream-replicator/cmd"
+	"github.com/snowplow/snowbridge/cmd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,8 +31,8 @@ var cmdTemplate = `cat %s | docker run -i \
 --network=integration_default \
 --add-host host.docker.internal:host-gateway \
 --mount type=bind,source=%s,target=/config.hcl \
---env STREAM_REPLICATOR_CONFIG_FILE=/config.hcl %s \
-snowplow/stream-replicator-%s:` + cmd.AppVersion
+--env SNOWBRIDGE_CONFIG_FILE=/config.hcl %s \
+snowplow/snowbridge-%s:` + cmd.AppVersion
 
 // explanation of arguments:
 // -i keeps stdin open

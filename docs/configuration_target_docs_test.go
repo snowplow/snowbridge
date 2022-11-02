@@ -13,9 +13,9 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/snowplow-devops/stream-replicator/assets"
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/target"
+	"github.com/snowplow/snowbridge/assets"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/target"
 	"github.com/stretchr/testify/assert"
 )
 

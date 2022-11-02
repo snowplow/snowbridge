@@ -1,4 +1,4 @@
-# Stream Replicator
+# Snowbridge
 
 [![Release][release-image]][releases]
 
@@ -6,15 +6,15 @@
 
 Easily replicate data streams wherever you need them to be!  This application is available as a standalone application.
 
-See the [wiki documention](https://github.com/snowplow-devops/stream-replicator/wiki) for details on how to configure and run the application.
+See the [wiki documention](https://github.com/snowplow/snowbridge/wiki) for details on how to configure and run the application.
 
 ## Quick start
 
 Assuming git is installed:
 
 ```bash
- host> git clone https://github.com/snowplow-devops/stream-replicator
- host> cd stream-replicator
+ host> git clone https://github.com/snowplow/snowbridge
+ host> cd snowbridge
  host> make test
  host> make
 ```
@@ -61,4 +61,4 @@ Unauthorized copying of this project via any medium is strictly prohibited.
 Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
 
 [release-image]: http://img.shields.io/badge/golang-2.0.0-6ad7e5.svg?style=flat
-[releases]: https://github.com/snowplow-devops/stream-replicator/releases/
+[releases]: https://github.com/snowplow/snowbridge/releases/

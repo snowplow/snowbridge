@@ -20,8 +20,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/xdg/scram"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/common"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // KafkaConfig contains configurable options for the kafka target
@@ -77,7 +77,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 	sarama.Logger = logger
 
 	saramaConfig := sarama.NewConfig()
-	saramaConfig.ClientID = "snowplow_stream_replicator"
+	saramaConfig.ClientID = "Snowbridge"
 	saramaConfig.Version = kafkaVersion
 	saramaConfig.Producer.Retry.Max = cfg.MaxRetries
 	saramaConfig.Producer.MaxMessageBytes = cfg.ByteLimit

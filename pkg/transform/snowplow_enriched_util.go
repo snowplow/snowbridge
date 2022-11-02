@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // IntermediateAsSpEnrichedParsed returns the intermediate state as a ParsedEvent if valid or parses

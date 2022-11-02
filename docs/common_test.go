@@ -14,8 +14,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/snowplow-devops/stream-replicator/assets"
-	"github.com/snowplow-devops/stream-replicator/config"
+	"github.com/snowplow/snowbridge/assets"
+	"github.com/snowplow/snowbridge/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -58,7 +58,7 @@ func checkComponentForZeros(t *testing.T, component interface{}) {
 
 func getConfigFromFilepath(t *testing.T, filepath string) *config.Config {
 	assert := assert.New(t)
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filepath)
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filepath)
 	c, newConfErr := config.NewConfig()
 	assert.NotNil(c)
 	assert.Nil(newConfErr)

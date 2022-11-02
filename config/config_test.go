@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/snowplow-devops/stream-replicator/assets"
+	"github.com/snowplow/snowbridge/assets"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -210,7 +210,7 @@ func TestNewConfig_Hcl_invalids(t *testing.T) {
 	assert := assert.New(t)
 
 	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "invalids.hcl")
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -242,7 +242,7 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert := assert.New(t)
 
 	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -265,7 +265,7 @@ func TestNewConfig_Hcl_sentry(t *testing.T) {
 	assert := assert.New(t)
 
 	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "sentry.hcl")
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
 	assert.NotNil(c)
@@ -282,7 +282,7 @@ func TestNewConfig_HclTransformationOrder(t *testing.T) {
 	assert := assert.New(t)
 
 	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "transform-mocked-order.hcl")
-	t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
 	assert.NotNil(c)

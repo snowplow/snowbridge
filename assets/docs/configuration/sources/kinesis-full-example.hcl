@@ -8,8 +8,8 @@ source {
     # AWS region of Kinesis stream (required)
     region            = "us-west-1"
 
-    # App name for Stream Replicator (required)
-    app_name          = "StreamReplicatorProd1"
+    # App name for Snowbridge (required)
+    app_name          = "SnowbridgeProd1"
 
     # Optional ARN to use on source stream (default: "")
     role_arn          = "arn:aws:iam::123456789012:role/myrole"

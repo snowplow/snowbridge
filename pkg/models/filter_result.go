@@ -9,7 +9,7 @@ package models
 import (
 	"time"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/common"
+	"github.com/snowplow/snowbridge/pkg/common"
 )
 
 // FilterResult contains the results from a target write operation

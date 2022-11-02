@@ -7,7 +7,7 @@
 package statsreceiveriface
 
 import (
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // StatsReceiver describes the interface for how to push observed statistics

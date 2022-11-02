@@ -5,7 +5,7 @@ function main(input) {
     // set the name field
     jsonObj.name = "Bruce Wayne"
     return {
-        // Pass it back to Stream Replicator via the Data field
+        // Pass it back to Snowbridge via the Data field
         Data: jsonObj,
         PartitionKey: "myPk"
     };

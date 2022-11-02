@@ -16,9 +16,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow-devops/stream-replicator/assets"
-	"github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/assets"
+	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 func TestGetTransformations(t *testing.T) {
@@ -42,7 +42,7 @@ func TestGetTransformations(t *testing.T) {
 			return nil
 		}
 
-		t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", path)
+		t.Setenv("SNOWBRIDGE_CONFIG_FILE", path)
 
 		c, err := config.NewConfig()
 		assert.NotNil(c)
@@ -197,7 +197,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 			assert := assert.New(t)
 
 			filename := filepath.Join(configDirPath, tt.File)
-			t.Setenv("STREAM_REPLICATOR_CONFIG_FILE", filename)
+			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 			c, err := config.NewConfig()
 			assert.NotNil(c)

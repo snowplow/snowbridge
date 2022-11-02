@@ -13,10 +13,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	config "github.com/snowplow-devops/stream-replicator/config"
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceconfig"
-	"github.com/snowplow-devops/stream-replicator/pkg/source/sourceiface"
+	config "github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 )
 
 func TestMain(m *testing.M) {

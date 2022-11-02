@@ -12,7 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/snowplow-devops/stream-replicator/third_party/snowplow/iglu"
+	"github.com/snowplow/snowbridge/third_party/snowplow/iglu"
 )
 
 const (

@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	statsd "github.com/smira/go-statsd"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // StatsDStatsReceiverConfig configures the stats metrics receiver
@@ -86,7 +86,7 @@ func (f StatsDStatsReceiverAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults for the optional parameters
 	// whose default is not their zero value.
 	cfg := &StatsDStatsReceiverConfig{
-		Prefix: "snowplow.stream-replicator",
+		Prefix: "snowplow.snowbridge",
 		Tags:   "{}",
 	}
 

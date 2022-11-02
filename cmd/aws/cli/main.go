@@ -7,13 +7,13 @@
 package main
 
 import (
-	"github.com/snowplow-devops/stream-replicator/cmd/cli"
-	"github.com/snowplow-devops/stream-replicator/config"
-	kinesissource "github.com/snowplow-devops/stream-replicator/pkg/source/kinesis"
-	pubsubsource "github.com/snowplow-devops/stream-replicator/pkg/source/pubsub"
-	sqssource "github.com/snowplow-devops/stream-replicator/pkg/source/sqs"
-	stdinsource "github.com/snowplow-devops/stream-replicator/pkg/source/stdin"
-	"github.com/snowplow-devops/stream-replicator/pkg/transform/transformconfig"
+	"github.com/snowplow/snowbridge/cmd/cli"
+	"github.com/snowplow/snowbridge/config"
+	kinesissource "github.com/snowplow/snowbridge/pkg/source/kinesis"
+	pubsubsource "github.com/snowplow/snowbridge/pkg/source/pubsub"
+	sqssource "github.com/snowplow/snowbridge/pkg/source/sqs"
+	stdinsource "github.com/snowplow/snowbridge/pkg/source/stdin"
+	"github.com/snowplow/snowbridge/pkg/transform/transformconfig"
 )
 
 func main() {

@@ -14,7 +14,7 @@ import (
 	"github.com/Shopify/sarama/mocks"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
+	"github.com/snowplow/snowbridge/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
