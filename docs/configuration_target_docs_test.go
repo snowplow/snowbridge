@@ -59,7 +59,6 @@ func testFailureTargetConfig(t *testing.T, filepath string, fullExample bool) {
 
 func testTargetComponent(t *testing.T, name string, body hcl.Body, fullExample bool) {
 	assert := assert.New(t)
-	fmt.Println(name)
 	var configObject interface{}
 	switch name {
 	case "eventhub":
