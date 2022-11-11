@@ -96,6 +96,15 @@ func newPubSubSource(concurrentWrites int, projectID string, subscriptionID stri
 		return nil, errors.Wrap(err, "Failed to create PubSub client")
 	}
 
+	sub := client.SubscriptionInProject(subscriptionID, projectID)
+	exists, err := sub.Exists(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "Connection to PubSub failed")
+	}
+	if !exists {
+		return nil, errors.New("Connection to PubSub failed, subscription does not exist")
+	}
+
 	return &pubSubSource{
 		projectID:        projectID,
 		client:           client,

@@ -115,6 +115,11 @@ var ConfigPair = sourceconfig.ConfigPair{
 // newSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
 func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
+	_, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{QueueName: &queueName})
+	if err != nil {
+		return nil, errors.Wrap(err, `Could not connect to SQS`)
+	}
+
 	return &sqsSource{
 		client:             client,
 		queueName:          queueName,

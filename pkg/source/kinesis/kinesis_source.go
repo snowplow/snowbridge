@@ -174,6 +174,12 @@ func newKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynam
 	// TODO: See if the client name can be reused to survive same node reboots
 	name := uuid.NewV4().String()
 
+	// test the connection to kinesis by trying to make an API call
+	_, err := kinesisClient.DescribeStream(&kinesis.DescribeStreamInput{StreamName: &streamName})
+	if err != nil {
+		return nil, err
+	}
+
 	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, name, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create Kinsumer client")
@@ -263,7 +269,7 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 	case <-time.After(10 * time.Second):
 		// Append errors and crash
 		multierror.Append(kinesisPullErr, errors.Errorf("wg.Wait() took too long, forcing app close."))
-		ks.log.WithFields(log.Fields{"error": err}).Fatal(err)
+		ks.log.WithFields(log.Fields{"error": kinesisPullErr}).Fatal(kinesisPullErr)
 	}
 
 	// Return kinesisPullErr if we have one

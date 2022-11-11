@@ -32,6 +32,13 @@ func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Se
 			panic(err)
 		}
 		mutex.Lock()
+		if req.URL.Path == `/error` {
+			if req.Method == http.MethodHead {
+				*results = append(*results, data)
+			} else {
+				w.WriteHeader(500)
+			}
+		}
 		*results = append(*results, data)
 		mutex.Unlock()
 		defer waitgroup.Done()
@@ -119,10 +126,10 @@ func TestAddHeadersToRequest(t *testing.T) {
 func TestNewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := newHTTPTarget("http://something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	httpTarget, err := newHTTPTarget("http://wrong-url-12345678.com", 5, 1048576, "application/json", "", "", "", "", "", "", true)
 
-	assert.Nil(err)
-	assert.NotNil(httpTarget)
+	assert.EqualError(err, `Connection to host error: Head "http://wrong-url-12345678.com": dial tcp: lookup wrong-url-12345678.com: no such host`)
+	assert.Nil(httpTarget)
 
 	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
 
@@ -145,6 +152,8 @@ func TestHttpWrite_Simple(t *testing.T) {
 
 	var results [][]byte
 	wg := sync.WaitGroup{}
+	// add to waitGroup for connection check HEAD request
+	wg.Add(1)
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
@@ -166,8 +175,8 @@ func TestHttpWrite_Simple(t *testing.T) {
 
 	assert.Nil(err1)
 	assert.Equal(501, len(writeResult.Sent))
-	assert.Equal(501, len(results))
-	for _, result := range results {
+	assert.Equal(502, len(results))
+	for _, result := range results[1:] {
 		assert.Equal("Hello Server!!", string(result))
 	}
 
@@ -179,6 +188,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 
 	var results [][]byte
 	wg := sync.WaitGroup{}
+	wg.Add(1)
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
@@ -209,23 +219,25 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 
 	wg.Wait()
 
-	assert.Equal(10, len(results))
-	for _, result := range results {
+	assert.Equal(11, len(results))
+	for _, result := range results[1:] {
 		assert.Equal("Hello Server!!", string(result))
 	}
 
 	assert.Equal(int64(10), ackOps)
 }
 
-func TestHttpWrite_Failure(t *testing.T) {
+func TestHttpWrite_RequestFailure(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
 	wg := sync.WaitGroup{}
+	// add to waitGroup for connection check HEAD request
+	wg.Add(1)
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL+`/error`, 5, 1048576, "application/json", "", "", "", "", "", "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,18 +247,15 @@ func TestHttpWrite_Failure(t *testing.T) {
 		atomic.AddInt64(&ackOps, 1)
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(1, "Hello Server!!", ackFunc)
+	wg.Add(1)
+	_, err1 := target.Write(messages)
 
-	writeResult, err1 := target.Write(messages)
+	wg.Wait()
 
-	assert.NotNil(err1)
-	if err1 != nil {
-		assert.Regexp("Error sending http request: 10 errors occurred:.*", err1.Error())
-	}
+	assert.EqualError(err1, "Error sending http request: 1 error occurred:\n\t* 500 Internal Server Error: \n\n")
 
-	assert.Equal(10, len(writeResult.Failed))
-	assert.Nil(writeResult.Sent)
-	assert.Nil(writeResult.Oversized)
+	assert.Equal(int64(0), ackOps)
 }
 
 func TestHttpWrite_Oversized(t *testing.T) {
@@ -254,6 +263,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 
 	var results [][]byte
 	wg := sync.WaitGroup{}
+	wg.Add(1)
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
@@ -278,8 +288,8 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	assert.Nil(err1)
 	assert.Equal(10, len(writeResult.Sent))
 	assert.Equal(1, len(writeResult.Oversized))
-	assert.Equal(10, len(results))
-	for _, result := range results {
+	assert.Equal(11, len(results))
+	for _, result := range results[1:] {
 		assert.Equal("Hello Server!!", string(result))
 	}
 

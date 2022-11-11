@@ -66,14 +66,12 @@ func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
 
 	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 10, 10, nil)
 
-	fmt.Println(source.clientRecordMaxAge)
 	assert.IsType(&kinesisSource{}, source)
 	assert.Nil(err)
 }
 
-// newKinesisSourceWithInterfaces should fail if we can't reach Kinesis and DDB, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
-/*
-func TestNewKinesisSourceWithInterfaces_Failure(t *testing.T) {
+// TestNewKinesisSourceWithInterfaces_ConnectionCheck tests that the Kinesis source fails on start-up if the connection to Kinesis fails
+func TestNewKinesisSourceWithInterfaces_ConnectionCheck(t *testing.T) {
 	// Unlike the success test, we don't require anything to exist for this one
 	assert := assert.New(t)
 
@@ -81,34 +79,10 @@ func TestNewKinesisSourceWithInterfaces_Failure(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "nonexistent-stream", "test", nil,10, 10, &fifty)
+	_, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "nonexistent-stream", "test", nil, 10, 10, nil)
 
-	assert.Nil(&kinesisSource{}, source)
-	assert.NotNil(err)
-
-}
-*/
-
-// TODO: When we address https://github.com/snowplow-devops/stream-replicator/issues/151, this test will need to change.
-func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-
-	assert := assert.New(t)
-
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
-
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil, 10, 10, &fifty)
-	assert.Nil(err)
-	assert.NotNil(source)
-	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", source.GetID())
-
-	err = source.Read(nil)
-	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to start Kinsumer client: error describing table fake-name_checkpoints: ResourceNotFoundException: Cannot do operations on a non-existent table", err.Error())
+		assert.Equal("ResourceNotFoundException: Stream nonexistent-stream under account 000000000000 not found.", err.Error())
 	}
 }
 
@@ -228,6 +202,10 @@ func putNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, stream
 }
 
 func TestGetSource_WithKinesisSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	assert := assert.New(t)
 
 	// Set up localstack resources
@@ -281,10 +259,34 @@ func TestGetSource_ConfigErrorLeaderAction(t *testing.T) {
 
 	assert := assert.New(t)
 
+	// Set up localstack resources
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "something", "test", nil, 0, 10, &one)
+	streamName := "kinesis-source-integration-2"
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
+	if createErr != nil {
+		t.Fatal(createErr)
+	}
+	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName)
+
+	appName := "integration"
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	if ddbErr != nil {
+		t.Fatal(ddbErr)
+	}
+	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+
+	// Put ten records into kinesis stream
+	putErr := putNRecordsIntoKinesis(kinesisClient, 10, streamName, "Test")
+	if putErr != nil {
+		t.Fatal(putErr)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	// Create the source and assert that it's there
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 0, 10, &one)
 
 	assert.Nil(source)
 	assert.EqualError(err, `Failed to create Kinsumer client: leaderActionFrequency config value is mandatory and must be at least as long as ShardCheckFrequency`)
@@ -297,10 +299,33 @@ func TestGetSource_ConfigErrorMaxAge(t *testing.T) {
 
 	assert := assert.New(t)
 
+	// Set up localstack resources
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "something", "test", nil, 10, 10, &one)
+	streamName := "kinesis-source-integration-10"
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName)
+	if createErr != nil {
+		t.Fatal(createErr)
+	}
+	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName)
+
+	appName := "integration"
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	if ddbErr != nil {
+		t.Fatal(ddbErr)
+	}
+	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+
+	// Put ten records into kinesis stream
+	putErr := putNRecordsIntoKinesis(kinesisClient, 10, streamName, "Test")
+	if putErr != nil {
+		t.Fatal(putErr)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 10, 10, &one)
 
 	assert.Nil(source)
 	assert.EqualError(err, `Failed to create Kinsumer client: clientRecordMaxAge value must be at least as long as shardCheckFrequency`)

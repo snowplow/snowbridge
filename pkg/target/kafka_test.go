@@ -7,6 +7,7 @@
 package target
 
 import (
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -59,6 +60,23 @@ func SetUpMockSyncProducer(t *testing.T) (*mocks.SyncProducer, *KafkaTarget) {
 		asyncResults:     nil,
 		messageByteLimit: 1048576,
 		log:              log.WithFields(log.Fields{"target": "kafka"}),
+	}
+}
+
+// TestNewKafkaTarget_Failure tests that the kafka target fails on start-up if the connection to Kafka fails
+func TestNewKafkaTarget_Failure(t *testing.T) {
+	assert := assert.New(t)
+
+	k, err := NewKafkaTarget(&KafkaConfig{
+		Brokers:   "test:8080",
+		TopicName: "test",
+		ByteLimit: 1000,
+	})
+
+	assert.Nil(k)
+	assert.NotNil(err)
+	if err != nil {
+		assert.True(strings.HasPrefix(err.Error(), `kafka: client has run out of available brokers to talk to: dial tcp`))
 	}
 }
 

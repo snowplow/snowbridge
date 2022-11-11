@@ -64,20 +64,22 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 }
 
-// newPubSubSource_Failure should fail if we can't reach PubSub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
-/*
+// newPubSubSource_Failure should fail if we can't reach PubSub
 func TestNewPubSubSource_Failure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 	assert := assert.New(t)
 
+	srv, _ := testutil.InitMockPubsubServer(8010, nil, t)
+	defer srv.Close()
+
 	pubsubSource, err := newPubSubSource(10, "nonexistent-project", "nonexistent-subscription")
 	assert.NotNil(err)
 	assert.Nil(pubsubSource)
 	// This should return an error when we can't connect, rather than proceeding to the Write() function before we hit a problem.
+	assert.EqualError(err, `Connection to PubSub failed, subscription does not exist`)
 }
-*/
 
 // TestNewPubSubSource_Success tests the typical case of creating a new pubsub source.
 func TestNewPubSubSource_Success(t *testing.T) {
@@ -86,7 +88,8 @@ func TestNewPubSubSource_Success(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	testutil.InitMockPubsubServer(8010, nil, t)
+	srv, _ := testutil.InitMockPubsubServer(8010, nil, t)
+	defer srv.Close()
 
 	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub")
 	assert.Nil(err)
@@ -130,6 +133,30 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	expected := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 	sort.Strings(msgDatas)
 	assert.Equal(expected, msgDatas)
+}
+
+// TestPubSubSource_ConnCheckErrWithMocks unit tests PubSub source with connection error
+func TestPubSubSource_ConnCheckErrWithMocks(t *testing.T) {
+	assert := assert.New(t)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	srv.Close()
+	conn.Close()
+
+	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub-wrong")
+	assert.Nil(pubsubSource)
+	assert.EqualError(err, `Connection to PubSub failed: context deadline exceeded`)
+}
+
+// TestPubSubSource_SubFailWithMocks unit tests PubSub source initiation with wrong sub name
+func TestPubSubSource_SubFailWithMocks(t *testing.T) {
+	assert := assert.New(t)
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	defer srv.Close()
+	defer conn.Close()
+
+	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub-wrong")
+	assert.Nil(pubsubSource)
+	assert.EqualError(err, `Connection to PubSub failed, subscription does not exist`)
 }
 
 // TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks tests the behaviour of pubsub source when some messages take longer to ack than others

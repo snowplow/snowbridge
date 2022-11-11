@@ -7,6 +7,12 @@
 package target
 
 import (
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kinesis"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -15,35 +21,40 @@ import (
 	"github.com/snowplow-devops/stream-replicator/pkg/testutil"
 )
 
-func TestKinesisTarget_WriteFailure(t *testing.T) {
+// TestNewKinesisTarget_ConnectionCheck tests that the Kinesis target fails on start-up if the connection to Kinesis fails
+func TestNewKinesisTarget_ConnectionCheck(t *testing.T) {
+	assert := assert.New(t)
+
+	target, err := newKinesisTarget(testutil.AWSLocalstackRegion, "00000000000", "arn:aws:kinesis:us-east-1:00000000000:stream/not-exists")
+	assert.Nil(target)
+	assert.NotNil(err)
+	// check that there is an error, meaning that a connection attempt to AWS was made
+	if err != nil {
+		assert.Equal("NoCredentialProviders: no valid providers in chain. Deprecated.\n\tFor verbose messaging see aws.Config.CredentialsChainVerboseErrors", err.Error())
+	}
+}
+
+func TestKinesisTarget_KinesisConnectionFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackKinesisClient()
+	client := kinesis.New(session.Must(session.NewSession(&aws.Config{
+		Credentials:      credentials.NewStaticCredentials("foo", "var", ""),
+		S3ForcePathStyle: aws.Bool(true),
+		Region:           aws.String(`wrong-region`),
+		Endpoint:         aws.String(`wrong-endpoint`),
+	})))
 
 	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists")
-	assert.Nil(err)
-	assert.NotNil(target)
-	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", target.GetID())
-
-	defer target.Close()
-	target.Open()
-
-	messages := testutil.GetTestMessages(1, "Hello Kinesis!!", nil)
-
-	writeRes, err := target.Write(messages)
 	assert.NotNil(err)
+	assert.Nil(target)
+	fmt.Println(err.Error())
 	if err != nil {
-		assert.Equal("Error writing messages to Kinesis stream: 1 error occurred:\n\t* Failed to send message batch to Kinesis stream: ResourceNotFoundException: Stream not-exists under account 000000000000 not found.\n\n", err.Error())
+		assert.True(strings.HasPrefix(err.Error(), `RequestError`))
 	}
-	assert.NotNil(writeRes)
-
-	// Check results
-	assert.Equal(int64(0), writeRes.SentCount)
-	assert.Equal(int64(1), writeRes.FailedCount)
 }
 
 func TestKinesisTarget_WriteSuccess(t *testing.T) {

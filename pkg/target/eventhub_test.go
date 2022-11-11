@@ -370,32 +370,6 @@ func TestWriteFailure(t *testing.T) {
 	assert.Nil(twres.Invalid)
 }
 
-// TestNewEventHubTarget_KeyValue tests that we can initialise a client with key value credentials.
-func TestNewEventHubTarget_KeyValue(t *testing.T) {
-	assert := assert.New(t)
-
-	// Test that we can initialise a client with Key and Value
-	t.Setenv("EVENTHUB_KEY_NAME", "fake")
-	t.Setenv("EVENTHUB_KEY_VALUE", "fake")
-
-	tgt, err := newEventHubTarget(&cfg)
-	assert.Nil(err)
-	assert.NotNil(tgt)
-}
-
-// TestNewEventHubTarget_ConnString tests that we can initialise a client with connection string credentials.
-func TestNewEventHubTarget_ConnString(t *testing.T) {
-	assert := assert.New(t)
-
-	// Test that we can initialise a client with Connection String
-
-	t.Setenv("EVENTHUB_CONNECTION_STRING", "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=fake;SharedAccessKey=fake")
-
-	tgt, err := newEventHubTarget(&cfg)
-	assert.Nil(err)
-	assert.NotNil(tgt)
-}
-
 // TestNewEventHubTarget_CredentialsNotFound tests that we fail on startup when we're not provided with appropriate credential values.
 func TestNewEventHubTarget_CredentialsNotFound(t *testing.T) {
 	assert := assert.New(t)
@@ -408,18 +382,31 @@ func TestNewEventHubTarget_CredentialsNotFound(t *testing.T) {
 	assert.Nil(tgt)
 }
 
-// NewEventHubTarget should fail if we can't reach EventHub, commented out this test until we look into https://github.com/snowplow-devops/stream-replicator/issues/151
-// Note that when we do so, the above tests will need to be changed to use some kind of mock
-/*
-func TestNewEventHubTarget_Failure(t *testing.T) {
+func TestNewEventHubTarget_ConnStringErr(t *testing.T) {
+	assert := assert.New(t)
+	t.Setenv("EVENTHUB_CONNECTION_STRING", "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=fake;SharedAccessKey=fake")
+
+	tgt, err := newEventHubTarget(&cfg)
+	assert.EqualError(err, `Error initialising EventHub client: could not reach Event Hub: dial tcp: lookup test.servicebus.windows.net: no such host`)
+	assert.Nil(tgt)
+}
+
+func TestNewEventHubTarget_ConnVarsErr(t *testing.T) {
 	assert := assert.New(t)
 
-	// Test that we can initialise a client with Key and Value
 	t.Setenv("EVENTHUB_KEY_NAME", "fake")
 	t.Setenv("EVENTHUB_KEY_VALUE", "fake")
 
 	tgt, err := newEventHubTarget(&cfg)
+	assert.EqualError(err, `Error initialising EventHub client: could not reach Event Hub: dial tcp: lookup test.servicebus.windows.net: no such host`)
+	assert.Nil(tgt)
+}
+
+// NewEventHubTarget should fail if we can't reach EventHub
+func TestNewEventHubTarget_NoVars(t *testing.T) {
+	assert := assert.New(t)
+	// Test that we can initialise a client with Key and Value
+	tgt, err := newEventHubTarget(&cfg)
 	assert.Equal("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment", err.Error())
 	assert.Nil(tgt)
 }
-*/
