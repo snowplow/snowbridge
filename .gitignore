@@ -12,6 +12,3 @@ vendor/
 build/
 dist/
 .localstack/
-
-#temporary directory created by tests
-tmp_replicator/
