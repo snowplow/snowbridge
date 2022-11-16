@@ -9,53 +9,14 @@ package common
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
-	"fmt"
 	"io/ioutil"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/pkg/errors"
 )
-
-// DeleteTemporaryDir deletes the temp directory we created to store credentials
-func DeleteTemporaryDir() error {
-	err := os.RemoveAll(`tmp_replicator`)
-	return err
-}
-
-// DecodeB64ToFile takes a B64-encoded credential, decodes it, and writes it to a file
-func DecodeB64ToFile(b64String, filename string) error {
-	tls, decodeErr := base64.StdEncoding.DecodeString(b64String)
-	if decodeErr != nil {
-		return errors.Wrap(decodeErr, "Failed to Base64 decode for creating file "+filename)
-	}
-
-	err := createTempDir(`tmp_replicator`)
-	if err != nil {
-		return err
-	}
-
-	f, createErr := os.Create(filename)
-	if createErr != nil {
-		return errors.Wrap(createErr, fmt.Sprintf("Failed to create file '%s'", filename))
-	}
-
-	_, writeErr := f.WriteString(string(tls))
-	if writeErr != nil {
-		return errors.Wrap(decodeErr, fmt.Sprintf("Failed to write decoded base64 string to target file '%s'", filename))
-	}
-	err = f.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 
 // GetAWSSession is a general tool to handle generating an AWS session
 // using the standard auth flow.  We also have the ability to pass a role ARN
@@ -97,21 +58,6 @@ func GetAverageFromDuration(sum time.Duration, total int64) time.Duration {
 		return time.Duration(int64(sum)/total) * time.Nanosecond
 	}
 	return time.Duration(0)
-}
-
-func createTempDir(dirName string) error {
-	dir, statErr := os.Stat(dirName)
-	if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
-		return errors.Wrap(statErr, fmt.Sprintf("Failed checking for existence of %s dir", dirName))
-	}
-
-	if dir == nil {
-		dirErr := os.Mkdir(dirName, 0700)
-		if dirErr != nil && !errors.Is(dirErr, os.ErrExist) {
-			return errors.Wrap(dirErr, fmt.Sprintf("Failed to create %s directory", dirName))
-		}
-	}
-	return nil
 }
 
 // CreateTLSConfiguration creates a TLS configuration for use in a target

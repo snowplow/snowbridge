@@ -7,7 +7,6 @@
 package docs
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,17 +20,9 @@ import (
 
 func TestMain(m *testing.M) {
 	os.Clearenv()
-	// Create tmp directory if not exists
-	if _, err := os.Stat("tmp"); errors.Is(err, os.ErrNotExist) {
-		err := os.Mkdir("tmp", os.ModePerm)
-		if err != nil {
-			panic(err)
-		}
-	}
 
 	exitVal := m.Run()
-	// Remove tmp when done
-	os.RemoveAll("tmp")
+
 	os.Exit(exitVal)
 }
 
