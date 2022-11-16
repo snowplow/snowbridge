@@ -1,6 +1,6 @@
 FROM alpine:latest
 LABEL org.opencontainers.image.authors="Snowplow Analytics <support@snowplow.io>"
 
-ADD build/output/linux/aws/cli/snowbridge /root/
+ADD build/output/linux/main/cli/snowbridge /root/
 
 CMD ["/root/snowbridge"]

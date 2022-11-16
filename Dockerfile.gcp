@@ -1,6 +1,0 @@
-FROM alpine:latest
-LABEL org.opencontainers.image.authors="Data Processing <data-processing@snowplow.io>"
-
-ADD build/output/linux/gcp/cli/snowbridge /root/
-
-CMD ["/root/snowbridge"]

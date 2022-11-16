@@ -52,7 +52,7 @@ func testE2EPubsubSource(t *testing.T) {
 		panic(err)
 	}
 
-	for _, binary := range []string{"aws", "gcp"} {
+	for _, binary := range []string{"-aws-only", ""} {
 
 		testutil.WriteProvidedDataToPubSubTopic(t, topic, dataToSend)
 
@@ -85,7 +85,7 @@ func testE2ESQSSource(t *testing.T) {
 		panic(err)
 	}
 
-	for _, binary := range []string{"aws", "gcp"} {
+	for _, binary := range []string{"-aws-only", ""} {
 		testutil.PutProvidedDataIntoSQS(client, *res.QueueUrl, dataToSend)
 
 		stdOut, cmdErr := runDockerCommand(3*time.Second, "sqsSource", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
@@ -133,7 +133,7 @@ func testE2EKinesisSource(t *testing.T) {
 	// Kinesis source may only use the aws binary
 
 	// Since setup is slower for kinesis source, if this test is flaky we may need to add more time here
-	stdOut, cmdErr := runDockerCommand(5*time.Second, "kinesisSource", configFilePath, "aws", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+	stdOut, cmdErr := runDockerCommand(5*time.Second, "kinesisSource", configFilePath, "-aws-only", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 	if cmdErr != nil {
 		assert.Fail(cmdErr.Error())
 	}
