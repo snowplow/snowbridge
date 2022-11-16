@@ -51,7 +51,7 @@ func testE2EPubsubTarget(t *testing.T) {
 
 	receiverChannel := make(chan string)
 
-	for _, binary := range []string{"aws", "gcp"} {
+	for _, binary := range []string{"-aws-only", ""} {
 		// Additional env var options allow us to connect to the pubsub emulator
 		_, cmdErr := runDockerCommand(3*time.Second, "pubsubTarget"+binary, configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
 		if cmdErr != nil {
@@ -124,7 +124,7 @@ func testE2EHttpTarget(t *testing.T) {
 		panic(err)
 	}
 
-	for _, binary := range []string{"aws", "gcp"} {
+	for _, binary := range []string{"-aws-only", ""} {
 
 		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
 		if cmdErr != nil {
@@ -181,7 +181,7 @@ func testE2EKinesisTarget(t *testing.T) {
 	shardDescriptions := streamDescription.StreamDescription.Shards
 	// Note: if we want to test on streams with more than one shard, this needs to change.
 
-	for _, binary := range []string{"aws", "gcp"} {
+	for _, binary := range []string{"-aws-only", ""} {
 		startTstamp := time.Now()
 		_, cmdErr := runDockerCommand(3*time.Second, "kinesisTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 		if cmdErr != nil {
@@ -243,7 +243,7 @@ func testE2ESQSTarget(t *testing.T) {
 		panic(err)
 	}
 
-	for _, binary := range []string{"aws", "gcp"} {
+	for _, binary := range []string{"-aws-only", ""} {
 		_, cmdErr := runDockerCommand(3*time.Second, "sqsTarget", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error())
@@ -323,7 +323,7 @@ func testE2EKafkaTarget(t *testing.T) {
 
 	msgChan := partitionConsumer.Messages()
 
-	for _, binary := range []string{"aws", "gcp"} {
+	for _, binary := range []string{"-aws-only", ""} {
 		_, cmdErr := runDockerCommand(3*time.Second, "kafkaTarget", configFilePath, binary, "")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error())

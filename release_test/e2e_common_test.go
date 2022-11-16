@@ -32,7 +32,7 @@ var cmdTemplate = `cat %s | docker run -i \
 --add-host host.docker.internal:host-gateway \
 --mount type=bind,source=%s,target=/config.hcl \
 --env SNOWBRIDGE_CONFIG_FILE=/config.hcl %s \
-snowplow/snowbridge-%s:` + cmd.AppVersion
+snowplow/snowbridge:%s%s`
 
 // explanation of arguments:
 // -i keeps stdin open
@@ -52,7 +52,7 @@ func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, conf
 	}
 
 	containerName := testName + "-" + binaryVersion
-	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts, binaryVersion)
+	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts, cmd.AppVersion, binaryVersion)
 
 	cmd := exec.Command("bash", "-c", cmdFull)
 
