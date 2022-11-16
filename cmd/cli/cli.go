@@ -23,7 +23,6 @@ import (
 
 	"github.com/snowplow/snowbridge/cmd"
 	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/observer"
@@ -129,7 +128,6 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 				log.Debug("source.Stop() finished successfully!")
 
 				stopTelemetry()
-				err := common.DeleteTemporaryDir()
 				if err != nil {
 					log.Debugf(`error deleting tmp directory: %v`, err)
 				}
@@ -141,7 +139,6 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 				o.Stop()
 				stopTelemetry()
 
-				err := common.DeleteTemporaryDir()
 				if err != nil {
 					log.Debugf(`error deleting tmp directory: %v`, err)
 				}

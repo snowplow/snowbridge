@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
-	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/failure"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
 	"github.com/snowplow/snowbridge/pkg/observer"
@@ -143,23 +142,6 @@ func newEnvConfig() (*Config, error) {
 		Data:    configData,
 		Decoder: envDecoder,
 	}
-
-	// If the TRANSFORM_CONFIG_B64 env var is set, parse it, and use the Transformations in our mainConfig.
-	b64Transformations := os.Getenv("TRANSFORM_CONFIG_B64")
-	if b64Transformations != "" {
-		err := common.DecodeB64ToFile(b64Transformations, "tmp_replicator/transform.hcl")
-		if err != nil {
-			return nil, errors.Wrap(err, "Error decoding transformation config base64 from env")
-		}
-
-		confFromFile, err := newHclConfig("tmp_replicator/transform.hcl")
-		if err != nil {
-			return nil, errors.Wrap(err, "Error parsing transformation config from env")
-		}
-
-		mainConfig.Data.Transformations = confFromFile.Data.Transformations
-	}
-
 	return &mainConfig, nil
 }
 
