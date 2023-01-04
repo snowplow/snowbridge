@@ -56,9 +56,11 @@ This is handled through CI/CD on Github Actions. However all binaries will be ge
 
 ### PROPRIETARY AND CONFIDENTIAL
 
-Unauthorized copying of this project via any medium is strictly prohibited.
+Copyright (c) 2020-present Snowplow Analytics Ltd. All rights reserved.
 
-Copyright (c) 2020-2022 Snowplow Analytics Ltd. All rights reserved.
+This program is licensed to you under the Snowplow Community License Version 1.0,
+and you may not use this file except in compliance with the Snowplow Community License Version 1.0.
+You may obtain a copy of the Snowplow Community License Version 1.0 at https://docs.snowplow.io/community-license-1.0
 
 [release-image]: http://img.shields.io/badge/golang-2.0.0-6ad7e5.svg?style=flat
 [releases]: https://github.com/snowplow/snowbridge/releases/
