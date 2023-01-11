@@ -1,3 +1,16 @@
+Version 2.0.1 (2023-01-13)
+--------------------------
+Add Snowplow Community License (#208)
+Change copyright headers in every code file (#244)
+Cleanup b64 configs and temp directories (#242)
+Add CONTRIBUTING.md (#240)
+Update build and release process for OS release (#239)
+Bump to go 1.19 (#236)
+Remove stray print statement in docs test (#238)
+Rename project to Snowbridge (#210)
+Include licenses in binary distributions (#247)
+Make cd depend on tests (#246)
+
 Version 2.0.0 (2022-10-25)
 --------------------------
 Add documentation testing (#223)
