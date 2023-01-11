@@ -39,7 +39,7 @@ const (
 	appVersion   = cmd.AppVersion
 	appName      = cmd.AppName
 	appUsage     = "Replicates data streams to supported targets"
-	appCopyright = "(c) 2020-2022 Snowplow Analytics, LTD"
+	appCopyright = "(c) 2020-present Snowplow Analytics Ltd. All rights reserved."
 )
 
 // RunCli runs the app
@@ -58,7 +58,11 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 	app.Authors = []cli.Author{
 		{
 			Name:  "Joshua Beemster",
-			Email: "tech-ops-team@snowplowanalytics.com",
+			Email: "support@snowplow.io",
+		},
+		{
+			Name:  "Colm O Griobhtha",
+			Email: "support@snowplow.io",
 		},
 	}
 
