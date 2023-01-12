@@ -12,3 +12,4 @@ vendor/
 build/
 dist/
 .localstack/
+/AMAZON_LICENSE
