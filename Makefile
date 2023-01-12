@@ -40,18 +40,38 @@ gox:
 	go install github.com/mitchellh/gox@latest
 	mkdir -p $(compiled_dir)
 
+# Build CLI binaries for distro
+# First run the commands to compile assets into their 'out_dir' locations
 cli: gox cli-linux cli-darwin cli-windows
+# Copy the aws licence to current dir for convenience
+	cp assets/awslicense/AMAZON_LICENSE AMAZON_LICENSE
+# linux aws:
+# Zip up the binaries
 	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
+# Add the readme, and relevant licence(s)
+	zip -u $(linux_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
+# Move to its compiled_dir location, with appropriate long form name
 	mv $(linux_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_amd64.zip
+# Rinse and repeat for each distribution
+# darwin aws:
 	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
 	mv $(darwin_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_amd64.zip
+# Windows aws:
 	(cd $(windows_out_dir)/aws/cli/ && zip -r staging.zip snowbridge.exe)
+	zip -u $(windows_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
 	mv $(windows_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_windows_amd64.zip
+# linux main:
 	(cd $(linux_out_dir)/main/cli/ && zip -r staging.zip snowbridge)
+	zip -u $(linux_out_dir)/main/cli/staging.zip README.md LICENSE.md
 	mv $(linux_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_amd64.zip
+# darwin main:
 	(cd $(darwin_out_dir)/main/cli/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/main/cli/staging.zip README.md LICENSE.md
 	mv $(darwin_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_amd64.zip
+# windows main:
 	(cd $(windows_out_dir)/main/cli/ && zip -r staging.zip snowbridge.exe)
+	zip -u $(windows_out_dir)/main/cli/staging.zip README.md LICENSE.md
 	mv $(windows_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_windows_amd64.zip
 
 cli-linux: gox
