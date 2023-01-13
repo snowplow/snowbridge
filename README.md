@@ -17,3 +17,6 @@ The default distribution contains everything except for the Kinesis source, i.e.
 The AWS-specific distribution contains everything, including the Kinesis source, i.e. the ability to read from AWS Kinesis. Like the default distribution, it’s licensed under the [Snowplow Community License](https://docs.snowplow.io/community-license-1.0) ([frequently asked questions](https://docs.snowplow.io/docs/contributing/community-license-faq/)). However, this distribution has a dependency on [twitchscience/kinsumer](https://github.com/twitchscience/kinsumer), which is licensed by Twitch under the [Amazon Software License](https://github.com/twitchscience/kinsumer/blob/master/LICENSE).
 
 To comply with the [Amazon Software License](https://github.com/twitchscience/kinsumer/blob/master/LICENSE), you may only use this distribution of Snowbridge _“with the web services, computing platforms or applications provided by Amazon.com, Inc. or its affiliates, including Amazon Web Services, Inc.”_
+
+[release-image]: http://img.shields.io/badge/golang-2.0.1-6ad7e5.svg?style=flat
+[releases]: https://github.com/snowplow/snowbridge/releases/
