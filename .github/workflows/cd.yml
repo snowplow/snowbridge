@@ -51,8 +51,26 @@ jobs:
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-    - name: Compile
+    - name: Install ngrok
+      run: |
+          mkdir -p $GITHUB_WORKSPACE/bin
+          wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip && unzip ngrok-stable-linux-amd64.zip -d $GITHUB_WORKSPACE/bin/
+          $GITHUB_WORKSPACE/bin/ngrok authtoken ${{ secrets.NGROK_TOKEN }}
+
+    - name: Setup integration resources
+      run: export NGROK_DIR=$GITHUB_WORKSPACE/bin/ && make integration-up
+
+    - name: Run integration & unit tests
+      run: make integration-test
+
+    - name: Compile all targets
       run: make all
+
+    - name: Setup e2e resources
+      run: make e2e-up
+
+    - name: Run e2e tests
+      run: make e2e-test
 
     - name: Create Release
       uses: actions/create-release@v1
