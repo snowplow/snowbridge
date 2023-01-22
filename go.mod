@@ -48,6 +48,7 @@ require (
 )
 
 require (
+	github.com/apache/thrift v0.17.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dop251/goja v0.0.0-20220722151623-4765a9872229
 	github.com/hashicorp/hcl/v2 v2.13.0
