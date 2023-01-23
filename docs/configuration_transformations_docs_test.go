@@ -141,6 +141,10 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 			configObject = &transform.SetPkConfig{}
 		case "spEnrichedToJson":
 			configObject = &transform.EnrichedToJSONConfig{}
+		case "spCollectorPayloadThriftToJSON":
+			configObject = &transform.CollectorPayloadThriftToJSONConfig{}
+		case "spJSONToCollectorPayloadThrift":
+			configObject = &transform.JSONToCollectorPayloadThriftConfig{}
 		case "js":
 			configObject = &engine.JSEngineConfig{}
 		case "lua":
