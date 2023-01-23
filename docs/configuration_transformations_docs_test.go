@@ -95,12 +95,10 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 			testLuaScriptCompiles(t, file)
 		case ".hcl":
 			isFull := strings.Contains(file, "full-example")
-
 			testTransformationConfig(t, file, isFull)
 		case "":
 			// If there's no extension, fail the test.
 			assert.Fail("File with no extension found: %v", file)
-
 		default:
 			// Otherwise it's likely a typo or error.
 			assert.Fail("unexpected file extension found: %v", file)
@@ -187,9 +185,7 @@ func testJSScriptCompiles(t *testing.T, scriptPath string) {
 	assert.NotNil(jsTransformationFunc, scriptPath)
 	if err != nil {
 		t.Fatalf("JSConfigFunction failed with error: %s. Script: %s", err.Error(), string(scriptPath))
-
 	}
-
 }
 
 func testLuaScriptCompiles(t *testing.T, scriptPath string) {

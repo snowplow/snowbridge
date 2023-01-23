@@ -9,6 +9,7 @@ package transform
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 
@@ -21,6 +22,7 @@ import (
 
 // JSONToCollectorPayloadThriftConfig is a configuration object for the spJSONToCollectorPayloadThrift transformation
 type JSONToCollectorPayloadThriftConfig struct {
+	Base64Encode bool `hcl:"base_64_encode"`
 }
 
 // JSONToCollectorPayloadThriftAdapter is a configuration object for the spJSONToCollectorPayloadThrift transformation
@@ -34,7 +36,9 @@ func (f JSONToCollectorPayloadThriftAdapter) Create(i interface{}) (interface{},
 // ProvideDefault implements the ComponentConfigurable interface
 func (f JSONToCollectorPayloadThriftAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
-	cfg := &JSONToCollectorPayloadThriftConfig{}
+	cfg := &JSONToCollectorPayloadThriftConfig{
+		Base64Encode: false,
+	}
 
 	return cfg, nil
 }
@@ -53,7 +57,9 @@ func JSONToCollectorPayloadThriftAdapterGenerator(f func(c *JSONToCollectorPaylo
 
 // JSONToCollectorPayloadThriftConfigFunction returns an spJSONToCollectorPayloadThrift transformation function, from an JSONToCollectorPayloadThriftConfig.
 func JSONToCollectorPayloadThriftConfigFunction(c *JSONToCollectorPayloadThriftConfig) (TransformationFunction, error) {
-	return SpJSONToCollectorPayloadThrift, nil
+	return NewSpJSONToCollectorPayloadThrift(
+		c.Base64Encode,
+	)
 }
 
 // JSONToCollectorPayloadThriftConfigPair is a configuration pair for the spJSONToCollectorPayloadThrift transformation
@@ -62,24 +68,32 @@ var JSONToCollectorPayloadThriftConfigPair = config.ConfigurationPair{
 	Handle: JSONToCollectorPayloadThriftAdapterGenerator(JSONToCollectorPayloadThriftConfigFunction),
 }
 
-// SpJSONToCollectorPayloadThrift is a specific transformation implementation to transform a raw message into a valid Thrift encoded Collector Payload
+// NewSpJSONToCollectorPayloadThrift returns a transformation implementation to transform a raw message into a valid Thrift encoded Collector Payload
 // so that it can be pushed directly into the egress stream of a Collector.
-func SpJSONToCollectorPayloadThrift(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
-	var p *collectorpayloadmodel1.CollectorPayload
-	unmarshallErr := json.Unmarshal(message.Data, &p)
-	if unmarshallErr != nil {
-		message.SetError(unmarshallErr)
-		return nil, nil, message, nil
-	}
+func NewSpJSONToCollectorPayloadThrift(base64Encode bool) (TransformationFunction, error) {
+	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+		var p *collectorpayloadmodel1.CollectorPayload
+		unmarshallErr := json.Unmarshal(message.Data, &p)
+		if unmarshallErr != nil {
+			message.SetError(unmarshallErr)
+			return nil, nil, message, nil
+		}
 
-	ctx := context.Background()
+		ctx := context.Background()
 
-	res, serializeErr := collectorpayload.BinarySerializer(ctx, p)
-	if serializeErr != nil {
-		message.SetError(serializeErr)
-		return nil, nil, message, nil
-	}
+		res, serializeErr := collectorpayload.BinarySerializer(ctx, p)
+		if serializeErr != nil {
+			message.SetError(serializeErr)
+			return nil, nil, message, nil
+		}
 
-	message.Data = res
-	return message, nil, nil, intermediateState
+		// Optionally base64 encode the output
+		if base64Encode {
+			message.Data = []byte(base64.StdEncoding.EncodeToString(res))
+		} else {
+			message.Data = res
+		}
+
+		return message, nil, nil, intermediateState
+	}, nil
 }
