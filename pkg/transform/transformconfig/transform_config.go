@@ -25,6 +25,7 @@ var SupportedTransformations = []config.ConfigurationPair{
 	transform.EnrichedToJSONConfigPair,
 	transform.CollectorPayloadThriftToJSONConfigPair,
 	transform.JSONToCollectorPayloadThriftConfigPair,
+	transform.JSONManipulatorConfigPair,
 	engine.LuaConfigPair,
 	engine.JSConfigPair,
 }

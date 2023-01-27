@@ -143,6 +143,8 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 			configObject = &transform.CollectorPayloadThriftToJSONConfig{}
 		case "spJSONToCollectorPayloadThrift":
 			configObject = &transform.JSONToCollectorPayloadThriftConfig{}
+		case "JSONManipulator":
+			configObject = &transform.JSONManipulatorConfig{}
 		case "js":
 			configObject = &engine.JSEngineConfig{}
 		case "lua":
