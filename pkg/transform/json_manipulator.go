@@ -8,8 +8,6 @@
 package transform
 
 import (
-	// "context"
-	// "encoding/base64"
 	"encoding/json"
 	"errors"
 	"time"
@@ -17,6 +15,10 @@ import (
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
+)
+
+const (
+	snowplowPayloadDataSchema = "iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4"
 )
 
 // JSONManipulatorConfig is a configuration object for the JSONManipulator transformation
@@ -72,8 +74,8 @@ var JSONManipulatorConfigPair = config.ConfigurationPair{
 
 // --- Manipulator Value Functions
 
-// timeToEpochMillis attempts to convert an RFC3339 string to a Unix Timestamp in milliseconds
-func timeToEpochMillis(v interface{}) (int64, error) {
+// toEpochMillis attempts to convert an RFC3339 string to a Unix Timestamp in milliseconds
+func toEpochMillis(v interface{}) (int64, error) {
 	switch v.(type) {
 	case string:
 		vTime, err := time.Parse(time.RFC3339, v.(string))
@@ -82,7 +84,61 @@ func timeToEpochMillis(v interface{}) (int64, error) {
 		}
 		return vTime.UnixNano() / (int64(time.Millisecond) / int64(time.Nanosecond)), nil
 	default:
-		return -1, errors.New(fmt.Sprintf("input value for 'timeToEpochMillis' must be a 'string' was '%T'", v))
+		return -1, errors.New(fmt.Sprintf("input value for 'toEpochMillis' must be a 'string' was '%T'", v))
+	}
+}
+
+// stringValueFromMap tries to extract a value from a map and then casts the
+// value to a string type or returns an error
+func stringValueFromMap(input map[string]interface{}, key string) (string, error) {
+	keyValue, ok := input[key]
+	if !ok {
+		return "", errors.New(fmt.Sprintf("key '%s' does not exist in input map", key))
+	}
+	keyValueStr, ok := keyValue.(string)
+	if !ok {
+		return "", errors.New(fmt.Sprintf("key '%s' must be a 'string' was '%T'", key, keyValue))
+	}
+	return keyValueStr, nil
+}
+
+// toSnowplowPayloadData converts an input []map[string]string which contains
+// a set of key-value pair objects into a valid Snowplow Payload data structure
+// encoded as a JSON string
+func toSnowplowPayloadData(v interface{}) (string, error) {
+	switch v.(type) {
+	case []interface{}:
+		dataMap := make(map[string]string)
+		for _, param := range v.([]interface{}) {
+			paramMap, ok := param.(map[string]interface{})
+			if !ok {
+				return "", errors.New(fmt.Sprintf("input values for 'toSnowplowPayloadData' within array must be a 'map[string]interface {}' was '%T'", param))
+			}
+			name, err := stringValueFromMap(paramMap, "name")
+			if err != nil {
+				return "", err
+			}
+			value, err := stringValueFromMap(paramMap, "value")
+			if err != nil {
+				return "", err
+			}
+			dataMap[name] = value
+		}
+
+		dataArray := make([]map[string]string, 0)
+		dataArray = append(dataArray, dataMap)
+
+		snowplowPayload := make(map[string]interface{})
+		snowplowPayload["schema"] = snowplowPayloadDataSchema
+		snowplowPayload["data"] = dataArray
+
+		snowplowPayloadStr, err := json.Marshal(snowplowPayload)
+		if err != nil {
+			return "", err
+		}
+		return string(snowplowPayloadStr), nil
+	default:
+		return "", errors.New(fmt.Sprintf("input value for 'toSnowplowPayloadData' must be a '[]interface {}' was '%T'", v))
 	}
 }
 
@@ -102,18 +158,22 @@ func mapKeyRename(input map[string]interface{}, keyRename map[string]string) map
 // mapKeyValueFunc runs pre-defined functions against a value specified by the input key
 func mapKeyValueFunc(input map[string]interface{}, keyValueFunc map[string]string) (map[string]interface{}, error) {
 	for key, funcToRun := range keyValueFunc {
+		var valNew interface{}
+		var err error
 		if val, ok := input[key]; ok {
 			switch funcToRun {
-			case "timeToEpochMillis":
-				valTime, err := timeToEpochMillis(val)
-				if err != nil {
-					return nil, err
-				}
-				input[key] = valTime
+			case "toEpochMillis":
+				valNew, err = toEpochMillis(val)
+			case "toSnowplowPayloadData":
+				valNew, err = toSnowplowPayloadData(val)
 			default:
-				input[key] = val
+				return nil, errors.New(fmt.Sprintf("value func '%s' is not defined", funcToRun))
 			}
 		}
+		if err != nil {
+			return nil, err
+		}
+		input[key] = valNew
 	}
 	return input, nil
 }
@@ -122,7 +182,7 @@ func mapKeyValueFunc(input map[string]interface{}, keyValueFunc map[string]strin
 // instructions provided in the configuration
 func NewJSONManipulator(keyRename map[string]string, keyValueFunc map[string]string) (TransformationFunction, error) {
 	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
-		// Unmarshal inbound message to a map
+		// 1. Unmarshal inbound message to a map
 		var input map[string]interface{}
 		unmarshallErr := json.Unmarshal(message.Data, &input)
 		if unmarshallErr != nil {
@@ -130,17 +190,17 @@ func NewJSONManipulator(keyRename map[string]string, keyValueFunc map[string]str
 			return nil, nil, message, nil
 		}
 
-		// 1. Rename keys in input JSON
+		// 2. Rename keys in input JSON
 		renamed := mapKeyRename(input, keyRename)
 
-		// 2. Apply value functions on renamed JSON
+		// 3. Apply value functions on renamed JSON
 		manipulated, valueFuncErr := mapKeyValueFunc(renamed, keyValueFunc)
 		if valueFuncErr != nil {
 			message.SetError(valueFuncErr)
 			return nil, nil, message, nil
 		}
 
-		// Marshal back to a JSON string
+		// 4. Marshal back to a JSON string
 		res, jsonErr := json.Marshal(manipulated)
 		if jsonErr != nil {
 			message.SetError(jsonErr)
