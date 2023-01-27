@@ -10,8 +10,8 @@ package transform
 import (
 	"encoding/json"
 	"errors"
-	"time"
 	"fmt"
+	"time"
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
