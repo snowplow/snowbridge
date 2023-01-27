@@ -17,6 +17,10 @@ import (
 	model1 "github.com/snowplow/snowbridge/third_party/snowplow/collectorpayload/gen-go/model1"
 )
 
+const (
+	schema = "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
+)
+
 // BinarySerializer serializes a CollectorPayload into a byte array ready for transport
 func BinarySerializer(ctx context.Context, collectorPayload *model1.CollectorPayload) ([]byte, error) {
 	t := thrift.NewTMemoryBufferLen(1024)
@@ -52,6 +56,8 @@ func BinaryDeserializer(ctx context.Context, collectorPayloadBytes []byte) (*mod
 
 	collectorPayload := model1.NewCollectorPayload()
 	err := deserializer.Read(ctx, collectorPayload, inputBytes)
+
+	collectorPayload.Schema = schema
 
 	return collectorPayload, err
 }
