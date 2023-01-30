@@ -23,6 +23,8 @@ const (
 
 // BinarySerializer serializes a CollectorPayload into a byte array ready for transport
 func BinarySerializer(ctx context.Context, collectorPayload *model1.CollectorPayload) ([]byte, error) {
+	collectorPayload.Schema = schema
+	
 	t := thrift.NewTMemoryBufferLen(1024)
 	p := thrift.NewTBinaryProtocolFactoryDefault().GetProtocol(t)
 
