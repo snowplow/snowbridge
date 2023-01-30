@@ -23,6 +23,9 @@ var SupportedTransformations = []config.ConfigurationPair{
 	filter.ContextFilterConfigPair,
 	transform.SetPkConfigPair,
 	transform.EnrichedToJSONConfigPair,
+	transform.CollectorPayloadThriftToJSONConfigPair,
+	transform.JSONToCollectorPayloadThriftConfigPair,
+	transform.JSONManipulatorConfigPair,
 	engine.LuaConfigPair,
 	engine.JSConfigPair,
 }
