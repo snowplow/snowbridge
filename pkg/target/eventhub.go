@@ -169,7 +169,15 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 	defer cancel()
 
 	batchIterator := eventhub.NewEventBatchIterator(ehBatch...)
+	requestStarted := time.Now()
 	err := eht.client.SendBatch(ctx, batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
+	requestFinished := time.Now()
+
+	// Not clean but for a quick test release it's fine
+	for _, msg := range messages {
+		msg.TimeRequestStarted = requestStarted
+		msg.TimeRequestFinished = requestFinished
+	}
 
 	if err != nil {
 		// If we hit an error, we can't distinguish successful batches from the failed one(s), so we return the whole chunk as failed
