@@ -25,6 +25,12 @@ type Message struct {
 	// TimeTransformed is when the message has completed its last successful transform function
 	TimeTransformed time.Time
 
+	// Time the request began, to measure request latency for debugging purposes
+	TimeRequestStarted time.Time
+
+	// Time the request was done, to measure request latency for debugging purposes - we manually track this timestamp unlike other metrics, to get as accurate as possible a picture of just the request latency.
+	TimeRequestFinished time.Time
+
 	// AckFunc must be called on a successful message emission to ensure
 	// any cleanup process for the source is actioned
 	AckFunc func()

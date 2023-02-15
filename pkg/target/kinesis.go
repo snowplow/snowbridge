@@ -8,6 +8,7 @@ package target
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -153,10 +154,18 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 		}
 	}
 
+	requestStarted := time.Now()
 	res, err := kt.client.PutRecords(&kinesis.PutRecordsInput{
 		Records:    entries,
 		StreamName: aws.String(kt.streamName),
 	})
+	requestFinished := time.Now()
+
+	for _, msg := range messages {
+		msg.TimeRequestStarted = requestStarted
+		msg.TimeRequestFinished = requestFinished
+	}
+
 	if err != nil {
 		failed := messages
 

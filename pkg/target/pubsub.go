@@ -9,6 +9,7 @@ package target
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/hashicorp/go-multierror"
@@ -137,8 +138,13 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		pubSubMsg := &pubsub.Message{
 			Data: msg.Data,
 		}
-
+		requestStarted := time.Now()
 		r := ps.topic.Publish(ctx, pubSubMsg)
+		requestFinished := time.Now()
+
+		msg.TimeRequestStarted = requestStarted
+		msg.TimeRequestFinished = requestFinished
+
 		results = append(results, &PubSubPublishResult{
 			Result:  r,
 			Message: msg,

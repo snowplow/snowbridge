@@ -51,6 +51,11 @@ type TargetWriteResult struct {
 	MaxTransformLatency time.Duration
 	MinTransformLatency time.Duration
 	AvgTransformLatency time.Duration
+
+	// Delta between RequestStarted and RequestFinished gives us the latency of the request.
+	MaxRequestLatency time.Duration
+	MinRequestLatency time.Duration
+	AvgRequestLatency time.Duration
 }
 
 // NewTargetWriteResult uses the current time as the WriteTime and then calls NewTargetWriteResultWithTime
@@ -78,6 +83,7 @@ func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized 
 	var sumProcLatency time.Duration
 	var sumMessageLatency time.Duration
 	var sumTransformLatency time.Duration
+	var sumRequestLatency time.Duration
 
 	for _, msg := range processed {
 		procLatency := timeOfWrite.Sub(msg.TimePulled)
@@ -106,12 +112,22 @@ func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized 
 			r.MinTransformLatency = transformLatency
 		}
 		sumTransformLatency += transformLatency
+
+		requestLatency := msg.TimeRequestFinished.Sub(msg.TimeRequestStarted)
+		if r.MaxRequestLatency < requestLatency {
+			r.MaxRequestLatency = requestLatency
+		}
+		if r.MinRequestLatency > requestLatency || r.MinRequestLatency == time.Duration(0) {
+			r.MinRequestLatency = requestLatency
+		}
+		sumRequestLatency += requestLatency
 	}
 
 	if processedLen > 0 {
 		r.AvgProcLatency = common.GetAverageFromDuration(sumProcLatency, processedLen)
 		r.AvgMsgLatency = common.GetAverageFromDuration(sumMessageLatency, processedLen)
 		r.AvgTransformLatency = common.GetAverageFromDuration(sumTransformLatency, processedLen)
+		r.AvgRequestLatency = common.GetAverageFromDuration(sumRequestLatency, processedLen)
 	}
 
 	return &r
@@ -159,6 +175,14 @@ func (wr *TargetWriteResult) Append(nwr *TargetWriteResult) *TargetWriteResult {
 			wrC.MinTransformLatency = nwr.MinTransformLatency
 		}
 		wrC.AvgTransformLatency = common.GetAverageFromDuration(wrC.AvgTransformLatency+nwr.AvgTransformLatency, 2)
+
+		if wrC.MaxRequestLatency < nwr.MaxRequestLatency {
+			wrC.MaxRequestLatency = nwr.MaxRequestLatency
+		}
+		if wrC.MinRequestLatency > nwr.MinRequestLatency || wrC.MinRequestLatency == time.Duration(0) {
+			wrC.MinRequestLatency = nwr.MinRequestLatency
+		}
+		wrC.AvgRequestLatency = common.GetAverageFromDuration(wrC.AvgRequestLatency+nwr.AvgRequestLatency, 2)
 	}
 
 	return &wrC
