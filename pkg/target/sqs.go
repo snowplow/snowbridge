@@ -9,6 +9,7 @@ package target
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -161,10 +162,18 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 		lookup[msgID] = msg
 	}
 
+	requestStarted := time.Now()
 	res, err := st.client.SendMessageBatch(&sqs.SendMessageBatchInput{
 		Entries:  entries,
 		QueueUrl: aws.String(st.queueURL),
 	})
+	requestFinished := time.Now()
+
+	for _, msg := range messages {
+		msg.TimeRequestStarted = requestStarted
+		msg.TimeRequestFinished = requestFinished
+	}
+
 	if err != nil {
 		failed := messages
 
