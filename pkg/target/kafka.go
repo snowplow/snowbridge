@@ -226,6 +226,7 @@ func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteRes
 	var errResult error
 
 	if kt.asyncProducer != nil {
+		// Not adding request latency metric to async producer for now, since it would complicate the implementation, and delay our debug.
 		for _, msg := range safeMessages {
 			kt.asyncProducer.Input() <- &sarama.ProducerMessage{
 				Topic:    kt.topicName,
@@ -254,11 +255,16 @@ func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteRes
 		}
 	} else if kt.syncProducer != nil {
 		for _, msg := range safeMessages {
+			requestStarted := time.Now()
 			_, _, err := kt.syncProducer.SendMessage(&sarama.ProducerMessage{
 				Topic: kt.topicName,
 				Key:   sarama.StringEncoder(msg.PartitionKey),
 				Value: sarama.ByteEncoder(msg.Data),
 			})
+			requestFinished := time.Now()
+
+			msg.TimeRequestStarted = requestStarted
+			msg.TimeRequestFinished = requestFinished
 
 			if err != nil {
 				errResult = multierror.Append(errResult, err)

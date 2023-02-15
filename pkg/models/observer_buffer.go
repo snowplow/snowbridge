@@ -45,6 +45,9 @@ type ObserverBuffer struct {
 	MaxFilterLatency    time.Duration
 	MinFilterLatency    time.Duration
 	SumFilterLatency    time.Duration
+	MaxRequestLatency   time.Duration
+	MinRequestLatency   time.Duration
+	sumRequestLatency   time.Duration
 }
 
 // AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
@@ -113,6 +116,14 @@ func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
 		b.MinTransformLatency = res.MinTransformLatency
 	}
 	b.SumTransformLatency += res.AvgTransformLatency
+
+	if b.MaxRequestLatency < res.MaxRequestLatency {
+		b.MaxRequestLatency = res.MaxRequestLatency
+	}
+	if b.MinRequestLatency > res.MinRequestLatency || b.MinRequestLatency == time.Duration(0) {
+		b.MinRequestLatency = res.MinRequestLatency
+	}
+	b.sumRequestLatency += res.AvgRequestLatency
 }
 
 // AppendFiltered adds a FilterResult onto the buffer and stores the result
@@ -162,7 +173,7 @@ func (b *ObserverBuffer) GetAvgFilterLatency() time.Duration {
 
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d,SumTransformLatency:%d,SumProcLatency:%d,SumMsgLatency:%d",
+		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d,SumTransformLatency:%d,SumProcLatency:%d,SumMsgLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d",
 		b.TargetResults,
 		b.MsgFiltered,
 		b.MsgSent,
@@ -180,5 +191,8 @@ func (b *ObserverBuffer) String() string {
 		b.SumTransformLatency.Milliseconds(), // Sums are reported to allow us to compute averages across multi-instance deployments
 		b.SumProcLatency.Milliseconds(),
 		b.SumMsgLatency.Milliseconds(),
+		b.MinRequestLatency.Milliseconds(),
+		b.MaxRequestLatency.Milliseconds(),
+		b.sumRequestLatency.Milliseconds(),
 	)
 }

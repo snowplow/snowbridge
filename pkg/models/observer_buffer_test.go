@@ -24,36 +24,44 @@ func TestObserverBuffer(t *testing.T) {
 
 	sent := []*Message{
 		{
-			Data:            []byte("Baz"),
-			PartitionKey:    "partition1",
-			TimeCreated:     timeNow.Add(time.Duration(-50) * time.Minute),
-			TimePulled:      timeNow.Add(time.Duration(-4) * time.Minute),
-			TimeTransformed: timeNow.Add(time.Duration(-2) * time.Minute),
+			Data:                []byte("Baz"),
+			PartitionKey:        "partition1",
+			TimeCreated:         timeNow.Add(time.Duration(-50) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-4) * time.Minute),
+			TimeTransformed:     timeNow.Add(time.Duration(-2) * time.Minute),
+			TimeRequestStarted:  timeNow.Add(time.Duration(-1) * time.Minute),
+			TimeRequestFinished: timeNow,
 		},
 		{
-			Data:            []byte("Bar"),
-			PartitionKey:    "partition2",
-			TimeCreated:     timeNow.Add(time.Duration(-70) * time.Minute),
-			TimePulled:      timeNow.Add(time.Duration(-7) * time.Minute),
-			TimeTransformed: timeNow.Add(time.Duration(-4) * time.Minute),
+			Data:                []byte("Bar"),
+			PartitionKey:        "partition2",
+			TimeCreated:         timeNow.Add(time.Duration(-70) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-7) * time.Minute),
+			TimeTransformed:     timeNow.Add(time.Duration(-4) * time.Minute),
+			TimeRequestStarted:  timeNow.Add(time.Duration(-2) * time.Minute),
+			TimeRequestFinished: timeNow,
 		},
 	}
 	failed := []*Message{
 		{
-			Data:            []byte("Foo"),
-			PartitionKey:    "partition3",
-			TimeCreated:     timeNow.Add(time.Duration(-30) * time.Minute),
-			TimePulled:      timeNow.Add(time.Duration(-10) * time.Minute),
-			TimeTransformed: timeNow.Add(time.Duration(-9) * time.Minute),
+			Data:                []byte("Foo"),
+			PartitionKey:        "partition3",
+			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
+			TimeTransformed:     timeNow.Add(time.Duration(-9) * time.Minute),
+			TimeRequestStarted:  timeNow.Add(time.Duration(-8) * time.Minute),
+			TimeRequestFinished: timeNow,
 		},
 	}
 	filtered := []*Message{
 		{
-			Data:            []byte("FooBar"),
-			PartitionKey:    "partition4",
-			TimeCreated:     timeNow.Add(time.Duration(-30) * time.Minute),
-			TimePulled:      timeNow.Add(time.Duration(-10) * time.Minute),
-			TimeTransformed: timeNow.Add(time.Duration(-9) * time.Minute),
+			Data:                []byte("FooBar"),
+			PartitionKey:        "partition4",
+			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
+			TimeTransformed:     timeNow.Add(time.Duration(-9) * time.Minute),
+			TimeRequestStarted:  timeNow.Add(time.Duration(-8) * time.Minute),
+			TimeRequestFinished: timeNow,
 		},
 	}
 
@@ -104,7 +112,10 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(10)*time.Minute, b.MinFilterLatency)
 	assert.Equal(time.Duration(10)*time.Minute, b.GetAvgFilterLatency())
 
-	assert.Equal("TargetResults:2,MsgFiltered:1,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:600000,MaxMsgLatency:4200000,MaxFilterLatency:600000,MaxTransformLatency:180000,SumTransformLatency:720000,SumProcLatency:2520000,SumMsgLatency:18000000", b.String())
+	assert.Equal(time.Duration(8)*time.Minute, b.MaxRequestLatency)
+	assert.Equal(time.Duration(1)*time.Minute, b.MinRequestLatency)
+
+	assert.Equal("TargetResults:2,MsgFiltered:1,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:600000,MaxMsgLatency:4200000,MaxFilterLatency:600000,MaxTransformLatency:180000,SumTransformLatency:720000,SumProcLatency:2520000,SumMsgLatency:18000000,MinReqLatency:60000,MaxReqLatency:480000,SumReqLatency:1320000", b.String())
 }
 
 // TestObserverBuffer_Basic is a basic version of the above test, stripping away all but one event

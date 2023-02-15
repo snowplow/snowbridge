@@ -189,6 +189,8 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	var errResult error
 
 	for _, msg := range safeMessages {
+		// TODO: THIS IS A PROBLEM!
+		// We have to go back to doing it per-message. :(
 
 		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(msg.Data))
 		if err != nil {
@@ -201,7 +203,13 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" { // Add basic auth if set
 			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 		}
+		requestStarted := time.Now()
 		resp, err := ht.client.Do(request) // Make request
+		requestFinished := time.Now()
+
+		msg.TimeRequestStarted = requestStarted
+		msg.TimeRequestFinished = requestFinished
+
 		if err != nil {
 			errResult = multierror.Append(errResult, err)
 			failed = append(failed, msg)
