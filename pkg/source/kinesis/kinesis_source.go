@@ -34,8 +34,8 @@ type configuration struct {
 	AppName             string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
 	RoleARN             string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
 	StartTimestamp      string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
+	ReadThrottleDelayMs int    `hcl:"read_throttle_delay,optional" env:"SOURCE_KINESIS_READ_THROTTLE_DELAY_MS"`
 	ConcurrentWrites    int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
-	ReadThrottleDelayMs int    `hcl:"read_throttle_delay,optional" env:"READ_THROTTLE_DELAY_MS"`
 }
 
 // --- Kinesis source
