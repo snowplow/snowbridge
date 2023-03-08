@@ -23,6 +23,11 @@ source {
     # this is for use with local testing tools like localstack - don't set for production use.
     custom_aws_endpoint = "http://integration-localstack-1:4566"
 
+    # Optional configurable amount of time to wait when we hit a retryable error on reading from the kinesis stream.
+    # This option exists to prevent readThroughputExceeded errors on the source stream when there are other consumers on the stream.
+    # Default is 250, cannot be set to lower than 200.
+    read_throttle_delay_ms = 500
+
     # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
     concurrent_writes = 15
   }

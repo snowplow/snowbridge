@@ -57,7 +57,7 @@ func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 250)
 
 	assert.IsType(&kinesisSource{}, source)
 	assert.Nil(err)
@@ -92,7 +92,7 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil, 250)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", source.GetID())
@@ -138,7 +138,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Create the source and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 250)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-2", source.GetID())
@@ -191,7 +191,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	}
 
 	// Create the source (with start timestamp) and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart, 250)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-3", source.GetID())
@@ -270,24 +270,26 @@ func TestKinesisSourceHCL(t *testing.T) {
 			File: "source-kinesis-simple.hcl",
 			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
 			Expected: &Configuration{
-				StreamName:       "testStream",
-				Region:           "us-test-1",
-				AppName:          "testApp",
-				RoleARN:          "",
-				StartTimestamp:   "",
-				ConcurrentWrites: 50,
+				StreamName:          "testStream",
+				Region:              "us-test-1",
+				AppName:             "testApp",
+				RoleARN:             "",
+				StartTimestamp:      "",
+				ConcurrentWrites:    50,
+				ReadThrottleDelayMs: 250,
 			},
 		},
 		{
 			File: "source-kinesis-extended.hcl",
 			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
 			Expected: &Configuration{
-				StreamName:       "testStream",
-				Region:           "us-test-1",
-				AppName:          "testApp",
-				RoleARN:          "xxx-test-role-arn",
-				StartTimestamp:   "2022-03-15 07:52:53",
-				ConcurrentWrites: 51,
+				StreamName:          "testStream",
+				Region:              "us-test-1",
+				AppName:             "testApp",
+				RoleARN:             "xxx-test-role-arn",
+				StartTimestamp:      "2022-03-15 07:52:53",
+				ConcurrentWrites:    51,
+				ReadThrottleDelayMs: 250,
 			},
 		},
 	}
