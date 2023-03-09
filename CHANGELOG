@@ -1,3 +1,8 @@
+Version 2.0.2 (2023-03-09)
+--------------------------
+Add ReadThrottleDelay setting to kinesis source (#255)
+Add request latency measurement (#254)
+
 Version 2.0.1 (2023-01-13)
 --------------------------
 Add Snowplow Community License (#208)
