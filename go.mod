@@ -27,7 +27,6 @@ require (
 	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
-	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/smira/go-statsd v1.3.2
