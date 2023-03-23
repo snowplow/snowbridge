@@ -183,12 +183,20 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
 		failed := messages
 
+		// We can have 1 or more error, so wrap em up and return them:
+		var kinesisErrs error
+		for _, record := range res.Records {
+			if record.ErrorMessage != nil {
+				kinesisErrs = errors.Wrap(kinesisErrs, *record.ErrorMessage)
+			}
+		}
+
 		return models.NewTargetWriteResult(
 			nil,
 			failed,
 			nil,
 			nil,
-		), errors.New("Failed to write all messages in batch to Kinesis stream")
+		), errors.Wrap(kinesisErrs, "Failed to write all messages in batch to Kinesis stream")
 	}
 
 	for _, msg := range messages {
