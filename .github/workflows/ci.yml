@@ -29,14 +29,6 @@ jobs:
         check-latest: true
         cache: true
 
-    - name: Snyk Setup
-      uses: snyk/actions/setup@master
-
-    - name: Run Snyk to check for vulnerabilities
-      run: snyk test --project-name=snowbridge --severity-threshold=high
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
     - name: Block Concurrent Executions of Integration Tests
       if: ${{ env.NGROK_TOKEN != '' }} 
       uses: softprops/turnstyle@v1
@@ -63,6 +55,14 @@ jobs:
 
     - name: Compile all targets
       run: make all
+
+    - name: Snyk Setup
+      uses: snyk/actions/setup@master
+
+    - name: Run Snyk to check for vulnerabilities
+      run: snyk test --project-name=snowbridge --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     - name: Setup e2e resources
       run: make e2e-up
