@@ -183,8 +183,9 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
 		failed := messages
 
-		// We can have 1 or more error, so wrap em up and return them:
-		var kinesisErrs error
+		// Wrap produces nil if the initial error is nil, so create an empty error instead
+		kinesisErrs := errors.New("")
+
 		for _, record := range res.Records {
 			if record.ErrorMessage != nil {
 				kinesisErrs = errors.Wrap(kinesisErrs, *record.ErrorMessage)
