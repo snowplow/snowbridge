@@ -108,12 +108,34 @@ func AdaptStatsDStatsReceiverFunc(f func(c *StatsDStatsReceiverConfig) (*statsDS
 
 // Send emits the bufferred metrics to the receiver
 func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
-	s.client.Incr("message_sent", b.MsgSent)
-	s.client.Incr("message_failed", b.MsgFailed)
-	s.client.Incr("oversized_message_sent", b.OversizedMsgSent)
-	s.client.Incr("oversized_message_failed", b.OversizedMsgFailed)
-	s.client.Incr("invalid_message_sent", b.InvalidMsgSent)
-	s.client.Incr("invalid_message_failed", b.InvalidMsgFailed)
-	s.client.PrecisionTiming("latency_processing_max", b.MaxProcLatency)
-	s.client.PrecisionTiming("latency_message_max", b.MaxMsgLatency)
+	// overall
+	s.client.Incr("target_success", b.MsgSent)
+	s.client.Incr("target_failed", b.MsgFailed)
+	s.client.Incr("message_filtered", b.MsgFiltered)
+
+	// unsendable
+	s.client.Incr("failure_target_success", b.OversizedMsgSent+b.InvalidMsgFailed)
+	s.client.Incr("failure_target_failed", b.OversizedMsgFailed+b.InvalidMsgFailed)
+
+	// latencies
+	s.client.PrecisionTiming("min_processing_latency", b.MinProcLatency)
+	s.client.PrecisionTiming("max_processing_latency", b.MaxProcLatency)
+	s.client.PrecisionTiming("avg_processing_latency", b.GetAvgProcLatency())
+
+	s.client.PrecisionTiming("min_message_latency", b.MinMsgLatency)
+	s.client.PrecisionTiming("max_message_latency", b.MaxMsgLatency)
+	s.client.PrecisionTiming("avg_message_latency", b.GetAvgMsgLatency())
+
+	s.client.PrecisionTiming("min_transform_latency", b.MinTransformLatency)
+	s.client.PrecisionTiming("max_transform_latency", b.MaxTransformLatency)
+	s.client.PrecisionTiming("avg_transform_latency", b.GetAvgTransformLatency())
+
+	s.client.PrecisionTiming("min_filter_latency", b.MinFilterLatency)
+	s.client.PrecisionTiming("max_filter_latency", b.MaxFilterLatency)
+	s.client.PrecisionTiming("avg_filter_latency", b.GetAvgFilterLatency())
+
+	s.client.PrecisionTiming("min_request_latency", b.MinRequestLatency)
+	s.client.PrecisionTiming("max_request_latency", b.MaxRequestLatency)
+	s.client.PrecisionTiming("avg_request_latency", b.GetAvgRequestLatency())
+
 }

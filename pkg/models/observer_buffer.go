@@ -47,7 +47,7 @@ type ObserverBuffer struct {
 	SumFilterLatency    time.Duration
 	MaxRequestLatency   time.Duration
 	MinRequestLatency   time.Duration
-	sumRequestLatency   time.Duration
+	SumRequestLatency   time.Duration
 }
 
 // AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
@@ -123,7 +123,7 @@ func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
 	if b.MinRequestLatency > res.MinRequestLatency || b.MinRequestLatency == time.Duration(0) {
 		b.MinRequestLatency = res.MinRequestLatency
 	}
-	b.sumRequestLatency += res.AvgRequestLatency
+	b.SumRequestLatency += res.AvgRequestLatency
 }
 
 // AppendFiltered adds a FilterResult onto the buffer and stores the result
@@ -171,6 +171,11 @@ func (b *ObserverBuffer) GetAvgFilterLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumFilterLatency, b.MsgFiltered)
 }
 
+// GetAvgRequestLatency calculates average request latency
+func (b *ObserverBuffer) GetAvgRequestLatency() time.Duration {
+	return common.GetAverageFromDuration(b.SumRequestLatency, b.MsgFiltered)
+}
+
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
 		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d,SumTransformLatency:%d,SumProcLatency:%d,SumMsgLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d",
@@ -193,6 +198,6 @@ func (b *ObserverBuffer) String() string {
 		b.SumMsgLatency.Milliseconds(),
 		b.MinRequestLatency.Milliseconds(),
 		b.MaxRequestLatency.Milliseconds(),
-		b.sumRequestLatency.Milliseconds(),
+		b.SumRequestLatency.Milliseconds(),
 	)
 }
