@@ -241,7 +241,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 
 	assert.NotNil(err1)
 	if err1 != nil {
-		assert.Regexp("Error sending http request: 10 errors occurred:.*", err1.Error())
+		assert.Regexp("Error sending http requests: 10 errors occurred:.*", err1.Error())
 	}
 
 	assert.Equal(10, len(writeResult.Failed))
