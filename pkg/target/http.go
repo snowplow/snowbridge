@@ -219,7 +219,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				msg.AckFunc()
 			}
 		} else {
-			errResult = multierror.Append(errResult, errors.New("Got response status: ", resp.Status))
+			errResult = multierror.Append(errResult, errors.New("Got response status: "+resp.Status))
 			failed = append(failed, msg)
 			continue
 		}
