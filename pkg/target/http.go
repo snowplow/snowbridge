@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -189,8 +188,6 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	var errResult error
 
 	for _, msg := range safeMessages {
-		// TODO: THIS IS A PROBLEM!
-		// We have to go back to doing it per-message. :(
 
 		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(msg.Data))
 		if err != nil {
@@ -222,8 +219,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				msg.AckFunc()
 			}
 		} else {
-			body, _ := ioutil.ReadAll(resp.Body) // Any error reading the body of the response is ignored, since the important thing is to surface the failing status.
-			errResult = multierror.Append(errResult, errors.Wrap(errors.New(string(body)), resp.Status))
+			errResult = multierror.Append(errResult, errors.New("Got response status: ", resp.Status))
 			failed = append(failed, msg)
 			continue
 		}
