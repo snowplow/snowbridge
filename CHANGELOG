@@ -1,3 +1,12 @@
+Version 2.0.3 (2023-04-XX)
+--------------------------
+Bump to go 1.20 (#268)
+Update statsd metrics (closes #266)
+Remove response body from http target errors (#264)
+Bump dependencies (#263)
+Move snyk step to end of GH action (#262)
+Capture error messages for kinesis batches with failures (#261)
+
 Version 2.0.2 (2023-03-09)
 --------------------------
 Add ReadThrottleDelay setting to kinesis source (#255)
