@@ -25,6 +25,21 @@ import (
 )
 
 func TestBuiltinTransformationDocumentation(t *testing.T) {
+	transformationsToTest := []string{"base64Decode", "base64Encode"}
+
+	for _, tfm := range transformationsToTest {
+
+		minimalConfigPath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "builtin", tfm+"-minimal-example.hcl")
+
+		fullConfigPath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "builtin", tfm+"-full-example.hcl")
+
+		testTransformationConfig(t, minimalConfigPath, false)
+
+		testTransformationConfig(t, fullConfigPath, true)
+	}
+}
+
+func TestBuiltinSnowplowTransformationDocumentation(t *testing.T) {
 	transformationsToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstructEvent", "spEnrichedSetPk", "spEnrichedToJson"}
 
 	for _, tfm := range transformationsToTest {
@@ -141,6 +156,10 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 			configObject = &transform.SetPkConfig{}
 		case "spEnrichedToJson":
 			configObject = &transform.EnrichedToJSONConfig{}
+		case "base64Decode":
+			configObject = &transform.Base64DecodeConfig{}
+		case "base64Encode":
+			configObject = &transform.Base64EncodeConfig{}
 		case "js":
 			configObject = &engine.JSEngineConfig{}
 		case "lua":
