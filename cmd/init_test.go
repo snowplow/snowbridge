@@ -37,7 +37,7 @@ func TestInit_Failure(t *testing.T) {
 	assert.Nil(cfg)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to build config: env: parse error on field \"TimeoutSec\" of type \"int\": strconv.ParseInt: parsing \"debug\": invalid syntax", err.Error())
+		assert.Equal("Failed to build config: Error parsing env config: env: parse error on field \"TimeoutSec\" of type \"int\": strconv.ParseInt: parsing \"debug\": invalid syntax", err.Error())
 	}
 }
 
