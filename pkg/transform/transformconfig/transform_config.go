@@ -23,6 +23,8 @@ var SupportedTransformations = []config.ConfigurationPair{
 	filter.ContextFilterConfigPair,
 	transform.SetPkConfigPair,
 	transform.EnrichedToJSONConfigPair,
+	transform.Base64DecodeConfigPair,
+	transform.Base64EncodeConfigPair,
 	engine.LuaConfigPair,
 	engine.JSConfigPair,
 }
