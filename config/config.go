@@ -8,11 +8,10 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
@@ -113,17 +112,46 @@ func defaultConfigData() *configurationData {
 
 // NewConfig returns a configuration
 func NewConfig() (*Config, error) {
-	filename := os.Getenv("SNOWBRIDGE_CONFIG_FILE")
-	if filename == "" {
-		return newEnvConfig()
+
+	var config *Config
+	var err error
+
+	// If we don't have a config file path, use env var configuration.
+	// Otherwise, use the file.
+	switch filename := os.Getenv("SNOWBRIDGE_CONFIG_FILE"); filename {
+	case "":
+		config, err = newEnvConfig()
+		if err != nil {
+			return nil, errors.Wrap(err, "Error parsing env config")
+		}
+
+		// If we have set TRANSFORM_CONFIG_B64, parse it into a config and overwrite the Transformation portion of our existing config.
+		if b64Transformations := os.Getenv("TRANSFORM_CONFIG_B64"); b64Transformations != "" {
+			transformationEnvConfig, err := base64.StdEncoding.DecodeString(b64Transformations)
+			if err != nil {
+				return nil, errors.Wrap(err, "Error decoding b64 data from TRANSFORM_CONFIG_B64 env var")
+			}
+
+			transformationConfig, err := newHclConfig(transformationEnvConfig, "")
+			if err != nil {
+				return nil, errors.Wrap(err, "Error creating config fom provided TRANSFORM_CONFIG_B64")
+			}
+
+			config.Data.Transformations = transformationConfig.Data.Transformations
+		}
+
+		return config, err
+
+	default:
+		// read the config file
+		src, readErr := os.ReadFile(filename)
+		if readErr != nil {
+			return nil, readErr
+		}
+		// Make a config from it
+		return newHclConfig(src, filename)
 	}
 
-	switch suffix := strings.ToLower(filepath.Ext(filename)); suffix {
-	case ".hcl":
-		return newHclConfig(filename)
-	default:
-		return nil, errors.New("invalid extension for the configuration file")
-	}
 }
 
 func newEnvConfig() (*Config, error) {
@@ -146,15 +174,11 @@ func newEnvConfig() (*Config, error) {
 	return &mainConfig, nil
 }
 
-func newHclConfig(filename string) (*Config, error) {
-	src, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
+func newHclConfig(fileContents []byte, filename string) (*Config, error) {
 
 	// Parsing
 	parser := hclparse.NewParser()
-	fileHCL, diags := parser.ParseHCL(src, filename)
+	fileHCL, diags := parser.ParseHCL(fileContents, filename)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -167,7 +191,7 @@ func newHclConfig(filename string) (*Config, error) {
 	decoderOpts := &DecoderOptions{Input: fileHCL.Body}
 	hclDecoder := &hclDecoder{EvalContext: evalContext}
 
-	err = hclDecoder.Decode(decoderOpts, configData)
+	err := hclDecoder.Decode(decoderOpts, configData)
 	if err != nil {
 		return nil, err
 	}
