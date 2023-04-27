@@ -393,10 +393,19 @@ type ngrokAPIResponse struct {
 
 // Query ngrok api for endpoint to hit
 func getNgrokAddress() string {
-	resp, err := http.DefaultClient.Get("http://localhost:4040/api/tunnels")
+	var resp *http.Response
+	var err error
+	for i := 0; i < 3; i++ { // retry 3 times as this part is flaky
+		resp, err = http.DefaultClient.Get("http://localhost:4040/api/tunnels")
+		if resp != nil {
+			err = nil
+			break
+		}
+	}
 	if err != nil {
 		panic(err)
 	}
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
