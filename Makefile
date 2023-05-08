@@ -142,7 +142,7 @@ integration-reset: integration-down integration-up
 
 # For integration tests we need localstack and pubsub, but not kafka (yet)
 integration-up: http-up
-	(cd $(integration_dir) && docker compose up -d localstack pubsub)
+	(cd $(integration_dir) && docker compose up -d)
 	sleep 5
 
 # We can just shut everything down here
