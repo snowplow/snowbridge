@@ -17,6 +17,7 @@ import (
 
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
+	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,6 +28,7 @@ func TestE2ESources(t *testing.T) {
 	t.Run("pubsub", testE2EPubsubSource)
 	t.Run("sqs", testE2ESQSSource)
 	t.Run("kinesis", testE2EKinesisSource)
+	t.Run("kafka", testE2EKafkaSource)
 }
 
 func getSliceFromInput(filepath string) []string {
@@ -142,4 +144,71 @@ func testE2EKinesisSource(t *testing.T) {
 	data := getDataFromStdoutResult(stdOut)
 	// Output should exactly match input.
 	evaluateTestCaseString(t, data, inputFilePath, "Kinesis source aws")
+}
+
+func testE2EKafkaSource(t *testing.T) {
+	testCases := []struct {
+		name       string
+		binary     string
+		topic      string
+		configFile string
+	}{
+		{name: "default", binary: "", topic: "e2e-kafka-source", configFile: "config.hcl"},
+		{name: "aws-only", binary: "-aws-only", topic: "e2e-kafka-source-aws-only",
+			configFile: "config-aws-only.hcl"},
+	}
+	// We use localhost:9092 here as we're running from host machine.
+	// The address in our Snowbridge config is different ("broker:29092"), since they're on the shared docker network.
+	adminClient, err := sarama.NewClusterAdmin([]string{"localhost:9092"}, nil)
+	if err != nil {
+		panic(err)
+	}
+	defer adminClient.Close()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			err2 := adminClient.CreateTopic(testCase.topic,
+				&sarama.TopicDetail{NumPartitions: 1,
+					ReplicationFactor: 1}, false)
+			if err2 != nil {
+				panic(err2)
+			}
+			defer adminClient.DeleteTopic(testCase.topic)
+
+			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kafka", testCase.configFile))
+			if err != nil {
+				panic(err)
+			}
+
+			saramaConfig := sarama.NewConfig()
+			// Must be enabled for the SyncProducer
+			saramaConfig.Producer.Return.Successes = true
+			saramaConfig.Producer.Return.Errors = true
+			producer, producerError := sarama.NewSyncProducer(strings.Split("localhost:9092", ","), saramaConfig)
+			if producerError != nil {
+				panic(producerError)
+			}
+
+			for _, data := range dataToSend {
+				_, _, sendMessageErr := producer.SendMessage(&sarama.ProducerMessage{
+					Topic: testCase.topic,
+					Value: sarama.StringEncoder(data),
+				})
+				if sendMessageErr != nil {
+					panic(sendMessageErr)
+				}
+			}
+
+			stdOut, cmdErr := runDockerCommand(5*time.Second, "kafkaSource", configFilePath,
+				testCase.binary,
+				"--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error(), "Docker run returned error for Kafka source")
+			}
+			data := getDataFromStdoutResult(stdOut)
+			evaluateTestCaseString(t, data, inputFilePath, "Kafka source "+testCase.binary)
+		})
+	}
 }

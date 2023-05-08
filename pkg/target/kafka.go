@@ -8,10 +8,7 @@
 package target
 
 import (
-	"crypto/sha256"
-	"crypto/sha512"
 	"fmt"
-	"hash"
 	"strings"
 	"time"
 
@@ -19,8 +16,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/xdg/scram"
-
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
 )
@@ -69,7 +64,7 @@ type saramaResult struct {
 
 // NewKafkaTarget creates a new client for writing messages to Apache Kafka
 func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
-	kafkaVersion, err := getKafkaVersion(cfg.TargetVersion)
+	kafkaVersion, err := common.GetKafkaVersion(cfg.TargetVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -102,20 +97,13 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 	}
 
 	if cfg.EnableSASL {
-		saramaConfig.Net.SASL.Enable = true
-		saramaConfig.Net.SASL.User = cfg.SASLUsername
-		saramaConfig.Net.SASL.Password = cfg.SASLPassword
-		saramaConfig.Net.SASL.Handshake = true
-		if cfg.SASLAlgorithm == "sha512" {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &xdgSCRAMClient{HashGeneratorFcn: SHA512} }
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
-		} else if cfg.SASLAlgorithm == "sha256" {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &xdgSCRAMClient{HashGeneratorFcn: SHA256} }
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
-		} else if cfg.SASLAlgorithm == "plaintext" {
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
-		} else {
-			return nil, fmt.Errorf("invalid SHA algorithm \"%s\": can be either \"sha256\" or \"sha512\"", cfg.SASLAlgorithm)
+		saramaConfig.Net.SASL, err = common.ConfigureSASL(
+			cfg.SASLAlgorithm,
+			cfg.SASLUsername,
+			cfg.SASLPassword,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure SASL, %w", err)
 		}
 	}
 
@@ -323,59 +311,4 @@ func (kt *KafkaTarget) MaximumAllowedMessageSizeBytes() int {
 // GetID returns the identifier for this target
 func (kt *KafkaTarget) GetID() string {
 	return fmt.Sprintf("brokers:%s:topic:%s", kt.brokers, kt.topicName)
-}
-
-func getKafkaVersion(targetVersion string) (sarama.KafkaVersion, error) {
-	preferredVersion := sarama.DefaultVersion
-
-	if targetVersion != "" {
-		parsedVersion, err := sarama.ParseKafkaVersion(targetVersion)
-		if err != nil {
-			return sarama.DefaultVersion, err
-		}
-
-		supportedVersion := false
-		for _, version := range sarama.SupportedVersions {
-			if version == parsedVersion {
-				supportedVersion = true
-				preferredVersion = parsedVersion
-				break
-			}
-		}
-		if !supportedVersion {
-			return sarama.DefaultVersion, fmt.Errorf("unsupported version `%s`. select older, compatible version instead", parsedVersion)
-		}
-	}
-
-	return preferredVersion, nil
-}
-
-// SHA256 hash
-var SHA256 scram.HashGeneratorFcn = func() hash.Hash { return sha256.New() }
-
-// SHA512 hash
-var SHA512 scram.HashGeneratorFcn = func() hash.Hash { return sha512.New() }
-
-type xdgSCRAMClient struct {
-	*scram.Client
-	*scram.ClientConversation
-	scram.HashGeneratorFcn
-}
-
-func (x *xdgSCRAMClient) Begin(userName, password, authzID string) (err error) {
-	x.Client, err = x.HashGeneratorFcn.NewClient(userName, password, authzID)
-	if err != nil {
-		return err
-	}
-	x.ClientConversation = x.Client.NewConversation()
-	return nil
-}
-
-func (x *xdgSCRAMClient) Step(challenge string) (response string, err error) {
-	response, err = x.ClientConversation.Step(challenge)
-	return
-}
-
-func (x *xdgSCRAMClient) Done() bool {
-	return x.ClientConversation.Done()
 }
