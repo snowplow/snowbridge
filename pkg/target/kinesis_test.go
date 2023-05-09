@@ -25,7 +25,7 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackKinesisClient()
 
-	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists")
+	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists", 500)
 	assert.Nil(err)
 	assert.NotNil(target)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", target.GetID())
@@ -63,7 +63,7 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 
-	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
+	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName, 500)
 	assert.Nil(err)
 	assert.NotNil(target)
 
@@ -105,7 +105,7 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 
-	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
+	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName, 500)
 	assert.Nil(err)
 	assert.NotNil(target)
 
@@ -148,7 +148,7 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	}
 	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
 
-	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName)
+	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName, 500)
 	assert.Nil(err)
 	assert.NotNil(target)
 
