@@ -4,6 +4,7 @@
 #  CONSTANTS
 # -----------------------------------------------------------------------------
 
+SHELL = /bin/bash
 version = `cat VERSION`
 aws_only_version = $(version)-aws-only
 
@@ -164,12 +165,12 @@ http-down:
 #  RELEASE
 # -----------------------------------------------------------------------------
 
+# Make & push docker assets, don't tag as latest if there's a `-` in the version (eg. 0.1.0-rc1)
 container-release:
 	@-docker login --username $(DOCKER_USERNAME) --password $(DOCKER_PASSWORD)
 	docker push $(container_name):$(aws_only_version)
 	docker push $(container_name):$(version)
-	docker tag ${container_name}:${version} ${container_name}:latest
-	docker push $(container_name):latest
+	if ! [[ $(version) =~ "-" ]]; then docker tag ${container_name}:${version} ${container_name}:latest; docker push $(container_name):latest; fi;
 
 # -----------------------------------------------------------------------------
 #  CLEANUP

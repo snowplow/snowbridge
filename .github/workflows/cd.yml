@@ -92,3 +92,4 @@ jobs:
 
     - name: Publish to DockerHub
       run: make container-release
+      shell: bash
