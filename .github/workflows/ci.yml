@@ -20,11 +20,6 @@ jobs:
       NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
 
     steps:
-    - name: Test bash shell
-      run: echo "Bash works!"
-      shell: bash
-
-
     - name: Checkout code
       uses: actions/checkout@v3
       
