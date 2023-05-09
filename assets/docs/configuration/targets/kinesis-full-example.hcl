@@ -14,6 +14,11 @@ target {
 
     # Optional ARN to use on the stream (default: "")
     role_arn    = "arn:aws:iam::123456789012:role/myrole"
+
+    # Set the maximum amount of messages that can be in one request
+    # The maximum value for a PutRecords request is 500. If set to higher, 500 will be used.
+    # If a single message in a request fails, all messages will be retried. This configuration can be used to manage risk of duplicates
+    request_max_messages = 1
   }
 }
 
