@@ -156,9 +156,10 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			File: "target-kinesis.hcl",
 			Plug: testKinesisTargetAdapter(testKinesisTargetFunc),
 			Expected: &target.KinesisTargetConfig{
-				StreamName: "testStream",
-				Region:     "eu-test-1",
-				RoleARN:    "xxx-test-role-arn",
+				StreamName:         "testStream",
+				Region:             "eu-test-1",
+				RoleARN:            "xxx-test-role-arn",
+				RequestMaxMessages: 500,
 			},
 		},
 		{
