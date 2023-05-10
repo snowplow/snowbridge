@@ -63,7 +63,7 @@ func newKinesisTarget(region string, streamName string, roleARN string, customAW
 
 	// Restrict chunk sizes to the maximum for a PutRecords request, if configured higher.
 	if requestMaxMessages > kinesisPutRecordsMaxChunkSize {
-		requestMaxMessages = kinesisPutRecordsMaxChunkSize
+		return nil, errors.New("request_max_messages cannot be higher than the Kinesis PutRecords limit of 500")
 	}
 
 	return newKinesisTargetWithInterfaces(kinesisClient, *awsAccountID, region, streamName, requestMaxMessages)
