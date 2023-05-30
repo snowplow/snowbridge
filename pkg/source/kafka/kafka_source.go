@@ -9,10 +9,7 @@ package kafkasource
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/sha512"
 	"fmt"
-	"hash"
 	"strings"
 	"sync"
 	"time"
@@ -20,13 +17,11 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
-	"github.com/xdg/scram"
-
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
+	"github.com/twinj/uuid"
 )
 
 // Configuration configures the source for records
@@ -43,9 +38,9 @@ type Configuration struct {
 	SASLUsername     string `hcl:"sasl_username,optional" env:"SOURCE_KAFKA_SASL_USERNAME" `
 	SASLPassword     string `hcl:"sasl_password,optional" env:"SOURCE_KAFKA_SASL_PASSWORD"`
 	SASLAlgorithm    string `hcl:"sasl_algorithm,optional" env:"SOURCE_KAFKA_SASL_ALGORITHM"`
-	TLSCert          string `hcl:"tls_cert,optional" env:"SOURCE_KAFKA_TLS_CERT_B64"`
-	TLSKey           string `hcl:"tls_key,optional" env:"SOURCE_KAFKA_TLS_KEY_B64"`
-	TLSCa            string `hcl:"tls_ca,optional" env:"SOURCE_KAFKA_TLS_CA_B64"`
+	CertFile         string `hcl:"cert_file,optional" env:"SOURCE_KAFKA_TLS_CERT_FILE"`
+	KeyFile          string `hcl:"key_file,optional" env:"SOURCE_KAFKA_TLS_KEY_FILE"`
+	CaFile           string `hcl:"ca_file,optional" env:"SOURCE_KAFKA_TLS_CA_FILE"`
 	SkipVerifyTLS    bool   `hcl:"skip_verify_tls,optional" env:"SOURCE_KAFKA_TLS_SKIP_VERIFY_TLS"`
 }
 
@@ -85,7 +80,6 @@ func (consumer *consumer) Cleanup(sarama.ConsumerGroupSession) error {
 // ConsumeClaim claims consumed messages and writes them to the target
 func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	wg := sync.WaitGroup{}
-	var consumeErr error
 	for message := range claim.Messages() {
 		wg.Add(1)
 		consumer.throttle <- struct{}{}
@@ -108,10 +102,10 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 
 			messages = append(messages, newMessage)
 
-			err := consumer.source.WriteToTarget(messages)
-			if err != nil {
-				consumer.log.Debugf("Error writing to target: %s", err)
-				consumeErr = err
+			if err := consumer.source.WriteToTarget(messages); err != nil {
+				// When WriteToTarget returns an error it just means we failed to send some data -
+				// these messages won't have been acked, so they'll get retried eventually.
+				consumer.log.WithFields(log.Fields{"error": err}).Error(err)
 			}
 
 			<-consumer.throttle
@@ -121,7 +115,7 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 
 	wg.Wait()
 
-	return consumeErr
+	return nil
 }
 
 // Read initializes the Kafka consumer group and starts the message consumption loop
@@ -135,16 +129,16 @@ func (ks *kafkaSource) Read(sf *sourceiface.SourceFunctions) error {
 		log:              ks.log,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	cctx, cancel := context.WithCancel(context.Background())
 	// store reference to context cancel
 	ks.cancel = cancel
 	defer ks.client.Close()
 
 	for {
-		if err := ks.client.Consume(ctx, strings.Split(ks.topic, ","), &consumer); err != nil {
+		if err := ks.client.Consume(cctx, strings.Split(ks.topic, ","), &consumer); err != nil {
 			return err
 		}
-		if ctxErr := ctx.Err(); ctxErr != nil {
+		if ctxErr := cctx.Err(); ctxErr != nil {
 			ks.log.WithFields(log.Fields{"error": ctxErr}).Error(ctxErr)
 			// ignore this error, it is called by cancelled context (on application exit)
 			return nil
@@ -207,7 +201,7 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 
 // newKafkaSource creates a new source for reading messages from Apache Kafka
 func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
-	kafkaVersion, err := getKafkaVersion(cfg.TargetVersion)
+	kafkaVersion, err := common.GetKafkaVersion(cfg.TargetVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +215,7 @@ func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
 	sarama.Logger = logger
 
 	saramaConfig := sarama.NewConfig()
-	saramaConfig.ClientID = "snowplow_stream_replicator"
+	saramaConfig.ClientID = "snowplow_snowbridge"
 	saramaConfig.Version = kafkaVersion
 
 	// -1 => OffsetNewest stands for the log head offset, i.e. the offset that will be
@@ -251,27 +245,18 @@ func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
 		}
 	}
 
-	// validate SASL if enabled
 	if cfg.EnableSASL {
-		saramaConfig.Net.SASL.Enable = true
-		saramaConfig.Net.SASL.User = cfg.SASLUsername
-		saramaConfig.Net.SASL.Password = cfg.SASLPassword
-		saramaConfig.Net.SASL.Handshake = true
-		if cfg.SASLAlgorithm == "sha512" {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &xdgSCRAMClient{HashGeneratorFcn: SHA512} }
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
-		} else if cfg.SASLAlgorithm == "sha256" {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &xdgSCRAMClient{HashGeneratorFcn: SHA256} }
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
-		} else if cfg.SASLAlgorithm == "plaintext" {
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
-		} else {
-			return nil, fmt.Errorf("invalid SHA algorithm \"%s\": can be either \"sha256\" or \"sha512\"", cfg.SASLAlgorithm)
+		saramaConfig.Net.SASL, err = common.ConfigureSASL(
+			cfg.SASLAlgorithm,
+			cfg.SASLUsername,
+			cfg.SASLPassword,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure SASL, %w", err)
 		}
 	}
 
-	// validate TLS if required
-	tlsConfig, err := common.CreateTLSConfiguration(cfg.TLSCert, cfg.TLSKey, cfg.TLSCa, cfg.SkipVerifyTLS)
+	tlsConfig, err := common.CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
@@ -303,59 +288,4 @@ func newKafkaSourceWithInterfaces(client sarama.ConsumerGroup, s *kafkaSource) (
 // GetID returns the identifier for this target
 func (ks *kafkaSource) GetID() string {
 	return fmt.Sprintf("brokers:%s:topic:%s", ks.brokers, ks.topic)
-}
-
-func getKafkaVersion(targetVersion string) (sarama.KafkaVersion, error) {
-	preferredVersion := sarama.DefaultVersion
-
-	if targetVersion != "" {
-		parsedVersion, err := sarama.ParseKafkaVersion(targetVersion)
-		if err != nil {
-			return sarama.DefaultVersion, err
-		}
-
-		supportedVersion := false
-		for _, version := range sarama.SupportedVersions {
-			if version == parsedVersion {
-				supportedVersion = true
-				preferredVersion = parsedVersion
-				break
-			}
-		}
-		if !supportedVersion {
-			return sarama.DefaultVersion, fmt.Errorf("unsupported version `%s`. select older, compatible version instead", parsedVersion)
-		}
-	}
-
-	return preferredVersion, nil
-}
-
-// SHA256 hash
-var SHA256 scram.HashGeneratorFcn = func() hash.Hash { return sha256.New() }
-
-// SHA512 hash
-var SHA512 scram.HashGeneratorFcn = func() hash.Hash { return sha512.New() }
-
-type xdgSCRAMClient struct {
-	*scram.Client
-	*scram.ClientConversation
-	scram.HashGeneratorFcn
-}
-
-func (x *xdgSCRAMClient) Begin(userName, password, authzID string) (err error) {
-	x.Client, err = x.HashGeneratorFcn.NewClient(userName, password, authzID)
-	if err != nil {
-		return err
-	}
-	x.ClientConversation = x.Client.NewConversation()
-	return nil
-}
-
-func (x *xdgSCRAMClient) Step(challenge string) (response string, err error) {
-	response, err = x.ClientConversation.Step(challenge)
-	return
-}
-
-func (x *xdgSCRAMClient) Done() bool {
-	return x.ClientConversation.Done()
 }

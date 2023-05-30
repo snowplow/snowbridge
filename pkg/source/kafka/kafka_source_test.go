@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -24,9 +25,7 @@ import (
 )
 
 const (
-	consumeErr = `consume error`
-	targetErr  = `target error`
-	closeErr   = `close error`
+	closeErr = `close error`
 )
 
 type sessionMock struct{}
@@ -43,13 +42,13 @@ func (s sessionMock) GenerationID() int32 {
 	return 0
 }
 
-func (s sessionMock) MarkOffset(topic string, partition int32, offset int64, metadata string) {}
+func (s sessionMock) MarkOffset(string, int32, int64, string) {}
 
 func (s sessionMock) Commit() {}
 
-func (s sessionMock) ResetOffset(topic string, partition int32, offset int64, metadata string) {}
+func (s sessionMock) ResetOffset(string, int32, int64, string) {}
 
-func (s sessionMock) MarkMessage(msg *sarama.ConsumerMessage, metadata string) {}
+func (s sessionMock) MarkMessage(*sarama.ConsumerMessage, string) {}
 
 func (s sessionMock) Context() context.Context {
 	return nil
@@ -87,15 +86,15 @@ func (c Client) Close() error {
 	return c.closeErr
 }
 
-func (c Client) Pause(partitions map[string][]int32) {}
+func (c Client) Pause(map[string][]int32) {}
 
-func (c Client) Resume(partitions map[string][]int32) {}
+func (c Client) Resume(map[string][]int32) {}
 
 func (c Client) PauseAll() {}
 
 func (c Client) ResumeAll() {}
 
-func (c Client) Consume(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
+func (c Client) Consume(_ context.Context, _ []string, handler sarama.ConsumerGroupHandler) error {
 	if handler == nil || c.targetErr != nil {
 		handler = &consumer{
 			concurrentWrites: 15,
@@ -109,7 +108,7 @@ func (c Client) Consume(ctx context.Context, topics []string, handler sarama.Con
 			}),
 		}
 	}
-	handler.Setup(nil)
+	require.NoError(c.t, handler.Setup(nil))
 	err := handler.ConsumeClaim(&sessionMock{}, claimMock{messages: []*sarama.ConsumerMessage{c.message}})
 	if err != nil {
 		return err
@@ -122,8 +121,7 @@ func (c Client) Consume(ctx context.Context, topics []string, handler sarama.Con
 }
 
 // initKafkaSource initializes a Kafka source with a mocked client
-func initKafkaSource(t *testing.T, c *Configuration, targetErr, closeErr error) (*kafkaSource,
-	error) {
+func initKafkaSource(t *testing.T, c *Configuration, targetErr, closeErr error) (*kafkaSource, error) {
 	client := Client{
 		targetErr: targetErr,
 		closeErr:  closeErr,
@@ -157,24 +155,6 @@ func initKafkaSource(t *testing.T, c *Configuration, targetErr, closeErr error) 
 		return nil, err
 	}
 	return s, nil
-}
-
-func TestKafkaSource_WriteToTargetError(t *testing.T) {
-	s, _ := initKafkaSource(t, &Configuration{
-		Brokers:          "brokers:9092",
-		ConcurrentWrites: 15,
-		TopicName:        "testTopic",
-		Assignor:         "range",
-		TargetVersion:    sarama.SupportedVersions[0].String(),
-		EnableSASL:       true,
-		SASLUsername:     `Rob`,
-		SASLPassword:     `robsPass`,
-		SASLAlgorithm:    `sha512`,
-	}, errors.New(targetErr), nil)
-
-	assert.NotNil(t, s.GetID())
-
-	assert.PanicsWithError(t, targetErr, func() { testutil.ReadAndReturnMessages(s, 3*time.Second, testutil.DefaultTestWriteBuilder, nil) })
 }
 
 func TestKafkaSource_CloseErr(t *testing.T) {
