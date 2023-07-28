@@ -1,3 +1,11 @@
+Version 2.2.0 (2023-08-14)
+--------------------------
+Set default config path in docker images (#271)
+Build docker image with non-root user (#288)
+Fix alpine version to 3.18 (#287)
+Update go version and dependencies (#286)
+Add kafka source, thanks @vrazdalovschi! (#9)
+
 Version 2.1.0 (2023-05-15)
 --------------------------
 Fix flaky tests (#277)
