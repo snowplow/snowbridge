@@ -6,4 +6,6 @@ ADD build/output/linux/main/cli/snowbridge /opt/snowplow/
 RUN adduser -D snowplow
 USER snowplow
 
+ENV SNOWBRIDGE_CONFIG_FILE=/tmp/config.hcl
+
 CMD ["/opt/snowplow/snowbridge"]
