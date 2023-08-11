@@ -46,9 +46,6 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 	defer adminClient.DeleteTopic(topicName)
 
-	// Write to topic
-	// testutil.WriteToPubSubTopic(t, topic, 10)
-
 	// Create a producer
 	saramaConfig := sarama.NewConfig()
 	// Must be enabled for the SyncProducer
