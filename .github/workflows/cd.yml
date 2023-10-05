@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         # Quotes are required: https://github.com/actions/setup-go/issues/326#issuecomment-1415719692
-        go-version: ['1.21']
+        go-version: ['1.21.1']
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     env:
