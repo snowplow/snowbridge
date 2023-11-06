@@ -16,6 +16,7 @@ import (
 type Message struct {
 	PartitionKey string
 	Data         []byte
+	HTTPHeaders  map[string][]string
 
 	// TimeCreated is when the message was created originally
 	TimeCreated time.Time
@@ -53,11 +54,12 @@ func (m *Message) GetError() error {
 
 func (m *Message) String() string {
 	return fmt.Sprintf(
-		"PartitionKey:%s,TimeCreated:%v,TimePulled:%v,TimeTransformed:%v,Data:%s",
+		"PartitionKey:%s,TimeCreated:%v,TimePulled:%v,TimeTransformed:%v,HttpHeaders:%v,Data:%s",
 		m.PartitionKey,
 		m.TimeCreated,
 		m.TimePulled,
 		m.TimeTransformed,
+		m.HTTPHeaders,
 		string(m.Data),
 	)
 }
