@@ -10,13 +10,15 @@ package target
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -27,7 +29,7 @@ func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Se
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer req.Body.Close()
-		data, err := ioutil.ReadAll(req.Body)
+		data, err := io.ReadAll(req.Body)
 		if err != nil {
 			panic(err)
 		}
@@ -86,6 +88,87 @@ func TestGetHeaders(t *testing.T) {
 
 }
 
+func TestRetrieveHeaders(t *testing.T) {
+	testCases := []struct {
+		Name     string
+		Msg      *models.Message
+		Dynamic  bool
+		Expected map[string][]string
+	}{
+		{
+			Name:     "message_headers_nil_dynamic_false",
+			Msg:      &models.Message{},
+			Dynamic:  false,
+			Expected: nil,
+		},
+		{
+			Name:     "message_headers_nil_dynamic_true",
+			Msg:      &models.Message{},
+			Dynamic:  true,
+			Expected: nil,
+		},
+		{
+			Name: "message_headers_empty_dynamic_false",
+			Msg: &models.Message{
+				HTTPHeaders: map[string][]string{},
+			},
+			Dynamic:  false,
+			Expected: nil,
+		},
+		{
+			Name: "message_headers_empty_dynamic_true",
+			Msg: &models.Message{
+				HTTPHeaders: map[string][]string{},
+			},
+			Dynamic:  true,
+			Expected: map[string][]string{},
+		},
+		{
+			Name: "message_headers_non_empty_dynamic_false",
+			Msg: &models.Message{
+				HTTPHeaders: map[string][]string{
+					"foo": {"bar"},
+				},
+			},
+			Dynamic:  false,
+			Expected: nil,
+		},
+		{
+			Name: "message_headers_non_empty_dynamic_true",
+			Msg: &models.Message{
+				HTTPHeaders: map[string][]string{
+					"foo": {"bar", "baz"},
+				},
+			},
+			Dynamic:  true,
+			Expected: map[string][]string{"foo": {"bar", "baz"}},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			testTargetConfig := &HTTPTargetConfig{
+				HTTPURL:                 "http://test",
+				ByteLimit:               1048576,
+				RequestTimeoutInSeconds: 5,
+				ContentType:             "application/json",
+				DynamicHeaders:          tt.Dynamic,
+			}
+			testTarget, err := HTTPTargetConfigFunction(testTargetConfig)
+			if err != nil {
+				t.Fatalf("failed to create test target")
+			}
+
+			out := testTarget.retrieveHeaders(tt.Msg)
+			if !reflect.DeepEqual(out, tt.Expected) {
+				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
+					spew.Sdump(out),
+					spew.Sdump(tt.Expected))
+			}
+		})
+	}
+}
+
 func TestAddHeadersToRequest(t *testing.T) {
 	assert := assert.New(t)
 
@@ -101,7 +184,7 @@ func TestAddHeadersToRequest(t *testing.T) {
 		"Accept-Datetime": []string{"Thu, 31 May 2007 20:35:00 GMT"},
 	}
 
-	addHeadersToRequest(req, headersToAdd)
+	addHeadersToRequest(req, headersToAdd, nil)
 	assert.Equal(expectedHeaders, req.Header)
 
 	req2, err2 := http.NewRequest("POST", "abc", bytes.NewBuffer([]byte("def")))
@@ -111,20 +194,115 @@ func TestAddHeadersToRequest(t *testing.T) {
 	var noHeadersToAdd map[string]string
 	noHeadersExpected := http.Header{}
 
-	addHeadersToRequest(req2, noHeadersToAdd)
+	addHeadersToRequest(req2, noHeadersToAdd, nil)
 
 	assert.Equal(noHeadersExpected, req2.Header)
+}
+
+func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		ConfigHeaders  map[string]string
+		DynamicHeaders map[string][]string
+		ExpectedHeader http.Header
+	}{
+		{
+			Name:           "config_nil_dynamic_nil",
+			ConfigHeaders:  nil,
+			DynamicHeaders: nil,
+			ExpectedHeader: http.Header{},
+		},
+		{
+			Name:           "config_nil_dynamic_empty",
+			ConfigHeaders:  nil,
+			DynamicHeaders: map[string][]string{},
+			ExpectedHeader: http.Header{},
+		},
+		{
+			Name:          "config_nil_dynamic_yes",
+			ConfigHeaders: nil,
+			DynamicHeaders: map[string][]string{
+				"Content-Length": {"0", "1"},
+			},
+			ExpectedHeader: http.Header{
+				"Content-Length": {"0", "1"},
+			},
+		},
+		{
+			Name: "config_yes_dynamic_nil",
+			ConfigHeaders: map[string]string{
+				"Max Forwards": "10",
+			},
+			DynamicHeaders: nil,
+			ExpectedHeader: http.Header{
+				"Max Forwards": {"10"},
+			},
+		},
+		{
+			Name: "config_yes_dynamic_empty",
+			ConfigHeaders: map[string]string{
+				"Max Forwards": "10",
+			},
+			DynamicHeaders: map[string][]string{},
+			ExpectedHeader: http.Header{
+				"Max Forwards": {"10"},
+			},
+		},
+		{
+			Name: "config_yes_dynamic_yes",
+			ConfigHeaders: map[string]string{
+				"Max Forwards": "10",
+			},
+			DynamicHeaders: map[string][]string{
+				"Content-Length": {"0", "1"},
+				"Empty":          {},
+			},
+			ExpectedHeader: http.Header{
+				"Max Forwards":   {"10"},
+				"Content-Length": {"0", "1"},
+			},
+		},
+		{
+			Name: "config_yes_dynamic_yes_same_key",
+			ConfigHeaders: map[string]string{
+				"Max Forwards":   "10",
+				"Content-Length": "0",
+			},
+			DynamicHeaders: map[string][]string{
+				"Content-Length": {"1"},
+				"Test-Header":    {"test"},
+			},
+			ExpectedHeader: http.Header{
+				"Max Forwards":   {"10"},
+				"Content-Length": {"0", "1"},
+				"Test-Header":    {"test"},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			req, err := http.NewRequest("POST", "abc", nil)
+			if err != nil {
+				t.Fatalf("failed to create test http.Request")
+			}
+
+			addHeadersToRequest(req, tt.ConfigHeaders, tt.DynamicHeaders)
+			assert.Equal(tt.ExpectedHeader, req.Header)
+		})
+	}
 }
 
 func TestNewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := newHTTPTarget("http://something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	httpTarget, err := newHTTPTarget("http://something", 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 
 	assert.Nil(err)
 	assert.NotNil(httpTarget)
 
-	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 
 	assert.NotNil(err1)
 	if err1 != nil {
@@ -132,7 +310,7 @@ func TestNewHTTPTarget(t *testing.T) {
 	}
 	assert.Nil(failedHTTPTarget)
 
-	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	assert.NotNil(err2)
 	if err2 != nil {
 		assert.Equal("Invalid url for HTTP target: ''", err2.Error())
@@ -148,7 +326,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +360,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +403,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +435,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,6 +490,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		string(`../../integration/http/localhost.crt`),
 		string(`../../integration/http/localhost.key`),
 		string(`../../integration/http/rootCA.crt`),
+		false,
 		false)
 	if err != nil {
 		t.Fatal(err)
@@ -344,6 +523,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		string(`../../integration/http/localhost.crt`),
 		string(`../../integration/http/localhost.key`),
 		string(`../../integration/http/rootCA.crt`),
+		false,
 		false)
 	if err2 != nil {
 		t.Fatal(err2)
@@ -369,6 +549,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		"",
 		"",
+		false,
 		false)
 	if err4 != nil {
 		t.Fatal(err4)
@@ -406,7 +587,7 @@ func getNgrokAddress() string {
 		panic(err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
 	}

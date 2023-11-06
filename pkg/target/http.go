@@ -36,6 +36,7 @@ type HTTPTargetConfig struct {
 	KeyFile                 string `hcl:"key_file,optional" env:"TARGET_HTTP_TLS_KEY_FILE"`
 	CaFile                  string `hcl:"ca_file,optional" env:"TARGET_HTTP_TLS_CA_FILE"`
 	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional" env:"TARGET_HTTP_TLS_SKIP_VERIFY_TLS"` // false
+	DynamicHeaders          bool   `hcl:"dynamic_headers,optional" env:"TARGET_HTTP_DYNAMIC_HEADERS"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -48,6 +49,7 @@ type HTTPTarget struct {
 	basicAuthUsername string
 	basicAuthPassword string
 	log               *log.Entry
+	dynamicHeaders    bool
 }
 
 func checkURL(str string) error {
@@ -76,20 +78,21 @@ func getHeaders(headers string) (map[string]string, error) {
 	return parsed, nil
 }
 
-func addHeadersToRequest(request *http.Request, headers map[string]string) {
-	if headers == nil {
-		return
-	}
-
+func addHeadersToRequest(request *http.Request, headers map[string]string, dynamicHeaders map[string][]string) {
 	for key, value := range headers {
 		request.Header.Add(key, value)
 	}
 
+	for key, values := range dynamicHeaders {
+		for _, val := range values {
+			request.Header.Add(key, val)
+		}
+	}
 }
 
 // newHTTPTarget creates a client for writing events to HTTP
 func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentType string, headers string, basicAuthUsername string, basicAuthPassword string,
-	certFile string, keyFile string, caFile string, skipVerifyTLS bool) (*HTTPTarget, error) {
+	certFile string, keyFile string, caFile string, skipVerifyTLS bool, dynamicHeaders bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -120,6 +123,7 @@ func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 		basicAuthUsername: basicAuthUsername,
 		basicAuthPassword: basicAuthPassword,
 		log:               log.WithFields(log.Fields{"target": "http", "url": httpURL}),
+		dynamicHeaders:    dynamicHeaders,
 	}, nil
 }
 
@@ -137,6 +141,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.KeyFile,
 		c.CaFile,
 		c.SkipVerifyTLS,
+		c.DynamicHeaders,
 	)
 }
 
@@ -188,16 +193,15 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	var errResult error
 
 	for _, msg := range safeMessages {
-
 		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(msg.Data))
 		if err != nil {
 			errResult = multierror.Append(errResult, errors.Wrap(err, "Error creating request"))
 			failed = append(failed, msg)
 			continue
 		}
-		request.Header.Add("Content-Type", ht.contentType)            // Add content type
-		addHeadersToRequest(request, ht.headers)                      // Add headers if there are any
-		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" { // Add basic auth if set
+		request.Header.Add("Content-Type", ht.contentType)                // Add content type
+		addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(msg)) // Add headers if there are any
+		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {     // Add basic auth if set
 			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 		}
 		requestStarted := time.Now()
@@ -252,4 +256,12 @@ func (ht *HTTPTarget) MaximumAllowedMessageSizeBytes() int {
 // GetID returns an identifier for this target
 func (ht *HTTPTarget) GetID() string {
 	return ht.httpURL
+}
+
+func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string][]string {
+	if !ht.dynamicHeaders {
+		return nil
+	}
+
+	return msg.HTTPHeaders
 }

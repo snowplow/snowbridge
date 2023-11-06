@@ -14,6 +14,7 @@ import (
 
 	goja "github.com/dop251/goja"
 	gojaparser "github.com/dop251/goja/parser"
+
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 
@@ -149,7 +150,6 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 
 		// running
 		res, err := fun(goja.Undefined(), vm.ToValue(input))
-
 		if err != nil {
 			// runtime error counts as failure
 			runErr := fmt.Errorf("error running JavaScript function %q: %q", funcName, err.Error())
@@ -165,7 +165,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		}
 
 		// filtering - keeping same behaviour with spEnrichedFilter
-		if protocol.FilterOut == true {
+		if protocol.FilterOut {
 			return nil, message, nil, nil
 		}
 
@@ -191,6 +191,9 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		if pk != "" && message.PartitionKey != pk {
 			message.PartitionKey = pk
 		}
+
+		// HTTPHeaders
+		message.HTTPHeaders = protocol.HTTPHeaders
 
 		return message, nil, nil, protocol
 	}
@@ -252,7 +255,8 @@ func mkJSEngineInput(e *JSEngine, message *models.Message, interState interface{
 	}
 
 	candidate := &engineProtocol{
-		Data: string(message.Data),
+		Data:        string(message.Data),
+		HTTPHeaders: message.HTTPHeaders,
 	}
 
 	if !e.SpMode {

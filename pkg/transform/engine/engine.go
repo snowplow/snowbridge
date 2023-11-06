@@ -41,4 +41,5 @@ type engineProtocol struct {
 	FilterOut    bool
 	PartitionKey string
 	Data         interface{}
+	HTTPHeaders  map[string][]string
 }
