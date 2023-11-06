@@ -1140,6 +1140,759 @@ function main(x) {
 	}
 }
 
+func TestJSEngineMakeFunction_HTTPHeaders(t *testing.T) {
+	testCases := []struct {
+		Scenario        string
+		Src             string
+		SpMode          bool
+		InputMsg        *models.Message
+		InputInterState interface{}
+		Expected        map[string]*models.Message
+		IsJSON          bool
+		ExpInterState   interface{}
+		Error           error
+	}{
+		{
+			Scenario: "without_initial_headers_main_case",
+			Src: `
+function main(x) {
+  var httpHeaders = {
+    foo: 'bar'
+  };
+  x.HTTPHeaders = httpHeaders;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"foo": "bar",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_main_case_override",
+			Src: `
+function main(x) {
+  x.HTTPHeaders = {
+    foo: 'bar'
+  };
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"foo": "bar",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_main_case_append",
+			Src: `
+function main(x) {
+  var headers = x.HTTPHeaders || {};
+  headers.foo = 'bar';
+  x.HTTPHeaders = headers;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"oldKey": "oldVal",
+						"foo":    "bar",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+					"foo":    "bar",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_and_intermediate_main_case_override",
+			Src: `
+function main(x) {
+  var httpHeaders = {
+    foo: 'bar'
+  };
+  x.HTTPHeaders = httpHeaders;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: testJSMap,
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"foo": "bar",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders: map[string]string{
+					"foo": "bar",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_and_intermediate_main_case_append",
+			Src: `
+function main(x) {
+  var headers = x.HTTPHeaders || {};
+  var foo = 'bar';
+  var old = headers.oldKey || '';
+
+  headers.foo = foo;
+  headers.oldKey = old.concat('newVal');
+  x.HTTPHeaders = headers;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: testJSMap,
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"oldKey": "oldValnewVal",
+						"foo":    "bar",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldValnewVal",
+					"foo":    "bar",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_set_to_null_no_effect",
+			Src: `
+function main(x) {
+  x.HTTPHeaders = null;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"oldKey": "oldVal",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders:  nil,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_headers_set_to_null_no_effect",
+			Src: `
+function main(x) {
+  x.HTTPHeaders = null;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders:  nil,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders:  nil,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_set_to_undefined_no_effect",
+			Src: `
+function main(x) {
+  x.HTTPHeaders = undefined;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"oldKey": "oldVal",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders:  nil,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_headers_set_to_undefined_no_effect",
+			Src: `
+function main(x) {
+  x.HTTPHeaders = undefined;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					HTTPHeaders:  nil,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				HTTPHeaders:  nil,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_set_to_empty_object_no_effect",
+			Src: `
+function main(x) {
+  var newHeaders = {};
+  x.HTTPHeaders = newHeaders;
+  return x;
+}
+		`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"oldKey": "oldVal",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				Data:         "asdf",
+				PartitionKey: "",
+				HTTPHeaders:  map[string]string{},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_headers_set_to_empty_object",
+			Src: `
+function main(x) {
+  var newHeaders = {};
+  x.HTTPHeaders = newHeaders;
+  return x;
+}
+		`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					HTTPHeaders:  nil,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				Data:         "asdf",
+				PartitionKey: "",
+				HTTPHeaders:  map[string]string{},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_mutate_set_headers_to_invalid_primitive",
+			Src: `
+function main(x) {
+  x.HTTPHeaders = 'invalid';
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: []byte("asdf"),
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			IsJSON:        false,
+			ExpInterState: nil,
+			Error:         fmt.Errorf("could not convert"),
+		},
+		{
+			Scenario: "with_initial_headers_replace_set_headers_to_invalid_primitive",
+			Src: `
+function main(x) {
+  return {
+    Data: x.Data,
+    PrimaryKey: x.PrimaryKey,
+    HTTPHeaders: 'invalid'
+  };
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: []byte("asdf"),
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			IsJSON:        false,
+			ExpInterState: nil,
+			Error:         fmt.Errorf("protocol violation"),
+		},
+		{
+			Scenario: "with_initial_headers_mutate_set_headers_to_invalid_object_function_as_empty_object",
+			Src: `
+function main(x) {
+  var newHeaders = function(y) {return y;};
+  x.HTTPHeaders = newHeaders;
+  return x;
+}
+		`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"oldKey": "oldVal",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				Data:         "asdf",
+				PartitionKey: "",
+				HTTPHeaders:  map[string]string{},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_headers_mutate_set_headers_to_invalid_object_array_as_object",
+			Src: `
+function main(x) {
+  var newHeaders = [10, 11];
+  x.HTTPHeaders = newHeaders;
+  return x;
+}
+		`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				HTTPHeaders: map[string]string{
+					"oldKey": "oldVal",
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"0": "10",
+						"1": "11",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				Data:         "asdf",
+				PartitionKey: "",
+				HTTPHeaders: map[string]string{
+					"0": "10",
+					"1": "11",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_headers_set_invalid_header_value(object)_calls_toString",
+			Src: `
+function main(x) {
+  var newHeaders = {invalid: {}};
+  x.HTTPHeaders = newHeaders;
+  return x;
+}
+		`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					HTTPHeaders: map[string]string{
+						"invalid": "[object Object]",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data:         "asdf",
+				PartitionKey: "",
+				HTTPHeaders: map[string]string{
+					"invalid": "[object Object]",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_headers_set_to_invalid_object(e.g.array)_replace",
+			Src: `
+function main(x) {
+  var newHeaders = [];
+  var ret = {
+    FilterOut: x.FilterOut,
+    Data: x.Data,
+    PartitionKey: x.PartitionKey,
+    HTTPHeaders: newHeaders
+  };
+
+  return ret;
+}
+		`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+				},
+			},
+			IsJSON:        false,
+			ExpInterState: nil,
+			Error:         fmt.Errorf("protocol violation"),
+		},
+
+		{
+			Scenario: "filterOut_ignores_headers",
+			Src: `
+function main(x) {
+  x.HTTPHeaders = {
+    foo: 'bar'
+  };
+  x.FilterOut = true;
+  return x;
+}
+		`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": nil,
+				"filtered": {
+					Data:         testJsTsv,
+					PartitionKey: "pk",
+				},
+				"failed": nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Scenario, func(t *testing.T) {
+			assert := assert.New(t)
+
+			jsConfig := &JSEngineConfig{
+				RunTimeout: 5,
+				SpMode:     tt.SpMode,
+			}
+
+			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
+			assert.NotNil(jsEngine)
+			if err != nil {
+				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+			}
+
+			if err := jsEngine.SmokeTest("main"); err != nil {
+				t.Fatalf("smoke-test failed with error: %q", err.Error())
+			}
+
+			transFunction := jsEngine.MakeFunction("main")
+			s, f, e, i := transFunction(tt.InputMsg, tt.InputInterState)
+
+			if !reflect.DeepEqual(i, tt.ExpInterState) {
+				t.Errorf("\nINTERMEDIATE_STATE:\nGOT:\n%s\nEXPECTED:\n%s",
+					spew.Sdump(i),
+					spew.Sdump(tt.ExpInterState))
+			}
+
+			if e == nil && tt.Error != nil {
+				t.Fatalf("missed expected error")
+			}
+
+			if e != nil {
+				gotErr := e.GetError()
+				expErr := tt.Error
+				if expErr == nil {
+					t.Fatalf("got unexpected error: %s", gotErr.Error())
+				}
+
+				if !strings.Contains(gotErr.Error(), expErr.Error()) {
+					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
+						gotErr.Error(),
+						expErr.Error())
+				}
+			}
+
+			assertMessagesCompareJs(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
+		})
+	}
+}
+
 func TestJSEngineSmokeTest(t *testing.T) {
 	testCases := []struct {
 		Src          string
@@ -1347,16 +2100,13 @@ function main(x) {
 	}
 }
 
-func testJSEngineFunc(c *JSEngineConfig) (*JSEngineConfig, error) {
-	return c, nil
-}
-
 // Helper function to compare messages and avoid using reflect.DeepEqual
 // on errors. Compares all but the error field of messages.
 func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJSON bool) {
 	t.Helper()
 
 	ok := false
+	headersOk := false
 	switch {
 	case act == nil:
 		ok = exp == nil
@@ -1373,16 +2123,24 @@ func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJSON bool
 		pTimeOk := reflect.DeepEqual(act.TimePulled, exp.TimePulled)
 		tTimeOk := reflect.DeepEqual(act.TimeTransformed, exp.TimeTransformed)
 		ackOk := reflect.DeepEqual(act.AckFunc, exp.AckFunc)
+		headersOk = reflect.DeepEqual(act.HTTPHeaders, exp.HTTPHeaders)
 
-		if pkOk && dataOk && cTimeOk && pTimeOk && tTimeOk && ackOk {
+		if pkOk && dataOk && cTimeOk && pTimeOk && tTimeOk && ackOk && headersOk {
 			ok = true
 		}
 	}
 
 	if !ok {
-		t.Errorf("\nGOT:\n%s\nEXPECTED:\n%s\n",
-			spew.Sdump(act),
-			spew.Sdump(exp))
+		// message.HTTPHeaders are not printed
+		if headersOk == false {
+			t.Errorf("\nUnexpected HTTPHeaders:\nGOT:\n%s\nEXPECTED:\n%s\n",
+				spew.Sdump(act.HTTPHeaders),
+				spew.Sdump(exp.HTTPHeaders))
+		} else {
+			t.Errorf("\nGOT:\n%s\nEXPECTED:\n%s\n",
+				spew.Sdump(act),
+				spew.Sdump(exp))
+		}
 	}
 }
 

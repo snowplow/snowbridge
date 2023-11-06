@@ -16,6 +16,7 @@ import (
 type Message struct {
 	PartitionKey string
 	Data         []byte
+	HTTPHeaders  map[string]string
 
 	// TimeCreated is when the message was created originally
 	TimeCreated time.Time

@@ -24,6 +24,7 @@ func TestMessageString(t *testing.T) {
 
 	assert.Equal("PartitionKey:some-key,TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,TimeTransformed:0001-01-01 00:00:00 +0000 UTC,Data:Hello World!", msg.String())
 	assert.Nil(msg.GetError())
+	assert.Nil(msg.HTTPHeaders)
 
 	msg.SetError(errors.New("failure"))
 
