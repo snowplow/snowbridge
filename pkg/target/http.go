@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
@@ -36,6 +37,7 @@ type HTTPTargetConfig struct {
 	KeyFile                 string `hcl:"key_file,optional" env:"TARGET_HTTP_TLS_KEY_FILE"`
 	CaFile                  string `hcl:"ca_file,optional" env:"TARGET_HTTP_TLS_CA_FILE"`
 	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional" env:"TARGET_HTTP_TLS_SKIP_VERIFY_TLS"` // false
+	MetadataAware           bool   `hcl:"metadata_aware,optional" env:"TARGET_HTTP_METADATA_AWARE"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -48,6 +50,11 @@ type HTTPTarget struct {
 	basicAuthUsername string
 	basicAuthPassword string
 	log               *log.Entry
+	metadataAware     bool
+}
+
+type metadataAwareness struct {
+	TargetHTTPHeaders map[string][]string
 }
 
 func checkURL(str string) error {
@@ -76,20 +83,23 @@ func getHeaders(headers string) (map[string]string, error) {
 	return parsed, nil
 }
 
-func addHeadersToRequest(request *http.Request, headers map[string]string) {
-	if headers == nil {
-		return
-	}
-
+func addHeadersToRequest(request *http.Request, headers map[string]string, metaAware *metadataAwareness) {
 	for key, value := range headers {
 		request.Header.Add(key, value)
 	}
 
+	if metaAware != nil {
+		for header, valuesArr := range metaAware.TargetHTTPHeaders {
+			for _, v := range valuesArr {
+				request.Header.Add(header, v)
+			}
+		}
+	}
 }
 
 // newHTTPTarget creates a client for writing events to HTTP
 func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentType string, headers string, basicAuthUsername string, basicAuthPassword string,
-	certFile string, keyFile string, caFile string, skipVerifyTLS bool) (*HTTPTarget, error) {
+	certFile string, keyFile string, caFile string, skipVerifyTLS bool, metadataAware bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -120,6 +130,7 @@ func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 		basicAuthUsername: basicAuthUsername,
 		basicAuthPassword: basicAuthPassword,
 		log:               log.WithFields(log.Fields{"target": "http", "url": httpURL}),
+		metadataAware:     metadataAware,
 	}, nil
 }
 
@@ -137,6 +148,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.KeyFile,
 		c.CaFile,
 		c.SkipVerifyTLS,
+		c.MetadataAware,
 	)
 }
 
@@ -188,6 +200,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	var errResult error
 
 	for _, msg := range safeMessages {
+		metadata, err := ht.decodeMetadata(msg)
+		if err != nil {
+			errResult = multierror.Append(errResult, errors.Wrap(err, "Error decoding metadata"))
+			failed = append(failed, msg)
+			continue
+		}
 
 		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(msg.Data))
 		if err != nil {
@@ -196,7 +214,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			continue
 		}
 		request.Header.Add("Content-Type", ht.contentType)            // Add content type
-		addHeadersToRequest(request, ht.headers)                      // Add headers if there are any
+		addHeadersToRequest(request, ht.headers, metadata)            // Add headers if there are any
 		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" { // Add basic auth if set
 			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 		}
@@ -252,4 +270,37 @@ func (ht *HTTPTarget) MaximumAllowedMessageSizeBytes() int {
 // GetID returns an identifier for this target
 func (ht *HTTPTarget) GetID() string {
 	return ht.httpURL
+}
+
+func (ht *HTTPTarget) decodeMetadata(msg *models.Message) (*metadataAwareness, error) {
+	if !ht.metadataAware {
+		return nil, nil
+	}
+
+	actualMetadata := msg.Metadata.GetActual()
+	if actualMetadata == nil {
+		return nil, nil
+	}
+
+	result := &metadataAwareness{}
+	// we could just use mapstructure.Decode, which does exactly the same
+	// only doing it explicitly to denote defaults under the hood
+	decodeConfig := &mapstructure.DecoderConfig{
+		Metadata: nil,
+		Result:   result,
+		// ErrorUnused: false,
+		// ErrorUnset:  false,
+		// MatchName:   strings.EqualFold
+	}
+
+	decoder, err := mapstructure.NewDecoder(decodeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := decoder.Decode(actualMetadata); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

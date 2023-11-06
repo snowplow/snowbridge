@@ -1140,6 +1140,985 @@ function main(x) {
 	}
 }
 
+func TestJSEngineMakeFunction_Metadata(t *testing.T) {
+	zeroMetadata := &models.Metadata{
+		AsString: "",
+		Actual:   nil,
+	}
+	testCases := []struct {
+		Scenario        string
+		Src             string
+		SpMode          bool
+		InputMsg        *models.Message
+		InputInterState interface{}
+		Expected        map[string]*models.Message
+		IsJSON          bool
+		ExpInterState   interface{}
+		Error           error
+	}{
+		{
+			Scenario: "without_initial_metadata_main_case",
+			Src: `
+function main(x) {
+  var metadata = {
+    Actual: {
+      targetHttpHeaders: {
+        foo: ['bar']
+      }
+    },
+    AsString: 'redacted'
+  };
+  x.Metadata = metadata;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						Actual: map[string]interface{}{
+							"targetHttpHeaders": map[string]interface{}{
+								"foo": []interface{}{"bar"},
+							},
+						},
+						AsString: "redacted",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"targetHttpHeaders": map[string]interface{}{
+							"foo": []interface{}{"bar"},
+						},
+					},
+					AsString: "redacted",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_metadata_main_case",
+			Src: `
+function main(x) {
+  var metadata = {
+    Actual: {
+      targetHttpHeaders: {
+        foo: ['bar', 'baz']
+      }
+    },
+    AsString: 'redacted'
+  };
+  x.Metadata = metadata;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						Actual: map[string]interface{}{
+							"targetHttpHeaders": map[string]interface{}{
+								"foo": []interface{}{"bar", "baz"},
+							},
+						},
+						AsString: "redacted",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"targetHttpHeaders": map[string]interface{}{
+							"foo": []interface{}{"bar", "baz"},
+						},
+					},
+					AsString: "redacted",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_metadata_and_intermediate_main_case",
+			Src: `
+function main(x) {
+  var metadata = {
+    Actual: {
+      targetHttpHeaders: {
+        foo: ['bar']
+      }
+    },
+    AsString: 'redacted'
+  };
+  x.Metadata = metadata;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: testJSMap,
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						Actual: map[string]interface{}{
+							"targetHttpHeaders": map[string]interface{}{
+								"foo": []interface{}{"bar"},
+							},
+						},
+						AsString: "redacted",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"targetHttpHeaders": map[string]interface{}{
+							"foo": []interface{}{"bar"},
+						},
+					},
+					AsString: "redacted",
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_metadata_set_to_null",
+			Src: `
+function main(x) {
+  x.Metadata = null;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					Metadata:     nil,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				Metadata:     nil,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_metadata_set_to_null",
+			Src: `
+function main(x) {
+  x.Metadata = null;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					Metadata:     nil,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				Metadata:     nil,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_metadata_set_to_undefined",
+			Src: `
+function main(x) {
+  x.Metadata = undefined;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					Metadata:     nil,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				Metadata:     nil,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_metadata_set_to_undefined",
+			Src: `
+function main(x) {
+  x.Metadata = undefined;
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					Metadata:     nil,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         testJSMap,
+				Metadata:     nil,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_metadata_set_to_invalid_primitive",
+			Src: `
+function main(x) {
+  x.Metadata = "invalid";
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: []byte("asdf"),
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						AsString: "oldString",
+						Actual: map[string]interface{}{
+							"oldKey": "oldVal",
+						},
+					},
+				},
+			},
+			IsJSON:        false,
+			ExpInterState: nil,
+			Error:         fmt.Errorf("could not convert"),
+		},
+		{
+			Scenario: "with_initial_metadata_set_to_invalid_object(array)",
+			Src: `
+function main(x) {
+  var newMeta = [];
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						AsString: "oldString",
+						Actual: map[string]interface{}{
+							"oldKey": "oldVal",
+						},
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				Data:         "asdf",
+				PartitionKey: "",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_metadata_set_to_invalid_object(function)",
+			Src: `
+function main(x) {
+  var newMeta = function(y) {return y;};
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata:     zeroMetadata,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data:     "asdf",
+				Metadata: zeroMetadata,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_metadata_set_to_non_metadata_object",
+			Src: `
+function main(x) {
+  var newMeta = {
+    NotMetadataField: "neverSeen"
+  };
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: "asdf",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						AsString: "oldString",
+						Actual: map[string]interface{}{
+							"oldKey": "oldVal",
+						},
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data: "asdf",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_metadata_set_to_non_metadata_object",
+			Src: `
+function main(x) {
+  var newMeta = {
+    NotMetadataField: "neverSeen"
+  };
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+			},
+			InputInterState: &engineProtocol{
+				Data: "asdf",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata:     zeroMetadata,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data:     "asdf",
+				Metadata: zeroMetadata,
+			},
+			Error: nil,
+		},
+
+		{
+			Scenario: "with_initial_metadata_set_to_empty_object",
+			Src: `
+function main(x) {
+  var newMeta = {};
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						AsString: "oldString",
+						Actual: map[string]interface{}{
+							"oldKey": "oldVal",
+						},
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data: "asdf",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_metadata_set_to_empty_object",
+			Src: `
+function main(x) {
+  var newMeta = {};
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata:     zeroMetadata,
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data:     "asdf",
+				Metadata: zeroMetadata,
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "with_initial_metadata_set_AsString_only",
+			Src: `
+function main(x) {
+  var newMeta = {
+    AsString: "newString"
+  };
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						AsString: "newString",
+						Actual: map[string]interface{}{
+							"oldKey": "oldVal",
+						},
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data: "asdf",
+				Metadata: &models.Metadata{
+					AsString: "newString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_metadata_set_AsString_only",
+			Src: `
+function main(x) {
+  var newMeta = {
+    AsString: "newString"
+  };
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						AsString: "newString",
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data: "asdf",
+				Metadata: &models.Metadata{
+					AsString: "newString",
+				},
+			},
+			Error: nil,
+		},
+
+		{
+			Scenario: "with_initial_metadata_set_Actual_only",
+			Src: `
+function main(x) {
+  var newMeta = {
+    Actual: {newKey: "newVal"}
+  };
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: "asdf",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey": "oldVal",
+					},
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						AsString: "oldString",
+						Actual: map[string]interface{}{
+							"newKey": "newVal",
+						},
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data: "asdf",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"newKey": "newVal",
+					},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "without_initial_metadata_set_Actual_only",
+			Src: `
+function main(x) {
+  var newMeta = {
+    Actual: {newKey: "newVal"}
+  };
+  x.Metadata = newMeta;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         []byte("asdf"),
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("asdf"),
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						Actual: map[string]interface{}{
+							"newKey": "newVal",
+						},
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: false,
+			ExpInterState: &engineProtocol{
+				Data: "asdf",
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"newKey": "newVal",
+					},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "extend_existing_metadata",
+			Src: `
+function main(x) {
+  var metadata = x.Metadata || {};
+  var actualMeta = metadata.Actual || {};
+  var metaString = metadata.AsString || '';
+
+  var source = {};
+  source.newKey = 'newVal';
+
+  var someArr = Array.isArray(actualMeta.someArr) ? actualMeta.someArr : [];
+  source.someArr = someArr.concat(['1','2']);
+
+  x.Metadata = {
+    Actual: Object.assign(actualMeta, source),
+    AsString: metaString.concat("_ext")
+  };
+
+  return x;
+}
+`,
+			SpMode: true,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey":  "oldVal",
+						"someArr": []string{"0"},
+					},
+				},
+			},
+			InputInterState: &engineProtocol{
+				Data: testJSMap,
+				Metadata: &models.Metadata{
+					AsString: "oldString",
+					Actual: map[string]interface{}{
+						"oldKey":  "oldVal",
+						"someArr": []string{"0"},
+					},
+				},
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "pk",
+					Metadata: &models.Metadata{
+						AsString: "oldString_ext",
+						Actual: map[string]interface{}{
+							"oldKey":  "oldVal",
+							"newKey":  "newVal",
+							"someArr": []interface{}{"0", "1", "2"},
+						},
+					},
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			IsJSON: true,
+			ExpInterState: &engineProtocol{
+				Data: testJSMap,
+				Metadata: &models.Metadata{
+					AsString: "oldString_ext",
+					Actual: map[string]interface{}{
+						"oldKey":  "oldVal",
+						"newKey":  "newVal",
+						"someArr": []interface{}{"0", "1", "2"},
+					},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Scenario: "filterOut_ignores_metadata",
+			Src: `
+function main(x) {
+  x.Metadata = {
+    Actual: {
+      someKey: "someVal"
+    },
+  };
+  x.FilterOut = true;
+  return x;
+}
+`,
+			SpMode: false,
+			InputMsg: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": nil,
+				"filtered": {
+					Data:         testJsTsv,
+					PartitionKey: "pk",
+				},
+				"failed": nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Scenario, func(t *testing.T) {
+			assert := assert.New(t)
+
+			jsConfig := &JSEngineConfig{
+				RunTimeout: 5,
+				SpMode:     tt.SpMode,
+			}
+
+			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
+			assert.NotNil(jsEngine)
+			if err != nil {
+				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+			}
+
+			if err := jsEngine.SmokeTest("main"); err != nil {
+				t.Fatalf("smoke-test failed with error: %q", err.Error())
+			}
+
+			transFunction := jsEngine.MakeFunction("main")
+			s, f, e, i := transFunction(tt.InputMsg, tt.InputInterState)
+
+			if !reflect.DeepEqual(i, tt.ExpInterState) {
+				t.Errorf("\nINTERMEDIATE_STATE:\nGOT:\n%s\nEXPECTED:\n%s",
+					spew.Sdump(i),
+					spew.Sdump(tt.ExpInterState))
+			}
+
+			if e == nil && tt.Error != nil {
+				t.Fatalf("missed expected error")
+			}
+
+			if e != nil {
+				gotErr := e.GetError()
+				expErr := tt.Error
+				if expErr == nil {
+					t.Fatalf("got unexpected error: %s", gotErr.Error())
+				}
+
+				if !strings.Contains(gotErr.Error(), expErr.Error()) {
+					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
+						gotErr.Error(),
+						expErr.Error())
+				}
+			}
+
+			assertMessagesCompareJs(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
+		})
+	}
+}
+
 func TestJSEngineSmokeTest(t *testing.T) {
 	testCases := []struct {
 		Src          string
@@ -1347,10 +2326,6 @@ function main(x) {
 	}
 }
 
-func testJSEngineFunc(c *JSEngineConfig) (*JSEngineConfig, error) {
-	return c, nil
-}
-
 // Helper function to compare messages and avoid using reflect.DeepEqual
 // on errors. Compares all but the error field of messages.
 func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJSON bool) {
@@ -1373,8 +2348,9 @@ func assertMessagesCompareJs(t *testing.T, act, exp *models.Message, isJSON bool
 		pTimeOk := reflect.DeepEqual(act.TimePulled, exp.TimePulled)
 		tTimeOk := reflect.DeepEqual(act.TimeTransformed, exp.TimeTransformed)
 		ackOk := reflect.DeepEqual(act.AckFunc, exp.AckFunc)
+		metaOk := reflect.DeepEqual(act.Metadata, exp.Metadata)
 
-		if pkOk && dataOk && cTimeOk && pTimeOk && tTimeOk && ackOk {
+		if pkOk && dataOk && cTimeOk && pTimeOk && tTimeOk && ackOk && metaOk {
 			ok = true
 		}
 	}

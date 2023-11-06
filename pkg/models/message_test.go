@@ -22,14 +22,95 @@ func TestMessageString(t *testing.T) {
 		PartitionKey: "some-key",
 	}
 
-	assert.Equal("PartitionKey:some-key,TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,TimeTransformed:0001-01-01 00:00:00 +0000 UTC,Data:Hello World!", msg.String())
+	assert.Equal("PartitionKey:some-key,TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,TimeTransformed:0001-01-01 00:00:00 +0000 UTC,Metadata:,Data:Hello World!", msg.String())
 	assert.Nil(msg.GetError())
+	assert.Nil(msg.Metadata)
 
 	msg.SetError(errors.New("failure"))
 
 	assert.NotNil(msg.GetError())
 	if msg.GetError() != nil {
 		assert.Equal("failure", msg.GetError().Error())
+	}
+}
+
+func TestMetadata_GetString(t *testing.T) {
+	testCases := []struct {
+		Name        string
+		Metadata    *Metadata
+		ExpectedStr string
+	}{
+		{
+			Name:        "metadata is nil",
+			Metadata:    nil,
+			ExpectedStr: "",
+		},
+		{
+			Name:        "metadata is missing AsString field",
+			Metadata:    &Metadata{},
+			ExpectedStr: "",
+		},
+		{
+			Name: "proper metadata",
+			Metadata: &Metadata{
+				Actual: map[string]interface{}{
+					"foo": "bar",
+				},
+				AsString: "redacted",
+			},
+			ExpectedStr: "redacted",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			metastring := tt.Metadata.GetString()
+			assert.NotNil(metastring)
+			assert.Equal(tt.ExpectedStr, metastring)
+
+		})
+	}
+}
+
+func TestMetadata_GetActual(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		Metadata     *Metadata
+		ExpectActual map[string]interface{}
+	}{
+		{
+			Name:         "metadata is nil",
+			Metadata:     nil,
+			ExpectActual: nil,
+		},
+		{
+			Name:         "metadata is missing Actual field",
+			Metadata:     &Metadata{},
+			ExpectActual: nil,
+		},
+		{
+			Name: "proper metadata",
+			Metadata: &Metadata{
+				Actual: map[string]interface{}{
+					"foo": "bar",
+				},
+				AsString: "some_string",
+			},
+			ExpectActual: map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			metaActual := tt.Metadata.GetActual()
+			assert.Equal(tt.ExpectActual, metaActual)
+		})
 	}
 }
 

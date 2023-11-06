@@ -10,13 +10,17 @@ package target
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -27,7 +31,7 @@ func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Se
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer req.Body.Close()
-		data, err := ioutil.ReadAll(req.Body)
+		data, err := io.ReadAll(req.Body)
 		if err != nil {
 			panic(err)
 		}
@@ -86,6 +90,194 @@ func TestGetHeaders(t *testing.T) {
 
 }
 
+func TestDecodeMetadata(t *testing.T) {
+	testTargetConfig := &HTTPTargetConfig{
+		HTTPURL:                 "http://test",
+		ByteLimit:               1048576,
+		RequestTimeoutInSeconds: 5,
+		ContentType:             "application/json",
+		MetadataAware:           true,
+	}
+	testTarget, initerr := HTTPTargetConfigFunction(testTargetConfig)
+	if initerr != nil {
+		t.Fatalf("failed to create test target")
+	}
+
+	testCases := []struct {
+		Name     string
+		Msg      *models.Message
+		Expected *metadataAwareness
+		Error    error
+	}{
+		{
+			Name:     "message_has_no_metadata",
+			Msg:      &models.Message{},
+			Expected: nil,
+			Error:    nil,
+		},
+		{
+			Name: "message_has_no_actual_metadata",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{},
+			},
+			Expected: nil,
+			Error:    nil,
+		},
+		{
+			Name: "actual_metadata_contains_not_relevant_key",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"foo": "bar",
+					},
+				},
+			},
+			Expected: &metadataAwareness{},
+			Error:    nil,
+		},
+		{
+			Name: "actual_metadata_contains_unused_keys",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"foo": "bar",
+						"TargetHTTPHeaders": map[string][]string{
+							"newHeader": {"something"},
+						},
+					},
+				},
+			},
+			Expected: &metadataAwareness{
+				TargetHTTPHeaders: map[string][]string{
+					"newHeader": {"something"},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Name: "actual_metadata_contains_invalid_TargetHTTPHeaders_1",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"TargetHttpHeaders": "invalid",
+					},
+				},
+			},
+			Expected: nil,
+			Error:    fmt.Errorf("decoding"),
+		},
+		{
+			Name: "actual_metadata_contains_invalid_TargetHTTPHeaders_2",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"TargetHttpHeaders": map[string]interface{}{
+							"newHeader": "test",
+						},
+					},
+				},
+			},
+			Expected: nil,
+			Error:    fmt.Errorf("decoding"),
+		},
+		{
+			Name: "actual_metadata_contains_invalid_TargetHTTPHeaders_3",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"TargetHttpHeaders": map[string]interface{}{
+							"newHeader": []int{1, 2},
+						},
+					},
+				},
+			},
+			Expected: nil,
+			Error:    fmt.Errorf("decoding"),
+		},
+		{
+			Name: "happy_path_decoding_1",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"TargetHTTPHeaders": map[string][]interface{}{
+							"newHeader": {"test"},
+						},
+					},
+				},
+			},
+			Expected: &metadataAwareness{
+				TargetHTTPHeaders: map[string][]string{
+					"newHeader": {"test"},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Name: "happy_path_decoding_2",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"TargetHttpHeaders": map[string][]interface{}{
+							"NewHeader": {"test"},
+						},
+					},
+				},
+			},
+			Expected: &metadataAwareness{
+				TargetHTTPHeaders: map[string][]string{
+					"NewHeader": {"test"},
+				},
+			},
+			Error: nil,
+		},
+		{
+			Name: "happy_path_decoding_3",
+			Msg: &models.Message{
+				Metadata: &models.Metadata{
+					Actual: map[string]interface{}{
+						"targetHTTPHeaders": map[string][]interface{}{
+							"newHeader": {"test"},
+						},
+					},
+				},
+			},
+			Expected: &metadataAwareness{
+				TargetHTTPHeaders: map[string][]string{
+					"newHeader": {"test"},
+				},
+			},
+			Error: nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			out, err := testTarget.decodeMetadata(tt.Msg)
+			if err == nil && tt.Error != nil {
+				t.Fatalf("Got no error when it was expected to get error: %s", tt.Error.Error())
+			}
+
+			if err != nil {
+				if tt.Error == nil {
+					t.Fatalf("got unexpected error: %s", err.Error())
+				}
+
+				if !strings.Contains(err.Error(), tt.Error.Error()) {
+					t.Fatalf("Actual error:\n%s\n does not contain Expected error:\n%s",
+						err.Error(),
+						tt.Error.Error())
+				}
+			}
+
+			if !reflect.DeepEqual(out, tt.Expected) {
+				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
+					spew.Sdump(out),
+					spew.Sdump(tt.Expected))
+			}
+		})
+	}
+}
+
 func TestAddHeadersToRequest(t *testing.T) {
 	assert := assert.New(t)
 
@@ -101,7 +293,7 @@ func TestAddHeadersToRequest(t *testing.T) {
 		"Accept-Datetime": []string{"Thu, 31 May 2007 20:35:00 GMT"},
 	}
 
-	addHeadersToRequest(req, headersToAdd)
+	addHeadersToRequest(req, headersToAdd, nil)
 	assert.Equal(expectedHeaders, req.Header)
 
 	req2, err2 := http.NewRequest("POST", "abc", bytes.NewBuffer([]byte("def")))
@@ -111,20 +303,109 @@ func TestAddHeadersToRequest(t *testing.T) {
 	var noHeadersToAdd map[string]string
 	noHeadersExpected := http.Header{}
 
-	addHeadersToRequest(req2, noHeadersToAdd)
+	addHeadersToRequest(req2, noHeadersToAdd, nil)
 
 	assert.Equal(noHeadersExpected, req2.Header)
+}
+
+func TestAddHeadersToRequest_WithMetadata(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		ConfigHeaders  map[string]string
+		Meta           *metadataAwareness
+		ExpectedHeader http.Header
+	}{
+		{
+			Name:           "meta_nil_config_nil",
+			ConfigHeaders:  nil,
+			Meta:           nil,
+			ExpectedHeader: http.Header{},
+		},
+		{
+			Name:           "meta_empty_config_nil",
+			ConfigHeaders:  nil,
+			Meta:           &metadataAwareness{},
+			ExpectedHeader: http.Header{},
+		},
+		{
+			Name: "meta_nil_plus_config",
+			ConfigHeaders: map[string]string{
+				"Max Forwards": "10",
+			},
+			Meta: nil,
+			ExpectedHeader: http.Header{
+				"Max Forwards": {"10"},
+			},
+		},
+		{
+			Name: "meta_empty_plus_config",
+			ConfigHeaders: map[string]string{
+				"Max Forwards": "10",
+			},
+			Meta: &metadataAwareness{},
+			ExpectedHeader: http.Header{
+				"Max Forwards": {"10"},
+			},
+		},
+		{
+			Name: "meta_header_plus_config",
+			ConfigHeaders: map[string]string{
+				"Max Forwards": "10",
+			},
+			Meta: &metadataAwareness{
+				TargetHTTPHeaders: map[string][]string{
+					"Content-Length": {"0", "1"},
+				},
+			},
+			ExpectedHeader: http.Header{
+				"Max Forwards":   {"10"},
+				"Content-Length": {"0", "1"},
+			},
+		},
+		{
+			Name: "meta_headers_same_key_with_config",
+			ConfigHeaders: map[string]string{
+				"Max Forwards":   "10",
+				"Content-Length": "0",
+			},
+			Meta: &metadataAwareness{
+				TargetHTTPHeaders: map[string][]string{
+					"Content-Length": {"1", "2"},
+					"Test-Header":    {"test"},
+					"Empty":          {},
+				},
+			},
+			ExpectedHeader: http.Header{
+				"Max Forwards":   {"10"},
+				"Content-Length": {"0", "1", "2"},
+				"Test-Header":    {"test"},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			req, err := http.NewRequest("POST", "abc", nil)
+			if err != nil {
+				t.Fatalf("failed to create test http.Request")
+			}
+
+			addHeadersToRequest(req, tt.ConfigHeaders, tt.Meta)
+			assert.Equal(tt.ExpectedHeader, req.Header)
+		})
+	}
 }
 
 func TestNewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := newHTTPTarget("http://something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	httpTarget, err := newHTTPTarget("http://something", 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 
 	assert.Nil(err)
 	assert.NotNil(httpTarget)
 
-	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 
 	assert.NotNil(err1)
 	if err1 != nil {
@@ -132,7 +413,7 @@ func TestNewHTTPTarget(t *testing.T) {
 	}
 	assert.Nil(failedHTTPTarget)
 
-	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	assert.NotNil(err2)
 	if err2 != nil {
 		assert.Equal("Invalid url for HTTP target: ''", err2.Error())
@@ -148,7 +429,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +463,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +506,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +538,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	server := createTestServer(&results, &wg)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true)
+	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,6 +593,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		string(`../../integration/http/localhost.crt`),
 		string(`../../integration/http/localhost.key`),
 		string(`../../integration/http/rootCA.crt`),
+		false,
 		false)
 	if err != nil {
 		t.Fatal(err)
@@ -344,6 +626,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		string(`../../integration/http/localhost.crt`),
 		string(`../../integration/http/localhost.key`),
 		string(`../../integration/http/rootCA.crt`),
+		false,
 		false)
 	if err2 != nil {
 		t.Fatal(err2)
@@ -369,6 +652,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		"",
 		"",
+		false,
 		false)
 	if err4 != nil {
 		t.Fatal(err4)
@@ -406,7 +690,7 @@ func getNgrokAddress() string {
 		panic(err)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
 	}

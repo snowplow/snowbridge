@@ -12,10 +12,17 @@ import (
 	"time"
 )
 
+// Metadata holds the structure of a message's metadata
+type Metadata struct {
+	AsString string
+	Actual   map[string]interface{}
+}
+
 // Message holds the structure of a generic message to be sent to a target
 type Message struct {
 	PartitionKey string
 	Data         []byte
+	Metadata     *Metadata
 
 	// TimeCreated is when the message was created originally
 	TimeCreated time.Time
@@ -51,13 +58,30 @@ func (m *Message) GetError() error {
 	return m.err
 }
 
+// GetActual returns the message's Actual Metadata
+func (meta *Metadata) GetActual() map[string]interface{} {
+	if meta == nil {
+		return nil
+	}
+	return meta.Actual
+}
+
+// GetString returns the message's Metadata AsString
+func (meta *Metadata) GetString() string {
+	if meta == nil {
+		return ""
+	}
+	return meta.AsString
+}
+
 func (m *Message) String() string {
 	return fmt.Sprintf(
-		"PartitionKey:%s,TimeCreated:%v,TimePulled:%v,TimeTransformed:%v,Data:%s",
+		"PartitionKey:%s,TimeCreated:%v,TimePulled:%v,TimeTransformed:%v,Metadata:%s,Data:%s",
 		m.PartitionKey,
 		m.TimeCreated,
 		m.TimePulled,
 		m.TimeTransformed,
+		m.Metadata.GetString(),
 		string(m.Data),
 	)
 }

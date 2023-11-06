@@ -9,6 +9,7 @@ package engine
 
 import (
 	jsoniter "github.com/json-iterator/go"
+	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/transform"
 )
 
@@ -41,4 +42,5 @@ type engineProtocol struct {
 	FilterOut    bool
 	PartitionKey string
 	Data         interface{}
+	Metadata     *models.Metadata
 }
