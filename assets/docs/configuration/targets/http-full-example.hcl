@@ -38,6 +38,8 @@ target {
     # Whether to skip verifying ssl certificates chain (default: false)
     # If tls_cert and tls_key are not provided, this setting is not applied.
     skip_verify_tls            = true
+
+    # Whether to enable setting headers dynamically
+    dynamic_headers            = true
   }
 }
-
