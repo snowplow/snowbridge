@@ -1,4 +1,4 @@
-FROM alpine:3.18.4
+FROM alpine:3.18.5
 LABEL org.opencontainers.image.authors="Snowplow Analytics <support@snowplow.io>"
 
 ADD build/output/linux/main/cli/snowbridge /opt/snowplow/
