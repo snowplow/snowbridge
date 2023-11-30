@@ -18,5 +18,5 @@ The AWS-specific distribution contains everything, including the Kinesis source,
 
 To comply with the [Amazon Software License](https://github.com/twitchscience/kinsumer/blob/master/LICENSE), you may only use this distribution of Snowbridge _“with the web services, computing platforms or applications provided by Amazon.com, Inc. or its affiliates, including Amazon Web Services, Inc.”_
 
-[release-image]: http://img.shields.io/badge/golang-2.2.2-6ad7e5.svg?style=flat
+[release-image]: http://img.shields.io/badge/golang-2.2.2-rc1-6ad7e5.svg?style=flat
 [releases]: https://github.com/snowplow/snowbridge/releases/
