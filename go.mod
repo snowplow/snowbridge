@@ -35,11 +35,11 @@ require (
 	github.com/twitchscience/kinsumer v0.0.0-20210611163023-da24975e2c91
 	github.com/urfave/cli v1.22.14
 	github.com/xdg/scram v1.0.5
-	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/api v0.136.0 // indirect
 	google.golang.org/genproto v0.0.0-20230807174057-1744710a1577
 	google.golang.org/grpc v1.58.3
