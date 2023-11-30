@@ -42,7 +42,7 @@ require (
 	golang.org/x/text v0.12.0 // indirect
 	google.golang.org/api v0.136.0 // indirect
 	google.golang.org/genproto v0.0.0-20230807174057-1744710a1577
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.58.3
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
 )
 
