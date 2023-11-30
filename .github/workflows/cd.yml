@@ -44,14 +44,6 @@ jobs:
         echo "VERSION file ${{steps.version.outputs.VERSION_FILE}} does not match tagged version ${{ github.ref }}"
         exit 1
 
-    - name: Snyk Setup
-      uses: snyk/actions/setup@master
-
-    - name: Run Snyk to check for vulnerabilities
-      run: snyk test --project-name=snowbridge --severity-threshold=high
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
     - name: Install ngrok
       run: |
           mkdir -p $GITHUB_WORKSPACE/bin
@@ -72,6 +64,37 @@ jobs:
 
     - name: Run e2e tests
       run: make e2e-test
+
+    - name: Snyk Setup
+      uses: snyk/actions/setup@master
+
+    - name: Run Snyk to check for vulnerabilities in main Docker image
+      run: snyk container test snowplow/snowbridge:${{ github.ref_name }} --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Run Snyk to check for vulnerabilities in aws-only Docker image
+      run: snyk container test snowplow/snowbridge:${{ github.ref_name }}-aws-only --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Run Snyk to monitor for vulnerabilities in main Docker image
+      uses: snyk/actions/docker@master
+      with:
+        image: "snowplow/snowbridge:${{ github.ref_name }}"
+        args: "--app-vulns --org=data-processing-new"
+        command: monitor
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Run Snyk to monitor for vulnerabilities in aws-only Docker image
+      uses: snyk/actions/docker@master
+      with:
+        image: "snowplow/snowbridge:${{ github.ref_name }}-aws-only"
+        args: "--app-vulns --org=data-processing-new"
+        command: monitor
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     - name: Create Release
       uses: actions/create-release@v1
