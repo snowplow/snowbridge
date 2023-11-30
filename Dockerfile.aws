@@ -3,6 +3,8 @@ LABEL org.opencontainers.image.authors="Snowplow Analytics <support@snowplow.io>
 
 ADD build/output/linux/aws/cli/snowbridge /opt/snowplow/
 
+RUN apk update && apk add --no-cache openssl=3.1.4-r1
+
 RUN adduser -D snowplow
 USER snowplow
 
