@@ -1,3 +1,10 @@
+Version 2.2.2 (2023-11-30)
+--------------------------
+Bump grpc to 1.58.3 (#296)
+Bump x/net to 0.17.0 (#297)
+Bump openssl from base docker image to 3.1.4-r1 (#298)
+Scan Docker images in Snyk Github action (#299)
+
 Version 2.2.1 (2023-10-09)
 --------------------------
 Upgrade go version to 1.21.1 (#292)
