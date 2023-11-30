@@ -30,6 +30,11 @@ jobs:
         check-latest: true
         cache: true
 
+    - name: Extract project version from file
+      id: version
+      run: |
+          echo ::set-output name=VERSION::"$(cat VERSION)"
+
     - name: Block Concurrent Executions of Integration Tests
       if: ${{ env.NGROK_TOKEN != '' }} 
       uses: softprops/turnstyle@v1
@@ -60,8 +65,13 @@ jobs:
     - name: Snyk Setup
       uses: snyk/actions/setup@master
 
-    - name: Run Snyk to check for vulnerabilities
-      run: snyk test --project-name=snowbridge --severity-threshold=high
+    - name: Run Snyk to check for vulnerabilities in main Docker image
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}} --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Run Snyk to check for vulnerabilities in aws-only Docker
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-aws-only --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
