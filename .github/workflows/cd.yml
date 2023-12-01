@@ -82,7 +82,7 @@ jobs:
       uses: snyk/actions/docker@master
       with:
         image: "snowplow/snowbridge:${{ github.ref_name }}"
-        args: "--app-vulns --org=data-processing-new"
+        args: "--app-vulns --org=data-processing-new --project-name=snowbridge-main"
         command: monitor
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -91,7 +91,7 @@ jobs:
       uses: snyk/actions/docker@master
       with:
         image: "snowplow/snowbridge:${{ github.ref_name }}-aws-only"
-        args: "--app-vulns --org=data-processing-new"
+        args: "--app-vulns --org=data-processing-new --project-name=snowbridge-aws-only"
         command: monitor
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
