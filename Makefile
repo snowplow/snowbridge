@@ -1,4 +1,4 @@
-.PHONY: all gox cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test integration-reset integration-up integration-down integration-test container-release clean
+.PHONY: all gox cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test-amd64 test-arm64 integration-reset integration-up integration-down integration-test-amd64 integration-test-arm64 container-release clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -28,6 +28,8 @@ linux_out_dir   = $(output_dir)/linux
 darwin_out_dir  = $(output_dir)/darwin
 windows_out_dir = $(output_dir)/windows
 
+linux_container_image_out_dir = $(output_dir)/container/linux
+
 container_name = snowplow/snowbridge
 
 
@@ -48,48 +50,79 @@ cli: gox cli-linux cli-darwin cli-windows
 	cp assets/awslicense/AMAZON_LICENSE AMAZON_LICENSE
 # linux aws:
 # Zip up the binaries
-	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
+	(cd $(linux_out_dir)/aws/cli/amd64/ && zip -r staging.zip snowbridge)
 # Add the readme, and relevant licence(s)
-	zip -u $(linux_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	zip -u $(linux_out_dir)/aws/cli/amd64/staging.zip README.md LICENSE.md AMAZON_LICENSE
 # Move to its compiled_dir location, with appropriate long form name
-	mv $(linux_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_amd64.zip
+	mv $(linux_out_dir)/aws/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_amd64.zip
 # Rinse and repeat for each distribution
+# linux arm aws:
+	(cd $(linux_out_dir)/aws/cli/arm64/ && zip -r staging.zip snowbridge)
+	zip -u $(linux_out_dir)/aws/cli/arm64/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	mv $(linux_out_dir)/aws/cli/arm64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_arm64.zip
 # darwin aws:
-	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
-	zip -u $(darwin_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
-	mv $(darwin_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_amd64.zip
+	(cd $(darwin_out_dir)/aws/cli/amd64/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/aws/cli/amd64/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	mv $(darwin_out_dir)/aws/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_amd64.zip
+# darwin arm aws:
+	(cd $(darwin_out_dir)/aws/cli/arm64/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/aws/cli/arm64/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	mv $(darwin_out_dir)/aws/cli/arm64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_arm64.zip
 # Windows aws:
-	(cd $(windows_out_dir)/aws/cli/ && zip -r staging.zip snowbridge.exe)
-	zip -u $(windows_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
-	mv $(windows_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_windows_amd64.zip
+	(cd $(windows_out_dir)/aws/cli/amd64/ && zip -r staging.zip snowbridge.exe)
+	zip -u $(windows_out_dir)/aws/cli/amd64/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	mv $(windows_out_dir)/aws/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_windows_amd64.zip
 # linux main:
-	(cd $(linux_out_dir)/main/cli/ && zip -r staging.zip snowbridge)
-	zip -u $(linux_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(linux_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_amd64.zip
+	(cd $(linux_out_dir)/main/cli/amd64/ && zip -r staging.zip snowbridge)
+	zip -u $(linux_out_dir)/main/cli/amd64/staging.zip README.md LICENSE.md
+	mv $(linux_out_dir)/main/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_amd64.zip
+# linux arm main:
+	(cd $(linux_out_dir)/main/cli/arm64/ && zip -r staging.zip snowbridge)
+	zip -u $(linux_out_dir)/main/cli/arm64/staging.zip README.md LICENSE.md
+	mv $(linux_out_dir)/main/cli/arm64/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_arm64.zip
 # darwin main:
-	(cd $(darwin_out_dir)/main/cli/ && zip -r staging.zip snowbridge)
-	zip -u $(darwin_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(darwin_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_amd64.zip
+	(cd $(darwin_out_dir)/main/cli/amd64/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/main/cli/amd64/staging.zip README.md LICENSE.md
+	mv $(darwin_out_dir)/main/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_amd64.zip
+# darwin arm main:
+	(cd $(darwin_out_dir)/main/cli/arm64/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/main/cli/arm64/staging.zip README.md LICENSE.md
+	mv $(darwin_out_dir)/main/cli/arm64/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_arm64.zip	
 # windows main:
-	(cd $(windows_out_dir)/main/cli/ && zip -r staging.zip snowbridge.exe)
-	zip -u $(windows_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(windows_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_windows_amd64.zip
+	(cd $(windows_out_dir)/main/cli/amd64/ && zip -r staging.zip snowbridge.exe)
+	zip -u $(windows_out_dir)/main/cli/amd64/staging.zip README.md LICENSE.md
+	mv $(windows_out_dir)/main/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(version)_windows_amd64.zip
 
+# Build CLI binaries for each distro
 cli-linux: gox
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/main/cli/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
+
+	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
 
 cli-darwin: gox
-	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/main/cli/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
+
+	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
 
 cli-windows: gox
-	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 container: cli-linux
-	docker build -t $(container_name):$(aws_only_version) -f Dockerfile.aws .
-	docker build -t $(container_name):$(version) -f Dockerfile.main .
+	docker build -t $(container_name):$(aws_only_version) --platform=linux/amd64 -f Dockerfile.aws .
+	docker build -t $(container_name):$(aws_only_version)-arm64 --platform=linux/arm64 -f Dockerfile.aws .
+	docker build -t $(container_name):$(version) --platform=linux/amd64 -f Dockerfile.main .
+	docker build -t $(container_name):$(version)-arm64 --platform=linux/arm64 -f Dockerfile.main .
+	
+	docker image inspect $(container_name):$(aws_only_version)
+	docker image inspect $(container_name):$(aws_only_version)-arm64
+	docker image inspect $(container_name):$(version)
+	docker image inspect $(container_name):$(version)-arm64
+
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
@@ -113,16 +146,28 @@ tidy:
 test-setup:
 	mkdir -p $(coverage_dir)
 	go install golang.org/x/tools/cmd/cover@latest
+	sudo apt-get update 
+	sudo apt install qemu qemu-user-binfmt
 
-test: test-setup
-	go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
+test-amd64: test-setup
+	GOARCH=amd64 go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
 	go tool cover -html=$(coverage_out) -o $(coverage_html)
 	go tool cover -func=$(coverage_out)
 
-integration-test: test-setup
-	go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+test-arm64: test-setup
+	GOARCH=arm64 go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
+	go tool cover -html=$(coverage_out) -o $(coverage_html)
+	go tool cover -func=$(coverage_out)	
+
+integration-test-amd64: test-setup
+	GOARCH=amd64 go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	go tool cover -html=$(coverage_out) -o $(coverage_html)
 	go tool cover -func=$(coverage_out)
+
+integration-test-arm64: test-setup
+	GOARCH=arm64 go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+	go tool cover -html=$(coverage_out) -o $(coverage_html)
+	go tool cover -func=$(coverage_out)	
 
 # e2e-test covers only the e2e release tests, in preparation for when these will rely on deployed assets
 e2e-test: test-setup
@@ -168,8 +213,10 @@ http-down:
 # Make & push docker assets, don't tag as latest if there's a `-` in the version (eg. 0.1.0-rc1)
 container-release:
 	@-docker login --username $(DOCKER_USERNAME) --password $(DOCKER_PASSWORD)
-	docker push $(container_name):$(aws_only_version)
-	docker push $(container_name):$(version)
+	docker buildx create --name multi-arch-builder --driver=docker-container --platform linux/amd64,linux/arm64 --use
+	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 --push .
+	docker buildx build -t $(container_name):$(version) -f Dockerfile.main --platform=linux/amd64,linux/arm64 --push .
+
 	if ! [[ $(version) =~ "-" ]]; then docker tag ${container_name}:${version} ${container_name}:latest; docker push $(container_name):latest; fi;
 
 # -----------------------------------------------------------------------------

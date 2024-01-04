@@ -1,6 +1,6 @@
 module github.com/snowplow/snowbridge
 
-go 1.21.1
+go 1.21
 
 require (
 	cloud.google.com/go v0.112.0 // indirect
@@ -90,6 +90,7 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-memdb v1.3.4 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
+	github.com/hashicorp/go-version v1.2.0 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
@@ -99,6 +100,8 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-sqlite3 v2.0.2+incompatible // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+	github.com/mitchellh/gox v1.0.1 // indirect
+	github.com/mitchellh/iochan v1.0.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
