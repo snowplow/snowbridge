@@ -1,7 +1,9 @@
 FROM alpine:3.18.5
 LABEL org.opencontainers.image.authors="Snowplow Analytics <support@snowplow.io>"
 
-ADD build/output/linux/main/cli/snowbridge /opt/snowplow/
+ARG TARGETARCH
+
+ADD build/output/linux/main/cli/$TARGETARCH/snowbridge /opt/snowplow/
 
 RUN adduser -D snowplow
 USER snowplow
