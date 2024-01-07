@@ -109,10 +109,14 @@ jobs:
         tag_name: ${{ github.ref_name }}
         files: |
           build/compiled/snowbridge_${{ github.ref_name }}-aws-only_darwin_amd64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_linux.zip
+          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_darwin_arm64.zip
+          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_linux_amd64.zip
+          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_linux_arm64.zip
           build/compiled/snowbridge_${{ github.ref_name }}-aws-only_windows_amd64.zip
           build/compiled/snowbridge_${{ github.ref_name }}_darwin_amd64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}_linux.zip
+          build/compiled/snowbridge_${{ github.ref_name }}_darwin_arm64.zip
+          build/compiled/snowbridge_${{ github.ref_name }}_linux_amd64.zip
+          build/compiled/snowbridge_${{ github.ref_name }}_linux_arm64.zip
           build/compiled/snowbridge_${{ github.ref_name }}_windows_amd64.zip
 
     - name: Publish to DockerHub
