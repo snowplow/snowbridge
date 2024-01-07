@@ -94,22 +94,22 @@ cli: gox cli-linux cli-darwin cli-windows
 
 # Build CLI binaries for each distro
 cli-linux: gox
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/main/cli/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
 	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
 
 cli-darwin: gox
-	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/main/cli/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
 	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
 
 cli-windows: gox
-	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 container: cli-linux
 	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws .
