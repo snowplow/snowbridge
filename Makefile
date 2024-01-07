@@ -137,7 +137,8 @@ tidy:
 test-setup:
 	mkdir -p $(coverage_dir)
 	go install golang.org/x/tools/cmd/cover@latest
-	apt install qemu qemu-user-binfmt
+	apt install qemu 
+	apt install qemu-user-binfmt
 
 test-amd64: test-setup
 	GOARCH=amd64 go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
