@@ -95,6 +95,7 @@ cli: gox cli-linux cli-darwin cli-windows
 	zip -u $(windows_out_dir)/main/cli/staging_arm64.zip README.md LICENSE.md
 	mv $(windows_out_dir)/main/cli/staging_arm64.zip $(compiled_dir)/snowbridge_$(version)_windows_amd64.zip	
 
+
 # Build CLI binaries for each distro
 cli-linux: gox
 	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
