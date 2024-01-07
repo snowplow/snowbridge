@@ -1,4 +1,4 @@
-.PHONY: all gox cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test integration-reset integration-up integration-down integration-test container-release clean
+.PHONY: all gox cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test-amd64 test-arm64 integration-reset integration-up integration-down integration-test-amd64 integration-test-arm64 container-release clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -137,16 +137,27 @@ tidy:
 test-setup:
 	mkdir -p $(coverage_dir)
 	go install golang.org/x/tools/cmd/cover@latest
+	apt install qemu qemu-user-binfmt
 
-test: test-setup
-	go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
+test-amd64: test-setup
+	GOARCH=amd64 go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
 	go tool cover -html=$(coverage_out) -o $(coverage_html)
 	go tool cover -func=$(coverage_out)
 
-integration-test: test-setup
-	go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+test-arm64: test-setup
+	GOARCH=arm64 go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
+	go tool cover -html=$(coverage_out) -o $(coverage_html)
+	go tool cover -func=$(coverage_out)	
+
+integration-test-amd64: test-setup
+	GOARCH=amd64 go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	go tool cover -html=$(coverage_out) -o $(coverage_html)
 	go tool cover -func=$(coverage_out)
+
+integration-test-arm64: test-setup
+	GOARCH=arm64 go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+	go tool cover -html=$(coverage_out) -o $(coverage_html)
+	go tool cover -func=$(coverage_out)	
 
 # e2e-test covers only the e2e release tests, in preparation for when these will rely on deployed assets
 e2e-test: test-setup

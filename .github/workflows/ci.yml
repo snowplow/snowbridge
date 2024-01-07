@@ -50,11 +50,17 @@ jobs:
           wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip && unzip ngrok-stable-linux-amd64.zip -d $GITHUB_WORKSPACE/bin/
           $GITHUB_WORKSPACE/bin/ngrok authtoken ${{ secrets.NGROK_TOKEN }}
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+
     - name: Setup integration resources
       run: export NGROK_DIR=$GITHUB_WORKSPACE/bin/ && make integration-up
 
-    - name: Run integration & unit tests
-      run: make integration-test
+    - name: Run integration & unit tests for amd64
+      run: make integration-test-amd64
+
+    - name: Run integration & unit tests for arm64
+      run: make integration-test-arm64      
 
     - name: Run linter
       run: make lint
