@@ -48,48 +48,48 @@ cli: gox cli-linux cli-darwin cli-windows
 	cp assets/awslicense/AMAZON_LICENSE AMAZON_LICENSE
 # linux aws:
 # Zip up the binaries
-	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip snowbridge_linux_amd64)
+	(cd $(linux_out_dir)/aws/cli/amd64/ && zip -r staging.zip snowbridge)
 # Add the readme, and relevant licence(s)
-	zip -u $(linux_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	zip -u $(linux_out_dir)/aws/cli/amd64/staging.zip README.md LICENSE.md AMAZON_LICENSE
 # Move to its compiled_dir location, with appropriate long form name
-	mv $(linux_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_amd64.zip
+	mv $(linux_out_dir)/aws/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_amd64.zip
 # Rinse and repeat for each distribution
 # linux arm aws:
-	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip snowbridge_linux_arm64)
-	zip -u $(linux_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
-	mv $(linux_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_arm64.zip
+	(cd $(linux_out_dir)/aws/cli/arm64/ && zip -r staging.zip snowbridge)
+	zip -u $(linux_out_dir)/aws/cli/arm64/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	mv $(linux_out_dir)/aws/cli/arm64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_arm64.zip
 # darwin aws:
-	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip snowbridge_darwin_amd64)
-	zip -u $(darwin_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
-	mv $(darwin_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_amd64.zip
+	(cd $(darwin_out_dir)/aws/cli/amd64/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/aws/cli/amd64/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	mv $(darwin_out_dir)/aws/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_amd64.zip
 # darwin arm aws:
-	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip snowbridge_darwin_arm64)
-	zip -u $(darwin_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
-	mv $(darwin_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_arm64.zip
+	(cd $(darwin_out_dir)/aws/cli/arm64/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/aws/cli/arm64/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	mv $(darwin_out_dir)/aws/cli/arm64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_arm64.zip
 # Windows aws:
-	(cd $(windows_out_dir)/aws/cli/ && zip -r staging.zip snowbridge.exe)
-	zip -u $(windows_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
-	mv $(windows_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_windows_amd64.zip
+	(cd $(windows_out_dir)/aws/cli/amd64/ && zip -r staging.zip snowbridge.exe)
+	zip -u $(windows_out_dir)/aws/cli/amd64/staging.zip README.md LICENSE.md AMAZON_LICENSE
+	mv $(windows_out_dir)/aws/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_windows_amd64.zip
 # linux main:
-	(cd $(linux_out_dir)/main/cli/ && zip -r staging.zip snowbridge_linux_amd64)
-	zip -u $(linux_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(linux_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_amd64.zip
+	(cd $(linux_out_dir)/main/cli/amd64/ && zip -r staging.zip snowbridge)
+	zip -u $(linux_out_dir)/main/cli/amd64/staging.zip README.md LICENSE.md
+	mv $(linux_out_dir)/main/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_amd64.zip
 # linux arm main:
-	(cd $(linux_out_dir)/main/cli/ && zip -r staging.zip snowbridge_linux_arm64)
-	zip -u $(linux_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(linux_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_arm64.zip
+	(cd $(linux_out_dir)/main/cli/arm64/ && zip -r staging.zip snowbridge)
+	zip -u $(linux_out_dir)/main/cli/arm64/staging.zip README.md LICENSE.md
+	mv $(linux_out_dir)/main/cli/arm64/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_arm64.zip
 # darwin main:
-	(cd $(darwin_out_dir)/main/cli/ && zip -r staging.zip snowbridge_darwin_amd64)
-	zip -u $(darwin_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(darwin_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_amd64.zip
+	(cd $(darwin_out_dir)/main/cli/amd64/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/main/cli/amd64/staging.zip README.md LICENSE.md
+	mv $(darwin_out_dir)/main/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_amd64.zip
 # darwin arm main:
-	(cd $(darwin_out_dir)/main/cli/ && zip -r staging.zip snowbridge_darwin_arm64)
-	zip -u $(darwin_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(darwin_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_arm64.zip	
+	(cd $(darwin_out_dir)/main/cli/arm64/ && zip -r staging.zip snowbridge)
+	zip -u $(darwin_out_dir)/main/cli/arm64/staging.zip README.md LICENSE.md
+	mv $(darwin_out_dir)/main/cli/arm64/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_arm64.zip	
 # windows main:
-	(cd $(windows_out_dir)/main/cli/ && zip -r staging.zip snowbridge.exe)
-	zip -u $(windows_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(windows_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_windows_amd64.zip
+	(cd $(windows_out_dir)/main/cli/amd64/ && zip -r staging.zip snowbridge.exe)
+	zip -u $(windows_out_dir)/main/cli/amd64/staging.zip README.md LICENSE.md
+	mv $(windows_out_dir)/main/cli/amd64/staging.zip $(compiled_dir)/snowbridge_$(version)_windows_amd64.zip
 
 
 # Build CLI binaries for each distro
