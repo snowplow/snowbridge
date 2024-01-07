@@ -48,7 +48,7 @@ cli: gox cli-linux cli-darwin cli-windows
 	cp assets/awslicense/AMAZON_LICENSE AMAZON_LICENSE
 # linux aws:
 # Zip up the binaries
-	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
+	(cd $(linux_out_dir)/aws/cli/ && zip -r staging.zip snowbridge_linux_amd64)
 # Add the readme, and relevant licence(s)
 	zip -u $(linux_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
 # Move to its compiled_dir location, with appropriate long form name
