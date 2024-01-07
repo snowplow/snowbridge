@@ -52,71 +52,43 @@ cli: gox cli-linux cli-darwin cli-windows
 # Add the readme, and relevant licence(s)
 	zip -u $(linux_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
 # Move to its compiled_dir location, with appropriate long form name
-	mv $(linux_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux_amd64.zip
+	mv $(linux_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_linux.zip
 # Rinse and repeat for each distribution
 # darwin aws:
 	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
 	zip -u $(darwin_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
 	mv $(darwin_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_amd64.zip
-# darwin arm aws:
-	(cd $(darwin_out_dir)/aws/cli/ && zip -r staging.zip snowbridge)
-	zip -u $(darwin_out_dir)/aws/cli/staging_arm64.zip README.md LICENSE.md AMAZON_LICENSE
-	mv $(darwin_out_dir)/aws/cli/staging_arm64.zip $(compiled_dir)/snowbridge_$(aws_only_version)_darwin_arm64.zip	
 # Windows aws:
 	(cd $(windows_out_dir)/aws/cli/ && zip -r staging.zip snowbridge.exe)
 	zip -u $(windows_out_dir)/aws/cli/staging.zip README.md LICENSE.md AMAZON_LICENSE
 	mv $(windows_out_dir)/aws/cli/staging.zip $(compiled_dir)/snowbridge_$(aws_only_version)_windows_amd64.zip
-# Windows arm aws:
-	(cd $(windows_out_dir)/aws/cli/ && zip -r staging.zip snowbridge.exe)
-	zip -u $(windows_out_dir)/aws/cli/staging_arm64.zip README.md LICENSE.md AMAZON_LICENSE
-	mv $(windows_out_dir)/aws/cli/staging_arm64.zip $(compiled_dir)/snowbridge_$(aws_only_version)_windows_arm64.zip	
 # linux main:
 	(cd $(linux_out_dir)/main/cli/ && zip -r staging.zip snowbridge)
 	zip -u $(linux_out_dir)/main/cli/staging.zip README.md LICENSE.md
-	mv $(linux_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_linux_amd64.zip
-# linux arm main:
-	(cd $(linux_out_dir)/main/cli/ && zip -r staging.zip snowbridge)
-	zip -u $(linux_out_dir)/main/cli/staging_arm64.zip README.md LICENSE.md
-	mv $(linux_out_dir)/main/cli/staging_arm64.zip $(compiled_dir)/snowbridge_$(version)_linux_arm64.zip
+	mv $(linux_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_linux.zip
 # darwin main:
 	(cd $(darwin_out_dir)/main/cli/ && zip -r staging.zip snowbridge)
 	zip -u $(darwin_out_dir)/main/cli/staging.zip README.md LICENSE.md
 	mv $(darwin_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_darwin_amd64.zip
-# darwin arm main:
-	(cd $(darwin_out_dir)/main/cli/ && zip -r staging.zip snowbridge)
-	zip -u $(darwin_out_dir)/main/cli/staging_arm64.zip README.md LICENSE.md
-	mv $(darwin_out_dir)/main/cli/staging_arm64.zip $(compiled_dir)/snowbridge_$(version)_darwin_amd64.zip	
 # windows main:
 	(cd $(windows_out_dir)/main/cli/ && zip -r staging.zip snowbridge.exe)
 	zip -u $(windows_out_dir)/main/cli/staging.zip README.md LICENSE.md
 	mv $(windows_out_dir)/main/cli/staging.zip $(compiled_dir)/snowbridge_$(version)_windows_amd64.zip
-# windows arm main:
-	(cd $(windows_out_dir)/main/cli/ && zip -r staging.zip snowbridge.exe)
-	zip -u $(windows_out_dir)/main/cli/staging_arm64.zip README.md LICENSE.md
-	mv $(windows_out_dir)/main/cli/staging_arm64.zip $(compiled_dir)/snowbridge_$(version)_windows_amd64.zip	
+
 
 
 # Build CLI binaries for each distro
 cli-linux: gox
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/main/cli/snowbridge ./cmd/main/cli/
-
-	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
+	CGO_ENABLED=0 gox -osarch=linux -output=$(linux_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -osarch=linux -output=$(linux_out_dir)/main/cli/snowbridge ./cmd/main/cli/
 
 cli-darwin: gox
 	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
 	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/main/cli/snowbridge ./cmd/main/cli/
 
-	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
-
 cli-windows: gox
 	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/snowbridge ./cmd/aws/cli/
 	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/snowbridge ./cmd/main/cli/
-
-	CGO_ENABLED=0 gox -osarch=windows/arm64 -output=$(windows_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=windows/arm64 -output=$(windows_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
 
 container: cli-linux
 	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws .
