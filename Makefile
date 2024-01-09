@@ -112,8 +112,8 @@ cli-windows: gox
 
 container: cli-linux
 	docker buildx create --name=container --driver=docker-container --use --bootstrap
-	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 --builder=container .
-	docker buildx build -t $(container_name):$(version) -f Dockerfile.main --platform=linux/amd64,linux/arm64 --builder=container .
+	docker buildx build --load -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 --builder=container .
+	docker buildx build --load -t $(container_name):$(version) -f Dockerfile.main --platform=linux/amd64,linux/arm64 --builder=container .
 	docker image inspect $(container_name):$(aws_only_version)
 	docker image inspect $(container_name):$(version)
 
