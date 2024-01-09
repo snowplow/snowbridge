@@ -111,8 +111,9 @@ cli-windows: gox
 	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 container: cli-linux
-	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 .
-	docker buildx build -t $(container_name):$(version) -f Dockerfile.main --platform=linux/amd64,linux/arm64 .
+	docker buildx create --name=container --driver=docker-container --use --bootstrap
+	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 --builder=container .
+	docker buildx build -t $(container_name):$(version) -f Dockerfile.main --platform=linux/amd64,linux/arm64 --builder=container .
 	docker image inspect $(container_name):$(aws_only_version)
 	docker image inspect $(container_name):$(version)
 
