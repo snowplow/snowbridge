@@ -111,7 +111,7 @@ cli-windows: gox
 	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 container: cli-linux
-	docker buildx create --name multi-arch-builder
+	docker buildx create --name multi-arch-builder --driver=docker-container
 	docker buildx use multi-arch-builder
 	docker buildx build --load -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 --builder=multi-arch-builder .
 	docker buildx build --load -t $(container_name):$(version) -f Dockerfile.main --platform=linux/amd64,linux/arm64 --builder=multi-arch-builder .
