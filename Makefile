@@ -113,6 +113,10 @@ cli-windows: gox
 container: cli-linux
 	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws .
 	docker buildx build -t $(container_name):$(version) -f Dockerfile.main .
+	docker image ls
+	docker image inspect $(container_name):$(aws_only_version)
+	docker image inspect $(container_name):$(version)
+
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
