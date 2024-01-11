@@ -72,7 +72,7 @@ jobs:
       uses: snyk/actions/setup@master
 
     - name: Run Snyk to check for vulnerabilities in main Docker image for amd64
-      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-amd64 --severity-threshold=high
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}} --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -82,7 +82,7 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}        
 
     - name: Run Snyk to check for vulnerabilities in aws-only Docker image for amd64
-      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-aws-only-amd64 --severity-threshold=high
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-aws-only --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
