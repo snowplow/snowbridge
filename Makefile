@@ -142,6 +142,7 @@ tidy:
 test-setup:
 	mkdir -p $(coverage_dir)
 	go install golang.org/x/tools/cmd/cover@latest
+	sudo apt-get update 
 	sudo apt install qemu qemu-user-binfmt
 
 test-amd64: test-setup
