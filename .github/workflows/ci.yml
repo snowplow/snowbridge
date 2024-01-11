@@ -71,15 +71,25 @@ jobs:
     - name: Snyk Setup
       uses: snyk/actions/setup@master
 
-    - name: Run Snyk to check for vulnerabilities in main Docker image
-      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}} --severity-threshold=high
+    - name: Run Snyk to check for vulnerabilities in main Docker image for amd64
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-amd64 --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-    - name: Run Snyk to check for vulnerabilities in aws-only Docker
-      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-aws-only --severity-threshold=high
+    - name: Run Snyk to check for vulnerabilities in main Docker image for arm64
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-arm64 --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}        
+
+    - name: Run Snyk to check for vulnerabilities in aws-only Docker image for amd64
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-aws-only-amd64 --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Run Snyk to check for vulnerabilities in aws-only Docker image for arm64
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-aws-only-arm64 --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}        
 
     - name: Setup e2e resources
       run: make e2e-up
