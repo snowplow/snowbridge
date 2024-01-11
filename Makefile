@@ -28,6 +28,8 @@ linux_out_dir   = $(output_dir)/linux
 darwin_out_dir  = $(output_dir)/darwin
 windows_out_dir = $(output_dir)/windows
 
+linux_container_image_out_dir = $(output_dir)/container/linux
+
 container_name = snowplow/snowbridge
 
 
@@ -111,8 +113,9 @@ cli-windows: gox
 	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 container: cli-linux
-	docker build -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 .
-	docker build -t $(container_name):$(version) -f Dockerfile.main --platform=linux/amd64,linux/arm64 .
+	docker buildx create --name multi-arch-builder --driver=docker-container --platform linux/amd64,linux/arm64 --use
+	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 -o type=tar,dest=${linux_container_image_out_dir} .
+	docker buildx build -t $(container_name):$(version) -f Dockerfile.main --platform=linux/amd64,linux/arm64  -o type=tar,dest=${linux_container_image_out_dir} .
 	docker image inspect $(container_name):$(aws_only_version)
 	docker image inspect $(container_name):$(version)
 
