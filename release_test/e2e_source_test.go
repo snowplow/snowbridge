@@ -17,7 +17,7 @@ import (
 
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
 )
 

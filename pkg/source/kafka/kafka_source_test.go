@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
 	"github.com/snowplow/snowbridge/pkg/testutil"

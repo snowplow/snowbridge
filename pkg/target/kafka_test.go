@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/Shopify/sarama"
-	"github.com/Shopify/sarama/mocks"
+	"github.com/IBM/sarama"
+	"github.com/IBM/sarama/mocks"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow/snowbridge/pkg/testutil"
