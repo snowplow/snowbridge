@@ -31,7 +31,7 @@ source {
     sasl_username = "mySaslUsername"
     sasl_password = env.SASL_PASSWORD
 
-    # The SASL Algorithm to use: "sha512" or "sha256" (default: "sha512")
+    # The SASL Algorithm to use: "plaintext", "sha512" or "sha256" (default: "sha512")
     sasl_algorithm = "sha256"
 
     # The optional certificate file for client authentication
