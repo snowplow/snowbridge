@@ -25,6 +25,7 @@ var SupportedTransformations = []config.ConfigurationPair{
 	transform.EnrichedToJSONConfigPair,
 	transform.Base64DecodeConfigPair,
 	transform.Base64EncodeConfigPair,
+	transform.GTMSSPreviewConfigPair,
 	engine.LuaConfigPair,
 	engine.JSConfigPair,
 }
