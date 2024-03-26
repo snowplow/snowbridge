@@ -93,7 +93,7 @@ func TestRetrieveHeaders(t *testing.T) {
 		Name     string
 		Msg      *models.Message
 		Dynamic  bool
-		Expected map[string][]string
+		Expected map[string]string
 	}{
 		{
 			Name:     "message_headers_nil_dynamic_false",
@@ -110,7 +110,7 @@ func TestRetrieveHeaders(t *testing.T) {
 		{
 			Name: "message_headers_empty_dynamic_false",
 			Msg: &models.Message{
-				HTTPHeaders: map[string][]string{},
+				HTTPHeaders: map[string]string{},
 			},
 			Dynamic:  false,
 			Expected: nil,
@@ -118,16 +118,16 @@ func TestRetrieveHeaders(t *testing.T) {
 		{
 			Name: "message_headers_empty_dynamic_true",
 			Msg: &models.Message{
-				HTTPHeaders: map[string][]string{},
+				HTTPHeaders: map[string]string{},
 			},
 			Dynamic:  true,
-			Expected: map[string][]string{},
+			Expected: map[string]string{},
 		},
 		{
 			Name: "message_headers_non_empty_dynamic_false",
 			Msg: &models.Message{
-				HTTPHeaders: map[string][]string{
-					"foo": {"bar"},
+				HTTPHeaders: map[string]string{
+					"foo": "bar",
 				},
 			},
 			Dynamic:  false,
@@ -136,12 +136,12 @@ func TestRetrieveHeaders(t *testing.T) {
 		{
 			Name: "message_headers_non_empty_dynamic_true",
 			Msg: &models.Message{
-				HTTPHeaders: map[string][]string{
-					"foo": {"bar", "baz"},
+				HTTPHeaders: map[string]string{
+					"foo": "bar",
 				},
 			},
 			Dynamic:  true,
-			Expected: map[string][]string{"foo": {"bar", "baz"}},
+			Expected: map[string]string{"foo": "bar"},
 		},
 	}
 
@@ -203,7 +203,7 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		ConfigHeaders  map[string]string
-		DynamicHeaders map[string][]string
+		DynamicHeaders map[string]string
 		ExpectedHeader http.Header
 	}{
 		{
@@ -215,17 +215,17 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 		{
 			Name:           "config_nil_dynamic_empty",
 			ConfigHeaders:  nil,
-			DynamicHeaders: map[string][]string{},
+			DynamicHeaders: map[string]string{},
 			ExpectedHeader: http.Header{},
 		},
 		{
 			Name:          "config_nil_dynamic_yes",
 			ConfigHeaders: nil,
-			DynamicHeaders: map[string][]string{
-				"Content-Length": {"0", "1"},
+			DynamicHeaders: map[string]string{
+				"Content-Length": "0",
 			},
 			ExpectedHeader: http.Header{
-				"Content-Length": {"0", "1"},
+				"Content-Length": {"0"},
 			},
 		},
 		{
@@ -243,7 +243,7 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 			ConfigHeaders: map[string]string{
 				"Max Forwards": "10",
 			},
-			DynamicHeaders: map[string][]string{},
+			DynamicHeaders: map[string]string{},
 			ExpectedHeader: http.Header{
 				"Max Forwards": {"10"},
 			},
@@ -253,13 +253,12 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 			ConfigHeaders: map[string]string{
 				"Max Forwards": "10",
 			},
-			DynamicHeaders: map[string][]string{
-				"Content-Length": {"0", "1"},
-				"Empty":          {},
+			DynamicHeaders: map[string]string{
+				"Content-Length": "0",
 			},
 			ExpectedHeader: http.Header{
 				"Max Forwards":   {"10"},
-				"Content-Length": {"0", "1"},
+				"Content-Length": {"0"},
 			},
 		},
 		{
@@ -268,9 +267,9 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 				"Max Forwards":   "10",
 				"Content-Length": "0",
 			},
-			DynamicHeaders: map[string][]string{
-				"Content-Length": {"1"},
-				"Test-Header":    {"test"},
+			DynamicHeaders: map[string]string{
+				"Content-Length": "1",
+				"Test-Header":    "test",
 			},
 			ExpectedHeader: http.Header{
 				"Max Forwards":   {"10"},

@@ -193,7 +193,9 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		}
 
 		// HTTPHeaders
-		message.HTTPHeaders = protocol.HTTPHeaders
+		if len(protocol.HTTPHeaders) > 0 {
+			message.HTTPHeaders = protocol.HTTPHeaders
+		}
 
 		return message, nil, nil, protocol
 	}

@@ -39,10 +39,8 @@ func TestGTMSSPreview(t *testing.T) {
 				"success": {
 					Data:         spTsvWithGtmss,
 					PartitionKey: "pk",
-					HTTPHeaders: map[string][]string{
-						"x-gtm-server-preview": {
-							"ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
-						},
+					HTTPHeaders: map[string]string{
+						"x-gtm-server-preview": "ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
 					},
 				},
 				"filtered": nil,
@@ -103,8 +101,8 @@ func TestGTMSSPreview(t *testing.T) {
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
-				HTTPHeaders: map[string][]string{
-					"foo": {"bar"},
+				HTTPHeaders: map[string]string{
+					"foo": "bar",
 				},
 			},
 			InputInterState: nil,
@@ -112,11 +110,9 @@ func TestGTMSSPreview(t *testing.T) {
 				"success": {
 					Data:         spTsvWithGtmss,
 					PartitionKey: "pk",
-					HTTPHeaders: map[string][]string{
-						"foo": {"bar"},
-						"x-gtm-server-preview": {
-							"ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
-						},
+					HTTPHeaders: map[string]string{
+						"foo":                  "bar",
+						"x-gtm-server-preview": "ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
 					},
 				},
 				"filtered": nil,
@@ -133,9 +129,9 @@ func TestGTMSSPreview(t *testing.T) {
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
-				HTTPHeaders: map[string][]string{
-					"foo":                  {"bar"},
-					"x-gtm-server-preview": {"existing"},
+				HTTPHeaders: map[string]string{
+					"foo":                  "bar",
+					"x-gtm-server-preview": "existing",
 				},
 			},
 			InputInterState: nil,
@@ -143,12 +139,9 @@ func TestGTMSSPreview(t *testing.T) {
 				"success": {
 					Data:         spTsvWithGtmss,
 					PartitionKey: "pk",
-					HTTPHeaders: map[string][]string{
-						"foo": {"bar"},
-						"x-gtm-server-preview": {
-							"existing",
-							"ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
-						},
+					HTTPHeaders: map[string]string{
+						"foo":                  "bar",
+						"x-gtm-server-preview": "ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
 					},
 				},
 				"filtered": nil,
@@ -165,17 +158,15 @@ func TestGTMSSPreview(t *testing.T) {
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
-				HTTPHeaders:  map[string][]string{},
+				HTTPHeaders:  map[string]string{},
 			},
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
 					Data:         spTsvWithGtmss,
 					PartitionKey: "pk",
-					HTTPHeaders: map[string][]string{
-						"x-gtm-server-preview": {
-							"ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
-						},
+					HTTPHeaders: map[string]string{
+						"x-gtm-server-preview": "ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
 					},
 				},
 				"filtered": nil,
@@ -185,29 +176,29 @@ func TestGTMSSPreview(t *testing.T) {
 			Error:         nil,
 		},
 		{
-			Scenario:  "extract_fails_with_existing_headers",
+			Scenario:  "not_found_with_existing_headers",
 			Ctx:       "app_id",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
-				HTTPHeaders:  map[string][]string{"foo": {"bar"}},
+				HTTPHeaders:  map[string]string{"foo": "bar"},
 			},
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
-				"success":  nil,
-				"filtered": nil,
-				"failed": {
+				"success": {
 					Data:         spTsvWithGtmss,
 					PartitionKey: "pk",
-					HTTPHeaders: map[string][]string{
-						"foo": {"bar"},
+					HTTPHeaders: map[string]string{
+						"foo": "bar",
 					},
 				},
+				"filtered": nil,
+				"failed":   nil,
 			},
-			ExpInterState: nil,
-			Error:         errors.New("invalid gtmss preview context"),
+			ExpInterState: spTsvWithGtmssParsed,
+			Error:         nil,
 		},
 	}
 
@@ -248,9 +239,7 @@ func TestGTMSSPreview(t *testing.T) {
 }
 
 func TestExtractHeaderValue(t *testing.T) {
-	expectedValues := []string{
-		"ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==",
-	}
+	expectedValue := "ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw=="
 	testCases := []struct {
 		Scenario string
 		Event    analytics.ParsedEvent
@@ -264,7 +253,7 @@ func TestExtractHeaderValue(t *testing.T) {
 			Event:    spTsvWithGtmssParsed,
 			Ctx:      "contexts_com_google_tag-manager_server-side_preview_mode_1",
 			Prop:     "x-gtm-server-preview",
-			Expected: &expectedValues[0],
+			Expected: &expectedValue,
 			Error:    nil,
 		},
 		{
@@ -281,15 +270,15 @@ func TestExtractHeaderValue(t *testing.T) {
 			Ctx:      "foo",
 			Prop:     "bar",
 			Expected: nil,
-			Error:    errors.New("Cannot transform event"),
+			Error:    errors.New("wrong number of fields"),
 		},
 		{
-			Scenario: "not_a_context",
+			Scenario: "not_a_context_same_as_no_such_context",
 			Event:    spTsvNoGtmssParsed,
 			Ctx:      "app_id",
 			Prop:     "foobar",
 			Expected: nil,
-			Error:    errors.New("invalid gtmss preview context"),
+			Error:    nil,
 		},
 		{
 			Scenario: "invalid_header_value",
@@ -300,12 +289,20 @@ func TestExtractHeaderValue(t *testing.T) {
 			Error:    errors.New("invalid header value"),
 		},
 		{
-			Scenario: "missing_header_property",
+			Scenario: "event_without_contexts",
+			Event:    spTsvNoCtxParsed,
+			Ctx:      "contexts_com_snowplowanalytics_snowplow_web_page_1",
+			Prop:     "id",
+			Expected: nil,
+			Error:    nil,
+		},
+		{
+			Scenario: "missing_property",
 			Event:    fakeSpTsvParsed,
 			Ctx:      "contexts_com_snowplowanalytics_snowplow_web_page_1",
 			Prop:     "doesNotExist",
 			Expected: nil,
-			Error:    errors.New("missing header property"),
+			Error:    nil,
 		},
 	}
 
@@ -313,7 +310,6 @@ func TestExtractHeaderValue(t *testing.T) {
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 			result, err := extractHeaderValue(tt.Event, tt.Ctx, tt.Prop)
-
 			if err == nil && tt.Error != nil {
 				t.Fatalf("missed expected error")
 			}
@@ -413,6 +409,7 @@ func Benchmark_GTMSSPreview_No_Preview_Ctx_With_intermediate(b *testing.B) {
 func assertMessagesCompareGtmss(t *testing.T, act, exp *models.Message, hint string) {
 	t.Helper()
 	ok := false
+	headersOk := false
 	switch {
 	case act == nil:
 		ok = exp == nil
@@ -424,7 +421,7 @@ func assertMessagesCompareGtmss(t *testing.T, act, exp *models.Message, hint str
 		pTimeOk := reflect.DeepEqual(act.TimePulled, exp.TimePulled)
 		tTimeOk := reflect.DeepEqual(act.TimeTransformed, exp.TimeTransformed)
 		ackOk := reflect.DeepEqual(act.AckFunc, exp.AckFunc)
-		headersOk := reflect.DeepEqual(act.HTTPHeaders, exp.HTTPHeaders)
+		headersOk = reflect.DeepEqual(act.HTTPHeaders, exp.HTTPHeaders)
 
 		if pkOk && dataOk && cTimeOk && pTimeOk && tTimeOk && ackOk && headersOk {
 			ok = true
@@ -432,10 +429,17 @@ func assertMessagesCompareGtmss(t *testing.T, act, exp *models.Message, hint str
 	}
 
 	if !ok {
-		t.Errorf("MESSAGES DIFFER\nGOT:\n%s\nEXPECTED[%s]:\n%s\n",
-			spew.Sdump(act),
-			hint,
-			spew.Sdump(exp))
+		// message.HTTPHeaders are not printed
+		if headersOk == false {
+			t.Errorf("\nHTTPHeaders DIFFER:\nGOT:\n%s\nEXPECTED:\n%s\n",
+				spew.Sdump(act.HTTPHeaders),
+				spew.Sdump(exp.HTTPHeaders))
+		} else {
+			t.Errorf("MESSAGES DIFFER\nGOT:\n%s\nEXPECTED[%s]:\n%s\n",
+				spew.Sdump(act),
+				hint,
+				spew.Sdump(exp))
+		}
 	}
 }
 
@@ -447,3 +451,7 @@ var spTsvWithGtmssParsed, _ = analytics.ParseEvent(string(spTsvWithGtmss))
 
 var fakeSpTsv = []byte(`media-test	web	2024-03-12 04:25:40.277	2024-03-12 04:25:40.272	2024-03-12 04:25:36.685	page_view	1313411b-282f-4aa9-b37c-c60d4723cf47		spTest	js-3.17.0	snowplow-micro-2.0.0-stdout$	snowplow-micro-2.0.0	media_tester	172.17.0.1		23a0eb65-83f6-4957-839e-f3044bfefb99	1	a2f53212-26a3-4781-81d6-f14aa8d4552b												http://localhost:8000/	Test Media Tracking		http	localhost	8000	/																	{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0","data":[{"schema":"iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0","data":{"id":["FAILS"]}},{"schema":"iglu:com.google.tag-manager.server-side/user_data/jsonschema/1-0-0","data":{"email_address":"foo@example.com","phone_number":"+15551234567","address":{"first_name":"Jane","last_name":"Doe","street":"123 Fake St","city":"San Francisco","region":"CA","postal_code":"94016","country":"US"}}},{"schema":"iglu:com.snowplowanalytics.snowplow/mobile_context/jsonschema/1-0-2","data":{"osType":"testOsType","osVersion":"testOsVersion","deviceManufacturer":"testDevMan","deviceModel":"testDevModel"}},{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-2","data":{"userId":"23a0eb65-83f6-4957-839e-f3044bfefb99","sessionId":"73fcdaa3-0164-41ce-a336-fb00c4ebf68c","eventIndex":2,"sessionIndex":1,"previousSessionId":null,"storageMechanism":"COOKIE_1","firstEventId":"327b9ff9-ed5f-40cf-918a-1b1a775ae347","firstEventTimestamp":"2024-03-12T04:25:36.684Z"}}]}																									Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0						en-US										1	24	1920	935				Europe/Athens			1920	1080	windows-1252	1920	935												2024-03-12 04:25:40.268				73fcdaa3-0164-41ce-a336-fb00c4ebf68c	2024-03-12 04:25:36.689	com.snowplowanalytics.snowplow	page_view	jsonschema	1-0-0		`)
 var fakeSpTsvParsed, _ = analytics.ParseEvent(string(fakeSpTsv))
+
+var spTsvNoCtx = []byte(`media-test	web	2024-03-12 04:27:01.760	2024-03-12 04:27:01.755	2024-03-12 04:27:01.743	unstruct	9be3afe8-8a62-41ac-93db-12f425d82ac9		spTest	js-3.17.0	snowplow-micro-2.0.0-stdout$	snowplow-micro-2.0.0	media_tester	172.17.0.1		23a0eb65-83f6-4957-839e-f3044bfefb99	1	a2f53212-26a3-4781-81d6-f14aa8d4552b												http://localhost:8000/?sgtm-preview-header=ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==			http	localhost	8000	/	sgtm-preview-header=ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==																						{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/media_player_event/jsonschema/1-0-0","data":{"type":"play"}}}																			Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0						en-US										1	24	1920	935				Europe/Athens			1920	1080	windows-1252	1920	935												2024-03-12 04:27:01.745				73fcdaa3-0164-41ce-a336-fb00c4ebf68c	2024-03-12 04:27:01.753	com.snowplowanalytics.snowplow	media_player_event	jsonschema	1-0-0		`)
+
+var spTsvNoCtxParsed, _ = analytics.ParseEvent(string(spTsvNoCtx))

@@ -78,15 +78,13 @@ func getHeaders(headers string) (map[string]string, error) {
 	return parsed, nil
 }
 
-func addHeadersToRequest(request *http.Request, headers map[string]string, dynamicHeaders map[string][]string) {
+func addHeadersToRequest(request *http.Request, headers map[string]string, dynamicHeaders map[string]string) {
 	for key, value := range headers {
 		request.Header.Add(key, value)
 	}
 
-	for key, values := range dynamicHeaders {
-		for _, val := range values {
-			request.Header.Add(key, val)
-		}
+	for key, value := range dynamicHeaders {
+		request.Header.Add(key, value)
 	}
 }
 
@@ -258,7 +256,7 @@ func (ht *HTTPTarget) GetID() string {
 	return ht.httpURL
 }
 
-func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string][]string {
+func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string]string {
 	if !ht.dynamicHeaders {
 		return nil
 	}

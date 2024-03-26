@@ -63,9 +63,9 @@ func gtmssPreviewTransformation(ctx, property, headerKey string) TransformationF
 		}
 		if headerVal != nil {
 			if message.HTTPHeaders == nil {
-				message.HTTPHeaders = make(map[string][]string)
+				message.HTTPHeaders = make(map[string]string)
 			}
-			message.HTTPHeaders[headerKey] = append(message.HTTPHeaders[headerKey], *headerVal)
+			message.HTTPHeaders[headerKey] = *headerVal
 			return message, nil, nil, parsedEvent
 		}
 
@@ -74,36 +74,20 @@ func gtmssPreviewTransformation(ctx, property, headerKey string) TransformationF
 }
 
 func extractHeaderValue(parsedEvent analytics.ParsedEvent, ctx, prop string) (*string, error) {
-	spMap, err := parsedEvent.ToMap()
+	values, err := parsedEvent.GetContextValue(ctx, prop)
 	if err != nil {
 		return nil, err
 	}
 
-	gtmssPreview, ok := spMap[ctx]
-	if !ok {
-		// not for preview mode, so do nothing
-		return nil, nil
-	}
-
-	gtmssPreviewData, ok := gtmssPreview.([]interface{})
+	headerVals, ok := values.([]interface{})
 	if !ok {
 		// this is generally not expected to happen
-		return nil, errors.New("invalid gtmss preview context")
+		return nil, errors.New("invalid return type encountered")
 	}
 
-	if len(gtmssPreviewData) > 0 {
-		previewMode, ok := gtmssPreviewData[0].(map[string]interface{})
-		if !ok {
-			// this is generally not expected to happen
-			return nil, errors.New("invalid gtmss preview context data")
-		}
-
-		previewHeader, ok := previewMode[prop]
-		if !ok {
-			return nil, errors.New("missing header property")
-		}
-
-		headerVal, ok := previewHeader.(string)
+	if len(headerVals) > 0 {
+		// use only first value found
+		headerVal, ok := headerVals[0].(string)
 		if !ok {
 			return nil, errors.New("invalid header value")
 		}
@@ -111,5 +95,6 @@ func extractHeaderValue(parsedEvent analytics.ParsedEvent, ctx, prop string) (*s
 		return &headerVal, nil
 	}
 
-	return nil, errors.New("empty gtmss preview context")
+	// no value found
+	return nil, nil
 }
