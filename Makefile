@@ -1,4 +1,4 @@
-.PHONY: all gox cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test-amd64 test-arm64 integration-reset integration-up integration-down integration-test-amd64 integration-test-arm64 container-release clean
+.PHONY: all gox cli cli-linux cli-darwin cli-windows container format lint tidy test-setup test integration-reset integration-up integration-down integration-test container-release clean
 
 # -----------------------------------------------------------------------------
 #  CONSTANTS
@@ -31,7 +31,6 @@ windows_out_dir = $(output_dir)/windows
 linux_container_image_out_dir = $(output_dir)/container/linux
 
 container_name = snowplow/snowbridge
-
 
 # -----------------------------------------------------------------------------
 #  BUILDING
@@ -146,26 +145,14 @@ tidy:
 test-setup:
 	mkdir -p $(coverage_dir)
 	go install golang.org/x/tools/cmd/cover@latest
-	sudo apt-get update 
-	sudo apt install qemu qemu-user-binfmt
 
-test-amd64: test-setup
-	GOARCH=amd64 go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
+test: test-setup
+	go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
 	go tool cover -html=$(coverage_out) -o $(coverage_html)
 	go tool cover -func=$(coverage_out)
 
-test-arm64: test-setup
-	GOARCH=arm64 go test $(go_dirs) -v -short -covermode=count -coverprofile=$(coverage_out)
-	go tool cover -html=$(coverage_out) -o $(coverage_html)
-	go tool cover -func=$(coverage_out)	
-
-integration-test-amd64: test-setup
-	GOARCH=amd64 go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
-	go tool cover -html=$(coverage_out) -o $(coverage_html)
-	go tool cover -func=$(coverage_out)
-
-integration-test-arm64: test-setup
-	GOARCH=arm64 go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
+integration-test: test-setup
+	go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	go tool cover -html=$(coverage_out) -o $(coverage_html)
 	go tool cover -func=$(coverage_out)	
 
@@ -186,7 +173,8 @@ e2e-down:
 
 integration-reset: integration-down integration-up
 
-# For integration tests we need localstack and pubsub, but not kafka (yet)
+# For integration tests we need localstack, pubsub kafka and http server
+# To run on mac M1, for example, set the default docker platform: export DOCKER_DEFAULT_PLATFORM=linux/arm64
 integration-up: http-up
 	(cd $(integration_dir) && docker compose up -d)
 	sleep 5
