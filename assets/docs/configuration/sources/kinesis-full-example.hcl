@@ -28,6 +28,12 @@ source {
     # Default is 250, cannot be set to lower than 200.
     read_throttle_delay_ms = 500
 
+    # Optional configures how often each kinesis consumer checks for whether it needs to change which shards it owns
+    shard_check_freq_seconds = 15
+
+    # Optional configures how often the kinesis client checks the stream for shard count changes, which triggers consumer ownership changes
+    leader_action_freq_seconds = 305
+
     # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
     concurrent_writes = 15
   }
