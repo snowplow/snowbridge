@@ -112,16 +112,8 @@ cli-windows: gox
 	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 container: cli-linux
-	docker build -t $(container_name):$(aws_only_version) --platform=linux/amd64 -f Dockerfile.aws .
-	docker build -t $(container_name):$(aws_only_version)-arm64 --platform=linux/arm64 -f Dockerfile.aws .
-	docker build -t $(container_name):$(version) --platform=linux/amd64 -f Dockerfile.main .
-	docker build -t $(container_name):$(version)-arm64 --platform=linux/arm64 -f Dockerfile.main .
-	
-	docker image inspect $(container_name):$(aws_only_version)
-	docker image inspect $(container_name):$(aws_only_version)-arm64
-	docker image inspect $(container_name):$(version)
-	docker image inspect $(container_name):$(version)-arm64
-
+	docker build -t $(container_name):$(aws_only_version) -f Dockerfile.aws .
+	docker build -t $(container_name):$(version) -f Dockerfile.main .
 
 # -----------------------------------------------------------------------------
 #  FORMATTING
