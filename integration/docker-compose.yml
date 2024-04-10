@@ -18,19 +18,20 @@ services:
 
   pubsub:
     image: bigtruedata/gcloud-pubsub-emulator
+    platform: "linux/amd64" # Only one platform exists for this image
     command: start --host-port 0.0.0.0:8432
     ports:
       - "0.0.0.0:8432:8432"
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.0.1
+    image: confluentinc/cp-zookeeper:7.0.12
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
   broker:
-    image: confluentinc/cp-kafka:7.0.1
+    image: confluentinc/cp-kafka:7.0.12
     container_name: broker
     ports:
     # To learn about configuring Kafka for access across networks see
