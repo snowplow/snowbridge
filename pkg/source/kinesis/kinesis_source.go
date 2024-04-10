@@ -30,14 +30,16 @@ import (
 
 // Configuration configures the source for records pulled
 type Configuration struct {
-	StreamName          string `hcl:"stream_name" env:"SOURCE_KINESIS_STREAM_NAME"`
-	Region              string `hcl:"region" env:"SOURCE_KINESIS_REGION"`
-	AppName             string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
-	RoleARN             string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
-	StartTimestamp      string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
-	ReadThrottleDelayMs int    `hcl:"read_throttle_delay_ms,optional" env:"SOURCE_KINESIS_READ_THROTTLE_DELAY_MS"`
-	CustomAWSEndpoint   string `hcl:"custom_aws_endpoint,optional" env:"SOURCE_CUSTOM_AWS_ENDPOINT"`
-	ConcurrentWrites    int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	StreamName              string `hcl:"stream_name" env:"SOURCE_KINESIS_STREAM_NAME"`
+	Region                  string `hcl:"region" env:"SOURCE_KINESIS_REGION"`
+	AppName                 string `hcl:"app_name" env:"SOURCE_KINESIS_APP_NAME"`
+	RoleARN                 string `hcl:"role_arn,optional" env:"SOURCE_KINESIS_ROLE_ARN"`
+	StartTimestamp          string `hcl:"start_timestamp,optional" env:"SOURCE_KINESIS_START_TIMESTAMP"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
+	ReadThrottleDelayMs     int    `hcl:"read_throttle_delay_ms,optional" env:"SOURCE_KINESIS_READ_THROTTLE_DELAY_MS"`
+	CustomAWSEndpoint       string `hcl:"custom_aws_endpoint,optional" env:"SOURCE_CUSTOM_AWS_ENDPOINT"`
+	ShardCheckFreqSeconds   int    `hcl:"shard_check_freq_seconds,optional" env:"SHARD_CHECK_FREQ_SECONDS"`
+	LeaderActionFreqSeconds int    `hcl:"leader_action_freq_seconds,optional" env:"LEADER_ACTION_FREQ_SECONDS"`
+	ConcurrentWrites        int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
 }
 
 // --- Kinesis source
@@ -79,7 +81,9 @@ func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 			c.StreamName,
 			c.AppName,
 			&iteratorTstamp,
-			c.ReadThrottleDelayMs)
+			c.ReadThrottleDelayMs,
+			c.ShardCheckFreqSeconds,
+			c.LeaderActionFreqSeconds)
 	}
 }
 
@@ -113,8 +117,10 @@ func (f adapter) Create(i interface{}) (interface{}, error) {
 func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
 	cfg := &Configuration{
-		ReadThrottleDelayMs: 250, // Kinsumer default is 250ms
-		ConcurrentWrites:    50,
+		ReadThrottleDelayMs:     250, // Kinsumer default is 250ms
+		ConcurrentWrites:        50,
+		ShardCheckFreqSeconds:   10,
+		LeaderActionFreqSeconds: 300,
 	}
 
 	return cfg, nil
@@ -150,11 +156,22 @@ func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
 
 // newKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
 // for mocking and localstack usage
-func newKinesisSourceWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string, concurrentWrites int, region string, streamName string, appName string, startTimestamp *time.Time, readThrottleDelay int) (*kinesisSource, error) {
-	// TODO: Add statistics monitoring to be able to report on consumer latency
+func newKinesisSourceWithInterfaces(
+	kinesisClient kinesisiface.KinesisAPI,
+	dynamodbClient dynamodbiface.DynamoDBAPI,
+	awsAccountID string,
+	concurrentWrites int,
+	region string,
+	streamName string,
+	appName string,
+	startTimestamp *time.Time,
+	readThrottleDelay int,
+	shardCheckFreq int,
+	leaderActionFreq int) (*kinesisSource, error) {
+
 	config := kinsumer.NewConfig().
-		WithShardCheckFrequency(10 * time.Second).
-		WithLeaderActionFrequency(10 * time.Second).
+		WithShardCheckFrequency(time.Duration(shardCheckFreq) * time.Second).
+		WithLeaderActionFrequency(time.Duration(leaderActionFreq) * time.Second).
 		WithManualCheckpointing(true).
 		WithLogger(&KinsumerLogrus{}).
 		WithIteratorStartTimestamp(startTimestamp).
