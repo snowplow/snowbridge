@@ -1,3 +1,11 @@
+Version 2.2.4 (2024-04-15)
+--------------------------
+Make kinesis source scaling checks configurable (#313)
+Add arm64 support (#302)
+Bump dependencies (#310)
+Add GTM SS preview header transformation (#312)
+Add dynamic headers (#311)
+
 Version 2.2.3 (2024-02-05)
 --------------------------
 Patch kafka docs (#306)
