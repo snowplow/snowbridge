@@ -9,6 +9,10 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
+// GTMSSPreviewConfig is a configuration object for the spEnrichedToJson transformation
+type GTMSSPreviewConfig struct {
+}
+
 // The gtmssPreviewAdapter implements the Pluggable interface
 type gtmssPreviewAdapter func(i interface{}) (interface{}, error)
 

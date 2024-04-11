@@ -160,6 +160,8 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 			configObject = &transform.Base64DecodeConfig{}
 		case "base64Encode":
 			configObject = &transform.Base64EncodeConfig{}
+		case "spGtmssPreview":
+			configObject = &transform.GTMSSPreviewConfig{}
 		case "js":
 			configObject = &engine.JSEngineConfig{}
 		case "lua":
