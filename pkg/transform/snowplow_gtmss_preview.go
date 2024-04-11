@@ -43,7 +43,7 @@ func gtmssPreviewConfigFunction() (TransformationFunction, error) {
 
 // GTMSSPreviewConfigPair is the configuration pair for the gtmss preview transformation
 var GTMSSPreviewConfigPair = config.ConfigurationPair{
-	Name:   "gtmssPreview",
+	Name:   "spGtmssPreview",
 	Handle: gtmssPreviewAdapterGenerator(gtmssPreviewConfigFunction),
 }
 
