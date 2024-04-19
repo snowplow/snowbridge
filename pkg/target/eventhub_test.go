@@ -93,7 +93,7 @@ ResultsLoop:
 		select {
 		case batch := <-resultChannel:
 			res = append(res, batch)
-		case <-time.After(1 * time.Second):
+		case <-time.After(timeout):
 			break ResultsLoop
 		}
 	}
