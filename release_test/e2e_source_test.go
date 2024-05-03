@@ -36,7 +36,7 @@ func TestE2ESources(t *testing.T) {
 }
 
 func getSliceFromInput(filepath string) []string {
-	inputData, err := os.ReadFile(inputFilePath)
+	inputData, err := os.ReadFile(filepath)
 	if err != nil {
 		panic(err)
 	}
