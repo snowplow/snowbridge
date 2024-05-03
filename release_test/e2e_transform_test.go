@@ -111,7 +111,7 @@ func evaluateTestCasePK(t *testing.T, actual []byte, expectedFilePath string, te
 	sort.Strings(foundData)
 	sort.Strings(expectedData)
 
-	assert.Equal(expectedData, foundData)
+	assert.Equal(expectedData, foundData, testCase)
 }
 
 func getFileMountArg(testCase string) string {
