@@ -67,6 +67,7 @@ func testStatsDConfig(t *testing.T, configpath string, fullExample bool) {
 func testSentryConfig(t *testing.T, configpath string, fullExample bool) {
 	assert := assert.New(t)
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", configpath)
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "true")
 
 	// Since sentry lives in cmd, we call Init to test it.
 	cfgSentry, sentryEnabled, initErr := cmd.Init()

@@ -20,17 +20,47 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
+func TestHandleSLULAEnvVar(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "true")
+	assert.True(handleSLULAEnvVar())
+
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "yes")
+	assert.True(handleSLULAEnvVar())
+
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "1")
+	assert.True(handleSLULAEnvVar())
+
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "on")
+	assert.True(handleSLULAEnvVar())
+}
+
 func TestInit_Success(t *testing.T) {
 	assert := assert.New(t)
+
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "yes")
 
 	cfg, _, err := Init()
 	assert.NotNil(cfg)
 	assert.Nil(err)
 }
 
+func TestInit_SLULAFailre(t *testing.T) {
+	assert := assert.New(t)
+
+	cfg, _, err := Init()
+	assert.Nil(cfg)
+	assert.NotNil(err)
+	if err != nil {
+		assert.Equal("please accept the terms of the Snowplow Limited Use License Agreement to proceed. See https://docs.snowplow.io/docs/destinations/forwarding-events/snowbridge/configuration/#license for more information on the license and how to configure this", err.Error())
+	}
+}
+
 func TestInit_Failure(t *testing.T) {
 	assert := assert.New(t)
 
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "on")
 	t.Setenv("STATS_RECEIVER_TIMEOUT_SEC", "debug")
 
 	cfg, _, err := Init()
@@ -44,6 +74,7 @@ func TestInit_Failure(t *testing.T) {
 func TestInit_Success_Sentry(t *testing.T) {
 	assert := assert.New(t)
 
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "1")
 	t.Setenv("SENTRY_DSN", "https://1111111111111111111111111111111d@sentry.snplow.net/28")
 	t.Setenv("SENTRY_TAGS", "{\"client_name\":\"com.acme\"}")
 
@@ -55,6 +86,7 @@ func TestInit_Success_Sentry(t *testing.T) {
 func TestInit_Failure_LogLevel(t *testing.T) {
 	assert := assert.New(t)
 
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "true")
 	t.Setenv("LOG_LEVEL", "DEBUG")
 
 	cfg, _, err := Init()
@@ -68,6 +100,7 @@ func TestInit_Failure_LogLevel(t *testing.T) {
 func TestInit_Failure_SentryDSN(t *testing.T) {
 	assert := assert.New(t)
 
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "yes")
 	t.Setenv("SENTRY_DSN", "blahblah")
 
 	cfg, _, err := Init()
@@ -81,6 +114,7 @@ func TestInit_Failure_SentryDSN(t *testing.T) {
 func TestInit_Failure_SentryTags(t *testing.T) {
 	assert := assert.New(t)
 
+	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "yes")
 	t.Setenv("SENTRY_DSN", "https://1111111111111111111111111111111d@sentry.snplow.net/28")
 	t.Setenv("SENTRY_TAGS", "asdasdasd")
 

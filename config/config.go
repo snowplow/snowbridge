@@ -51,6 +51,7 @@ type configurationData struct {
 	LogLevel         string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
 	UserProvidedID   string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
 	DisableTelemetry bool           `hcl:"disable_telemetry,optional" env:"DISABLE_TELEMETRY"`
+	Licence          *licenceConfig `hcl:"licence,block"`
 }
 
 // component is a type to abstract over configuration blocks.
@@ -86,6 +87,10 @@ type statsConfig struct {
 	BufferSec  int  `hcl:"buffer_sec,optional" env:"STATS_RECEIVER_BUFFER_SEC"`
 }
 
+type licenceConfig struct {
+	Accept bool `hcl:"accept,optional"`
+}
+
 // defaultConfigData returns the initial main configuration target.
 func defaultConfigData() *configurationData {
 	return &configurationData{
@@ -107,6 +112,9 @@ func defaultConfigData() *configurationData {
 		Transformations:  nil,
 		LogLevel:         "info",
 		DisableTelemetry: false,
+		Licence: &licenceConfig{
+			Accept: false,
+		},
 	}
 }
 

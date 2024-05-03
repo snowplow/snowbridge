@@ -33,6 +33,7 @@ var cmdTemplate = `cat %s | docker run -i \
 --add-host host.docker.internal:host-gateway \
 --mount type=bind,source=%s,target=/config.hcl \
 --env SNOWBRIDGE_CONFIG_FILE=/config.hcl %s \
+--env ACCEPT_LIMITED_USE_LICENSE=true \
 snowplow/snowbridge:%s%s`
 
 // explanation of arguments:
