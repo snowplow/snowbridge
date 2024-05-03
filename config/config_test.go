@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// The GetSource part needs to move anyway - causes circular dep.
 func TestNewConfig(t *testing.T) {
 	assert := assert.New(t)
 

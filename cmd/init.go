@@ -14,6 +14,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/pkg/errors"
@@ -38,12 +39,18 @@ var (
 // and handles:
 //
 // 1. Loading the Config from the environment
-// 2. Configuring Sentry
-// 3. Configuring Logrus (+Logrus -> Sentry)
+// 2. Checking for licence acceptance
+// 3. Configuring Sentry
+// 4. Configuring Logrus (+Logrus -> Sentry)
 func Init() (*config.Config, bool, error) {
 	cfg, err := config.NewConfig()
 	if err != nil {
 		return nil, false, errors.Wrap(err, "Failed to build config")
+	}
+
+	// If licence not accepted, fail on startup
+	if !cfg.Data.Licence.Accept && !handleSLULAEnvVar() {
+		return nil, false, errors.New("please accept the terms of the Snowplow Limited Use License Agreement to proceed. See https://docs.snowplow.io/docs/destinations/forwarding-events/snowbridge/configuration/#license for more information on the license and how to configure this")
 	}
 
 	// Configure Sentry
@@ -81,4 +88,16 @@ func Init() (*config.Config, bool, error) {
 
 	log.Debugf("Config: %+v", cfg)
 	return cfg, sentryEnabled, nil
+}
+
+func handleSLULAEnvVar() bool {
+	foundVal := os.Getenv("ACCEPT_LIMITED_USE_LICENSE")
+	truthyVals := []string{"true", "yes", "on", "1"}
+
+	for _, truthyVal := range truthyVals {
+		if foundVal == truthyVal {
+			return true
+		}
+	}
+	return false
 }
