@@ -29,7 +29,7 @@ import (
 	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
-func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Server {
+func createTestServerWithResponseCode(results *[][]byte, waitgroup *sync.WaitGroup, responseCode int) *httptest.Server {
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer req.Body.Close()
@@ -39,9 +39,14 @@ func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Se
 		}
 		mutex.Lock()
 		*results = append(*results, data)
+		w.WriteHeader(responseCode)
 		mutex.Unlock()
 		defer waitgroup.Done()
 	}))
+}
+
+func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Server {
+	return createTestServerWithResponseCode(results, waitgroup, 200)
 }
 
 func TestGetHeaders(t *testing.T) {
@@ -322,37 +327,50 @@ func TestNewHTTPTarget(t *testing.T) {
 }
 
 func TestHttpWrite_Simple(t *testing.T) {
-	assert := assert.New(t)
-
-	var results [][]byte
-	wg := sync.WaitGroup{}
-	server := createTestServer(&results, &wg)
-	defer server.Close()
-
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
-	if err != nil {
-		t.Fatal(err)
+	testCases := []struct {
+		Name         string
+		ResponseCode int
+	}{
+		{Name: "200 response Code", ResponseCode: 200},
+		{Name: "201 response Code", ResponseCode: 201},
+		{Name: "226 response Code", ResponseCode: 226},
 	}
 
-	var ackOps int64
-	ackFunc := func() {
-		atomic.AddInt64(&ackOps, 1)
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			var results [][]byte
+			wg := sync.WaitGroup{}
+			server := createTestServerWithResponseCode(&results, &wg, tt.ResponseCode)
+			defer server.Close()
+
+			target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var ackOps int64
+			ackFunc := func() {
+				atomic.AddInt64(&ackOps, 1)
+			}
+
+			messages := testutil.GetTestMessages(501, "Hello Server!!", ackFunc)
+			wg.Add(501)
+			writeResult, err1 := target.Write(messages)
+
+			wg.Wait()
+
+			assert.Nil(err1)
+			assert.Equal(501, len(writeResult.Sent))
+			assert.Equal(501, len(results))
+			for _, result := range results {
+				assert.Equal("Hello Server!!", string(result))
+			}
+
+			assert.Equal(int64(501), ackOps)
+		})
 	}
-
-	messages := testutil.GetTestMessages(501, "Hello Server!!", ackFunc)
-	wg.Add(501)
-	writeResult, err1 := target.Write(messages)
-
-	wg.Wait()
-
-	assert.Nil(err1)
-	assert.Equal(501, len(writeResult.Sent))
-	assert.Equal(501, len(results))
-	for _, result := range results {
-		assert.Equal("Hello Server!!", string(result))
-	}
-
-	assert.Equal(int64(501), ackOps)
 }
 
 func TestHttpWrite_Concurrent(t *testing.T) {
@@ -428,6 +446,49 @@ func TestHttpWrite_Failure(t *testing.T) {
 	assert.Equal(10, len(writeResult.Failed))
 	assert.Nil(writeResult.Sent)
 	assert.Nil(writeResult.Oversized)
+}
+
+func TestHttpWrite_InvalidResponseCode(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		ResponseCode int
+	}{
+		{Name: "300 response Code", ResponseCode: 300},
+		{Name: "400 response Code", ResponseCode: 400},
+		{Name: "503 response Code", ResponseCode: 503},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			var results [][]byte
+			wg := sync.WaitGroup{}
+			server := createTestServerWithResponseCode(&results, &wg, tt.ResponseCode)
+			defer server.Close()
+			target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var ackOps int64
+			ackFunc := func() {
+				atomic.AddInt64(&ackOps, 1)
+			}
+
+			messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+			wg.Add(10)
+			writeResult, err1 := target.Write(messages)
+
+			assert.NotNil(err1)
+			if err1 != nil {
+				assert.Regexp("Error sending http requests: 10 errors occurred:.*", err1.Error())
+			}
+
+			assert.Equal(10, len(writeResult.Failed))
+			assert.Nil(writeResult.Sent)
+			assert.Nil(writeResult.Oversized)
+		})
+	}
 }
 
 func TestHttpWrite_Oversized(t *testing.T) {

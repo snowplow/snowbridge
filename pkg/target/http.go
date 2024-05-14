@@ -219,7 +219,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			continue
 		}
 		defer resp.Body.Close()
-		if resp.StatusCode == http.StatusOK {
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			sent = append(sent, msg)
 			if msg.AckFunc != nil { // Ack successful messages
 				msg.AckFunc()
