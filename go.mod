@@ -50,6 +50,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dop251/goja v0.0.0-20240220182346-e401ed450204
 	github.com/hashicorp/hcl/v2 v2.20.1
+	github.com/itchyny/gojq v0.12.15
 	github.com/json-iterator/go v1.1.12
 	github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1
 	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7
@@ -91,6 +92,7 @@ require (
 	github.com/hashicorp/go-memdb v1.3.4 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
+	github.com/itchyny/timefmt-go v0.1.5 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.7.6 // indirect
