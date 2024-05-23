@@ -41,5 +41,17 @@ target {
 
     # Whether to enable setting headers dynamically
     dynamic_headers            = true
+
+    # Optional. One of client credentials required when authorizing using OAuth2.
+    oauth2_client_id = env.CLIENT_ID
+
+    # Optional. One of client credentials required when authorizing using OAuth2.
+    oauth2_client_secret = env.CLIENT_SECRET
+
+    # Optional. Required when using OAuth2. Long-lived token used to generate new short-lived access token when previous one experies.
+    oauth2_refresh_token = env.REFRESH_TOKEN
+
+    # Optional. Required when using OAuth2. URL to authorization server providing access token. E.g. for Goggle API "https://oauth2.googleapis.com/token"  
+    oauth2_token_url = "https://my.auth.server/token"
   }
 }

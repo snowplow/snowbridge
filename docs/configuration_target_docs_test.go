@@ -29,6 +29,9 @@ func TestTargetDocumentation(t *testing.T) {
 	// Set env vars referenced in the config examples
 	t.Setenv("MY_AUTH_PASSWORD", "test")
 	t.Setenv("SASL_PASSWORD", "test")
+	t.Setenv("CLIENT_ID", "client_id_test")
+	t.Setenv("CLIENT_SECRET", "client_secret_test")
+	t.Setenv("REFRESH_TOKEN", "refresh_token_test")
 
 	targetsToTest := []string{"eventhub", "http", "kafka", "kinesis", "pubsub", "sqs", "stdout"}
 

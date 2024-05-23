@@ -13,6 +13,7 @@ package target
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -25,6 +26,8 @@ import (
 
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
+
+	"golang.org/x/oauth2"
 )
 
 // HTTPTargetConfig configures the destination for records consumed
@@ -41,6 +44,11 @@ type HTTPTargetConfig struct {
 	CaFile                  string `hcl:"ca_file,optional" env:"TARGET_HTTP_TLS_CA_FILE"`
 	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional" env:"TARGET_HTTP_TLS_SKIP_VERIFY_TLS"` // false
 	DynamicHeaders          bool   `hcl:"dynamic_headers,optional" env:"TARGET_HTTP_DYNAMIC_HEADERS"`
+
+	OAuth2ClientID     string `hcl:"oauth2_client_id,optional" env:"TARGET_HTTP_OAUTH2_CLIENT_ID"`
+	OAuth2ClientSecret string `hcl:"oauth2_client_secret,optional" env:"TARGET_HTTP_OAUTH2_CLIENT_SECRET"`
+	OAuth2RefreshToken string `hcl:"oauth2_refresh_token,optional" env:"TARGET_HTTP_OAUTH2_REFRESH_TOKEN"`
+	OAuth2TokenURL     string `hcl:"oauth2_token_url,optional" env:"TARGET_HTTP_OAUTH2_TOKEN_URL"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -94,7 +102,7 @@ func addHeadersToRequest(request *http.Request, headers map[string]string, dynam
 
 // newHTTPTarget creates a client for writing events to HTTP
 func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentType string, headers string, basicAuthUsername string, basicAuthPassword string,
-	certFile string, keyFile string, caFile string, skipVerifyTLS bool, dynamicHeaders bool) (*HTTPTarget, error) {
+	certFile string, keyFile string, caFile string, skipVerifyTLS bool, dynamicHeaders bool, oAuth2ClientID string, oAuth2ClientSecret string, oAuth2RefreshToken string, oAuth2TokenURL string) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -113,11 +121,11 @@ func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 		transport.TLSClientConfig = tlsConfig
 	}
 
+	client := createHTTPClient(oAuth2ClientID, oAuth2ClientSecret, oAuth2TokenURL, oAuth2RefreshToken, transport)
+	client.Timeout = time.Duration(requestTimeout) * time.Second
+
 	return &HTTPTarget{
-		client: &http.Client{
-			Transport: transport,
-			Timeout:   time.Duration(requestTimeout) * time.Second,
-		},
+		client:            client,
 		httpURL:           httpURL,
 		byteLimit:         byteLimit,
 		contentType:       contentType,
@@ -127,6 +135,25 @@ func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 		log:               log.WithFields(log.Fields{"target": "http", "url": httpURL}),
 		dynamicHeaders:    dynamicHeaders,
 	}, nil
+}
+
+func createHTTPClient(oAuth2ClientID string, oAuth2ClientSecret string, oAuth2TokenURL string, oAuth2RefreshToken string, transport *http.Transport) *http.Client {
+	if oAuth2ClientID != "" {
+		oauth2Config := oauth2.Config{
+			ClientID:     oAuth2ClientID,
+			ClientSecret: oAuth2ClientSecret,
+			Endpoint: oauth2.Endpoint{
+				TokenURL: oAuth2TokenURL,
+			},
+		}
+
+		token := &oauth2.Token{RefreshToken: oAuth2RefreshToken}
+		return oauth2Config.Client(context.Background(), token)
+	}
+
+	return &http.Client{
+		Transport: transport,
+	}
 }
 
 // HTTPTargetConfigFunction creates HTTPTarget from HTTPTargetConfig
@@ -144,6 +171,10 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.CaFile,
 		c.SkipVerifyTLS,
 		c.DynamicHeaders,
+		c.OAuth2ClientID,
+		c.OAuth2ClientSecret,
+		c.OAuth2RefreshToken,
+		c.OAuth2TokenURL,
 	)
 }
 
