@@ -241,7 +241,15 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 		messageBatches := []*models.TargetBatch{
 			&models.TargetBatch{
 				OriginalMessages: messagesToSend,
-				HTTPRequestBody:  nil}}
+				HTTPRequestBody:  nil},
+		}
+
+		BatchTransformationFunction := func(b []*models.TargetBatch) []*models.TargetBatch {
+
+			// imaine this is composable like transformaion functions, and does something :D
+			return b
+		}
+		messageBatches = BatchTransformationFunction(messageBatches)
 
 		res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {
 			res, err := t.Write(messageBatches)
