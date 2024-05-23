@@ -17,7 +17,7 @@ import (
 
 // Target describes the interface for how to push the data pulled from the source
 type Target interface {
-	Write(messages []*models.Message) (*models.TargetWriteResult, error)
+	Write(messageBatches []*models.TargetBatch) (*models.TargetWriteResult, error)
 	Open()
 	Close()
 	MaximumAllowedMessageSizeBytes() int

@@ -181,52 +181,68 @@ func AdaptHTTPTargetFunc(f func(c *HTTPTargetConfig) (*HTTPTarget, error)) HTTPT
 	}
 }
 
-func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	ht.log.Debugf("Writing %d messages to endpoint ...", len(messages))
+func (ht *HTTPTarget) Write(batches []*models.TargetBatch) (*models.TargetWriteResult, error) {
+	// ht.log.Debugf("Writing %d messages to endpoint ...", len(messages))
 
-	safeMessages, oversized := models.FilterOversizedMessages(
-		messages,
-		ht.MaximumAllowedMessageSizeBytes(),
-	)
+	// this bit would all need to be adapted to suit - and possibly also moved upstream (or similar added upstream _and_ some protection here)
 
+	/*
+		safeMessages, oversized := models.FilterOversizedMessages(
+			messages,
+			ht.MaximumAllowedMessageSizeBytes(),
+		)
+	*/
 	var invalid []*models.Message
 	var failed []*models.Message
 	var sent []*models.Message
 	var errResult error
 
-	for _, msg := range safeMessages {
-		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(msg.Data))
+	for _, batch := range batches {
+		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(batch.HTTPRequestBody))
 		if err != nil {
 			errResult = multierror.Append(errResult, errors.Wrap(err, "Error creating request"))
-			failed = append(failed, msg)
+			failed = append(failed, batch.OriginalMessages...)
 			continue
 		}
-		request.Header.Add("Content-Type", ht.contentType)                // Add content type
-		addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(msg)) // Add headers if there are any
-		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {     // Add basic auth if set
+		request.Header.Add("Content-Type", ht.contentType) // Add content type
+		// addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(msg)) // Add headers if there are any
+
+		// TODO: Batch needs header key - and batching logic required to separate by headers!
+		// NOTE: This actually presents a bit of a design challenge - we might need to chain batch transformations. But the first would take a []*models.Message, and subsequent models.TargetBatch...
+		// Although maybe it's not such a challenge if we just make a targetbatch first
+
+		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" { // Add basic auth if set
 			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 		}
-		requestStarted := time.Now()
+		// requestStarted := time.Now()
 		resp, err := ht.client.Do(request) // Make request
-		requestFinished := time.Now()
+		// requestFinished := time.Now()
 
-		msg.TimeRequestStarted = requestStarted
-		msg.TimeRequestFinished = requestFinished
+		// This needs some thought, but just for fleshing out the model let's skip/
+		// msg.TimeRequestStarted = requestStarted
+		// msg.TimeRequestFinished = requestFinished
 
 		if err != nil {
+			// TODO: NOTE:
+			// Handling failures will need some consideration... What if one event fails? What about different APIs serving different failure responses?
 			errResult = multierror.Append(errResult, err)
-			failed = append(failed, msg)
+			failed = append(failed, batch.OriginalMessages...)
 			continue
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			sent = append(sent, msg)
-			if msg.AckFunc != nil { // Ack successful messages
-				msg.AckFunc()
+
+			for _, msg := range batch.OriginalMessages {
+				if msg.AckFunc != nil { // Ack successful messages
+					msg.AckFunc()
+				}
+				sent = append(sent, msg)
+
 			}
+
 		} else {
 			errResult = multierror.Append(errResult, errors.New("Got response status: "+resp.Status))
-			failed = append(failed, msg)
+			failed = append(failed, batch.OriginalMessages...)
 			continue
 		}
 	}
@@ -234,11 +250,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		errResult = errors.Wrap(errResult, "Error sending http requests")
 	}
 
-	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
+	// solvable
+	// ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
 	return models.NewTargetWriteResult(
 		sent,
 		failed,
-		oversized,
+		nil, // oversized,
 		invalid,
 	), errResult
 }

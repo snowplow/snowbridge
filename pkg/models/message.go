@@ -16,6 +16,12 @@ import (
 	"time"
 )
 
+// TODO: Would we need to rejig any of the metrics-y stuff?
+type TargetBatch struct {
+	OriginalMessages []*Message // Originals - needed for acking regardless
+	HTTPRequestBody  []byte     // The http req body
+}
+
 // Message holds the structure of a generic message to be sent to a target
 type Message struct {
 	PartitionKey string

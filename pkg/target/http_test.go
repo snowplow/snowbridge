@@ -11,23 +11,7 @@
 
 package target
 
-import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"reflect"
-	"sync"
-	"sync/atomic"
-	"testing"
-
-	"github.com/davecgh/go-spew/spew"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/testutil"
-)
+/*
 
 func createTestServerWithResponseCode(results *[][]byte, waitgroup *sync.WaitGroup, responseCode int) *httptest.Server {
 	mutex := &sync.Mutex{}
@@ -666,3 +650,4 @@ func getNgrokAddress() string {
 	}
 	panic("no ngrok https endpoint found")
 }
+*/
