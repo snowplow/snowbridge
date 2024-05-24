@@ -1,3 +1,12 @@
+Version 2.4.0 (2024-05-24)
+--------------------------
+Add support for OAuth2 in HTTP target (#325)
+Handle all 2XX HTTP response status codes as success (#324)
+Add SLULA config and env var (#321)
+Patch minor test issues (#322)
+Change license to SLULA (#317)
+Patch eventhub test (#318)
+
 Version 2.3.0 (2024-04-15)
 --------------------------
 Make kinesis source scaling checks configurable (#313)
