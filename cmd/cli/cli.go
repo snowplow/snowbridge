@@ -210,34 +210,6 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 		// Send message buffer
 		messagesToSend := transformed.Result
 
-		/*************************/
-		/*
-			// A batch transformation would go here.
-			// The API would need to change here however...
-			// Rather than taking a slice of messages,
-			// this would now need to be able to take a slice of http requests, just for the http target...
-
-			// Another possible option is to have the Write function TAKE the batch transformation function as an input,
-			// and execute it before sending the data.
-			// Perhaps that is in fact the best way to handle things?
-
-			// But then the interface still needs to change, it just does so in a less visible way...
-
-			// Perhaps it's as simple as changing from []*models.Message to interface{}
-			// OR perhaps it's as simple as changing []*models.Message to a []targetBatch, along the lines of:
-			type targetBatch struct {
-				OriginalMessages []*models.Message // Originals - needed for acking regardless
-				HTTPRequestBody  string            // (or []byte) The http req body
-				// Any furthers can get determined at a later point
-
-				// Where a templater hasn't run, we simply do what we did before in the http target.
-
-				// This might be a runner...
-			}
-
-		*/
-		/*************************/
-
 		messageBatches := []*models.TargetBatch{
 			&models.TargetBatch{
 				OriginalMessages: messagesToSend,
