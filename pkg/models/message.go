@@ -18,8 +18,9 @@ import (
 
 // TODO: Would we need to rejig any of the metrics-y stuff?
 type TargetBatch struct {
-	OriginalMessages []*Message // Originals - needed for acking regardless
-	HTTPRequestBody  []byte     // The http req body
+	OriginalMessages []*Message        // Originals - needed for acking regardless
+	HTTPRequestBody  []byte            // The http req body
+	HTTPHeaders      map[string]string // Where we have things like dynamic headers, we would need to implement a batch-per-header transformation, and we'd use this to store the headers.
 }
 
 // Message holds the structure of a generic message to be sent to a target
