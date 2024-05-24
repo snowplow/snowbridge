@@ -17,6 +17,8 @@ import (
 )
 
 // TODO: Would we need to rejig any of the metrics-y stuff?
+
+// TargetBatch stores batches of data, ready for the target to send.
 type TargetBatch struct {
 	OriginalMessages []*Message        // Originals - needed for acking regardless
 	HTTPRequestBody  []byte            // The http req body
