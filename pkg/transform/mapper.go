@@ -21,29 +21,6 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
-/*
-// An example of a walk w/reflect.
-func walk(v reflect.Value) {
-    fmt.Printf("Visiting %v\n", v)
-    // Indirect through pointers and interfaces
-    for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
-        v = v.Elem()
-    }
-    switch v.Kind() {
-    case reflect.Array, reflect.Slice:
-        for i := 0; i < v.Len(); i++ {
-            walk(v.Index(i))
-        }
-    case reflect.Map:
-        for _, k := range v.MapKeys() {
-            walk(v.MapIndex(k))
-        }
-    default:
-        // handle other types
-    }
-}
-*/
-
 // Some magic may be required in the config parsing bit to enable this!
 // If it's impractical we can structure the config in an easier to handle way.
 var exampleParsedConfig = map[string]any{
@@ -59,8 +36,10 @@ var exampleParsedConfig = map[string]any{
 }
 
 //			//			// TODO: function to get values
-// TODO: function to create objects/iterate config and create objects
-// TODO: function to delete key
+//			// 			// TODO: function to create objects/iterate config and create objects
+// TODO: function to delete keys after?
+
+// For the delete key function, perhaps we factor the below such that traversing can be re-used?
 
 // In the actual implementation, we would prbably want to iterate the config to compile or parse queries, then later produce the data
 // For this implementation sketch, I'll just do all the work here.
@@ -75,33 +54,24 @@ func grabLotsOfValues(inputData map[string]any, config map[string]any) map[strin
 			mapRes := grabLotsOfValues(inputData, val.(map[string]any))
 			// TODO: either have this function return nil or check for empty map here.
 			out[key] = mapRes
-			// TODO: deal with this case
 		case []map[string]any:
 			// Seems doable but not implemented yet.
 		case []string:
-			// The way I've structured this function, it's far more complex to support a coalesce option.
+			// The way I've structured this function, it's a bit more complex to support a coalesce option.
 			// We could refactor things so that this could be handled slightly more elegantly,
 			// but I think it has become fairly clear that the best option is Nick's suggestion - just let jq syntax support this.
 			if key == "coalesce" {
-				fmt.Println("GOEOEOEOEODMDOEOAO")
-				// foundAVal := false
-				for index, item := range val.([]string) { // only slice of string allowed
+				for _, item := range val.([]string) { // only slice of string allowed
 					query, err := gojq.Parse(item)
 					if err != nil {
 						panic(err)
 					}
 					outVal, err := grabValue(inputData, query)
 					if outVal != nil {
-						fmt.Println("============")
-						fmt.Println(index)
-						fmt.Println(outVal)
-
 						out[key] = outVal
 						break
 					}
 				}
-
-				fmt.Println("--- coalesce found")
 				break
 			} else {
 				outSlice := []any{}
@@ -120,11 +90,6 @@ func grabLotsOfValues(inputData map[string]any, config map[string]any) map[strin
 				// TODO: Do something to not add empty arrays
 				out[key] = outSlice
 			}
-
-		case []any:
-			// Is there any other allowable slice?
-			// COuld we generically deal with all slices?
-			fmt.Println("---" + key + " is a []any")
 		case string:
 			query, err := gojq.Parse(val.(string))
 			if err != nil {
@@ -135,12 +100,10 @@ func grabLotsOfValues(inputData map[string]any, config map[string]any) map[strin
 				// Don't add nil keys
 				out[key] = outVal
 			}
-
 		default:
 			fmt.Println("something went wrong here")
 			fmt.Println(key)
 			fmt.Println(val)
-
 		}
 	}
 	return out
@@ -194,73 +157,3 @@ func Mapper(message *models.Message, intermediateState interface{}) {
 		fmt.Printf("%#v\n", v)
 	}
 }
-
-/*
-
-
-
-
-→  jq -n '{userId: 1, userName: "Alice", orgId: 2} | delpaths([paths | select(.[-1] | contains("Id"))])'
-{
-  "userName": "Alice"
-}
-
----
-
-
-
-→  jq -n '{a: {nested: [{key: 1, other: 2}, {key: 2, other: 3}]}} | del(.a.nested[] | select(.other>2) | .key)'
-{
-  "a": {
-    "nested": [
-      {
-        "key": 1,
-        "other": 2
-      },
-      {
-        "other": 3
-      }
-    ]
-  }
-}
-
----
-
-→  jq -n '{eventName: "myEvent", context: {thiskey: "a_value", thatkey: "another_value"}} | .eventName as $name | .context |= with_entries(.key = "\($name)_\(.key)")'
-{
-  "eventName": "myEvent",
-  "context": {
-    "myEvent_thiskey": "a_value",
-    "myEvent_thatkey": "another_value"
-  }
-}
-
----
-
-→  jq -n '{eventName: "myEvent", context: {thiskey: "a_value", thatkey: "another_value"}} | .eventName as $name | .context | with_entries(.key = "\($name)_\(.key)")'
-{
-  "myEvent_thiskey": "a_value",
-  "myEvent_thatkey": "another_value"
-}
-
----
-
-→  jq -n '{context: [{a: 1}]} | .context |= .[0]'
-{
-  "context": {
-    "a": 1
-  }
-}
-
-----
-
-
-→  jq -n '{a: 5, b: 1}, {a: 6, b: 2} | if .a > 5 then del(.a) else . end'
-{
-  "a": 5,
-  "b": 1
-}
-{
-  "b": 2
-}
-*/

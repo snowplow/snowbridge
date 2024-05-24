@@ -24,11 +24,6 @@ import (
 func TestGrabValue(t *testing.T) {
 	assert := assert.New(t)
 
-	// Mapper(&models.Message{
-	// 	Data:         snowplowJSON1,
-	// 	PartitionKey: "some-key",
-	// }, nil)
-
 	inputData := &models.Message{
 		Data:         snowplowJSON1,
 		PartitionKey: "some-key",
