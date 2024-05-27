@@ -12,6 +12,9 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
+	"html/template"
 	"os"
 	"os/signal"
 	"syscall"
@@ -210,16 +213,49 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 		// Send message buffer
 		messagesToSend := transformed.Result
 
-		messageBatches := []*models.TargetBatch{
-			&models.TargetBatch{
-				OriginalMessages: messagesToSend,
-				HTTPRequestBody:  nil},
-		}
+		messageBatches := []*models.TargetBatch{{
+			OriginalMessages: messagesToSend,
+			HTTPRequestBody:  nil}}
 
-		BatchTransformationFunction := func(b []*models.TargetBatch) []*models.TargetBatch {
+		BatchTransformationFunction := func(batch []*models.TargetBatch) []*models.TargetBatch {
 
 			// imaine this is composable like transformaion functions, and does something :D
-			return b
+
+			// The templater would fit here along the following lines:
+			const templ = `{
+				attributes: [ {{$first_1 := true}}
+				  {{range .}}{{if $first_1}}{{$first_1 = false}}{{else}},{{end}}
+				  {{printf "%s" .attribute_data}}{{end}}
+				  ],
+				events: [ {{$first_2 := true}}
+				  {{range .}}{{if $first_2}}{{$first_2 = false}}{{else}},{{end}}
+				  {{printf "%s" .event_data}}{{end}}
+				  ]
+			  }`
+
+			for _, b := range batch {
+				formatted := []map[string]json.RawMessage{}
+				for _, msg := range b.OriginalMessages {
+					// Use json.RawMessage to ensure templating format works (real implementation has a problem to figure out here)
+					var asMap map[string]json.RawMessage
+
+					if err := json.Unmarshal(msg.Data, &asMap); err != nil {
+						panic(err)
+					}
+
+					formatted = append(formatted, asMap)
+				}
+				var buf bytes.Buffer
+
+				t := template.Must(template.New("example").Parse(templ))
+				t.Execute(&buf, formatted)
+
+				// Assign the templated request to the HTTPRequestBody field
+				b.HTTPRequestBody = buf.Bytes()
+
+			}
+
+			return batch
 		}
 		messageBatches = BatchTransformationFunction(messageBatches)
 
