@@ -21,6 +21,34 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
+// This works perfectly, is a million times simpler to implement, and prevents us from being blocked in future if we haven't predicted a requirement
+var examplePureJQConfig = `{
+	field1: .app_id,
+	field2: { field2: .contexts_com_acme_just_ints_1[0] },
+	fieldWithOtherCoalesceExample: ( .app_id // .contexts_com_acme_just_ints_1[0] ),
+	manualUnnest: { just_ints_integerField: .contexts_com_acme_just_ints_1[0].integerField },
+	arraySpecified: [ .app_id, .event_id ]
+  }`
+
+func grabFromGenericJQConfig(inputData map[string]any, config string) []byte {
+	query, err := gojq.Parse(config)
+	if err != nil {
+		panic(err)
+	}
+
+	res, err := grabValue(inputData, query)
+	if err != nil {
+		panic(err)
+	}
+
+	out, err := json.Marshal(res)
+	if err != nil {
+		panic(err)
+	}
+
+	return out
+}
+
 // Some magic may be required in the config parsing bit to enable this!
 // If it's impractical we can structure the config in an easier to handle way.
 var exampleParsedConfig = map[string]any{

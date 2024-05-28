@@ -21,6 +21,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestJustJQ(t *testing.T) {
+	// assert := assert.New(t)
+
+	inputData := &models.Message{
+		Data:         snowplowJSON1,
+		PartitionKey: "some-key",
+	}
+
+	var input map[string]any
+
+	json.Unmarshal(inputData.Data, &input)
+
+	res := grabFromGenericJQConfig(input, examplePureJQConfig)
+
+	fmt.Println(string(res))
+}
+
 func TestGrabValue(t *testing.T) {
 	assert := assert.New(t)
 
