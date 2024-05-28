@@ -23,6 +23,9 @@ type TransformationFunction func(*models.Message, interface{}) (*models.Message,
 // TransformationApplyFunction dereferences messages before running transformations, and returns a TransformationResult
 type TransformationApplyFunction func([]*models.Message) *models.TransformationResult
 
+// TransformationApplyFunctionRefactored dereferences messages before running transformations, and returns a TransformationResult
+type TransformationApplyFunctionRefactored func([]*models.Message, chan *models.Message) *models.TransformationResult
+
 // TransformationGenerator returns a TransformationApplyFunction from a provided set of TransformationFunctions
 type TransformationGenerator func(...TransformationFunction) TransformationApplyFunction
 
@@ -63,6 +66,58 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 				failureList = append(failureList, failure)
 			}
 		}
+		return models.NewTransformationResult(successList, filteredList, failureList)
+	}
+}
+
+// NewTransformationRefactored constructs a function which applies all transformations to all messages, returning a TransformationResult.
+func NewTransformationRefactored(tranformFunctions ...TransformationFunction) TransformationApplyFunctionRefactored {
+	return func(messages []*models.Message, c chan *models.Message) *models.TransformationResult {
+		successList := make([]*models.Message, 0, len(messages))
+		filteredList := make([]*models.Message, 0, len(messages))
+		failureList := make([]*models.Message, 0, len(messages))
+		// If no transformations, just return the result rather than shuffling data between slices
+
+		// if len(tranformFunctions) == 0 {
+		// 	return models.NewTransformationResult(messages, filteredList, failureList)
+		// }
+		// ^^ Maybe this should get removed reagardless
+
+		for _, message := range messages {
+			msg := *message // dereference to avoid amending input
+			// ^^ That shouldn't be necessary
+			success := &msg // success must be both input and output to a TransformationFunction, so we make this pointer.
+			var failure *models.Message
+			var filtered *models.Message
+			var intermediate interface{}
+			for _, transformFunction := range tranformFunctions {
+				// Overwrite the input for each iteration in sequence of transformations,
+				// since the desired result is a single transformed message with a nil failure, or a nil message with a single failure
+				success, filtered, failure, intermediate = transformFunction(success, intermediate)
+				if failure != nil || filtered != nil {
+					break
+				}
+			}
+			if success != nil {
+				success.TimeTransformed = time.Now().UTC()
+				// Pass successes to the channel as we get them
+				c <- success
+				successList = append(successList, success)
+			}
+			// We don't append TimeTransformed in the failure or filtered cases, as it is less useful, and likely to skew metrics
+			if filtered != nil {
+				// Ack straight away - there's an argument this is what it should be regardless.
+				if filtered.AckFunc != nil {
+					filtered.AckFunc()
+				}
+				filteredList = append(filteredList, filtered)
+			}
+			if failure != nil {
+				// Probably we should pass to a chaneel to deal with failures too.
+				failureList = append(failureList, failure)
+			}
+		}
+		// Assuming we move handling of failures into here too, this now only serves to
 		return models.NewTransformationResult(successList, filteredList, failureList)
 	}
 }

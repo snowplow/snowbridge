@@ -93,7 +93,7 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 			return err
 		}
 
-		tr, err := transformconfig.GetTransformations(cfg, supportedTransformations)
+		tr, err := transformconfig.GetTransformationsRefactored(cfg, supportedTransformations)
 		if err != nil {
 			return err
 		}
@@ -159,9 +159,47 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 			}
 		}()
 
+		// The channel will need a buffer limit. This should probably be a configuration, and we should think about what to set it as & what effect this may have on latency
+		batchingChannel := make(chan *models.Message, 10000)
+
+		// Spawn a function to consume the channel, via a goroutine:
+		go func() {
+			// This interval would be configurable
+			ticker := time.NewTicker(1 * time.Second)
+			currentBatch := []*models.Message{}
+			for {
+				select {
+				case msg := <-batchingChannel:
+					// Append message to current batch
+					currentBatch = append(currentBatch, msg)
+					// Logic can go here to immediately send when the batch is of a certain size of data, with some extra effort
+					// For now let's mimic that by using number of events
+					// (We could have both be configurable!)
+					if len(currentBatch) >= 100 {
+						// Process the batch
+						go batchTransformAndWriteData([]*models.TargetBatch{{
+							OriginalMessages: currentBatch,
+						}}, t, ft, o)
+						// Clear the placeholder for the batch.
+						currentBatch = []*models.Message{}
+						// Ofc tests should be written to ensure threadsafety here.
+						// I don't believe we can reach a point where the next loop executes before this is finished, however - since both happen in this same goroutine
+					}
+				case <-ticker.C:
+					// Every tick, process a batch.
+					// If we like, we could get custom and restart tickers when the other case gets executed.
+					go batchTransformAndWriteData([]*models.TargetBatch{{
+						OriginalMessages: currentBatch,
+					}}, t, ft, o)
+					currentBatch = []*models.Message{}
+
+				}
+			}
+		}()
+
 		// Callback functions for the source to leverage when writing data
 		sf := sourceiface.SourceFunctions{
-			WriteToTarget: sourceWriteFunc(t, ft, tr, o),
+			WriteToTarget: sourceReadAndTransformFunc(tr, ft, o, batchingChannel),
 		}
 
 		// Read is a long running process and will only return when the source
@@ -182,6 +220,150 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 		exitWithError(err1, sentryEnabled)
 	}
 
+}
+
+func batchTransformAndWriteData(targetBatches []*models.TargetBatch, t targetiface.Target, ft failureiface.Failure, o *observer.Observer) error {
+	messageBatches := BatchTransformationFunction(targetBatches)
+
+	// While we're refactoring, retry may be best suited to living in the write function too.
+	res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {
+		res, err := t.Write(messageBatches)
+
+		o.TargetWrite(res)
+		// messagesToSend = res.Failed
+		// ^^ This bit needs to be looked at
+		return res, err
+	})
+	if err != nil {
+		return err
+	}
+	resCast := res.(*models.TargetWriteResult)
+
+	// Send oversized message buffer
+	messagesToSend := resCast.Oversized
+	if len(messagesToSend) > 0 {
+		err2 := retry.Exponential(5, time.Second, "failureTarget.WriteOversized", func() error {
+			res, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), messagesToSend)
+			if err != nil {
+				return err
+			}
+			if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+				log.Fatal("Oversized message transformation resulted in new oversized / invalid messages")
+			}
+
+			o.TargetWriteOversized(res)
+			messagesToSend = res.Failed
+			return err
+		})
+		if err2 != nil {
+			return err2
+		}
+	}
+
+	// Send invalid message buffer
+	messagesToSend = resCast.Invalid
+	if len(messagesToSend) > 0 {
+		err3 := retry.Exponential(5, time.Second, "failureTarget.WriteInvalid", func() error {
+			res, err := ft.WriteInvalid(messagesToSend)
+			if err != nil {
+				return err
+			}
+			if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+				log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
+			}
+
+			o.TargetWriteInvalid(res)
+			messagesToSend = res.Failed
+			return err
+		})
+		if err3 != nil {
+			return err3
+		}
+	}
+
+	return nil
+}
+
+// This would replace the sourceWrite function, and the batch transformation and target would read from the supplied channel
+func sourceReadAndTransformFunc(tr transform.TransformationApplyFunctionRefactored, ft failureiface.Failure, o *observer.Observer, c chan *models.Message) func(messages []*models.Message) error {
+	return func(messages []*models.Message) error {
+
+		// Successful transforms are immediately fed to the channel, we no longer process them in this function.
+		// Same with acking filtered messages. We can do that immediately.
+		// For now, we can continue to deal with failures here - but in a real implementation perhaps those should be handled in a similar flow.
+		transformResult := tr(messages, c)
+
+		// observer stuff can still go here
+		filterRes := models.NewFilterResult(transformResult.Filtered)
+		o.Filtered(filterRes)
+
+		// Deal with transformed invalids -
+		// TODO: This pattern should probably change in a full refactor, and perhaps use a separate channel too. :thinking_face:
+		// It def should, then we can have all sources of invalids pop their data into a channel (as we encounter them), and have one thing read from it and deal with it.
+		messagesToSend := transformResult.Invalid
+		if len(messagesToSend) > 0 {
+			err3 := retry.Exponential(5, time.Second, "failureTarget.WriteInvalid", func() error {
+				res, err := ft.WriteInvalid(messagesToSend)
+				if err != nil {
+					return err
+				}
+				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+					log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
+				}
+
+				o.TargetWriteInvalid(res)
+				messagesToSend = res.Failed
+				return err
+			})
+			if err3 != nil {
+				return err3
+			}
+		}
+
+		return nil
+	}
+}
+
+// BatchTransformationFunction would live elsewhere and be composable like the other transoformation functions
+func BatchTransformationFunction(batch []*models.TargetBatch) []*models.TargetBatch {
+
+	// imaine this is composable like transformaion functions, and does something :D
+
+	// The templater would fit here along the following lines:
+	const templ = `{
+		attributes: [ {{$first_1 := true}}
+		  {{range .}}{{if $first_1}}{{$first_1 = false}}{{else}},{{end}}
+		  {{printf "%s" .attribute_data}}{{end}}
+		  ],
+		events: [ {{$first_2 := true}}
+		  {{range .}}{{if $first_2}}{{$first_2 = false}}{{else}},{{end}}
+		  {{printf "%s" .event_data}}{{end}}
+		  ]
+	  }`
+
+	for _, b := range batch {
+		formatted := []map[string]json.RawMessage{}
+		for _, msg := range b.OriginalMessages {
+			// Use json.RawMessage to ensure templating format works (real implementation has a problem to figure out here)
+			var asMap map[string]json.RawMessage
+
+			if err := json.Unmarshal(msg.Data, &asMap); err != nil {
+				panic(err)
+			}
+
+			formatted = append(formatted, asMap)
+		}
+		var buf bytes.Buffer
+
+		t := template.Must(template.New("example").Parse(templ))
+		t.Execute(&buf, formatted)
+
+		// Assign the templated request to the HTTPRequestBody field
+		b.HTTPRequestBody = buf.Bytes()
+
+	}
+
+	return batch
 }
 
 // sourceWriteFunc builds the function which wraps the different objects together to handle:
@@ -217,46 +399,6 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 			OriginalMessages: messagesToSend,
 			HTTPRequestBody:  nil}}
 
-		BatchTransformationFunction := func(batch []*models.TargetBatch) []*models.TargetBatch {
-
-			// imaine this is composable like transformaion functions, and does something :D
-
-			// The templater would fit here along the following lines:
-			const templ = `{
-				attributes: [ {{$first_1 := true}}
-				  {{range .}}{{if $first_1}}{{$first_1 = false}}{{else}},{{end}}
-				  {{printf "%s" .attribute_data}}{{end}}
-				  ],
-				events: [ {{$first_2 := true}}
-				  {{range .}}{{if $first_2}}{{$first_2 = false}}{{else}},{{end}}
-				  {{printf "%s" .event_data}}{{end}}
-				  ]
-			  }`
-
-			for _, b := range batch {
-				formatted := []map[string]json.RawMessage{}
-				for _, msg := range b.OriginalMessages {
-					// Use json.RawMessage to ensure templating format works (real implementation has a problem to figure out here)
-					var asMap map[string]json.RawMessage
-
-					if err := json.Unmarshal(msg.Data, &asMap); err != nil {
-						panic(err)
-					}
-
-					formatted = append(formatted, asMap)
-				}
-				var buf bytes.Buffer
-
-				t := template.Must(template.New("example").Parse(templ))
-				t.Execute(&buf, formatted)
-
-				// Assign the templated request to the HTTPRequestBody field
-				b.HTTPRequestBody = buf.Bytes()
-
-			}
-
-			return batch
-		}
 		messageBatches = BatchTransformationFunction(messageBatches)
 
 		res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {

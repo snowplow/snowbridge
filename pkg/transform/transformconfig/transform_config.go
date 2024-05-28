@@ -67,3 +67,37 @@ func GetTransformations(c *config.Config, supportedTransformations []config.Conf
 
 	return transform.NewTransformation(funcs...), nil
 }
+
+// GetTransformationsRefactored builds and returns transformationApplyFunction
+// from the transformations configured.
+func GetTransformationsRefactored(c *config.Config, supportedTransformations []config.ConfigurationPair) (transform.TransformationApplyFunctionRefactored, error) {
+	funcs := make([]transform.TransformationFunction, 0)
+
+	for _, transformation := range c.Data.Transformations {
+
+		useTransf := transformation.Use
+		decoderOpts := &config.DecoderOptions{
+			Input: useTransf.Body,
+		}
+
+		var component interface{}
+		var err error
+		for _, pair := range supportedTransformations {
+			if pair.Name == useTransf.Name {
+				plug := pair.Handle
+				component, err = c.CreateComponent(plug, decoderOpts)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		f, ok := component.(transform.TransformationFunction)
+		if !ok {
+			return nil, fmt.Errorf("could not interpret transformation configuration for %q", useTransf.Name)
+		}
+		funcs = append(funcs, f)
+	}
+
+	return transform.NewTransformationRefactored(funcs...), nil
+}
