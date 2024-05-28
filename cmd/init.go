@@ -49,7 +49,7 @@ func Init() (*config.Config, bool, error) {
 	}
 
 	// If licence not accepted, fail on startup
-	if !cfg.Data.Licence.Accept && !handleSLULAEnvVar() {
+	if !cfg.Data.License.Accept && !handleSLULAEnvVar() {
 		return nil, false, errors.New("please accept the terms of the Snowplow Limited Use License Agreement to proceed. See https://docs.snowplow.io/docs/destinations/forwarding-events/snowbridge/configuration/#license for more information on the license and how to configure this")
 	}
 

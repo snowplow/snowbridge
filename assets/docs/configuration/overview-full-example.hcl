@@ -92,3 +92,7 @@ stats_receiver {
 
 // log level configuration (default: "info")
 log_level = "info"
+
+license {
+  accept = true
+}
