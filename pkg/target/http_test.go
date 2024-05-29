@@ -39,7 +39,8 @@ func createTestServerWithResponseCode(results *[][]byte, waitgroup *sync.WaitGro
 		}
 		mutex.Lock()
 		*results = append(*results, data)
-		w.WriteHeader(responseCode)
+		// w.WriteHeader(responseCode)
+		w.Write([]byte(`Some response body here`))
 		mutex.Unlock()
 		defer waitgroup.Done()
 	}))
@@ -355,7 +356,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 				atomic.AddInt64(&ackOps, 1)
 			}
 
-			messages := testutil.GetTestMessages(501, "Hello Server!!", ackFunc)
+			messages := testutil.GetTestMessages(501, `{"Key": "value"}`, ackFunc)
 			wg.Add(501)
 			writeResult, err1 := target.Write(messages)
 
@@ -365,7 +366,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 			assert.Equal(501, len(writeResult.Sent))
 			assert.Equal(501, len(results))
 			for _, result := range results {
-				assert.Equal("Hello Server!!", string(result))
+				assert.Equal(`{"Key": "value"}`, string(result))
 			}
 
 			assert.Equal(int64(501), ackOps)

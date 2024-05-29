@@ -16,7 +16,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"time"
 
@@ -237,12 +239,37 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {     // Add basic auth if set
 			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 		}
+
+		reqDump, err := httputil.DumpRequestOut(request, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		reqInfo := map[string]any{"body": json.RawMessage(msg.Data), "headers": request.Header, "infoDump": string(reqDump)}
+
 		requestStarted := time.Now()
 		resp, err := ht.client.Do(request) // Make request
 		requestFinished := time.Now()
 
 		msg.TimeRequestStarted = requestStarted
 		msg.TimeRequestFinished = requestFinished
+
+		respDump, err := httputil.DumpResponse(resp, false)
+		if err != nil {
+			log.Warn(err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+
+		respInfo := map[string]any{"body": string(body), "headers": resp.Header, "infoDump": string(respDump)}
+
+		reqRespInfo := map[string]any{"request": reqInfo, "response": respInfo}
+
+		infoAsJSON, err := json.Marshal(reqRespInfo)
+		if err != nil {
+			log.Warn(err)
+		}
+		fmt.Println(string(infoAsJSON))
 
 		if err != nil {
 			errResult = multierror.Append(errResult, err)
