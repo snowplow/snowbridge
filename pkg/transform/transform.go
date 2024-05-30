@@ -94,8 +94,11 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 			if failure != nil {
 				failureList = append(failureList, failure)
 
+				if failure.Meta == nil {
+					failure.Meta = make(map[string]interface{})
+				}
 				failure.Meta["transformation_error"] = failure.GetError().Error()
-				metaJSON, err := json.Marshal(filtered.Meta)
+				metaJSON, err := json.Marshal(failure.Meta)
 				if err != nil {
 					fmt.Println("ERROR MARSHALING FILTER META: " + err.Error())
 				}
