@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -240,13 +241,6 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 		}
 
-		reqDump, err := httputil.DumpRequestOut(request, false)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		reqInfo := map[string]any{"body": json.RawMessage(msg.Data), "headers": request.Header, "infoDump": string(reqDump)}
-
 		requestStarted := time.Now()
 		resp, err := ht.client.Do(request) // Make request
 		requestFinished := time.Now()
@@ -261,15 +255,23 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 		body, err := io.ReadAll(resp.Body)
 
-		respInfo := map[string]any{"body": string(body), "headers": resp.Header, "infoDump": string(respDump)}
-
-		reqRespInfo := map[string]any{"request": reqInfo, "response": respInfo}
-
-		infoAsJSON, err := json.Marshal(reqRespInfo)
-		if err != nil {
-			log.Warn(err)
+		if msg.Meta == nil {
+			msg.Meta = make(map[string]interface{})
 		}
-		fmt.Println(string(infoAsJSON))
+		msg.Meta["response"] = map[string]any{"body": string(body), "headers": resp.Header, "infoDump": string(respDump)}
+
+		metaJSON, err := json.Marshal(msg.Meta)
+		if err != nil {
+			fmt.Println("ERROR MARSHALING HTTP REQ META: " + err.Error())
+		}
+		fmt.Println("------")
+		fmt.Println(os.Getenv("META_HTTP_ADDRESS"))
+		metaResp, err := http.Post(os.Getenv("META_HTTP_ADDRESS"), "application/json", bytes.NewBuffer(metaJSON))
+		if err != nil {
+			fmt.Println("ERROR SENDING HTTP REQ META REQUEST: " + err.Error())
+		}
+
+		defer metaResp.Body.Close()
 
 		if err != nil {
 			errResult = multierror.Append(errResult, err)
@@ -284,6 +286,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			}
 		} else {
 			errResult = multierror.Append(errResult, errors.New("Got response status: "+resp.Status))
+			// This stops retries for this demo.
 			failed = append(failed, msg)
 			continue
 		}
@@ -298,7 +301,8 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		failed,
 		oversized,
 		invalid,
-	), errResult
+	), nil // errResult
+	// Just for this demo, this disables retries.
 }
 
 // Open does nothing for this target

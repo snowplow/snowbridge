@@ -44,6 +44,9 @@ type Message struct {
 	// If the message is invalid it can be decorated with an error
 	// message for logging and reporting
 	err error
+
+	// meta is used for debug service
+	Meta map[string]interface{}
 }
 
 // SetError sets the value of the message error in case of invalidation

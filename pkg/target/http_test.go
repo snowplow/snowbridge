@@ -328,6 +328,7 @@ func TestNewHTTPTarget(t *testing.T) {
 }
 
 func TestHttpWrite_Simple(t *testing.T) {
+	t.Setenv("META_HTTP_ADDRESS", "http://localhost:8080/meta")
 	testCases := []struct {
 		Name         string
 		ResponseCode int

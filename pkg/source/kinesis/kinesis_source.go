@@ -235,6 +235,7 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 					AckFunc:      ackFunc,
 					TimeCreated:  timeCreated,
 					TimePulled:   timePulled,
+					Meta:         make(map[string]interface{}),
 				},
 			}
 

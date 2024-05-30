@@ -89,6 +89,10 @@ func NewSpEnrichedSetPkFunction(pkField string) (TransformationFunction, error) 
 			return nil, nil, message, nil
 		}
 		message.PartitionKey = fmt.Sprintf("%v", pk)
+		if message.Meta == nil {
+			message.Meta = make(map[string]interface{})
+		}
+		message.Meta["pk"] = message.PartitionKey
 		return message, nil, nil, parsedEvent
 	}, nil
 }

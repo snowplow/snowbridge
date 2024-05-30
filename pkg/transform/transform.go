@@ -12,6 +12,11 @@
 package transform
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -33,13 +38,18 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 		filteredList := make([]*models.Message, 0, len(messages))
 		failureList := make([]*models.Message, 0, len(messages))
 		// If no transformations, just return the result rather than shuffling data between slices
-		if len(tranformFunctions) == 0 {
-			return models.NewTransformationResult(messages, filteredList, failureList)
-		}
+		// if len(tranformFunctions) == 0 {
+		// 	return models.NewTransformationResult(messages, filteredList, failureList)
+		// }
 
 		for _, message := range messages {
 			msg := *message // dereference to avoid amending input
 			success := &msg // success must be both input and output to a TransformationFunction, so we make this pointer.
+			if success.Meta == nil {
+				success.Meta = make(map[string]interface{})
+			}
+			// Original data as a string for debug logging
+			success.Meta["original"] = string(message.Data)
 			var failure *models.Message
 			var filtered *models.Message
 			var intermediate interface{}
@@ -52,14 +62,37 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 				}
 			}
 			if success != nil {
+				// Transformed stays as a raw json
+				if success.Meta == nil {
+					success.Meta = make(map[string]interface{})
+				}
+				success.Meta["transformed"] = json.RawMessage(success.Data)
 				success.TimeTransformed = time.Now().UTC()
 				successList = append(successList, success)
 			}
 			// We don't append TimeTransformed in the failure or filtered cases, as it is less useful, and likely to skew metrics
 			if filtered != nil {
 				filteredList = append(filteredList, filtered)
+
+				// Filtering gets logged.
+				if filtered.Meta == nil {
+					filtered.Meta = make(map[string]interface{})
+				}
+				filtered.Meta["filtered"] = true
+				metaJSON, err := json.Marshal(filtered.Meta)
+				if err != nil {
+					fmt.Println("ERROR MARSHALING FILTER META: " + err.Error())
+				}
+				resp, err := http.Post(os.Getenv("META_HTTP_ADDRESS"), "application/json", bytes.NewBuffer(metaJSON))
+				if err != nil {
+					fmt.Println("ERROR SENDING FILTER META REQUEST: " + err.Error())
+				}
+
+				resp.Body.Close()
+
 			}
 			if failure != nil {
+				failure.Meta["transformation_error"] = failure.GetError().Error()
 				failureList = append(failureList, failure)
 			}
 		}
