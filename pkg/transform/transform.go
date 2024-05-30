@@ -92,8 +92,18 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 
 			}
 			if failure != nil {
-				failure.Meta["transformation_error"] = failure.GetError().Error()
 				failureList = append(failureList, failure)
+
+				failure.Meta["transformation_error"] = failure.GetError().Error()
+				metaJSON, err := json.Marshal(filtered.Meta)
+				if err != nil {
+					fmt.Println("ERROR MARSHALING FILTER META: " + err.Error())
+				}
+				resp, err := http.Post(os.Getenv("META_HTTP_ADDRESS"), "application/json", bytes.NewBuffer(metaJSON))
+				if err != nil {
+					fmt.Println("ERROR SENDING FILTER META REQUEST: " + err.Error())
+				}
+				resp.Body.Close()
 			}
 		}
 		return models.NewTransformationResult(successList, filteredList, failureList)
