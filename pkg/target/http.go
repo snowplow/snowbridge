@@ -286,7 +286,10 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			}
 		} else {
 			errResult = multierror.Append(errResult, errors.New("Got response status: "+resp.Status))
-			// This stops retries for this demo.
+			// For the demo, ack failures too, because it's confusing when they re-appear.
+			if msg.AckFunc != nil {
+				msg.AckFunc()
+			}
 			failed = append(failed, msg)
 			continue
 		}
