@@ -125,6 +125,7 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 
 	var results []*pubSubPublishResult
 
+	// TODO: Refactor for Batch transformation model
 	safeMessages, oversized := models.FilterOversizedMessages(
 		messages,
 		ps.MaximumAllowedMessageSizeBytes(),

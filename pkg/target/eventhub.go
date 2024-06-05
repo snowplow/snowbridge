@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
@@ -147,9 +148,10 @@ func AdaptEventHubTargetFunc(f func(c *EventHubConfig) (*EventHubTarget, error))
 	}
 }
 
-func (eht *EventHubTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+func (eht *EventHubTarget) Write(messages []*models.Message, batchTransformFunc batchtransform.BatchTransformationApplyFunction) (*models.TargetWriteResult, error) {
 	eht.log.Debugf("Writing %d messages to stream ...", len(messages))
 
+	// TODO: Replace this with the new Chunker Batch Transformation - should be a post function.
 	chunks, oversized := models.GetChunkedMessages(
 		messages,
 		eht.chunkMessageLimit,                // Max Chunk size (number of messages)

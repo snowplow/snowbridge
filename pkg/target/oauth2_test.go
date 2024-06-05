@@ -116,7 +116,7 @@ func runTest(t *testing.T, inputClientID string, inputClientSecret string, input
 	target := oauth2Target(t, server.URL, inputClientID, inputClientSecret, inputRefreshToken, tokenServer.URL)
 
 	message := testutil.GetTestMessages(1, "Hello Server!!", func() {})
-	return target.Write(message)
+	return target.Write(message, nil)
 }
 
 func oauth2Target(t *testing.T, targetURL string, inputClientID string, inputClientSecret string, inputRefreshToken string, tokenServerURL string) *HTTPTarget {

@@ -12,12 +12,13 @@
 package targetiface
 
 import (
+	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
 // Target describes the interface for how to push the data pulled from the source
 type Target interface {
-	Write(messages []*models.Message) (*models.TargetWriteResult, error)
+	Write(messages []*models.Message, batchTransformFunc batchtransform.BatchTransformationApplyFunction) (*models.TargetWriteResult, error)
 	Open()
 	Close()
 	MaximumAllowedMessageSizeBytes() int

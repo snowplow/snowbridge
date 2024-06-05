@@ -14,6 +14,7 @@ package main
 import (
 	"github.com/snowplow/snowbridge/cmd/cli"
 	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/batchtransform/batchtransformconfig"
 	kafkasource "github.com/snowplow/snowbridge/pkg/source/kafka"
 	pubsubsource "github.com/snowplow/snowbridge/pkg/source/pubsub"
 	sqssource "github.com/snowplow/snowbridge/pkg/source/sqs"
@@ -28,5 +29,5 @@ func main() {
 		kafkasource.ConfigPair, pubsubsource.ConfigPair,
 	}
 
-	cli.RunCli(sourceConfigPairs, transformconfig.SupportedTransformations)
+	cli.RunCli(sourceConfigPairs, transformconfig.SupportedTransformations, batchtransformconfig.SupportedTransformations)
 }

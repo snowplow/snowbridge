@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
 
@@ -212,9 +213,77 @@ func AdaptHTTPTargetFunc(f func(c *HTTPTargetConfig) (*HTTPTarget, error)) HTTPT
 	}
 }
 
-func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+// When we have dynamic headers, batching by header must necessarily run first. This is a http specific function,
+// so defining it here and fixing it into the Write function avoids complexity in configuration
+func (ht *HTTPTarget) groupByDynamicHeaders(batches []models.MessageBatch) ([]models.MessageBatch, []*models.Message, []*models.Message) {
+	if !ht.dynamicHeaders {
+		// If the feature is disabled just return
+		return batches, nil, nil
+	}
+
+	// Make a map of stringified header values
+	headersFound := make(map[string]*models.MessageBatch)
+
+	for _, batch := range batches {
+		// Group data by that index
+		for _, msg := range batch.OriginalMessages {
+			headerKey := fmt.Sprint(msg.HTTPHeaders)
+			if headersFound[headerKey] != nil {
+				// If a key already exists, just add this message
+				headersFound[headerKey].OriginalMessages = append(headersFound[headerKey].OriginalMessages, msg)
+			} else {
+				headersFound[headerKey] = &models.MessageBatch{
+					OriginalMessages: []*models.Message{msg},
+					HTTPHeaders:      ht.retrieveHeaders(msg),
+				}
+			}
+		}
+	}
+
+	outBatches := []models.MessageBatch{}
+	for _, batch := range headersFound {
+		outBatches = append(outBatches, *batch)
+	}
+
+	return outBatches, nil, nil
+}
+
+// Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
+// This is a http specific function so we define it here to avoid scope for misconfiguration
+func (ht *HTTPTarget) provideRequestBody(batches []models.MessageBatch) ([]models.MessageBatch, []*models.Message, []*models.Message) {
+
+	// TODO: Add test for when messagess are just strings & confirm that it all works
+
+	// TODO: Note: This would mean that the GTM client gets arrays of single events instead of single events.
+	// But we could configure an explicit templater to change that if we wanted
+	// We should test to be certain that it's still compatible.
+	invalid := make([]*models.Message, 0)
+	for _, batch := range batches {
+		if batch.BatchData != nil {
+			// TODO: Check if it is nil or zero & adapt accordingly
+			continue
+		}
+		requestData := []string{}
+		for _, msg := range batch.OriginalMessages {
+			requestData = append(requestData, string(msg.Data))
+		}
+		// TODO: Add tests to be sure this produces the desired request
+		requestBody, err := json.Marshal(requestData)
+		if err != nil {
+			// TODO: Handle errors here
+			fmt.Println(err)
+		}
+		batch.BatchData = requestBody
+	}
+
+	return batches, invalid, nil
+}
+
+func (ht *HTTPTarget) Write(messages []*models.Message, batchTransformFunc batchtransform.BatchTransformationApplyFunction) (*models.TargetWriteResult, error) {
 	ht.log.Debugf("Writing %d messages to endpoint ...", len(messages))
 
+	// TODO: We are changing this target from always operating on single events to now handling batches
+	// this should therefore be replaced by the new chunking Batch Transformation.
 	safeMessages, oversized := models.FilterOversizedMessages(
 		messages,
 		ht.MaximumAllowedMessageSizeBytes(),
@@ -225,44 +294,55 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	var sent []*models.Message
 	var errResult error
 
-	for _, msg := range safeMessages {
-		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(msg.Data))
+	// Run the transformations
+	// We provide a 'pre' function to group by Dynamic headers (if enabled) - this must necessarily happen first.
+	// We also provide a 'post' function to create a message Body if none is provided via templater - this must happen last.
+	batchTransformRes := batchTransformFunc(safeMessages, []batchtransform.BatchTransformationFunction{ht.groupByDynamicHeaders}, []batchtransform.BatchTransformationFunction{ht.provideRequestBody})
+
+	invalid = append(invalid, batchTransformRes.Invalid...)
+
+	for _, batch := range batchTransformRes.Success {
+		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(batch.BatchData))
 		if err != nil {
 			errResult = multierror.Append(errResult, errors.Wrap(err, "Error creating request"))
-			failed = append(failed, msg)
+			failed = append(failed, batch.OriginalMessages...)
 			continue
 		}
-		request.Header.Add("Content-Type", ht.contentType)                // Add content type
-		addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(msg)) // Add headers if there are any
-		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {     // Add basic auth if set
+		request.Header.Add("Content-Type", ht.contentType)            // Add content type
+		addHeadersToRequest(request, ht.headers, batch.HTTPHeaders)   // Add headers
+		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" { // Add basic auth if set
 			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 		}
 		requestStarted := time.Now()
 		resp, err := ht.client.Do(request) // Make request
 		requestFinished := time.Now()
 
-		msg.TimeRequestStarted = requestStarted
-		msg.TimeRequestFinished = requestFinished
-
 		if err != nil {
 			errResult = multierror.Append(errResult, err)
-			failed = append(failed, msg)
+			// TODO: This means that errored requests won't have request times attached.
+			// Can iterate to add or rethink how it works.
+			failed = append(failed, batch.OriginalMessages...)
 			continue
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			sent = append(sent, msg)
-			if msg.AckFunc != nil { // Ack successful messages
-				msg.AckFunc()
+			for _, msg := range batch.OriginalMessages {
+				msg.TimeRequestStarted = requestStarted
+				msg.TimeRequestFinished = requestFinished
+				sent = append(sent, msg)
+				if msg.AckFunc != nil { // Ack successful messages
+					msg.AckFunc()
+				}
 			}
+
 		} else {
 			errResult = multierror.Append(errResult, errors.New("Got response status: "+resp.Status))
-			failed = append(failed, msg)
+			failed = append(failed, batch.OriginalMessages...)
 			continue
 		}
 	}
 	if errResult != nil {
-		errResult = errors.Wrap(errResult, "Error sending http requests")
+		errResult = errors.Wrap(errResult, "Error sending http request(s)")
 	}
 
 	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
@@ -291,6 +371,7 @@ func (ht *HTTPTarget) GetID() string {
 	return ht.httpURL
 }
 
+// TODO: Can prob remove
 func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string]string {
 	if !ht.dynamicHeaders {
 		return nil

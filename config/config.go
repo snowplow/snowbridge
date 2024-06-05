@@ -46,16 +46,17 @@ type Config struct {
 
 // configurationData for holding all configuration options
 type configurationData struct {
-	Source           *component     `hcl:"source,block" envPrefix:"SOURCE_"`
-	Target           *component     `hcl:"target,block" envPrefix:"TARGET_"`
-	FailureTarget    *failureConfig `hcl:"failure_target,block"`
-	Sentry           *sentryConfig  `hcl:"sentry,block"`
-	StatsReceiver    *statsConfig   `hcl:"stats_receiver,block"`
-	Transformations  []*component   `hcl:"transform,block"`
-	LogLevel         string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
-	UserProvidedID   string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
-	DisableTelemetry bool           `hcl:"disable_telemetry,optional" env:"DISABLE_TELEMETRY"`
-	License          *licenseConfig `hcl:"license,block"`
+	Source               *component     `hcl:"source,block" envPrefix:"SOURCE_"`
+	Target               *component     `hcl:"target,block" envPrefix:"TARGET_"`
+	FailureTarget        *failureConfig `hcl:"failure_target,block"`
+	Sentry               *sentryConfig  `hcl:"sentry,block"`
+	StatsReceiver        *statsConfig   `hcl:"stats_receiver,block"`
+	Transformations      []*component   `hcl:"transform,block"`
+	BatchTransformations []*component   `hcl:"batch_transform,block"`
+	LogLevel             string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
+	UserProvidedID       string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
+	DisableTelemetry     bool           `hcl:"disable_telemetry,optional" env:"DISABLE_TELEMETRY"`
+	License              *licenseConfig `hcl:"license,block"`
 }
 
 // component is a type to abstract over configuration blocks.

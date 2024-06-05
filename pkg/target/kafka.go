@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
 )
@@ -205,72 +206,83 @@ func AdaptKafkaTargetFunc(f func(c *KafkaConfig) (*KafkaTarget, error)) KafkaTar
 }
 
 // Write pushes all messages to the required target
-func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+func (kt *KafkaTarget) Write(messages []*models.Message, batchTransformFunc batchtransform.BatchTransformationApplyFunction) (*models.TargetWriteResult, error) {
 	kt.log.Debugf("Writing %d messages to topic ...", len(messages))
 
+	// TODO: This can just be implemented
 	safeMessages, oversized := models.FilterOversizedMessages(
 		messages,
 		kt.MaximumAllowedMessageSizeBytes(),
 	)
 
+	var invalid []*models.Message
 	var sent []*models.Message
 	var failed []*models.Message
 	var errResult error
 
-	if kt.asyncProducer != nil {
-		// Not adding request latency metric to async producer for now, since it would complicate the implementation, and delay our debug.
-		for _, msg := range safeMessages {
-			kt.asyncProducer.Input() <- &sarama.ProducerMessage{
-				Topic:    kt.topicName,
-				Key:      sarama.StringEncoder(msg.PartitionKey),
-				Value:    sarama.ByteEncoder(msg.Data),
-				Metadata: msg,
-			}
-		}
+	// Run the transformations
+	batchTransformRes := batchTransformFunc(safeMessages, nil, nil)
 
-		for i := 0; i < len(safeMessages); i++ {
+	invalid = append(invalid, batchTransformRes.Invalid...)
 
-			result := <-kt.asyncResults // Block until result is returned
+	for _, batch := range batchTransformRes.Success {
 
-			if result.Err != nil {
-				errResult = multierror.Append(errResult, result.Err)
-				originalMessage := result.Msg.Metadata.(*models.Message)
-				originalMessage.SetError(result.Err)
-				failed = append(failed, originalMessage)
-			} else {
-				originalMessage := result.Msg.Metadata.(*models.Message)
-				if originalMessage.AckFunc != nil {
-					originalMessage.AckFunc()
+		// TODO: This is too much nesting. Refactor for readability
+		if kt.asyncProducer != nil {
+			// Not adding request latency metric to async producer for now, since it would complicate the implementation, and delay our debug.
+			for _, msg := range batch.OriginalMessages {
+				kt.asyncProducer.Input() <- &sarama.ProducerMessage{
+					Topic:    kt.topicName,
+					Key:      sarama.StringEncoder(msg.PartitionKey),
+					Value:    sarama.ByteEncoder(msg.Data),
+					Metadata: msg,
 				}
-				sent = append(sent, originalMessage)
 			}
-		}
-	} else if kt.syncProducer != nil {
-		for _, msg := range safeMessages {
-			requestStarted := time.Now()
-			_, _, err := kt.syncProducer.SendMessage(&sarama.ProducerMessage{
-				Topic: kt.topicName,
-				Key:   sarama.StringEncoder(msg.PartitionKey),
-				Value: sarama.ByteEncoder(msg.Data),
-			})
-			requestFinished := time.Now()
 
-			msg.TimeRequestStarted = requestStarted
-			msg.TimeRequestFinished = requestFinished
+			for i := 0; i < len(batch.OriginalMessages); i++ {
 
-			if err != nil {
-				errResult = multierror.Append(errResult, err)
-				msg.SetError(err)
-				failed = append(failed, msg)
-			} else {
-				if msg.AckFunc != nil {
-					msg.AckFunc()
+				result := <-kt.asyncResults // Block until result is returned
+
+				if result.Err != nil {
+					errResult = multierror.Append(errResult, result.Err)
+					originalMessage := result.Msg.Metadata.(*models.Message)
+					originalMessage.SetError(result.Err)
+					failed = append(failed, originalMessage)
+				} else {
+					originalMessage := result.Msg.Metadata.(*models.Message)
+					if originalMessage.AckFunc != nil {
+						originalMessage.AckFunc()
+					}
+					sent = append(sent, originalMessage)
 				}
-				sent = append(sent, msg)
 			}
+		} else if kt.syncProducer != nil {
+			for _, msg := range batch.OriginalMessages {
+				requestStarted := time.Now()
+				_, _, err := kt.syncProducer.SendMessage(&sarama.ProducerMessage{
+					Topic: kt.topicName,
+					Key:   sarama.StringEncoder(msg.PartitionKey),
+					Value: sarama.ByteEncoder(msg.Data),
+				})
+				requestFinished := time.Now()
+
+				msg.TimeRequestStarted = requestStarted
+				msg.TimeRequestFinished = requestFinished
+
+				if err != nil {
+					errResult = multierror.Append(errResult, err)
+					msg.SetError(err)
+					failed = append(failed, msg)
+				} else {
+					if msg.AckFunc != nil {
+						msg.AckFunc()
+					}
+					sent = append(sent, msg)
+				}
+			}
+		} else {
+			errResult = multierror.Append(errResult, fmt.Errorf("no producer has been configured"))
 		}
-	} else {
-		errResult = multierror.Append(errResult, fmt.Errorf("no producer has been configured"))
 	}
 
 	if errResult != nil {
@@ -282,7 +294,7 @@ func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteRes
 		sent,
 		failed,
 		oversized,
-		nil,
+		invalid,
 	), errResult
 }
 

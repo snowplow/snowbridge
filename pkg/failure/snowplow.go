@@ -79,7 +79,7 @@ func (d *SnowplowFailure) WriteInvalid(invalid []*models.Message) (*models.Targe
 		transformed = append(transformed, tMsg)
 	}
 
-	return d.target.Write(transformed)
+	return d.target.Write(transformed, nil)
 }
 
 // WriteOversized will handle the conversion of oversized messages into failure
@@ -114,7 +114,7 @@ func (d *SnowplowFailure) WriteOversized(maximumAllowedSizeBytes int, oversized 
 		transformed = append(transformed, tMsg)
 	}
 
-	return d.target.Write(transformed)
+	return d.target.Write(transformed, nil)
 }
 
 // Open manages opening the underlying target

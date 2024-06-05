@@ -127,6 +127,7 @@ func AdaptKinesisTargetFunc(f func(c *KinesisTargetConfig) (*KinesisTarget, erro
 func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	kt.log.Debugf("Writing %d messages to stream ...", len(messages))
 
+	// TODO: Replace with new batch transformation
 	chunks, oversized := models.GetChunkedMessages(
 		messages,
 		kt.requestMaxMessages,

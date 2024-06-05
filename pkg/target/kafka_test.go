@@ -19,6 +19,7 @@ import (
 	"github.com/IBM/sarama/mocks"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -79,7 +80,9 @@ func TestKafkaTarget_AsyncWriteFailure(t *testing.T) {
 
 	messages := testutil.GetTestMessages(1, "Hello Kafka!!", nil)
 
-	writeRes, err := target.Write(messages)
+	batchTransform := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, batchTransform)
 	assert.NotNil(err)
 	if err != nil {
 		assert.Equal("Error writing messages to Kafka topic: : 1 error occurred:\n\t* kafka: client has run out of available brokers to talk to\n\n", err.Error())
@@ -110,7 +113,9 @@ func TestKafkaTarget_AsyncWriteSuccess(t *testing.T) {
 
 	messages := testutil.GetTestMessages(501, "Hello Kafka!!", ackFunc)
 
-	writeRes, err := target.Write(messages)
+	batchTransform := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, batchTransform)
 	assert.Nil(err)
 	assert.NotNil(writeRes)
 
@@ -134,7 +139,9 @@ func TestKafkaTarget_SyncWriteFailure(t *testing.T) {
 
 	messages := testutil.GetTestMessages(1, "Hello Kafka!!", nil)
 
-	writeRes, err := target.Write(messages)
+	batchTransform := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, batchTransform)
 	assert.NotNil(err)
 	if err != nil {
 		assert.Equal("Error writing messages to Kafka topic: : 1 error occurred:\n\t* kafka: client has run out of available brokers to talk to\n\n", err.Error())
@@ -165,7 +172,9 @@ func TestKafkaTarget_SyncWriteSuccess(t *testing.T) {
 
 	messages := testutil.GetTestMessages(501, "Hello Kafka!!", ackFunc)
 
-	writeRes, err := target.Write(messages)
+	batchTransform := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, batchTransform)
 	assert.Nil(err)
 	assert.NotNil(writeRes)
 
@@ -197,7 +206,9 @@ func TestKafkaTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	messages := testutil.GetTestMessages(10, "Hello Kafka!!", ackFunc)
 	messages = append(messages, testutil.GetTestMessages(10, testutil.GenRandomString(1048576), ackFunc)...)
 
-	writeRes, err := target.Write(messages)
+	batchTransform := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, batchTransform)
 	assert.Nil(err)
 	assert.NotNil(writeRes)
 
@@ -229,7 +240,9 @@ func TestKafkaTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	messages := testutil.GetTestMessages(10, "Hello Kafka!!", ackFunc)
 	messages = append(messages, testutil.GetTestMessages(1, testutil.GenRandomString(1048577), ackFunc)...)
 
-	writeRes, err := target.Write(messages)
+	batchTransform := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, batchTransform)
 	assert.Nil(err)
 	assert.NotNil(writeRes)
 

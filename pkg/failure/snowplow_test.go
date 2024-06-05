@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 )
@@ -27,7 +28,7 @@ type TestFailureTarget struct {
 	onWrite func(messages []*models.Message) (*models.TargetWriteResult, error)
 }
 
-func (t *TestFailureTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+func (t *TestFailureTarget) Write(messages []*models.Message, btf batchtransform.BatchTransformationApplyFunction) (*models.TargetWriteResult, error) {
 	return t.onWrite(messages)
 }
 

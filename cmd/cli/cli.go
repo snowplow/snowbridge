@@ -28,6 +28,8 @@ import (
 
 	"github.com/snowplow/snowbridge/cmd"
 	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg/batchtransform"
+	"github.com/snowplow/snowbridge/pkg/batchtransform/batchtransformconfig"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/observer"
@@ -47,7 +49,11 @@ const (
 )
 
 // RunCli runs the app
-func RunCli(supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) {
+func RunCli(
+	supportedSources []config.ConfigurationPair,
+	supportedTransformations []config.ConfigurationPair,
+	supportedBatchTransformations []config.ConfigurationPair,
+) {
 	cfg, sentryEnabled, err := cmd.Init()
 	if err != nil {
 		exitWithError(err, sentryEnabled)
@@ -91,6 +97,11 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 		}
 
 		tr, err := transformconfig.GetTransformations(cfg, supportedTransformations)
+		if err != nil {
+			return err
+		}
+
+		btr, err := batchtransformconfig.GetBatchTransformations(cfg, batchtransformconfig.SupportedTransformations)
 		if err != nil {
 			return err
 		}
@@ -158,7 +169,7 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 
 		// Callback functions for the source to leverage when writing data
 		sf := sourceiface.SourceFunctions{
-			WriteToTarget: sourceWriteFunc(t, ft, tr, o),
+			WriteToTarget: sourceWriteFunc(t, ft, tr, btr, o),
 		}
 
 		// Read is a long running process and will only return when the source
@@ -189,7 +200,13 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 // 4. Observing these results
 //
 // All with retry logic baked in to remove any of this handling from the implementations
-func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform.TransformationApplyFunction, o *observer.Observer) func(messages []*models.Message) error {
+func sourceWriteFunc(
+	t targetiface.Target,
+	ft failureiface.Failure,
+	tr transform.TransformationApplyFunction,
+	btr batchtransform.BatchTransformationApplyFunction,
+	o *observer.Observer,
+) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
 
 		// Apply transformations
@@ -211,7 +228,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 		messagesToSend := transformed.Result
 
 		res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {
-			res, err := t.Write(messagesToSend)
+			res, err := t.Write(messagesToSend, btr)
 
 			o.TargetWrite(res)
 			messagesToSend = res.Failed
