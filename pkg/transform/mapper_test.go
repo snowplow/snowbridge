@@ -52,6 +52,44 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			ExpInterState: nil,
 			Error:         nil,
 		},
+		{
+			Scenario:  "happy_path_with_Intermediate_state",
+			JQCommand: `{foo: .app_id}`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: SpTsv1Parsed,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"foo":"test-data1"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "selecting_from_context",
+			JQCommand: `{foo: .contexts_nl_basjes_yauaa_context_1[0].operatingSystemName}`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"foo":"Unknown"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
 	}
 
 	for _, tt := range testCases {
@@ -64,8 +102,11 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 				SpMode:     true,
 			}
 
-			transFun, err := JQMapperConfigFunction(jqConfig)
-			assert.Nil(err)
+			transFun, err := jqMapperConfigFunction(jqConfig)
+			assert.NotNil(transFun)
+			if err != nil {
+				t.Fatalf("failed to create transformation function with error: %q", err.Error())
+			}
 
 			s, f, e, i := transFun(tt.InputMsg, tt.InputInterState)
 
@@ -163,8 +204,11 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 				SpMode:     false,
 			}
 
-			transFun, err := JQMapperConfigFunction(jqConfig)
-			assert.Nil(err)
+			transFun, err := jqMapperConfigFunction(jqConfig)
+			assert.NotNil(transFun)
+			if err != nil {
+				t.Fatalf("failed to create transformation function with error: %q", err.Error())
+			}
 
 			s, f, e, i := transFun(tt.InputMsg, tt.InputInterState)
 
@@ -210,7 +254,76 @@ func TestJQRunFunction_errors(t *testing.T) {
 		Error           error
 	}{
 		{
-			Scenario: "happy_path",
+			Scenario: "not_a_map_a",
+			JQConfig: &JQMapperConfig{
+				JQCommand:  `.`,
+				RunTimeout: 5,
+				SpMode:     false,
+			},
+			InputMsg: &models.Message{
+				Data:         []byte(`[]`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`[]`),
+					PartitionKey: "some-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         errors.New("cannot unmarshal array into Go value of type map[string]interface {}"),
+		},
+		{
+			Scenario: "not_a_map_b",
+			JQConfig: &JQMapperConfig{
+				JQCommand:  `.`,
+				RunTimeout: 5,
+				SpMode:     false,
+			},
+			InputMsg: &models.Message{
+				Data:         []byte(`a`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`a`),
+					PartitionKey: "some-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         errors.New("invalid character 'a' looking for beginning of value"),
+		},
+		{
+			Scenario: "not_snowplow_event_with_spMode_true",
+			JQConfig: &JQMapperConfig{
+				JQCommand:  `.`,
+				RunTimeout: 5,
+				SpMode:     true,
+			},
+			InputMsg: &models.Message{
+				Data:         []byte(`a`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`a`),
+					PartitionKey: "some-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         errors.New("Cannot parse tsv event"),
+		},
+		{
+			Scenario: "deadline_exceeded",
 			JQConfig: &JQMapperConfig{
 				JQCommand:  `{foo: .app_id}`,
 				RunTimeout: 0,
@@ -232,14 +345,40 @@ func TestJQRunFunction_errors(t *testing.T) {
 			ExpInterState: nil,
 			Error:         errors.New("context deadline"),
 		},
+		{
+			Scenario: "no_output",
+			JQConfig: &JQMapperConfig{
+				JQCommand:  `.foo[].value`,
+				RunTimeout: 5,
+				SpMode:     false,
+			},
+			InputMsg: &models.Message{
+				Data:         []byte(`{"foo": []}`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{"foo": []}`),
+					PartitionKey: "some-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         errors.New("jq query got no output"),
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.Scenario, func(t *testing.T) {
 			assert := assert.New(t)
 
-			transFun, err := JQMapperConfigFunction(tt.JQConfig)
-			assert.Nil(err)
+			transFun, err := jqMapperConfigFunction(tt.JQConfig)
+			assert.NotNil(transFun)
+			if err != nil {
+				t.Fatalf("failed to create transformation function with error: %q", err.Error())
+			}
 
 			s, f, e, i := transFun(tt.InputMsg, tt.InputInterState)
 
@@ -274,6 +413,63 @@ func TestJQRunFunction_errors(t *testing.T) {
 	}
 }
 
+func TestJQMapperConfigFunction(t *testing.T) {
+	testCases := []struct {
+		Scenario        string
+		JQCommand       string
+		Error           error
+	}{
+		{
+			Scenario: "compile_error",
+			JQCommand: `
+{
+    foo: something_undefined
+}
+`,
+			Error:         errors.New("error compiling jq query"),
+		},
+		{
+			Scenario: "parsing_error",
+			JQCommand: `^`,
+			Error:         errors.New("error parsing jq command"),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Scenario, func(t *testing.T) {
+			assert := assert.New(t)
+
+			jqCfg := &JQMapperConfig{
+				JQCommand: tt.JQCommand,
+				RunTimeout: 5,
+				SpMode: false,
+			}
+
+			transFun, err := jqMapperConfigFunction(jqCfg)
+
+			if err == nil && tt.Error != nil {
+				t.Fatalf("missed expected error")
+			}
+
+			if err != nil {
+				assert.Nil(transFun)
+
+				expErr := tt.Error
+				if expErr == nil {
+					t.Fatalf("got unexpected error: %s", err.Error())
+				}
+
+				if !strings.Contains(err.Error(), expErr.Error()) {
+					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
+						err.Error(),
+						expErr.Error())
+				}
+			}
+		})
+	}
+}
+
+// Helper
 func assertMessagesCompareJQ(t *testing.T, act, exp *models.Message, hint string) {
 	t.Helper()
 	ok := false
