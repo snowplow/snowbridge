@@ -415,9 +415,9 @@ func TestJQRunFunction_errors(t *testing.T) {
 
 func TestJQMapperConfigFunction(t *testing.T) {
 	testCases := []struct {
-		Scenario        string
-		JQCommand       string
-		Error           error
+		Scenario  string
+		JQCommand string
+		Error     error
 	}{
 		{
 			Scenario: "compile_error",
@@ -426,12 +426,12 @@ func TestJQMapperConfigFunction(t *testing.T) {
     foo: something_undefined
 }
 `,
-			Error:         errors.New("error compiling jq query"),
+			Error: errors.New("error compiling jq query"),
 		},
 		{
-			Scenario: "parsing_error",
+			Scenario:  "parsing_error",
 			JQCommand: `^`,
-			Error:         errors.New("error parsing jq command"),
+			Error:     errors.New("error parsing jq command"),
 		},
 	}
 
@@ -440,9 +440,9 @@ func TestJQMapperConfigFunction(t *testing.T) {
 			assert := assert.New(t)
 
 			jqCfg := &JQMapperConfig{
-				JQCommand: tt.JQCommand,
+				JQCommand:  tt.JQCommand,
 				RunTimeout: 5,
-				SpMode: false,
+				SpMode:     false,
 			}
 
 			transFun, err := jqMapperConfigFunction(jqCfg)
