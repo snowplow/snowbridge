@@ -101,8 +101,8 @@ func jqMapperAdapterGenerator(f func(c *JQMapperConfig) (TransformationFunction,
 	}
 }
 
-// JQMapperConfigFunction returns a jq mapper transformation function from a JQMapperConfig
-func JQMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
+// jqMapperConfigFunction returns a jq mapper transformation function from a JQMapperConfig
+func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 	query, err := gojq.Parse(c.JQCommand)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing jq command: %q", err.Error())
@@ -125,7 +125,7 @@ func JQMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 // JQMapperConfigPair is a configuration pair for the jq mapper transformation
 var JQMapperConfigPair = config.ConfigurationPair{
 	Name:   "jq",
-	Handle: jqMapperAdapterGenerator(JQMapperConfigFunction),
+	Handle: jqMapperAdapterGenerator(jqMapperConfigFunction),
 }
 
 // mkJQInput ensures the input to JQ query is of expected type
