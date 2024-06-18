@@ -42,7 +42,7 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 	writeRes, err := target.Write(messages)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Contains(err.Error(), "Error writing messages to Kinesis stream: 1 error occurred:")
+		assert.Contains(err.Error(), "ResourceNotFoundException")
 	}
 	assert.NotNil(writeRes)
 

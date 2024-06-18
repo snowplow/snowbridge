@@ -18,12 +18,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/target/targetiface"
 )
 
 const (
@@ -48,6 +49,7 @@ type KinesisTargetConfig struct {
 
 // KinesisTarget holds a new client for writing messages to kinesis
 type KinesisTarget struct {
+	targetiface.TargetStruct
 	client             kinesisiface.KinesisAPI
 	streamName         string
 	region             string
@@ -122,41 +124,52 @@ func AdaptKinesisTargetFunc(f func(c *KinesisTargetConfig) (*KinesisTarget, erro
 	}
 }
 
-// Write pushes all messages to the required target
-// TODO: Should each put be in its own goroutine?
 func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	kt.log.Debugf("Writing %d messages to stream ...", len(messages))
 
-	// TODO: Replace with new batch transformation
-	chunks, oversized := models.GetChunkedMessages(
-		messages,
-		kt.requestMaxMessages,
-		kt.MaximumAllowedMessageSizeBytes(),
-		kinesisPutRecordsRequestByteLimit,
-	)
-
-	writeResult := &models.TargetWriteResult{
-		Oversized: oversized,
+	kt.TargetStruct.AppendBatchTransforms = []batchtransform.BatchTransformationFunction{
+		chunkBatcherWithConfig(kt.requestMaxMessages, kt.MaximumAllowedMessageSizeBytes(), kinesisPutRecordsRequestByteLimit),
 	}
-
-	var errResult error
-
-	for _, chunk := range chunks {
-		res, err := kt.process(chunk)
-		writeResult = writeResult.Append(res)
-
-		if err != nil {
-			errResult = multierror.Append(errResult, err)
-		}
+	kt.TargetStruct.Process = func(batch models.MessageBatch) (*models.TargetWriteResult, error) {
+		return kt.process(batch.OriginalMessages)
 	}
-
-	if errResult != nil {
-		errResult = errors.Wrap(errResult, "Error writing messages to Kinesis stream")
-	}
-
-	kt.log.Debugf("Successfully wrote %d/%d messages", writeResult.SentCount, writeResult.Total())
-	return writeResult, errResult
+	return kt.TargetStruct.Write(messages)
 }
+
+// // Write pushes all messages to the required target
+// // TODO: Should each put be in its own goroutine?
+// func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+// 	kt.log.Debugf("Writing %d messages to stream ...", len(messages))
+
+// 	// TODO: Replace with new batch transformation
+// 	chunks, oversized := models.GetChunkedMessages(
+// 		messages,
+// 		kt.requestMaxMessages,
+// 		kt.MaximumAllowedMessageSizeBytes(),
+// 		kinesisPutRecordsRequestByteLimit,
+// 	)
+
+// 	writeResult := &models.TargetWriteResult{
+// 		Oversized: oversized,
+// 	}
+
+// 	var errResult error
+
+// 	for _, chunk := range chunks {
+// 		res, err := kt.process(chunk)
+// 		writeResult = writeResult.Append(res)
+
+// 		if err != nil {
+// 			errResult = multierror.Append(errResult, err)
+// 		}
+// 	}
+
+// 	if errResult != nil {
+// 		errResult = errors.Wrap(errResult, "Error writing messages to Kinesis stream")
+// 	}
+
+// 	kt.log.Debugf("Successfully wrote %d/%d messages", writeResult.SentCount, writeResult.Total())
+// 	return writeResult, errResult
+// }
 
 func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWriteResult, error) {
 	messageCount := int64(len(messages))

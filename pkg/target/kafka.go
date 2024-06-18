@@ -227,6 +227,8 @@ func (kt *KafkaTarget) Write(messages []*models.Message, batchTransformFunc batc
 
 	for _, batch := range batchTransformRes.Success {
 
+		// Process function would be from here...
+
 		// TODO: This is too much nesting. Refactor for readability
 		if kt.asyncProducer != nil {
 			// Not adding request latency metric to async producer for now, since it would complicate the implementation, and delay our debug.
@@ -283,6 +285,7 @@ func (kt *KafkaTarget) Write(messages []*models.Message, batchTransformFunc batc
 		} else {
 			errResult = multierror.Append(errResult, fmt.Errorf("no producer has been configured"))
 		}
+		// ... To here.
 	}
 
 	if errResult != nil {

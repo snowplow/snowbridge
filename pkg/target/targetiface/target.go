@@ -12,6 +12,7 @@
 package targetiface
 
 import (
+	"github.com/hashicorp/go-multierror"
 	"github.com/snowplow/snowbridge/pkg/models"
 	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 )
@@ -23,4 +24,47 @@ type Target interface {
 	Close()
 	MaximumAllowedMessageSizeBytes() int
 	GetID() string
+}
+
+// TargetProcessFunc defines the API for each target's implementation to handle sending a batch of data.
+type TargetProcessFunc func(models.MessageBatch) (*models.TargetWriteResult, error)
+
+// TargetStruct is an experiment
+type TargetStruct struct {
+	PrependBatchTransforms []batchtransform.BatchTransformationFunction
+	BatchTransforms        batchtransform.BatchTransformationApplyFunction
+	AppendBatchTransforms  []batchtransform.BatchTransformationFunction
+	Process                TargetProcessFunc
+	// Process should handle acking and retries!
+}
+
+func (tgt *TargetStruct) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+
+	var errResult error
+
+	// Would need to figure out the flow of how this gets provided...
+	batchFunc := batchtransform.NewBatchTransformation()
+
+	// Run the transformations
+	batchTransformRes := batchFunc(messages, tgt.PrependBatchTransforms, tgt.AppendBatchTransforms)
+
+	writeResult := &models.TargetWriteResult{
+		Oversized: batchTransformRes.Oversized,
+		Invalid:   batchTransformRes.Invalid,
+	}
+
+	for _, batch := range batchTransformRes.Success {
+
+		res, err := tgt.Process(batch)
+		if err != nil {
+			// If we have errors, wrap them together to be returned
+			errResult = multierror.Append(errResult, err)
+			// TODO: Does this make any real sense any more?
+		}
+
+		// collate results
+		writeResult = writeResult.Append(res)
+	}
+
+	return writeResult, errResult
 }
