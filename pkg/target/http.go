@@ -215,7 +215,7 @@ func AdaptHTTPTargetFunc(f func(c *HTTPTargetConfig) (*HTTPTarget, error)) HTTPT
 
 // When we have dynamic headers, batching by header must necessarily run first. This is a http specific function,
 // so defining it here and fixing it into the Write function avoids complexity in configuration
-func (ht *HTTPTarget) groupByDynamicHeaders(batches []models.MessageBatch) ([]models.MessageBatch, []*models.Message, []*models.Message) {
+func (ht *HTTPTarget) groupByDynamicHeaders(batches []*models.MessageBatch) ([]*models.MessageBatch, []*models.Message, []*models.Message) {
 	if !ht.dynamicHeaders {
 		// If the feature is disabled just return
 		return batches, nil, nil
@@ -240,9 +240,9 @@ func (ht *HTTPTarget) groupByDynamicHeaders(batches []models.MessageBatch) ([]mo
 		}
 	}
 
-	outBatches := []models.MessageBatch{}
+	outBatches := []*models.MessageBatch{}
 	for _, batch := range headersFound {
-		outBatches = append(outBatches, *batch)
+		outBatches = append(outBatches, batch)
 	}
 
 	return outBatches, nil, nil
@@ -250,7 +250,7 @@ func (ht *HTTPTarget) groupByDynamicHeaders(batches []models.MessageBatch) ([]mo
 
 // Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
 // This is a http specific function so we define it here to avoid scope for misconfiguration
-func (ht *HTTPTarget) provideRequestBody(batches []models.MessageBatch) ([]models.MessageBatch, []*models.Message, []*models.Message) {
+func (ht *HTTPTarget) provideRequestBody(batches []*models.MessageBatch) ([]*models.MessageBatch, []*models.Message, []*models.Message) {
 
 	// TODO: Add test for when messagess are just strings & confirm that it all works
 
@@ -297,7 +297,10 @@ func (ht *HTTPTarget) Write(messages []*models.Message, batchTransformFunc batch
 	// Run the transformations
 	// We provide a 'pre' function to group by Dynamic headers (if enabled) - this must necessarily happen first.
 	// We also provide a 'post' function to create a message Body if none is provided via templater - this must happen last.
-	batchTransformRes := batchTransformFunc(safeMessages, []batchtransform.BatchTransformationFunction{ht.groupByDynamicHeaders}, []batchtransform.BatchTransformationFunction{ht.provideRequestBody})
+	batchTransformRes := batchTransformFunc(
+		safeMessages,
+		[]batchtransform.BatchTransformationFunction{ht.groupByDynamicHeaders}, // runs first
+		[]batchtransform.BatchTransformationFunction{ht.provideRequestBody})    // runs last
 
 	invalid = append(invalid, batchTransformRes.Invalid...)
 

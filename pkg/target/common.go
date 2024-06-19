@@ -22,9 +22,9 @@ func chunkBatcherWithConfig(chunkSize int, maxMessageByteSize int, maxChunkByteS
 
 	// chunkBatcher is a batch transformation which incorporates models.GetChunkedMessages() into the batch transformation model,
 	// preserving the original logic and ownership of the function.
-	chunkBatcher := func(batchesIn []models.MessageBatch) ([]models.MessageBatch, []*models.Message, []*models.Message) {
+	chunkBatcher := func(batchesIn []*models.MessageBatch) ([]*models.MessageBatch, []*models.Message, []*models.Message) {
 		oversizedOut := make([]*models.Message, 0)
-		chunkedBatches := make([]models.MessageBatch, 0)
+		chunkedBatches := make([]*models.MessageBatch, 0)
 
 		for _, batch := range batchesIn {
 			chunks, oversized := models.GetChunkedMessages(batch.OriginalMessages, chunkSize, maxMessageByteSize, maxChunkByteSize)
@@ -32,7 +32,7 @@ func chunkBatcherWithConfig(chunkSize int, maxMessageByteSize int, maxChunkByteS
 			oversizedOut = append(oversizedOut, oversized...)
 
 			for _, chunk := range chunks {
-				asBatch := models.MessageBatch{
+				asBatch := &models.MessageBatch{
 					OriginalMessages: chunk,
 				}
 

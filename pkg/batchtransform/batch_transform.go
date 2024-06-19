@@ -15,10 +15,10 @@ import "github.com/snowplow/snowbridge/pkg/models"
 
 // BatchTransformationFunction is a transformation function which operates across a batch of events
 // It takes a batch as an input, and returns a successful batch and a slice of invalid messages
-type BatchTransformationFunction func([]models.MessageBatch) (success []models.MessageBatch, invalid []*models.Message, oversized []*models.Message)
+type BatchTransformationFunction func([]*models.MessageBatch) (success []*models.MessageBatch, invalid []*models.Message, oversized []*models.Message)
 
 // BatchTransformationApplyFunction combines batch into one callable function
-type BatchTransformationApplyFunction func([]*models.Message, []BatchTransformationFunction, []BatchTransformationFunction) models.BatchTransformationResult
+type BatchTransformationApplyFunction func([]*models.Message, []BatchTransformationFunction, []BatchTransformationFunction) *models.BatchTransformationResult
 
 // BatchTransformationGenerator returns a BatchTransformationApplyFunction from a provided set of BatchTransformationFunctions
 type BatchTransformationGenerator func(...BatchTransformationFunction) BatchTransformationApplyFunction
@@ -28,9 +28,9 @@ func NewBatchTransformation(tranformFunctions ...BatchTransformationFunction) Ba
 	// pre is a function to be run before the configured ones, post is to be run after.
 	// This is done because sometimes functions need to _always_ run first or last, depending on the specific target logic. (eg. batching by dynamic headers, if configured)
 	// pre and post functions are intended for use only in the implementations of targets.
-	return func(messages []*models.Message, pre []BatchTransformationFunction, post []BatchTransformationFunction) models.BatchTransformationResult {
+	return func(messages []*models.Message, pre []BatchTransformationFunction, post []BatchTransformationFunction) *models.BatchTransformationResult {
 		// make a batch to begin with
-		success := []models.MessageBatch{{OriginalMessages: messages}}
+		success := []*models.MessageBatch{{OriginalMessages: messages}}
 
 		// Because http will require specific functions to always go first and last, we provide these here
 		// Compiler gets confused if we don't rename.
@@ -39,7 +39,7 @@ func NewBatchTransformation(tranformFunctions ...BatchTransformationFunction) Ba
 
 		// If no transformations, just return a result
 		if len(functionsToRun) == 0 {
-			return models.BatchTransformationResult{Success: success}
+			return &models.BatchTransformationResult{Success: success}
 		}
 
 		var invalid []*models.Message
@@ -56,6 +56,6 @@ func NewBatchTransformation(tranformFunctions ...BatchTransformationFunction) Ba
 			oversizedList = append(oversizedList, oversized...)
 		}
 
-		return models.BatchTransformationResult{Success: success, Invalid: invalidList, Oversized: oversizedList}
+		return &models.BatchTransformationResult{Success: success, Invalid: invalidList, Oversized: oversizedList}
 	}
 }

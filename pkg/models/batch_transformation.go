@@ -24,7 +24,7 @@ type MessageBatch struct {
 
 // BatchTransformationResult houses the result of a batch transformation
 type BatchTransformationResult struct {
-	Success   []MessageBatch
+	Success   []*MessageBatch
 	Invalid   []*Message
 	Oversized []*Message
 }
