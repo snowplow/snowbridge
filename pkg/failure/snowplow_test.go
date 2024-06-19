@@ -17,9 +17,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/testutil"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 )
 
 // --- Test FailureTarget

@@ -28,8 +28,6 @@ import (
 
 	"github.com/snowplow/snowbridge/cmd"
 	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
-	"github.com/snowplow/snowbridge/pkg/batchtransform/batchtransformconfig"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/observer"
@@ -37,6 +35,8 @@ import (
 	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 	"github.com/snowplow/snowbridge/pkg/target/targetiface"
 	"github.com/snowplow/snowbridge/pkg/telemetry"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
+	"github.com/snowplow/snowbridge/pkg/transform/batch/batchtransformconfig"
 	transform "github.com/snowplow/snowbridge/pkg/transform/single"
 	"github.com/snowplow/snowbridge/pkg/transform/single/transformconfig"
 )

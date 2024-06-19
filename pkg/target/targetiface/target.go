@@ -12,8 +12,8 @@
 package targetiface
 
 import (
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/models"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 )
 
 // Target describes the interface for how to push the data pulled from the source

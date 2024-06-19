@@ -12,8 +12,8 @@
 package target
 
 import (
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/models"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 )
 
 // chunkBatcherWithConfig returns a batch transformation which incorporates models.GetChunkedMessages() into the batch transformation model.

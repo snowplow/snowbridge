@@ -19,8 +19,8 @@ import (
 	"github.com/IBM/sarama/mocks"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/testutil"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 	"github.com/stretchr/testify/assert"
 )
 

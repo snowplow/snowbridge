@@ -24,9 +24,9 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 
 	"golang.org/x/oauth2"
 )

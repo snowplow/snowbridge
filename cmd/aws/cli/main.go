@@ -14,12 +14,12 @@ package main
 import (
 	"github.com/snowplow/snowbridge/cmd/cli"
 	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/batchtransform/batchtransformconfig"
 	kafkasource "github.com/snowplow/snowbridge/pkg/source/kafka"
 	kinesissource "github.com/snowplow/snowbridge/pkg/source/kinesis"
 	pubsubsource "github.com/snowplow/snowbridge/pkg/source/pubsub"
 	sqssource "github.com/snowplow/snowbridge/pkg/source/sqs"
 	stdinsource "github.com/snowplow/snowbridge/pkg/source/stdin"
+	"github.com/snowplow/snowbridge/pkg/transform/batch/batchtransformconfig"
 	"github.com/snowplow/snowbridge/pkg/transform/single/transformconfig"
 )
 

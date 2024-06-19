@@ -15,7 +15,7 @@ import (
 	"fmt"
 
 	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 )
 
 // SupportedTransformations is a ConfigurationPair slice containing all the officially supported transformations.

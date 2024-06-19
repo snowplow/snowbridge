@@ -20,9 +20,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 )
 
 // KafkaConfig contains configurable options for the kafka target
