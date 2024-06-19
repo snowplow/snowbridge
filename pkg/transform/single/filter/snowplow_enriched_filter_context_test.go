@@ -16,7 +16,7 @@ import (
 	"testing"
 
 	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	transform "github.com/snowplow/snowbridge/pkg/transform/single"
 	"github.com/stretchr/testify/assert"
 )
 

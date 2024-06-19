@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	transform "github.com/snowplow/snowbridge/pkg/transform/single"
 )
 
 func TestMakeBaseValueGetter(t *testing.T) {

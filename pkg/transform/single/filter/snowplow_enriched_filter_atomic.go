@@ -14,7 +14,7 @@ package filter
 import (
 	"github.com/pkg/errors"
 	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	transform "github.com/snowplow/snowbridge/pkg/transform/single"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 

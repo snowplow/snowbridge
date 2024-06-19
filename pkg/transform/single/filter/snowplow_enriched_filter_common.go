@@ -21,7 +21,7 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
 	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	transform "github.com/snowplow/snowbridge/pkg/transform/single"
 )
 
 // evaluateSpEnrichedfilter takes a regex and a slice of values, and returns whether or not a value has been matched

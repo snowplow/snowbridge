@@ -15,9 +15,9 @@ import (
 	"fmt"
 
 	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/transform"
-	"github.com/snowplow/snowbridge/pkg/transform/engine"
-	"github.com/snowplow/snowbridge/pkg/transform/filter"
+	transform "github.com/snowplow/snowbridge/pkg/transform/single"
+	"github.com/snowplow/snowbridge/pkg/transform/single/engine"
+	"github.com/snowplow/snowbridge/pkg/transform/single/filter"
 )
 
 // SupportedTransformations is a ConfigurationPair slice containing all the officially supported transformations.

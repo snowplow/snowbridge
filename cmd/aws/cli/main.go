@@ -20,7 +20,7 @@ import (
 	pubsubsource "github.com/snowplow/snowbridge/pkg/source/pubsub"
 	sqssource "github.com/snowplow/snowbridge/pkg/source/sqs"
 	stdinsource "github.com/snowplow/snowbridge/pkg/source/stdin"
-	"github.com/snowplow/snowbridge/pkg/transform/transformconfig"
+	"github.com/snowplow/snowbridge/pkg/transform/single/transformconfig"
 )
 
 func main() {

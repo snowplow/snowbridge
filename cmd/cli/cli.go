@@ -37,8 +37,8 @@ import (
 	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 	"github.com/snowplow/snowbridge/pkg/target/targetiface"
 	"github.com/snowplow/snowbridge/pkg/telemetry"
-	"github.com/snowplow/snowbridge/pkg/transform"
-	"github.com/snowplow/snowbridge/pkg/transform/transformconfig"
+	transform "github.com/snowplow/snowbridge/pkg/transform/single"
+	"github.com/snowplow/snowbridge/pkg/transform/single/transformconfig"
 )
 
 const (

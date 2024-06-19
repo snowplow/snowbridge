@@ -21,10 +21,10 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/snowplow/snowbridge/assets"
 	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/transform"
-	"github.com/snowplow/snowbridge/pkg/transform/engine"
-	"github.com/snowplow/snowbridge/pkg/transform/filter"
-	"github.com/snowplow/snowbridge/pkg/transform/transformconfig"
+	transform "github.com/snowplow/snowbridge/pkg/transform/single"
+	"github.com/snowplow/snowbridge/pkg/transform/single/engine"
+	"github.com/snowplow/snowbridge/pkg/transform/single/filter"
+	"github.com/snowplow/snowbridge/pkg/transform/single/transformconfig"
 	"github.com/stretchr/testify/assert"
 )
 

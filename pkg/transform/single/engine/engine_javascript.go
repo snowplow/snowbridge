@@ -24,7 +24,7 @@ import (
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	transform "github.com/snowplow/snowbridge/pkg/transform/single"
 )
 
 // JSEngineConfig configures the JavaScript Engine.
