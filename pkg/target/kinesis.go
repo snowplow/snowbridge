@@ -21,10 +21,10 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/pkg/batchtransform"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/target/targetiface"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 )
 
 const (
@@ -131,7 +131,7 @@ func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteR
 	kt.TargetStruct.AppendBatchTransforms = []batchtransform.BatchTransformationFunction{
 		chunkBatcherWithConfig(kt.requestMaxMessages, kt.MaximumAllowedMessageSizeBytes(), kinesisPutRecordsRequestByteLimit),
 	}
-	kt.TargetStruct.Process = func(batch models.MessageBatch) (*models.TargetWriteResult, error) {
+	kt.TargetStruct.Process = func(batch *models.MessageBatch) (*models.TargetWriteResult, error) {
 		return kt.process(batch.OriginalMessages)
 	}
 	return kt.TargetStruct.Write(messages)

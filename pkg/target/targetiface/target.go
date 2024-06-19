@@ -27,7 +27,7 @@ type Target interface {
 }
 
 // TargetProcessFunc defines the API for each target's implementation to handle sending a batch of data.
-type TargetProcessFunc func(models.MessageBatch) (*models.TargetWriteResult, error)
+type TargetProcessFunc func(*models.MessageBatch) (*models.TargetWriteResult, error)
 
 // TargetStruct is an experiment
 type TargetStruct struct {
