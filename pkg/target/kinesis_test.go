@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/testutil"
+	batchtransform "github.com/snowplow/snowbridge/pkg/transform/batch"
 )
 
 func TestKinesisTarget_WriteFailure(t *testing.T) {
@@ -39,7 +40,9 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 
 	messages := testutil.GetTestMessages(1, "Hello Kinesis!!", nil)
 
-	writeRes, err := target.Write(messages)
+	btf := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, btf)
 	assert.NotNil(err)
 	if err != nil {
 		assert.Contains(err.Error(), "ResourceNotFoundException")
@@ -81,7 +84,9 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 
 	messages := testutil.GetTestMessages(501, "Hello Kinesis!!", ackFunc)
 
-	writeRes, err := target.Write(messages)
+	btf := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, btf)
 	assert.Nil(err)
 	assert.NotNil(writeRes)
 
@@ -124,7 +129,9 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	messages := testutil.GetTestMessages(10, "Hello Kinesis!!", ackFunc)
 	messages = append(messages, testutil.GetTestMessages(10, testutil.GenRandomString(1048576), ackFunc)...)
 
-	writeRes, err := target.Write(messages)
+	btf := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, btf)
 	assert.Nil(err)
 	assert.NotNil(writeRes)
 
@@ -167,7 +174,9 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	messages := testutil.GetTestMessages(10, "Hello Kinesis!!", ackFunc)
 	messages = append(messages, testutil.GetTestMessages(1, testutil.GenRandomString(1048577), ackFunc)...)
 
-	writeRes, err := target.Write(messages)
+	btf := batchtransform.NewBatchTransformation(nil)
+
+	writeRes, err := target.Write(messages, btf)
 	assert.Nil(err)
 	assert.NotNil(writeRes)
 

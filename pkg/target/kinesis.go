@@ -126,18 +126,17 @@ func AdaptKinesisTargetFunc(f func(c *KinesisTargetConfig) (*KinesisTarget, erro
 
 // Write pushes all messages to the required target
 // At present it configures and calls the TargetStruct's Write method - but we should refactor such that we just have one Write function
-func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+func (kt *KinesisTarget) Write(messages []*models.Message, batchTransformFunc batchtransform.BatchTransformationApplyFunction) (*models.TargetWriteResult, error) {
 
 	kt.TargetStruct.AppendBatchTransforms = []batchtransform.BatchTransformationFunction{
 		chunkBatcherWithConfig(kt.requestMaxMessages, kt.MaximumAllowedMessageSizeBytes(), kinesisPutRecordsRequestByteLimit),
 	}
-	kt.TargetStruct.Process = func(batch *models.MessageBatch) (*models.TargetWriteResult, error) {
-		return kt.process(batch.OriginalMessages)
-	}
-	return kt.TargetStruct.Write(messages)
+	kt.TargetStruct.Process = kt.process
+	return kt.TargetStruct.Write(messages, batchTransformFunc)
 }
 
-func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWriteResult, error) {
+func (kt *KinesisTarget) process(batch *models.MessageBatch) (*models.TargetWriteResult, error) {
+	messages := batch.OriginalMessages
 	messageCount := int64(len(messages))
 	kt.log.Debugf("Writing chunk of %d messages to stream ...", messageCount)
 

@@ -32,21 +32,17 @@ type TargetProcessFunc func(*models.MessageBatch) (*models.TargetWriteResult, er
 // TargetStruct is an experiment
 type TargetStruct struct {
 	PrependBatchTransforms []batchtransform.BatchTransformationFunction
-	BatchTransforms        batchtransform.BatchTransformationApplyFunction
 	AppendBatchTransforms  []batchtransform.BatchTransformationFunction
 	Process                TargetProcessFunc
 	// Process should handle acking and retries!
 }
 
-func (tgt *TargetStruct) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
+func (tgt *TargetStruct) Write(messages []*models.Message, batchTransformFunc batchtransform.BatchTransformationApplyFunction) (*models.TargetWriteResult, error) {
 
 	var errResult error
 
-	// Would need to figure out the flow of how this gets provided...
-	batchFunc := batchtransform.NewBatchTransformation()
-
 	// Run the transformations
-	batchTransformRes := batchFunc(messages, tgt.PrependBatchTransforms, tgt.AppendBatchTransforms)
+	batchTransformRes := batchTransformFunc(messages, tgt.PrependBatchTransforms, tgt.AppendBatchTransforms)
 
 	writeResult := &models.TargetWriteResult{
 		Oversized: batchTransformRes.Oversized,
