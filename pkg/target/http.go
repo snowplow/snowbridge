@@ -213,101 +213,6 @@ func AdaptHTTPTargetFunc(f func(c *HTTPTargetConfig) (*HTTPTarget, error)) HTTPT
 	}
 }
 
-// requestTemplater creates a request from a batch of messages
-func (ht *HTTPTarget) requestTemplater(tmpl string, messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
-	invalid := make([]*models.Message, 0)
-	safe := make([]*models.Message, 0)
-
-	formatted := []map[string]json.RawMessage{}
-	for _, msg := range messages {
-		// Use json.RawMessage to ensure templating format works (real implementation has a problem to figure out here)
-		var asMap map[string]json.RawMessage
-
-		if err := json.Unmarshal(msg.Data, &asMap); err != nil {
-			msg.SetError(errors.Wrap(err, "templater error")) // TODO: Cleanup!
-			invalid = append(invalid, msg)
-			continue
-		}
-
-		formatted = append(formatted, asMap)
-	}
-	var buf bytes.Buffer
-
-	t := template.Must(template.New("example").Parse(tmpl))
-	if err := t.Execute(&buf, formatted); err != nil {
-
-		invalid = append(invalid, safe...)
-
-		return nil, nil, invalid, err
-	}
-
-	return buf.Bytes(), safe, nil, nil
-}
-
-// Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
-// This is a http specific function so we define it here to avoid scope for misconfiguration
-func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
-
-	// TODO: Add test for when messagess are just strings & confirm that it all works
-
-	// TODO: Note: This would mean that the GTM client gets arrays of single events instead of single events.
-	// But we could configure an explicit templater to change that if we wanted
-	// We should test to be certain that it's still compatible.
-
-	requestData := []string{}
-	for _, msg := range messages {
-		requestData = append(requestData, string(msg.Data))
-	}
-	// TODO: Add tests to be sure this produces the desired request
-	requestBody, err := json.Marshal(requestData)
-	if err != nil {
-		// TODO: Handle errors here
-		return nil, nil, messages, err
-	}
-
-	return requestBody, messages, nil, nil
-}
-
-const templ = `{
-	attributes: [ {{$first_1 := true}}
-	  {{range .}}{{if $first_1}}{{$first_1 = false}}{{else}},{{end}}
-	  {{printf "%s" .attribute_data}}{{end}}
-	  ],
-	events: [ {{$first_2 := true}}
-	  {{range .}}{{if $first_2}}{{$first_2 = false}}{{else}},{{end}}
-	  {{printf "%s" .event_data}}{{end}}
-	  ]
-  }`
-
-// groupByDynamicHeaders batches data by header if the dynamic header feature is turned on.
-func (ht *HTTPTarget) groupByDynamicHeaders(messages []*models.Message) [][]*models.Message {
-	if !ht.dynamicHeaders {
-		// If the feature is disabled just return
-		return [][]*models.Message{messages}
-	}
-
-	// Make a map of stringified header values
-	headersFound := make(map[string][]*models.Message)
-
-	// Group data by that index
-	for _, msg := range messages {
-		headerKey := fmt.Sprint(msg.HTTPHeaders)
-		if headersFound[headerKey] != nil {
-			// If a key already exists, just add this message
-			headersFound[headerKey] = append(headersFound[headerKey], msg)
-		} else {
-			headersFound[headerKey] = []*models.Message{msg}
-		}
-	}
-
-	outBatches := [][]*models.Message{}
-	for _, batch := range headersFound {
-		outBatches = append(outBatches, batch)
-	}
-
-	return outBatches
-}
-
 func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	ht.log.Debugf("Writing %d messages to endpoint ...", len(messages))
 
@@ -419,4 +324,99 @@ func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string]string {
 	}
 
 	return msg.HTTPHeaders
+}
+
+// requestTemplater creates a request from a batch of messages
+func (ht *HTTPTarget) requestTemplater(tmpl string, messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
+	invalid := make([]*models.Message, 0)
+	safe := make([]*models.Message, 0)
+
+	formatted := []map[string]json.RawMessage{}
+	for _, msg := range messages {
+		// Use json.RawMessage to ensure templating format works (real implementation has a problem to figure out here)
+		var asMap map[string]json.RawMessage
+
+		if err := json.Unmarshal(msg.Data, &asMap); err != nil {
+			msg.SetError(errors.Wrap(err, "templater error")) // TODO: Cleanup!
+			invalid = append(invalid, msg)
+			continue
+		}
+
+		formatted = append(formatted, asMap)
+	}
+	var buf bytes.Buffer
+
+	t := template.Must(template.New("example").Parse(tmpl))
+	if err := t.Execute(&buf, formatted); err != nil {
+
+		invalid = append(invalid, safe...)
+
+		return nil, nil, invalid, err
+	}
+
+	return buf.Bytes(), safe, nil, nil
+}
+
+// Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
+// This is a http specific function so we define it here to avoid scope for misconfiguration
+func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
+
+	// TODO: Add test for when messagess are just strings & confirm that it all works
+
+	// TODO: Note: This would mean that the GTM client gets arrays of single events instead of single events.
+	// But we could configure an explicit templater to change that if we wanted
+	// We should test to be certain that it's still compatible.
+
+	requestData := []string{}
+	for _, msg := range messages {
+		requestData = append(requestData, string(msg.Data))
+	}
+	// TODO: Add tests to be sure this produces the desired request
+	requestBody, err := json.Marshal(requestData)
+	if err != nil {
+		// TODO: Handle errors here
+		return nil, nil, messages, err
+	}
+
+	return requestBody, messages, nil, nil
+}
+
+const templ = `{
+	attributes: [ {{$first_1 := true}}
+	  {{range .}}{{if $first_1}}{{$first_1 = false}}{{else}},{{end}}
+	  {{printf "%s" .attribute_data}}{{end}}
+	  ],
+	events: [ {{$first_2 := true}}
+	  {{range .}}{{if $first_2}}{{$first_2 = false}}{{else}},{{end}}
+	  {{printf "%s" .event_data}}{{end}}
+	  ]
+  }`
+
+// groupByDynamicHeaders batches data by header if the dynamic header feature is turned on.
+func (ht *HTTPTarget) groupByDynamicHeaders(messages []*models.Message) [][]*models.Message {
+	if !ht.dynamicHeaders {
+		// If the feature is disabled just return
+		return [][]*models.Message{messages}
+	}
+
+	// Make a map of stringified header values
+	headersFound := make(map[string][]*models.Message)
+
+	// Group data by that index
+	for _, msg := range messages {
+		headerKey := fmt.Sprint(msg.HTTPHeaders)
+		if headersFound[headerKey] != nil {
+			// If a key already exists, just add this message
+			headersFound[headerKey] = append(headersFound[headerKey], msg)
+		} else {
+			headersFound[headerKey] = []*models.Message{msg}
+		}
+	}
+
+	outBatches := [][]*models.Message{}
+	for _, batch := range headersFound {
+		outBatches = append(outBatches, batch)
+	}
+
+	return outBatches
 }
