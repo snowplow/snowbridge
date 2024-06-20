@@ -16,7 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
+	"text/template"
 	"net/http"
 	"net/url"
 	"time"
@@ -331,10 +331,10 @@ func (ht *HTTPTarget) requestTemplater(tmpl string, messages []*models.Message) 
 	invalid := make([]*models.Message, 0)
 	safe := make([]*models.Message, 0)
 
-	formatted := []map[string]json.RawMessage{}
+	formatted := []map[string]interface{}{}
 	for _, msg := range messages {
 		// Use json.RawMessage to ensure templating format works (real implementation has a problem to figure out here)
-		var asMap map[string]json.RawMessage
+		var asMap map[string]interface{}
 
 		if err := json.Unmarshal(msg.Data, &asMap); err != nil {
 			msg.SetError(errors.Wrap(err, "templater error")) // TODO: Cleanup!
@@ -346,7 +346,17 @@ func (ht *HTTPTarget) requestTemplater(tmpl string, messages []*models.Message) 
 	}
 	var buf bytes.Buffer
 
-	t := template.Must(template.New("example").Parse(tmpl))
+	customFunctions := template.FuncMap{
+    // If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
+    // TODO: This works for now but we should check if there is more efficient solution.
+		"asJson": func(v interface{}) string {
+			a, _ := json.Marshal(v)
+			return string(a)
+		},
+	}
+
+  //TODO parse when creating target
+	t := template.Must(template.New("example").Funcs(customFunctions).Parse(tmpl))
 	if err := t.Execute(&buf, formatted); err != nil {
 
 		invalid = append(invalid, safe...)
