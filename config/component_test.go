@@ -75,7 +75,9 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			Plug: testHTTPTargetAdapter(testHTTPTargetFunc),
 			Expected: &target.HTTPTargetConfig{
 				HTTPURL:                 "testUrl",
-				ByteLimit:               1048576,
+				RequestMaxMessages:      1,
+				RequestByteLimit:        1048576,
+				MessageByteLimit:        1048576,
 				RequestTimeoutInSeconds: 5,
 				ContentType:             "application/json",
 				Headers:                 "",
@@ -92,7 +94,9 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			Plug: testHTTPTargetAdapter(testHTTPTargetFunc),
 			Expected: &target.HTTPTargetConfig{
 				HTTPURL:                 "testUrl",
-				ByteLimit:               1000000,
+				RequestMaxMessages:      10,
+				RequestByteLimit:        1000000,
+				MessageByteLimit:        1000000,
 				RequestTimeoutInSeconds: 2,
 				ContentType:             "test/test",
 				Headers:                 "{\"Accept-Language\":\"en-US\"}",

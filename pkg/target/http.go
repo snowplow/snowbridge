@@ -16,9 +16,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"text/template"
 	"net/http"
 	"net/url"
+	"text/template"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -34,7 +34,6 @@ import (
 // HTTPTargetConfig configures the destination for records consumed
 type HTTPTargetConfig struct {
 	HTTPURL                 string `hcl:"url"`
-	ByteLimit               int    `hcl:"byte_limit,optional"`
 	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional"`
 	ContentType             string `hcl:"content_type,optional"`
 	Headers                 string `hcl:"headers,optional"`
@@ -50,19 +49,26 @@ type HTTPTargetConfig struct {
 	OAuth2ClientSecret string `hcl:"oauth2_client_secret,optional"`
 	OAuth2RefreshToken string `hcl:"oauth2_refresh_token,optional"`
 	OAuth2TokenURL     string `hcl:"oauth2_token_url,optional"`
+
+	RequestMaxMessages int `hcl:"request_max_messages,optional"`
+	RequestByteLimit   int `hcl:"request_byte_limit,optional"` // note: breaking change here
+	MessageByteLimit   int `hcl:"message_byte_limit,optional"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
 type HTTPTarget struct {
 	client            *http.Client
 	httpURL           string
-	byteLimit         int
 	contentType       string
 	headers           map[string]string
 	basicAuthUsername string
 	basicAuthPassword string
 	log               *log.Entry
 	dynamicHeaders    bool
+
+	requestMaxMessages int
+	requestByteLimit   int
+	messageByteLimit   int
 }
 
 func checkURL(str string) error {
@@ -102,8 +108,25 @@ func addHeadersToRequest(request *http.Request, headers map[string]string, dynam
 }
 
 // newHTTPTarget creates a client for writing events to HTTP
-func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentType string, headers string, basicAuthUsername string, basicAuthPassword string,
-	certFile string, keyFile string, caFile string, skipVerifyTLS bool, dynamicHeaders bool, oAuth2ClientID string, oAuth2ClientSecret string, oAuth2RefreshToken string, oAuth2TokenURL string) (*HTTPTarget, error) {
+func newHTTPTarget(
+	httpURL string,
+	requestTimeout int,
+	requestMaxMessages int,
+	requestByteLimit int,
+	messageByteLimit int,
+	contentType string,
+	headers string,
+	basicAuthUsername string,
+	basicAuthPassword string,
+	certFile string,
+	keyFile string,
+	caFile string,
+	skipVerifyTLS bool,
+	dynamicHeaders bool,
+	oAuth2ClientID string,
+	oAuth2ClientSecret string,
+	oAuth2RefreshToken string,
+	oAuth2TokenURL string) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -128,13 +151,16 @@ func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 	return &HTTPTarget{
 		client:            client,
 		httpURL:           httpURL,
-		byteLimit:         byteLimit,
 		contentType:       contentType,
 		headers:           parsedHeaders,
 		basicAuthUsername: basicAuthUsername,
 		basicAuthPassword: basicAuthPassword,
 		log:               log.WithFields(log.Fields{"target": "http", "url": httpURL}),
 		dynamicHeaders:    dynamicHeaders,
+
+		requestMaxMessages: requestMaxMessages,
+		requestByteLimit:   requestByteLimit,
+		messageByteLimit:   messageByteLimit,
 	}, nil
 }
 
@@ -162,7 +188,9 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 	return newHTTPTarget(
 		c.HTTPURL,
 		c.RequestTimeoutInSeconds,
-		c.ByteLimit,
+		c.RequestMaxMessages,
+		c.RequestByteLimit,
+		c.MessageByteLimit,
 		c.ContentType,
 		c.Headers,
 		c.BasicAuthUsername,
@@ -193,7 +221,10 @@ func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults for the optional parameters
 	// whose default is not their zero value.
 	cfg := &HTTPTargetConfig{
-		ByteLimit:               1048576,
+		RequestMaxMessages: 20,
+		RequestByteLimit:   1048576,
+		MessageByteLimit:   1048576,
+
 		RequestTimeoutInSeconds: 5,
 		ContentType:             "application/json",
 	}
@@ -218,10 +249,10 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 	chunks, oversized := models.GetChunkedMessages(
 		messages,
-		1, // kt.requestMaxMessages,
-		1, // kt.MaximumAllowedMessageSizeBytes(),
-		1, // kinesisPutRecordsRequestByteLimit,
-	) // TOOD: Just bodged in for now - implement this bit
+		ht.requestMaxMessages,
+		ht.messageByteLimit,
+		ht.requestByteLimit,
+	)
 
 	sent := []*models.Message{}
 	failed := []*models.Message{}
@@ -310,7 +341,7 @@ func (ht *HTTPTarget) Close() {}
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
 // per message for this target
 func (ht *HTTPTarget) MaximumAllowedMessageSizeBytes() int {
-	return ht.byteLimit
+	return ht.messageByteLimit
 }
 
 // GetID returns an identifier for this target
@@ -347,15 +378,15 @@ func (ht *HTTPTarget) requestTemplater(tmpl string, messages []*models.Message) 
 	var buf bytes.Buffer
 
 	customFunctions := template.FuncMap{
-    // If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
-    // TODO: This works for now but we should check if there is more efficient solution.
+		// If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
+		// TODO: This works for now but we should check if there is more efficient solution.
 		"asJson": func(v interface{}) string {
 			a, _ := json.Marshal(v)
 			return string(a)
 		},
 	}
 
-  //TODO parse when creating target
+	//TODO parse when creating target
 	t := template.Must(template.New("example").Funcs(customFunctions).Parse(tmpl))
 	if err := t.Execute(&buf, formatted); err != nil {
 
