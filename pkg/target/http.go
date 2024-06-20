@@ -316,7 +316,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		1, // kt.requestMaxMessages,
 		1, // kt.MaximumAllowedMessageSizeBytes(),
 		1, // kinesisPutRecordsRequestByteLimit,
-	) // Just bodged in for now
+	) // TOOD: Just bodged in for now - implement this bit
 
 	sent := []*models.Message{}
 	failed := []*models.Message{}
@@ -351,15 +351,20 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				continue
 			}
 			request.Header.Add("Content-Type", ht.contentType)                        // Add content type
-			addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(goodMsgs[0])) // Add headers if there are any
+			addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(goodMsgs[0])) // Add headers if there are any - because they're grouped by header, we just need to pick the header from one message
 			if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {             // Add basic auth if set
 				request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 			}
-			// requestStarted := time.Now()
+			requestStarted := time.Now()
 			resp, err := ht.client.Do(request) // Make request
-			// requestFinished := time.Now()
+			requestFinished := time.Now()
 
-			// TODO: fit in the request times
+			// Add request times to every message
+			for _, msg := range goodMsgs {
+				msg.TimeRequestStarted = requestStarted
+				msg.TimeRequestFinished = requestFinished
+			}
+
 			if err != nil {
 				failed = append(failed, goodMsgs...)
 				errResult = errors.Wrap(errResult, "Error sending request: "+err.Error())
@@ -386,7 +391,8 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		Sent:      sent,
 		Failed:    failed,
 		Oversized: oversized,
-		Invalid:   nil, // TODO: should some of the above be invaid not failed?
+		Invalid:   nil,
+		// TODO: design decision: Where we cannot create a request body, here we treat that as 'failed', but technically it may be considered 'invalid'. We should validate this design decision.
 	}, errResult
 }
 
