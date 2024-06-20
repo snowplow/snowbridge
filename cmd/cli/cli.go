@@ -46,13 +46,12 @@ const (
 	appCopyright = "(c) 2020-present Snowplow Analytics Ltd. All rights reserved."
 )
 
-// RunCli runs the app
+// RunCli allows running application from cli
 func RunCli(supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) {
-	cfg, sentryEnabled, err := cmd.Init()
+	config, sentryEnabled, err := cmd.Init()
 	if err != nil {
 		exitWithError(err, sentryEnabled)
 	}
-
 	app := cli.NewApp()
 	app.Name = appName
 	app.Usage = appUsage
@@ -85,100 +84,107 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 			}()
 		}
 
-		s, err := sourceconfig.GetSource(cfg, supportedSources)
-		if err != nil {
-			return err
-		}
+		return RunApp(config, supportedSources, supportedTransformations)
+	}
 
-		tr, err := transformconfig.GetTransformations(cfg, supportedTransformations)
+	app.ExitErrHandler = func(context *cli.Context, err error) {
 		if err != nil {
-			return err
+			exitWithError(err, sentryEnabled)
 		}
+	}
 
-		t, err := cfg.GetTarget()
-		if err != nil {
-			return err
-		}
-		t.Open()
+	app.Run(os.Args)
+}
 
-		ft, err := cfg.GetFailureTarget(cmd.AppName, cmd.AppVersion)
-		if err != nil {
-			return err
-		}
-		ft.Open()
+// RunApp runs application (without cli stuff)
+func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) error {
+	s, err := sourceconfig.GetSource(cfg, supportedSources)
+	if err != nil {
+		return err
+	}
 
-		tags, err := cfg.GetTags()
-		if err != nil {
-			return err
-		}
-		o, err := cfg.GetObserver(tags)
-		if err != nil {
-			return err
-		}
-		o.Start()
+	tr, err := transformconfig.GetTransformations(cfg, supportedTransformations)
+	if err != nil {
+		return err
+	}
 
-		stopTelemetry := telemetry.InitTelemetryWithCollector(cfg)
+	t, err := cfg.GetTarget()
+	if err != nil {
+		return err
+	}
+	t.Open()
 
-		// Handle SIGTERM
-		sig := make(chan os.Signal)
-		signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
+	ft, err := cfg.GetFailureTarget(cmd.AppName, cmd.AppVersion)
+	if err != nil {
+		return err
+	}
+	ft.Open()
+
+	tags, err := cfg.GetTags()
+	if err != nil {
+		return err
+	}
+	o, err := cfg.GetObserver(tags)
+	if err != nil {
+		return err
+	}
+	o.Start()
+
+	stopTelemetry := telemetry.InitTelemetryWithCollector(cfg)
+
+	// Handle SIGTERM
+	sig := make(chan os.Signal)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
+	go func() {
+		<-sig
+		log.Warn("SIGTERM called, cleaning up and closing application ...")
+
+		stop := make(chan struct{}, 1)
 		go func() {
-			<-sig
-			log.Warn("SIGTERM called, cleaning up and closing application ...")
-
-			stop := make(chan struct{}, 1)
-			go func() {
-				s.Stop()
-				stop <- struct{}{}
-			}()
-
-			select {
-			case <-stop:
-				log.Debug("source.Stop() finished successfully!")
-
-				stopTelemetry()
-				if err != nil {
-					log.Debugf(`error deleting tmp directory: %v`, err)
-				}
-			case <-time.After(5 * time.Second):
-				log.Error("source.Stop() took more than 5 seconds, forcing shutdown ...")
-
-				t.Close()
-				ft.Close()
-				o.Stop()
-				stopTelemetry()
-
-				if err != nil {
-					log.Debugf(`error deleting tmp directory: %v`, err)
-				}
-
-				os.Exit(1)
-			}
+			s.Stop()
+			stop <- struct{}{}
 		}()
 
-		// Callback functions for the source to leverage when writing data
-		sf := sourceiface.SourceFunctions{
-			WriteToTarget: sourceWriteFunc(t, ft, tr, o),
-		}
+		select {
+		case <-stop:
+			log.Debug("source.Stop() finished successfully!")
 
-		// Read is a long running process and will only return when the source
-		// is exhausted or if an error occurs
-		err = s.Read(&sf)
-		if err != nil {
-			return err
-		}
+			stopTelemetry()
+			if err != nil {
+				log.Debugf(`error deleting tmp directory: %v`, err)
+			}
+		case <-time.After(5 * time.Second):
+			log.Error("source.Stop() took more than 5 seconds, forcing shutdown ...")
 
-		t.Close()
-		ft.Close()
-		o.Stop()
-		return nil
+			t.Close()
+			ft.Close()
+			o.Stop()
+			stopTelemetry()
+
+			if err != nil {
+				log.Debugf(`error deleting tmp directory: %v`, err)
+			}
+
+			os.Exit(1)
+		}
+	}()
+
+	// Callback functions for the source to leverage when writing data
+	sf := sourceiface.SourceFunctions{
+		WriteToTarget: sourceWriteFunc(t, ft, tr, o),
 	}
 
-	err1 := app.Run(os.Args)
-	if err1 != nil {
-		exitWithError(err1, sentryEnabled)
+	// Read is a long running process and will only return when the source
+	// is exhausted or if an error occurs
+	err = s.Read(&sf)
+	if err != nil {
+		return err
 	}
 
+	t.Close()
+	ft.Close()
+	o.Stop()
+	return nil
 }
 
 // sourceWriteFunc builds the function which wraps the different objects together to handle:
