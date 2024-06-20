@@ -50,10 +50,7 @@ require (
 	github.com/itchyny/gojq v0.12.16
 	github.com/json-iterator/go v1.1.12
 	github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1
-	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7
-	github.com/yuin/gopher-lua v1.1.1
 	github.com/zclconf/go-cty v1.14.4
-	layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
 )
 
 require (
