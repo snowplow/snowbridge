@@ -125,20 +125,9 @@ func getFileMountArg(testCase string) string {
 		panic(err)
 	}
 
-	LuaScriptFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "script.lua"))
-	if err != nil {
-		panic(err)
-	}
-
 	// Check if we have a script & mount it if so
 	if _, err := os.Stat(JSScriptFilePath); err == nil {
 		return fmt.Sprintf("--mount type=bind,source=%s,target=/script.js", JSScriptFilePath)
-	} else if !errors.Is(err, os.ErrNotExist) {
-		panic(err)
-	}
-
-	if _, err := os.Stat(LuaScriptFilePath); err == nil {
-		return fmt.Sprintf("--mount type=bind,source=%s,target=/script.lua", LuaScriptFilePath)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		panic(err)
 	}
@@ -149,7 +138,7 @@ func getFileMountArg(testCase string) string {
 func testE2ETransformTSVCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct", "jsPlainFilter", "jsPlainTransform", "luaPlainFilter", "luaPlainTransform"}
+	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct", "jsPlainFilter", "jsPlainTransform"}
 
 	for _, testCase := range casesToTest {
 
@@ -204,7 +193,7 @@ func testE2ETransformJSONCases(t *testing.T) {
 func testE2ETransformPKCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk"}
+	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk"}
 
 	for _, testCase := range casesToTest {
 

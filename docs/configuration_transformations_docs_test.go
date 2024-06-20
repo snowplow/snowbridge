@@ -65,17 +65,11 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 	// Set env vars with paths to scripts
 	t.Setenv("JS_SCRIPT_PATH", jsScriptPath)
 
-	luaScriptPath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "create-a-script-filter-example.lua")
-	t.Setenv("LUA_SCRIPT_PATH", luaScriptPath)
-
 	jsNonSnowplowScriptPath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "examples", "js-non-snowplow-script-example.js")
 	t.Setenv("JS_NON_SNOWPLOW_SCRIPT_PATH", jsNonSnowplowScriptPath)
 
 	jsSnowplowScriptPath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "examples", "js-snowplow-script-example.js")
 	t.Setenv("JS_SNOWPLOW_SCRIPT_PATH", jsSnowplowScriptPath)
-
-	luaNonSnowplowScriptPath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "examples", "lua-script-example.lua")
-	t.Setenv("LUA_SCRIPT_EXAMPLE_PATH", luaNonSnowplowScriptPath)
 
 	baseDir := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts")
 
@@ -109,9 +103,6 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 		case ".js":
 			// Test that all of our JS snippets compile with the engine, pass smoke test, and successfully create a transformation function
 			testJSScriptCompiles(t, file)
-		case ".lua":
-			// Test that all of our Lua snippets compile with the engine, pass smoke test, and successfully create a transformation function
-			testLuaScriptCompiles(t, file)
 		case ".hcl":
 			isFull := strings.Contains(file, "full-example")
 
@@ -168,8 +159,6 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 			configObject = &transform.GTMSSPreviewConfig{}
 		case "js":
 			configObject = &engine.JSEngineConfig{}
-		case "lua":
-			configObject = &engine.LuaEngineConfig{}
 		default:
 			assert.Fail(fmt.Sprint("Source not recognised: ", use.Name))
 		}
@@ -211,20 +200,4 @@ func testJSScriptCompiles(t *testing.T, scriptPath string) {
 
 	}
 
-}
-
-func testLuaScriptCompiles(t *testing.T, scriptPath string) {
-	assert := assert.New(t)
-
-	luaConfig := &engine.LuaEngineConfig{
-		ScriptPath: scriptPath,
-		RunTimeout: 5, // This is needed here as we're providing config directly, not using defaults.
-	}
-
-	// LuaConfigFunction validates and smoke tests the function, and only returns valid transformation functions.
-	luaTransformationFunction, err := engine.LuaConfigFunction(luaConfig)
-	assert.NotNil(luaTransformationFunction, scriptPath)
-	if err != nil {
-		t.Fatalf("NewLuaEngine failed with error: %s. Script: %s", err.Error(), string(scriptPath))
-	}
 }

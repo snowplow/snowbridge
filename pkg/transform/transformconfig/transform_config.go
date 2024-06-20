@@ -31,7 +31,6 @@ var SupportedTransformations = []config.ConfigurationPair{
 	transform.Base64EncodeConfigPair,
 	transform.GTMSSPreviewConfigPair,
 	transform.JQMapperConfigPair,
-	engine.LuaConfigPair,
 	engine.JSConfigPair,
 }
 
