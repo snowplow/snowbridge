@@ -148,8 +148,10 @@ func testE2EHttpTarget(t *testing.T) {
 			}
 		}
 
+		expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
+
 		// Expected is equal to input.
-		evaluateTestCaseString(t, foundData, inputFilePath, "HTTP target "+binary)
+		evaluateTestCaseString(t, foundData, expectedFilePath, "HTTP target "+binary)
 
 	}
 

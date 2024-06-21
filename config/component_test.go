@@ -67,7 +67,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				ChunkMessageLimit:       501,
 				ContextTimeoutInSeconds: 21,
 				BatchByteLimit:          1000000,
-				SetEHPartitionKey:       false,
+				SetEHPartitionKey:       true,
 			},
 		},
 		{
