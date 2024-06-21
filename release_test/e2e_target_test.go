@@ -13,6 +13,7 @@ package releasetest
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -103,7 +104,11 @@ func testE2EHttpTarget(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			receiverChannel <- string(body)
+
+			var unmarshalledBody []string
+
+			json.Unmarshal(body, &unmarshalledBody)
+			receiverChannel <- unmarshalledBody[0]
 
 		})
 

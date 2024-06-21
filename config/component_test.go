@@ -13,6 +13,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -32,16 +33,15 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		Expected interface{}
 	}{
 		{
-			File: "target-sqs.hcl",
+			File: "targets/sqs-minimal-example.hcl",
 			Plug: testSQSTargetAdapter(testSQSTargetFunc),
 			Expected: &target.SQSTargetConfig{
-				QueueName: "testQueue",
-				Region:    "eu-test-1",
-				RoleARN:   "xxx-test-role-arn",
+				QueueName: "mySqsQueue",
+				Region:    "us-west-1",
 			},
 		},
 		{
-			File: "target-eventhub-simple.hcl",
+			File: "targets/eventhub-minimal-example.hcl",
 			Plug: testEventHubTargetAdapter(testEventHubTargetFunc),
 			Expected: &target.EventHubConfig{
 				EventHubNamespace:       "testNamespace",
@@ -56,7 +56,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			},
 		},
 		{
-			File: "target-eventhub-extended.hcl",
+			File: "targets/eventhub-full-example.hcl",
 			Plug: testEventHubTargetAdapter(testEventHubTargetFunc),
 			Expected: &target.EventHubConfig{
 				EventHubNamespace:       "testNamespace",
@@ -67,15 +67,15 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				ChunkMessageLimit:       501,
 				ContextTimeoutInSeconds: 21,
 				BatchByteLimit:          1000000,
-				SetEHPartitionKey:       false,
+				SetEHPartitionKey:       true,
 			},
 		},
 		{
-			File: "target-http-simple.hcl",
+			File: "targets/http-minimal-example.hcl",
 			Plug: testHTTPTargetAdapter(testHTTPTargetFunc),
 			Expected: &target.HTTPTargetConfig{
-				HTTPURL:                 "testUrl",
-				RequestMaxMessages:      1,
+				HTTPURL:                 "https://acme.com/x",
+				RequestMaxMessages:      20,
 				RequestByteLimit:        1048576,
 				MessageByteLimit:        1048576,
 				RequestTimeoutInSeconds: 5,
@@ -90,30 +90,35 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			},
 		},
 		{
-			File: "target-http-extended.hcl",
+			File: "targets/http-full-example.hcl",
 			Plug: testHTTPTargetAdapter(testHTTPTargetFunc),
 			Expected: &target.HTTPTargetConfig{
-				HTTPURL:                 "testUrl",
-				RequestMaxMessages:      10,
+				HTTPURL:                 "https://acme.com/x",
+				RequestMaxMessages:      100,
 				RequestByteLimit:        1000000,
 				MessageByteLimit:        1000000,
 				RequestTimeoutInSeconds: 2,
-				ContentType:             "test/test",
+				ContentType:             "text/html",
 				Headers:                 "{\"Accept-Language\":\"en-US\"}",
-				BasicAuthUsername:       "testUsername",
-				BasicAuthPassword:       "testPass",
+				BasicAuthUsername:       "myUsername",
+				BasicAuthPassword:       "myAuthPassword",
+				OAuth2ClientID:          "myClientID",
+				OAuth2ClientSecret:      "myClientSecret",
+				OAuth2RefreshToken:      "myRefreshToken",
+				OAuth2TokenURL:          "https://my.auth.server/token",
 				CertFile:                "myLocalhost.crt",
-				KeyFile:                 "MyLocalhost.key",
+				KeyFile:                 "myLocalhost.key",
 				CaFile:                  "myRootCA.crt",
 				SkipVerifyTLS:           true,
+				DynamicHeaders:          true,
 			},
 		},
 		{
-			File: "target-kafka-simple.hcl",
+			File: "targets/kafka-minimal-example.hcl",
 			Plug: testKafkaTargetAdapter(testKafkaTargetFunc),
 			Expected: &target.KafkaConfig{
-				Brokers:        "testBrokers",
-				TopicName:      "testTopic",
+				Brokers:        "my-kafka-connection-string",
+				TopicName:      "snowplow-enriched-good",
 				TargetVersion:  "",
 				MaxRetries:     10,
 				ByteLimit:      1048576,
@@ -135,23 +140,23 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			},
 		},
 		{
-			File: "target-kafka-extended.hcl",
+			File: "targets/kafka-full-example.hcl",
 			Plug: testKafkaTargetAdapter(testKafkaTargetFunc),
 			Expected: &target.KafkaConfig{
-				Brokers:        "testBrokers",
-				TopicName:      "testTopic",
-				TargetVersion:  "1.2.3",
+				Brokers:        "my-kafka-connection-string",
+				TopicName:      "snowplow-enriched-good",
+				TargetVersion:  "2.7.0",
 				MaxRetries:     11,
 				ByteLimit:      1000000,
 				Compress:       true,
 				WaitForAll:     true,
 				Idempotent:     true,
 				EnableSASL:     true,
-				SASLUsername:   "testUsername",
-				SASLPassword:   "testPass",
+				SASLUsername:   "mySaslUsername",
+				SASLPassword:   "mySASLPassword",
 				SASLAlgorithm:  "sha256",
 				CertFile:       "myLocalhost.crt",
-				KeyFile:        "MyLocalhost.key",
+				KeyFile:        "myLocalhost.key",
 				CaFile:         "myRootCA.crt",
 				SkipVerifyTLS:  true,
 				ForceSync:      true,
@@ -161,21 +166,21 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			},
 		},
 		{
-			File: "target-kinesis.hcl",
+			File: "targets/kinesis-minimal-example.hcl",
 			Plug: testKinesisTargetAdapter(testKinesisTargetFunc),
 			Expected: &target.KinesisTargetConfig{
-				StreamName:         "testStream",
-				Region:             "eu-test-1",
-				RoleARN:            "xxx-test-role-arn",
+				StreamName:         "my-stream",
+				Region:             "us-west-1",
+				RoleARN:            "",
 				RequestMaxMessages: 500,
 			},
 		},
 		{
-			File: "target-pubsub.hcl",
+			File: "targets/pubsub-minimal-example.hcl",
 			Plug: testPubSubTargetAdapter(testPubSubTargetFunc),
 			Expected: &target.PubSubTargetConfig{
-				ProjectID: "testId",
-				TopicName: "testTopic",
+				ProjectID: "acme-project",
+				TopicName: "some-acme-topic",
 			},
 		},
 	}
@@ -184,8 +189,15 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 		t.Run(tt.File, func(t *testing.T) {
 			assert := assert.New(t)
 
-			filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", tt.File)
+			filename := filepath.Join(assets.AssetsRootDir, "docs", "configuration", tt.File) // TODO: change this to use the docs ones and remove the duplication
 			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+			// Set env vars referenced in configs
+			t.Setenv("CLIENT_ID", "myClientID")
+			t.Setenv("CLIENT_SECRET", "myClientSecret")
+			t.Setenv("REFRESH_TOKEN", "myRefreshToken")
+			t.Setenv("SASL_PASSWORD", "mySASLPassword")
+			t.Setenv("MY_AUTH_PASSWORD", "myAuthPassword")
 
 			c, err := NewConfig()
 			assert.NotNil(c)
@@ -201,6 +213,10 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 			result, err := c.CreateComponent(tt.Plug, decoderOpts)
 			assert.NotNil(result)
 			assert.Nil(err)
+			if err != nil {
+				fmt.Println("#####################################")
+				fmt.Println(err.Error())
+			}
 
 			if !reflect.DeepEqual(result, tt.Expected) {
 				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
