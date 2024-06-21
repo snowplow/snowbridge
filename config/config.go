@@ -12,7 +12,6 @@
 package config
 
 import (
-	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
@@ -46,15 +45,15 @@ type Config struct {
 
 // configurationData for holding all configuration options
 type configurationData struct {
-	Source           *component     `hcl:"source,block" envPrefix:"SOURCE_"`
-	Target           *component     `hcl:"target,block" envPrefix:"TARGET_"`
+	Source           *component     `hcl:"source,block"`
+	Target           *component     `hcl:"target,block"`
 	FailureTarget    *failureConfig `hcl:"failure_target,block"`
 	Sentry           *sentryConfig  `hcl:"sentry,block"`
 	StatsReceiver    *statsConfig   `hcl:"stats_receiver,block"`
 	Transformations  []*component   `hcl:"transform,block"`
-	LogLevel         string         `hcl:"log_level,optional" env:"LOG_LEVEL"`
-	UserProvidedID   string         `hcl:"user_provided_id,optional" env:"USER_PROVIDED_ID"`
-	DisableTelemetry bool           `hcl:"disable_telemetry,optional" env:"DISABLE_TELEMETRY"`
+	LogLevel         string         `hcl:"log_level,optional"`
+	UserProvidedID   string         `hcl:"user_provided_id,optional"`
+	DisableTelemetry bool           `hcl:"disable_telemetry,optional"`
 	License          *licenseConfig `hcl:"license,block"`
 }
 
@@ -65,30 +64,30 @@ type component struct {
 
 // use is a type to denote what a component will be configured to use.
 type use struct {
-	Name string   `hcl:",label" env:"NAME"`
+	Name string   `hcl:",label"`
 	Body hcl.Body `hcl:",remain"`
 }
 
 // failureConfig holds configuration for the failure target.
 // It includes the target component to use.
 type failureConfig struct {
-	Target *use   `hcl:"use,block" envPrefix:"FAILURE_TARGET_"`
-	Format string `hcl:"format,optional" env:"FAILURE_TARGETS_FORMAT"`
+	Target *use   `hcl:"use,block"`
+	Format string `hcl:"format,optional"`
 }
 
 // sentryConfig configures the Sentry error tracker.
 type sentryConfig struct {
-	Dsn   string `hcl:"dsn" env:"SENTRY_DSN"`
-	Tags  string `hcl:"tags,optional" env:"SENTRY_TAGS"`
-	Debug bool   `hcl:"debug,optional" env:"SENTRY_DEBUG"`
+	Dsn   string `hcl:"dsn"`
+	Tags  string `hcl:"tags,optional"`
+	Debug bool   `hcl:"debug,optional"`
 }
 
 // statsConfig holds configuration for stats receivers.
 // It includes a receiver component to use.
 type statsConfig struct {
-	Receiver   *use `hcl:"use,block" envPrefix:"STATS_RECEIVER_"`
-	TimeoutSec int  `hcl:"timeout_sec,optional" env:"STATS_RECEIVER_TIMEOUT_SEC"`
-	BufferSec  int  `hcl:"buffer_sec,optional" env:"STATS_RECEIVER_BUFFER_SEC"`
+	Receiver   *use `hcl:"use,block"`
+	TimeoutSec int  `hcl:"timeout_sec,optional"`
+	BufferSec  int  `hcl:"buffer_sec,optional"`
 }
 
 type licenseConfig struct {
@@ -124,35 +123,12 @@ func defaultConfigData() *configurationData {
 
 // NewConfig returns a configuration
 func NewConfig() (*Config, error) {
-
-	var config *Config
-	var err error
-
-	// If we don't have a config file path, use env var configuration.
-	// Otherwise, use the file.
 	switch filename := os.Getenv("SNOWBRIDGE_CONFIG_FILE"); filename {
 	case "":
-		config, err = newEnvConfig()
-		if err != nil {
-			return nil, errors.Wrap(err, "Error parsing env config")
-		}
-
-		// If we have set TRANSFORM_CONFIG_B64, parse it into a config and overwrite the Transformation portion of our existing config.
-		if b64Transformations := os.Getenv("TRANSFORM_CONFIG_B64"); b64Transformations != "" {
-			transformationEnvConfig, err := base64.StdEncoding.DecodeString(b64Transformations)
-			if err != nil {
-				return nil, errors.Wrap(err, "Error decoding b64 data from TRANSFORM_CONFIG_B64 env var")
-			}
-
-			transformationConfig, err := newHclConfig(transformationEnvConfig, "")
-			if err != nil {
-				return nil, errors.Wrap(err, "Error creating config fom provided TRANSFORM_CONFIG_B64")
-			}
-
-			config.Data.Transformations = transformationConfig.Data.Transformations
-		}
-
-		return config, err
+		return &Config{
+			Data:    defaultConfigData(),
+			Decoder: &defaultsDecoder{},
+		}, nil
 
 	default:
 		// read the config file
@@ -163,27 +139,6 @@ func NewConfig() (*Config, error) {
 		// Make a config from it
 		return newHclConfig(src, filename)
 	}
-
-}
-
-func newEnvConfig() (*Config, error) {
-	var err error
-
-	decoderOpts := &DecoderOptions{}
-	envDecoder := &envDecoder{}
-
-	configData := defaultConfigData()
-
-	err = envDecoder.Decode(decoderOpts, configData)
-	if err != nil {
-		return nil, err
-	}
-
-	mainConfig := Config{
-		Data:    configData,
-		Decoder: envDecoder,
-	}
-	return &mainConfig, nil
 }
 
 func newHclConfig(fileContents []byte, filename string) (*Config, error) {
@@ -288,8 +243,7 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 
 	useFailureTarget := c.Data.FailureTarget.Target
 	decoderOpts := &DecoderOptions{
-		Prefix: "FAILURE_",
-		Input:  useFailureTarget.Body,
+		Input: useFailureTarget.Body,
 	}
 
 	switch useFailureTarget.Name {
