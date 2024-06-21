@@ -28,6 +28,6 @@ target {
     batch_byte_limit           = 1000000
 
     # Sets the eventHub message partition key, which is used by the EventHub client's batching strategy
-    set_eh_partition_key = false
+    set_eh_partition_key = true
   }
 }
