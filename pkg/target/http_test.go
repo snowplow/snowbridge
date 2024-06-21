@@ -365,7 +365,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 			assert.Equal(501, len(writeResult.Sent))
 			assert.Equal(501, len(results))
 			for _, result := range results {
-				assert.Equal("Hello Server!!", string(result))
+				assert.Equal("[\"Hello Server!!\"]", string(result))
 			}
 
 			assert.Equal(int64(501), ackOps)
@@ -410,7 +410,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 
 	assert.Equal(10, len(results))
 	for _, result := range results {
-		assert.Equal("Hello Server!!", string(result))
+		assert.Equal("[\"Hello Server!!\"]", string(result))
 	}
 
 	assert.Equal(int64(10), ackOps)
@@ -440,12 +440,12 @@ func TestHttpWrite_Failure(t *testing.T) {
 
 	assert.NotNil(err1)
 	if err1 != nil {
-		assert.Regexp("Error sending http requests: 10 errors occurred:.*", err1.Error())
+		assert.Regexp("10 errors occurred:.*", err1.Error())
 	}
 
 	assert.Equal(10, len(writeResult.Failed))
-	assert.Nil(writeResult.Sent)
-	assert.Nil(writeResult.Oversized)
+	assert.Empty(writeResult.Sent)
+	assert.Empty(writeResult.Oversized)
 }
 
 func TestHttpWrite_InvalidResponseCode(t *testing.T) {
@@ -481,12 +481,12 @@ func TestHttpWrite_InvalidResponseCode(t *testing.T) {
 
 			assert.NotNil(err1)
 			if err1 != nil {
-				assert.Regexp("Error sending http requests: 10 errors occurred:.*", err1.Error())
+				assert.Regexp("10 errors occurred:.*", err1.Error())
 			}
 
 			assert.Equal(10, len(writeResult.Failed))
-			assert.Nil(writeResult.Sent)
-			assert.Nil(writeResult.Oversized)
+			assert.Empty(writeResult.Sent)
+			assert.Empty(writeResult.Oversized)
 		})
 	}
 }
@@ -522,7 +522,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	assert.Equal(1, len(writeResult.Oversized))
 	assert.Equal(10, len(results))
 	for _, result := range results {
-		assert.Equal("Hello Server!!", string(result))
+		assert.Equal("[\"Hello Server!!\"]", string(result))
 	}
 
 	assert.Equal(int64(10), ackOps)
