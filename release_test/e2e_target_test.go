@@ -13,6 +13,7 @@ package releasetest
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -103,7 +104,11 @@ func testE2EHttpTarget(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			receiverChannel <- string(body)
+
+			var unmarshalledBody []string
+
+			json.Unmarshal(body, &unmarshalledBody)
+			receiverChannel <- unmarshalledBody[0]
 
 		})
 
@@ -148,10 +153,8 @@ func testE2EHttpTarget(t *testing.T) {
 			}
 		}
 
-		expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
-
 		// Expected is equal to input.
-		evaluateTestCaseString(t, foundData, expectedFilePath, "HTTP target "+binary)
+		evaluateTestCaseString(t, foundData, inputFilePath, "HTTP target "+binary)
 
 	}
 
