@@ -280,6 +280,9 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				errResult = multierror.Append(errResult, errors.New("Error constructing request"))
 				continue
 			}
+			if len(goodMsgs) == 0 {
+				continue
+			}
 
 			request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(reqBody))
 			if err != nil {
