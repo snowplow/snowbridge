@@ -24,9 +24,9 @@ import (
 
 // StatsDStatsReceiverConfig configures the stats metrics receiver
 type StatsDStatsReceiverConfig struct {
-	Address string `hcl:"address,optional" env:"STATS_RECEIVER_STATSD_ADDRESS"`
-	Prefix  string `hcl:"prefix,optional" env:"STATS_RECEIVER_STATSD_PREFIX"`
-	Tags    string `hcl:"tags,optional" env:"STATS_RECEIVER_STATSD_TAGS"`
+	Address string `hcl:"address,optional"`
+	Prefix  string `hcl:"prefix,optional"`
+	Tags    string `hcl:"tags,optional"`
 }
 
 // statsDStatsReceiver holds a new client for writing statistics to a StatsD server

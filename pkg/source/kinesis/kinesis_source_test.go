@@ -13,6 +13,7 @@ package kinesissource
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
@@ -237,17 +239,30 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	}
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
-	t.Setenv("SOURCE_NAME", "kinesis")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
-	t.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
-	t.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
-	t.Setenv("SOURCE_KINESIS_APP_NAME", appName)
-
+	// Construct the config
 	c, err := config.NewConfig()
 	assert.NotNil(c)
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
+
+	configBytesToMerge := []byte(fmt.Sprintf(`
+    stream_name = "%s"
+    region      = "%s"
+    app_name    = "%s"
+`, streamName, testutil.AWSLocalstackRegion, appName))
+
+	parser := hclparse.NewParser()
+	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse config bytes")
+	}
+
+	c.Data.Source.Use.Name = "kinesis"
+	c.Data.Source.Use.Body = fileHCL.Body
 
 	// use our function generator to interact with localstack
 	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")

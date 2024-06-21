@@ -28,9 +28,9 @@ import (
 
 // Configuration configures the source for records pulled
 type Configuration struct {
-	ProjectID        string `hcl:"project_id" env:"SOURCE_PUBSUB_PROJECT_ID"`
-	SubscriptionID   string `hcl:"subscription_id" env:"SOURCE_PUBSUB_SUBSCRIPTION_ID"`
-	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	ProjectID        string `hcl:"project_id"`
+	SubscriptionID   string `hcl:"subscription_id"`
+	ConcurrentWrites int    `hcl:"concurrent_writes,optional"`
 }
 
 // pubSubSource holds a new client for reading messages from PubSub
