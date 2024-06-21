@@ -268,7 +268,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			var err error
 
 			// just for now to spike
-			templaterConfigured := true
+			templaterConfigured := false
 			if templaterConfigured {
 				reqBody, goodMsgs, badMsgs, err = ht.requestTemplater(templ, group)
 			} else {
@@ -306,7 +306,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			if err != nil {
 				failed = append(failed, goodMsgs...)
-				errResult = errors.Wrap(errResult, "Error sending request: "+err.Error())
+				errResult = multierror.Append(errResult, errors.New("Error sending request: "+err.Error()))
 				continue
 			}
 			defer resp.Body.Close()
@@ -325,7 +325,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		}
 	}
 
-	// ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
+	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
 	return &models.TargetWriteResult{
 		Sent:      sent,
 		Failed:    failed,

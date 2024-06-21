@@ -5,14 +5,20 @@ target {
     # URL endpoint
     url                        = "https://acme.com/x"
 
+    # Maximum number of events that can go into one batched request (default: 20)
+    request_max_messages       = 100
+
     # Byte limit for requests (default: 1048576)
-    byte_limit                 = 1048576
+    request_byte_limit         = 1000000
+
+    # Byte limit for individual messages (default: 1048576)
+    message_byte_limit         = 1000000
 
     # Request timeout in seconds (default: 5)
-    request_timeout_in_seconds = 5
+    request_timeout_in_seconds = 2
 
     # Content type for POST request (default: "application/json")
-    content_type               = "application/json"
+    content_type               = "text/html"
 
     # Optional headers to add to the request.
     # It is provided as a JSON string of key-value pairs (default: "").
@@ -30,7 +36,7 @@ target {
     cert_file                  = "myLocalhost.crt"
 
     # The optional key file for client authentication
-    key_file                   = "MyLocalhost.key"
+    key_file                   = "myLocalhost.key"
 
     # The optional certificate authority file for TLS client authentication
     ca_file                    = "myRootCA.crt"
