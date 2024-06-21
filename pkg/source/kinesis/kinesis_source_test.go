@@ -237,11 +237,12 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	}
 	defer testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 
-	t.Setenv("SOURCE_NAME", "kinesis")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-kinesis-with-env.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
-	t.Setenv("SOURCE_KINESIS_STREAM_NAME", streamName)
-	t.Setenv("SOURCE_KINESIS_REGION", testutil.AWSLocalstackRegion)
-	t.Setenv("SOURCE_KINESIS_APP_NAME", appName)
+	t.Setenv("TEST_KINESIS_STREAM_NAME", streamName)
+	t.Setenv("TEST_KINESIS_REGION", testutil.AWSLocalstackRegion)
+	t.Setenv("TEST_KINESIS_APP_NAME", appName)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

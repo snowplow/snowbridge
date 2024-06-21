@@ -1,0 +1,3 @@
+source {
+  use "fake" {}
+}

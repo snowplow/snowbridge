@@ -7,3 +7,9 @@ target {
 failure_target {
   use "fakeHCL" {}
 }
+
+stats_receiver {
+  use "fakeHCL" {}
+}
+
+log_level = "DEBUG"

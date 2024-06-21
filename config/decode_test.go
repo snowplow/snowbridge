@@ -25,60 +25,6 @@ type testStruct struct {
 	Test string `hcl:"test_string" env:"TEST_STRING"`
 }
 
-func TestEnvDecode(t *testing.T) {
-	envDecoder := envDecoder{}
-
-	testCases := []struct {
-		TestName    string
-		DecoderOpts *DecoderOptions
-		Target      interface{}
-		Expected    interface{}
-	}{
-		{
-			"nil_target",
-			&DecoderOptions{},
-			nil,
-			nil,
-		},
-		{
-			"decoder_opts",
-			&DecoderOptions{},
-			&testStruct{},
-			&testStruct{
-				Test: "ateststring",
-			},
-		},
-		{
-			"decoder_opts_with_prefix",
-			&DecoderOptions{
-				Prefix: "PREFIX_",
-			},
-			&testStruct{},
-			&testStruct{
-				Test: "ateststringprefixed",
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.TestName, func(t *testing.T) {
-			assert := assert.New(t)
-			t.Setenv("TEST_STRING", "ateststring")
-			t.Setenv("PREFIX_TEST_STRING", "ateststringprefixed")
-
-			err := envDecoder.Decode(tt.DecoderOpts, tt.Target)
-			assert.Nil(err)
-
-			if !reflect.DeepEqual(tt.Target, tt.Expected) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(tt.Target),
-					spew.Sdump(tt.Expected))
-			}
-
-		})
-	}
-}
-
 func TestHclDecode(t *testing.T) {
 	evalCtx := &hcl.EvalContext{}
 	hclDecoder := hclDecoder{evalCtx}

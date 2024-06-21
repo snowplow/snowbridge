@@ -164,8 +164,10 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName)
 
-	t.Setenv("SOURCE_NAME", "sqs")
-	t.Setenv("SOURCE_SQS_QUEUE_NAME", queueName)
+	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-sqs-with-env.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+	t.Setenv("TEST_SQS_QUEUE_NAME", queueName)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)

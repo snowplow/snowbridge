@@ -14,6 +14,7 @@ package pubsubsource
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow/snowbridge/assets"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
 	"github.com/snowplow/snowbridge/pkg/testutil"
@@ -46,9 +48,11 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
-	t.Setenv("SOURCE_NAME", "pubsub")
-	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
-	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", `project-test`)
+	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-pubsub-with-env.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+	t.Setenv("TEST_PUBSUB_SUBSCRIPTION_ID", "test-sub")
+	t.Setenv("TEST_PUBSUB_PROJECT_ID", `project-test`)
 
 	adaptedHandle := adapterGenerator(configFunction)
 
@@ -161,9 +165,11 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Setenv("SOURCE_NAME", "pubsub")
-	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
-	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", `project-test`)
+	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-pubsub-with-env.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+	t.Setenv("TEST_PUBSUB_SUBSCRIPTION_ID", "test-sub")
+	t.Setenv("TEST_PUBSUB_PROJECT_ID", `project-test`)
 
 	adaptedHandle := adapterGenerator(configFunction)
 

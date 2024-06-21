@@ -13,6 +13,7 @@ package kafkasource
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/snowplow/snowbridge/assets"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
 	"github.com/snowplow/snowbridge/pkg/testutil"
@@ -72,11 +74,13 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 
 	// Configure the kafka source
-	t.Setenv("SOURCE_NAME", "kafka")
-	t.Setenv("SOURCE_KAFKA_BROKERS", "localhost:9092")
-	t.Setenv("SOURCE_KAFKA_TOPIC_NAME", topicName)
-	t.Setenv("SOURCE_KAFKA_CONSUMER_NAME", "integration")
-	t.Setenv("SOURCE_KAFKA_OFFSETS_INITIAL", "-2")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-kafka-with-env.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+	t.Setenv("TEST_KAFKA_BROKERS", "localhost:9092")
+	t.Setenv("TEST_KAFKA_TOPIC_NAME", topicName)
+	t.Setenv("TEST_KAFKA_CONSUMER_NAME", "integration")
+	t.Setenv("TEST_KAFKA_OFFSETS_INITIAL", "-2")
 
 	adaptedHandle := adapterGenerator(configFunction)
 

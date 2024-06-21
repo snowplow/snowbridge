@@ -33,8 +33,8 @@ const (
 
 // PubSubTargetConfig configures the destination for records consumed
 type PubSubTargetConfig struct {
-	ProjectID string `hcl:"project_id" env:"TARGET_PUBSUB_PROJECT_ID"`
-	TopicName string `hcl:"topic_name" env:"TARGET_PUBSUB_TOPIC_NAME"`
+	ProjectID string `hcl:"project_id"`
+	TopicName string `hcl:"topic_name"`
 }
 
 // PubSubTarget holds a new client for writing messages to Google PubSub

@@ -13,10 +13,12 @@ package sourceconfig
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow/snowbridge/assets"
 	config "github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 )
@@ -74,7 +76,8 @@ var mockConfigPair = config.ConfigurationPair{
 func TestGetSource_ValidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Setenv("SOURCE_NAME", "mock")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-mock.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
@@ -94,7 +97,8 @@ func TestGetSource_ValidSource(t *testing.T) {
 func TestGetSource_InvalidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Setenv("SOURCE_NAME", "fake")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-invalid.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
@@ -120,7 +124,7 @@ func brokenAdapterGenerator(f func(c *configuration) (sourceiface.Source, error)
 }
 
 var mockUnhappyConfigPair = config.ConfigurationPair{
-	Name:   "mockUnhappy",
+	Name:   "mock",
 	Handle: brokenAdapterGenerator(configfunction),
 }
 
@@ -128,7 +132,8 @@ var mockUnhappyConfigPair = config.ConfigurationPair{
 func TestGetSource_BadConfig(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Setenv("SOURCE_NAME", "mockUnhappy")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-mock.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
@@ -143,6 +148,6 @@ func TestGetSource_BadConfig(t *testing.T) {
 	assert.Nil(source)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("could not interpret source configuration for \"mockUnhappy\"", err.Error())
+		assert.Equal("could not interpret source configuration for \"mock\"", err.Error())
 	}
 }

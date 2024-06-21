@@ -26,26 +26,26 @@ import (
 
 // KafkaConfig contains configurable options for the kafka target
 type KafkaConfig struct {
-	Brokers        string `hcl:"brokers" env:"TARGET_KAFKA_BROKERS"`
-	TopicName      string `hcl:"topic_name" env:"TARGET_KAFKA_TOPIC_NAME"`
-	TargetVersion  string `hcl:"target_version,optional" env:"TARGET_KAFKA_TARGET_VERSION"`
-	MaxRetries     int    `hcl:"max_retries,optional" env:"TARGET_KAFKA_MAX_RETRIES"`
-	ByteLimit      int    `hcl:"byte_limit,optional" env:"TARGET_KAFKA_BYTE_LIMIT"`
-	Compress       bool   `hcl:"compress,optional" env:"TARGET_KAFKA_COMPRESS"`
-	WaitForAll     bool   `hcl:"wait_for_all,optional" env:"TARGET_KAFKA_WAIT_FOR_ALL"`
-	Idempotent     bool   `hcl:"idempotent,optional" env:"TARGET_KAFKA_IDEMPOTENT"`
-	EnableSASL     bool   `hcl:"enable_sasl,optional" env:"TARGET_KAFKA_ENABLE_SASL"`
-	SASLUsername   string `hcl:"sasl_username,optional" env:"TARGET_KAFKA_SASL_USERNAME" `
-	SASLPassword   string `hcl:"sasl_password,optional" env:"TARGET_KAFKA_SASL_PASSWORD"`
-	SASLAlgorithm  string `hcl:"sasl_algorithm,optional" env:"TARGET_KAFKA_SASL_ALGORITHM"`
-	CertFile       string `hcl:"cert_file,optional" env:"TARGET_KAFKA_TLS_CERT_FILE"`
-	KeyFile        string `hcl:"key_file,optional" env:"TARGET_KAFKA_TLS_KEY_FILE"`
-	CaFile         string `hcl:"ca_file,optional" env:"TARGET_KAFKA_TLS_CA_FILE"`
-	SkipVerifyTLS  bool   `hcl:"skip_verify_tls,optional" env:"TARGET_KAFKA_TLS_SKIP_VERIFY_TLS"`
-	ForceSync      bool   `hcl:"force_sync_producer,optional" env:"TARGET_KAFKA_FORCE_SYNC_PRODUCER"`
-	FlushFrequency int    `hcl:"flush_frequency,optional" env:"TARGET_KAFKA_FLUSH_FREQUENCY"`
-	FlushMessages  int    `hcl:"flush_messages,optional" env:"TARGET_KAFKA_FLUSH_MESSAGES"`
-	FlushBytes     int    `hcl:"flush_bytes,optional" env:"TARGET_KAFKA_FLUSH_BYTES"`
+	Brokers        string `hcl:"brokers"`
+	TopicName      string `hcl:"topic_name"`
+	TargetVersion  string `hcl:"target_version,optional"`
+	MaxRetries     int    `hcl:"max_retries,optional"`
+	ByteLimit      int    `hcl:"byte_limit,optional"`
+	Compress       bool   `hcl:"compress,optional"`
+	WaitForAll     bool   `hcl:"wait_for_all,optional"`
+	Idempotent     bool   `hcl:"idempotent,optional"`
+	EnableSASL     bool   `hcl:"enable_sasl,optional"`
+	SASLUsername   string `hcl:"sasl_username,optional"`
+	SASLPassword   string `hcl:"sasl_password,optional"`
+	SASLAlgorithm  string `hcl:"sasl_algorithm,optional"`
+	CertFile       string `hcl:"cert_file,optional"`
+	KeyFile        string `hcl:"key_file,optional"`
+	CaFile         string `hcl:"ca_file,optional"`
+	SkipVerifyTLS  bool   `hcl:"skip_verify_tls,optional"`
+	ForceSync      bool   `hcl:"force_sync_producer,optional"`
+	FlushFrequency int    `hcl:"flush_frequency,optional"`
+	FlushMessages  int    `hcl:"flush_messages,optional"`
+	FlushBytes     int    `hcl:"flush_bytes,optional"`
 }
 
 // KafkaTarget holds a new client for writing messages to Apache Kafka

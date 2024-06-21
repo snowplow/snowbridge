@@ -27,15 +27,15 @@ import (
 
 // EventHubConfig holds a config object for Azure EventHub
 type EventHubConfig struct {
-	EventHubNamespace       string `hcl:"namespace" env:"TARGET_EVENTHUB_NAMESPACE"`
-	EventHubName            string `hcl:"name" env:"TARGET_EVENTHUB_NAME"`
-	MaxAutoRetries          int    `hcl:"max_auto_retries,optional" env:"TARGET_EVENTHUB_MAX_AUTO_RETRY"`
-	MessageByteLimit        int    `hcl:"message_byte_limit,optional" env:"TARGET_EVENTHUB_MESSAGE_BYTE_LIMIT"`
-	ChunkByteLimit          int    `hcl:"chunk_byte_limit,optional" env:"TARGET_EVENTHUB_CHUNK_BYTE_LIMIT"`
-	ChunkMessageLimit       int    `hcl:"chunk_message_limit,optional" env:"TARGET_EVENTHUB_CHUNK_MESSAGE_LIMIT"`
-	ContextTimeoutInSeconds int    `hcl:"context_timeout_in_seconds,optional" env:"TARGET_EVENTHUB_CONTEXT_TIMEOUT_SECONDS"`
-	BatchByteLimit          int    `hcl:"batch_byte_limit,optional" env:"TARGET_EVENTHUB_BATCH_BYTE_LIMIT"`
-	SetEHPartitionKey       bool   `hcl:"set_eh_partition_key,optional" env:"TARGET_EVENTHUB_SET_EH_PK"`
+	EventHubNamespace       string `hcl:"namespace"`
+	EventHubName            string `hcl:"name"`
+	MaxAutoRetries          int    `hcl:"max_auto_retries,optional"`
+	MessageByteLimit        int    `hcl:"message_byte_limit,optional"`
+	ChunkByteLimit          int    `hcl:"chunk_byte_limit,optional"`
+	ChunkMessageLimit       int    `hcl:"chunk_message_limit,optional"`
+	ContextTimeoutInSeconds int    `hcl:"context_timeout_in_seconds,optional"`
+	BatchByteLimit          int    `hcl:"batch_byte_limit,optional"`
+	SetEHPartitionKey       bool   `hcl:"set_eh_partition_key,optional"`
 }
 
 // EventHubTarget holds a new client for writing messages to Azure EventHub
