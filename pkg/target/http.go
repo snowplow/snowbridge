@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -24,11 +25,45 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
+	retry "github.com/snowplow-devops/go-retry"
 	"github.com/snowplow/snowbridge/pkg/common"
+	"github.com/snowplow/snowbridge/pkg/health"
 	"github.com/snowplow/snowbridge/pkg/models"
-
+	"github.com/snowplow/snowbridge/pkg/monitoring"
 	"golang.org/x/oauth2"
 )
+
+type ResponseHandler struct {
+	SuccessCriteria   []*Rule
+	InvalidCriteria   []*Rule
+	RetryableCriteria []*Rule
+	RetryStrategies   map[string]RetryConfig
+}
+
+type Rule struct {
+	HttpStatusExpectations []string
+	*ResponseBodyExpectations
+
+	//only for retries...
+	RetryStrategy string
+	Alert         string
+}
+
+type ResponseBodyExpectations struct {
+	Path          string
+	expectedValue string
+}
+
+type RetryConfig struct {
+	Policy      string
+	MaxAttempts int
+	Delay       time.Duration
+}
+
+type Response struct {
+	Status int
+	Body   string
+}
 
 // HTTPTargetConfig configures the destination for records consumed
 type HTTPTargetConfig struct {
@@ -49,6 +84,9 @@ type HTTPTargetConfig struct {
 	OAuth2ClientSecret string `hcl:"oauth2_client_secret,optional" env:"TARGET_HTTP_OAUTH2_CLIENT_SECRET"`
 	OAuth2RefreshToken string `hcl:"oauth2_refresh_token,optional" env:"TARGET_HTTP_OAUTH2_REFRESH_TOKEN"`
 	OAuth2TokenURL     string `hcl:"oauth2_token_url,optional" env:"TARGET_HTTP_OAUTH2_TOKEN_URL"`
+
+	//we have flat config structure everywhere so not sure if it's good idea to add struct here?
+	ResponseHandler ResponseHandler
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -62,6 +100,10 @@ type HTTPTarget struct {
 	basicAuthPassword string
 	log               *log.Entry
 	dynamicHeaders    bool
+
+	//simply passing from HTTPTargetConfig
+	responseHandler ResponseHandler
+	monitoring      monitoring.Monitoring
 }
 
 func checkURL(str string) error {
@@ -226,41 +268,11 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	var errResult error
 
 	for _, msg := range safeMessages {
-		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(msg.Data))
-		if err != nil {
-			errResult = multierror.Append(errResult, errors.Wrap(err, "Error creating request"))
-			failed = append(failed, msg)
-			continue
-		}
-		request.Header.Add("Content-Type", ht.contentType)                // Add content type
-		addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(msg)) // Add headers if there are any
-		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {     // Add basic auth if set
-			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
-		}
-		requestStarted := time.Now()
-		resp, err := ht.client.Do(request) // Make request
-		requestFinished := time.Now()
-
-		msg.TimeRequestStarted = requestStarted
-		msg.TimeRequestFinished = requestFinished
-
-		if err != nil {
-			errResult = multierror.Append(errResult, err)
-			failed = append(failed, msg)
-			continue
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			sent = append(sent, msg)
-			if msg.AckFunc != nil { // Ack successful messages
-				msg.AckFunc()
-			}
-		} else {
-			errResult = multierror.Append(errResult, errors.New("Got response status: "+resp.Status))
-			failed = append(failed, msg)
-			continue
-		}
+		request := ht.createHTTPRequest(msg)
+		response := ht.executeHTTPRequest(request, msg)
+		ht.handleHTTPResponse(request, response, msg, sent, invalid, failed, errResult, nil)
 	}
+
 	if errResult != nil {
 		errResult = errors.Wrap(errResult, "Error sending http requests")
 	}
@@ -272,6 +284,159 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		oversized,
 		invalid,
 	), errResult
+}
+
+func (ht *HTTPTarget) createHTTPRequest(msg *models.Message) *http.Request {
+	//we have it defined in default config
+	setupConfig := ht.responseHandler.RetryStrategies["setup"]
+
+	// First place with possible failure - creating http request. The only way it can fail in our case is unparseable URL.
+	// It's kind of setup error. So I imagine it would be nice to receive some alert about invalid URL?
+	result := ht.retry(setupConfig, func() (interface{}, error) {
+		request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(msg.Data))
+
+		if err != nil {
+			ht.monitoring.SendAlert(monitoring.Alert{Message: fmt.Sprintf("Could not create HTTP request, error - %s", err.Error())})
+			health.SetUnhealthy()
+			return nil, err
+		}
+
+		request.Header.Add("Content-Type", ht.contentType)
+		addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(msg))
+		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {
+			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
+		}
+		return nil, err
+	})
+
+	return result.(*http.Request)
+}
+
+func (ht *HTTPTarget) executeHTTPRequest(request *http.Request, msg *models.Message) Response {
+	// Second possible place for failure - error after making HTTP call. We don't have HTTP response, so there is no way to check status/response body.
+	// It's connection/response timeout or some other unexpected network issue.
+	// Could we categorize it as transient error? So it deserves bunch of retries, after reaching max attempt just fail.
+	transientConfig := ht.responseHandler.RetryStrategies["transient"]
+	result := ht.retry(transientConfig, func() (interface{}, error) {
+		requestStarted := time.Now()
+		resp, err := ht.client.Do(request)
+		requestFinished := time.Now()
+
+		msg.TimeRequestStarted = requestStarted
+		msg.TimeRequestFinished = requestFinished
+		if err != nil {
+			health.SetUnhealthy()
+			return nil, err
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &Response{Body: string(body), Status: resp.StatusCode}, nil
+	})
+
+	return result.(Response)
+}
+
+// We have HTTP response so we can check status and response body details.
+// Returned error means we have to retry
+func (ht *HTTPTarget) handleHTTPResponse(request *http.Request, response Response, msg *models.Message, sent []*models.Message, invalid []*models.Message, failed []*models.Message, errResult error, previouslyMatchedRule *Rule) error {
+	//ACK and set healthy on success...
+	if ht.isSuccess(response) {
+		health.SetHealthy()
+		sent = append(sent, msg)
+		if msg.AckFunc != nil {
+			msg.AckFunc()
+		}
+		return nil
+	}
+
+	if ht.isInvalid(response) {
+		// App is healthy, our data is not
+		health.SetHealthy()
+		invalid = append(invalid, msg)
+		return nil
+	}
+
+	if currentRule := ht.findRetryableRule(response); currentRule != nil {
+		//we found matching rule! Start retrying
+		return ht.handleRetryableResponse(currentRule, response, previouslyMatchedRule, request, msg, sent, invalid, failed, errResult)
+	}
+
+	//no success/invalid/retryable rule matches, so we fallback to 'old default' layer of retrying (in main) and append to failed list.
+	errResult = multierror.Append(errResult, errors.New("TODO"))
+	failed = append(failed, msg)
+	return nil
+}
+
+func (ht *HTTPTarget) handleRetryableResponse(currentRule *Rule, response Response, previouslyMatchedRule *Rule, request *http.Request, msg *models.Message, sent []*models.Message, invalid []*models.Message, failed []*models.Message, errResult error) error {
+	health.SetUnhealthy()
+	//send alert if configured...
+	if currentRule.Alert != "" {
+		ht.monitoring.SendAlert(monitoring.Alert{Message: fmt.Sprintf("%s, response body - %s", currentRule.Alert, response.Body)})
+	}
+	// If we have some 'previouslyMatchedRule' then we know we're currently retrying some request. It answers question - 'are we currently retrying something??'.
+	// If it's equal to the new rule we've just matched, we have to retry again using the same strategy, instead of starting new retry loop. That's why we stop here and return control to the caller.
+	if currentRule == previouslyMatchedRule {
+		return errors.New("Same rule, probably same error, retry using the same strategy in upper layer")
+	}
+
+	// If `previouslyMatchedRule` is not defined (e.g. at the beginning it's ) or is not equal to the new rule (so we have some different error to deal with) we change retrying strategy.
+	strategy := ht.responseHandler.RetryStrategies[currentRule.RetryStrategy]
+
+	ht.retry(strategy, func() (interface{}, error) {
+		response := ht.executeHTTPRequest(request, msg)
+		return nil, ht.handleHTTPResponse(request, response, msg, sent, invalid, failed, errResult, currentRule)
+	})
+	return nil
+}
+
+func (ht *HTTPTarget) retry(config RetryConfig, action func() (interface{}, error)) interface{} {
+	// Should we use some third-party retrying library? Where we can configure more stuff.
+	// Now we're fixed on exponential.
+	result, err := retry.ExponentialWithInterface(config.MaxAttempts, config.Delay, "HTTP target", action)
+	// If we run out of attempts just crash?
+	if err != nil {
+		log.Fatal("Time to crash..?", err)
+	}
+	return result
+}
+
+func (ht *HTTPTarget) isSuccess(bodyWithStatus Response) bool {
+	return findMatchingRule(bodyWithStatus, ht.responseHandler.SuccessCriteria) != nil
+}
+
+func (ht *HTTPTarget) isInvalid(bodyWithStatus Response) bool {
+	return findMatchingRule(bodyWithStatus, ht.responseHandler.InvalidCriteria) != nil
+}
+
+func (ht *HTTPTarget) findRetryableRule(bodyWithStatus Response) *Rule {
+	return findMatchingRule(bodyWithStatus, ht.responseHandler.RetryableCriteria)
+}
+
+func findMatchingRule(bodyWithStatus Response, rules []*Rule) *Rule {
+	for _, rule := range rules {
+		if ruleMatches(bodyWithStatus, rule) {
+			return rule
+		}
+	}
+	return nil
+}
+
+func ruleMatches(bodyWithStatus Response, rule *Rule) bool {
+	codeMatch := httpStatusMatches(bodyWithStatus.Status, rule.HttpStatusExpectations)
+	if rule.ResponseBodyExpectations != nil {
+		return codeMatch && responseBodyMatches(bodyWithStatus.Body, rule.ResponseBodyExpectations)
+	}
+	return codeMatch
+}
+
+func httpStatusMatches(actual int, expectedPatterns []string) bool {
+	return false
+}
+
+func responseBodyMatches(actual string, expectations *ResponseBodyExpectations) bool {
+	return false
 }
 
 // Open does nothing for this target
