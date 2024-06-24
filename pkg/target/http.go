@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"text/template"
 	"time"
 
@@ -54,6 +55,8 @@ type HTTPTargetConfig struct {
 	RequestMaxMessages int `hcl:"request_max_messages,optional"`
 	RequestByteLimit   int `hcl:"request_byte_limit,optional"` // note: breaking change here
 	MessageByteLimit   int `hcl:"message_byte_limit,optional"`
+
+	TemplateFile string `hcl:"template_file,optional"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -70,6 +73,8 @@ type HTTPTarget struct {
 	requestMaxMessages int
 	requestByteLimit   int
 	messageByteLimit   int
+
+	requestTemplate *template.Template
 }
 
 func checkURL(str string) error {
@@ -127,7 +132,8 @@ func newHTTPTarget(
 	oAuth2ClientID string,
 	oAuth2ClientSecret string,
 	oAuth2RefreshToken string,
-	oAuth2TokenURL string) (*HTTPTarget, error) {
+	oAuth2TokenURL string,
+	templateFile string) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -149,6 +155,12 @@ func newHTTPTarget(
 	client := createHTTPClient(oAuth2ClientID, oAuth2ClientSecret, oAuth2TokenURL, oAuth2RefreshToken, transport)
 	client.Timeout = time.Duration(requestTimeout) * time.Second
 
+	requestTemplate, err := loadRequestTemplate(templateFile)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &HTTPTarget{
 		client:            client,
 		httpURL:           httpURL,
@@ -162,7 +174,39 @@ func newHTTPTarget(
 		requestMaxMessages: requestMaxMessages,
 		requestByteLimit:   requestByteLimit,
 		messageByteLimit:   messageByteLimit,
+
+		requestTemplate: requestTemplate,
 	}, nil
+}
+
+func loadRequestTemplate(templateFile string) (*template.Template, error) {
+	if templateFile != "" {
+		content, err := os.ReadFile(templateFile)
+
+		if err != nil {
+			return nil, err
+		}
+		return parseRequestTemplate(string(content))
+	}
+	return nil, nil
+}
+
+func parseRequestTemplate(templateContent string) (*template.Template, error) {
+	customTemplateFunctions := template.FuncMap{
+		// If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
+		// TODO: This works for now but we should check if there is more efficient solution.
+		"prettyPrint": func(v interface{}) string {
+			a, _ := json.Marshal(v)
+			return string(a)
+		},
+	}
+
+	parsedTemplate, err := template.New("HTTP").Funcs(customTemplateFunctions).Parse(templateContent)
+	if err != nil {
+		return nil, err
+	}
+
+	return parsedTemplate, nil
 }
 
 func createHTTPClient(oAuth2ClientID string, oAuth2ClientSecret string, oAuth2TokenURL string, oAuth2RefreshToken string, transport *http.Transport) *http.Client {
@@ -205,6 +249,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.OAuth2ClientSecret,
 		c.OAuth2RefreshToken,
 		c.OAuth2TokenURL,
+		c.TemplateFile,
 	)
 }
 
@@ -268,13 +313,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			var badMsgs []*models.Message
 			var err error
 
-			// just for now to spike
-			templaterConfigured := false
-			if templaterConfigured {
-				reqBody, goodMsgs, badMsgs, err = ht.requestTemplater(templ, group)
+			if ht.requestTemplate != nil {
+				reqBody, goodMsgs, badMsgs, err = ht.renderBatchUsingTemplate(group)
 			} else {
 				reqBody, goodMsgs, badMsgs, err = ht.provideRequestBody(group)
 			}
+
 			failed = append(failed, badMsgs...)
 			if err != nil {
 				errResult = multierror.Append(errResult, errors.New("Error constructing request"))
@@ -361,45 +405,32 @@ func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string]string {
 	return msg.HTTPHeaders
 }
 
-// requestTemplater creates a request from a batch of messages
-func (ht *HTTPTarget) requestTemplater(tmpl string, messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
+// renderBatchUsingTemplate creates a request from a batch of messages based on configured template
+func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
 	invalid := make([]*models.Message, 0)
-	safe := make([]*models.Message, 0)
+	validMsgs := make([]*models.Message, 0)
+	validJsons := []map[string]interface{}{}
 
-	formatted := []map[string]interface{}{}
 	for _, msg := range messages {
-		// Use json.RawMessage to ensure templating format works (real implementation has a problem to figure out here)
-		var asMap map[string]interface{}
+		var asJSON map[string]interface{}
 
-		if err := json.Unmarshal(msg.Data, &asMap); err != nil {
-			msg.SetError(errors.Wrap(err, "templater error")) // TODO: Cleanup!
+		if err := json.Unmarshal(msg.Data, &asJSON); err != nil {
+			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))
 			invalid = append(invalid, msg)
 			continue
 		}
 
-		formatted = append(formatted, asMap)
+		validMsgs = append(validMsgs, msg)
+		validJsons = append(validJsons, asJSON)
 	}
+
 	var buf bytes.Buffer
-
-	customFunctions := template.FuncMap{
-		// If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
-		// TODO: This works for now but we should check if there is more efficient solution.
-		"asJson": func(v interface{}) string {
-			a, _ := json.Marshal(v)
-			return string(a)
-		},
-	}
-
-	//TODO parse when creating target
-	t := template.Must(template.New("example").Funcs(customFunctions).Parse(tmpl))
-	if err := t.Execute(&buf, formatted); err != nil {
-
-		invalid = append(invalid, safe...)
-
+	if err := ht.requestTemplate.Execute(&buf, validJsons); err != nil {
+		invalid = append(invalid, validMsgs...)
 		return nil, nil, invalid, err
 	}
 
-	return buf.Bytes(), safe, nil, nil
+	return buf.Bytes(), validMsgs, invalid, nil
 }
 
 // Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
@@ -425,17 +456,6 @@ func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated 
 
 	return requestBody, messages, nil, nil
 }
-
-const templ = `{
-	attributes: [ {{$first_1 := true}}
-	  {{range .}}{{if $first_1}}{{$first_1 = false}}{{else}},{{end}}
-	  {{printf "%s" .attribute_data}}{{end}}
-	  ],
-	events: [ {{$first_2 := true}}
-	  {{range .}}{{if $first_2}}{{$first_2 = false}}{{else}},{{end}}
-	  {{printf "%s" .event_data}}{{end}}
-	  ]
-  }`
 
 // groupByDynamicHeaders batches data by header if the dynamic header feature is turned on.
 func (ht *HTTPTarget) groupByDynamicHeaders(messages []*models.Message) [][]*models.Message {

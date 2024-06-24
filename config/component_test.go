@@ -111,6 +111,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				CaFile:                  "myRootCA.crt",
 				SkipVerifyTLS:           true,
 				DynamicHeaders:          true,
+				TemplateFile:            "myTemplate.file",
 			},
 		},
 		{
