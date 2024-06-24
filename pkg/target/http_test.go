@@ -306,12 +306,12 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 func TestNewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 
 	assert.Nil(err)
 	assert.NotNil(httpTarget)
 
-	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 
 	assert.NotNil(err1)
 	if err1 != nil {
@@ -319,7 +319,7 @@ func TestNewHTTPTarget(t *testing.T) {
 	}
 	assert.Nil(failedHTTPTarget)
 
-	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 	assert.NotNil(err2)
 	if err2 != nil {
 		assert.Equal("Invalid url for HTTP target: ''", err2.Error())
@@ -347,7 +347,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 			server := createTestServerWithResponseCode(&results, tt.ResponseCode)
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -398,7 +398,7 @@ func TestHttpWrite_Batched(t *testing.T) {
 			server := createTestServerWithResponseCode(&results, 200)
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+			target, err := newHTTPTarget(server.URL, 5, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -455,7 +455,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -499,7 +499,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -539,7 +539,7 @@ func TestHttpWrite_InvalidResponseCode(t *testing.T) {
 			var results [][]byte
 			server := createTestServerWithResponseCode(&results, tt.ResponseCode)
 			defer server.Close()
-			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -572,7 +572,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -605,6 +605,41 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 }
 
+func TestHTTPWrite_EnabledTemplating(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	wg := sync.WaitGroup{}
+	server := createTestServer(&results)
+	defer server.Close()
+
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var ackOps int64
+	ackFunc := func() {
+		atomic.AddInt64(&ackOps, 1)
+		wg.Done()
+	}
+
+	input := `{ "event_data": { "nested": "value1"}, "attribute_data": 1}`
+	messages := testutil.GetTestMessages(3, input, ackFunc)
+
+	wg.Add(3)
+	writeResult, err1 := target.Write(messages)
+	wg.Wait()
+
+	assert.Nil(err1)
+	assert.Equal(3, len(writeResult.Sent))
+	assert.Equal(1, len(results))
+
+	expectedOutput := "{\n  \"attributes\": [1,1,1],\n  \"events\": [{\"nested\":\"value1\"},{\"nested\":\"value1\"},{\"nested\":\"value1\"}]\n}\n"
+	assert.Equal(expectedOutput, string(results[0]))
+	assert.Equal(int64(3), ackOps)
+}
+
 // Steps to create certs manually:
 
 // openssl genrsa -out rootCA.key 4096
@@ -635,6 +670,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		string(`../../integration/http/rootCA.crt`),
 		false,
 		false,
+		"",
 		"",
 		"",
 		"",
@@ -677,6 +713,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		"",
 		"",
+		"",
 		"")
 	if err2 != nil {
 		t.Fatal(err2)
@@ -706,6 +743,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		false,
 		false,
+		"",
 		"",
 		"",
 		"",
@@ -845,7 +883,7 @@ func TestHTTPWrite_GroupedRequests(t *testing.T) {
 	defer server.Close()
 
 	//dynamicHeaders enabled
-	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, true, "", "", "", "")
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, true, "", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
