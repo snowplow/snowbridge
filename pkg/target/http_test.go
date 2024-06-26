@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -42,7 +43,6 @@ func createTestServerWithResponseCode(results *[][]byte, responseCode int) *http
 		*results = append(*results, data)
 		w.WriteHeader(responseCode)
 		mutex.Unlock()
-		// defer waitgroup.Done()
 	}))
 }
 
@@ -331,6 +331,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
+		BatchSize    int
 	}{
 		{Name: "200 response Code", ResponseCode: 200},
 		{Name: "201 response Code", ResponseCode: 201},
@@ -358,8 +359,8 @@ func TestHttpWrite_Simple(t *testing.T) {
 				wg.Done()
 			}
 
-			messages := testutil.GetTestMessages(501, "Hello Server!!", ackFunc)
-			wg.Add(501)
+			messages := testutil.GetTestMessages(200, "Hello Server!!", ackFunc)
+			wg.Add(200)
 			writeResult, err1 := target.Write(messages)
 
 			if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
@@ -367,13 +368,81 @@ func TestHttpWrite_Simple(t *testing.T) {
 			}
 
 			assert.Nil(err1)
-			assert.Equal(501, len(writeResult.Sent))
-			assert.Equal(501, len(results))
+			assert.Equal(200, len(writeResult.Sent))
+			assert.Equal(200, len(results))
 			for _, result := range results {
 				assert.Equal("[\"Hello Server!!\"]", string(result))
 			}
 
-			assert.Equal(int64(501), ackOps)
+			assert.Equal(int64(200), ackOps)
+		})
+	}
+}
+
+func TestHttpWrite_Batched(t *testing.T) {
+	testCases := []struct {
+		Name              string
+		BatchSize         int
+		LastBatchExpected int
+	}{
+		{Name: "Batches of 20", BatchSize: 20, LastBatchExpected: 20},
+		{Name: "Batches of 15", BatchSize: 15, LastBatchExpected: 10},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			var results [][]byte
+			wg := sync.WaitGroup{}
+			server := createTestServerWithResponseCode(&results, 200)
+			defer server.Close()
+
+			target, err := newHTTPTarget(server.URL, 5, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var ackOps int64
+			ackFunc := func() {
+				atomic.AddInt64(&ackOps, 1)
+
+				wg.Done()
+			}
+
+			messages := testutil.GetTestMessages(100, "Hello Server!!", ackFunc)
+			wg.Add(100)
+			writeResult, err1 := target.Write(messages)
+
+			if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+				assert.Fail("Timed out waiting for acks")
+			}
+
+			assert.Nil(err1)
+			assert.Equal(100, len(writeResult.Sent))
+			assert.Equal(math.Ceil(100/float64(tt.BatchSize)), float64(len(results)))
+			for i, result := range results {
+
+				var res []string
+				err := json.Unmarshal(result, &res)
+				if err != nil {
+					assert.Fail("Request not an array as expected - got error unmarshalling: " + err.Error())
+				}
+				// Check the amount f events in the batch is as expected
+				if i == len(results)-1 {
+					// Check the last batch size
+					assert.Equal(tt.LastBatchExpected, len(res))
+				} else {
+					// Check the others
+					assert.Equal(tt.BatchSize, len(res))
+				}
+				// Iterate and check the data is what we expect
+				for _, r := range res {
+					assert.Equal("Hello Server!!", string(r))
+				}
+			}
+
+			assert.Equal(int64(100), ackOps)
 		})
 	}
 }
@@ -772,8 +841,6 @@ func TestHTTPWrite_GroupedRequests(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
-	wg := sync.WaitGroup{}
-	wg.Add(3)
 	server := createTestServer(&results)
 	defer server.Close()
 
@@ -783,16 +850,26 @@ func TestHTTPWrite_GroupedRequests(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	wg := sync.WaitGroup{}
+
+	ackFunc := func() {
+		wg.Done()
+	}
+
+	wg.Add(5)
 	inputMessages := []*models.Message{
-		{Data: []byte("value1")}, //group 1
-		{Data: []byte("value2")}, //group 1
-		{Data: []byte("value3"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
-		{Data: []byte("value4"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
-		{Data: []byte("value5"), HTTPHeaders: map[string]string{"h1": "v2"}}, //group 3
+		{Data: []byte("value1"), AckFunc: ackFunc},                                             //group 1
+		{Data: []byte("value2"), AckFunc: ackFunc},                                             //group 1
+		{Data: []byte("value3"), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte("value4"), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte("value5"), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v2"}}, //group 3
 	}
 
 	writeResult, err1 := target.Write(inputMessages)
-	wg.Wait()
+
+	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
 
 	assert.Nil(err1)
 	assert.Equal(5, len(writeResult.Sent))
