@@ -282,7 +282,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 				ConcurrentWrites:        50,
 				ReadThrottleDelayMs:     250,
 				ShardCheckFreqSeconds:   10,
-				LeaderActionFreqSeconds: 300,
+				LeaderActionFreqSeconds: 60,
 			},
 		},
 		{
@@ -297,7 +297,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 				ConcurrentWrites:        51,
 				ReadThrottleDelayMs:     250,
 				ShardCheckFreqSeconds:   10,
-				LeaderActionFreqSeconds: 300,
+				LeaderActionFreqSeconds: 60,
 			},
 		},
 	}

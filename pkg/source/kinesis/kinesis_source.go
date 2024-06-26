@@ -124,7 +124,7 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 		ReadThrottleDelayMs:     250, // Kinsumer default is 250ms
 		ConcurrentWrites:        50,
 		ShardCheckFreqSeconds:   10,
-		LeaderActionFreqSeconds: 300,
+		LeaderActionFreqSeconds: 60,
 	}
 
 	return cfg, nil
