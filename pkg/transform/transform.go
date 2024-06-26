@@ -37,9 +37,8 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 			return models.NewTransformationResult(messages, filteredList, failureList)
 		}
 
-		for _, message := range messages {
-			msg := *message // dereference to avoid amending input
-			success := &msg // success must be both input and output to a TransformationFunction, so we make this pointer.
+		for _, success := range messages {
+			// success is the input and output, so we name it as such here
 			var failure *models.Message
 			var filtered *models.Message
 			var intermediate interface{}
