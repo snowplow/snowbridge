@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ import (
 	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
-func createTestServerWithResponseCode(results *[][]byte, waitgroup *sync.WaitGroup, responseCode int) *httptest.Server {
+func createTestServerWithResponseCode(results *[][]byte, responseCode int) *httptest.Server {
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer req.Body.Close()
@@ -41,12 +42,12 @@ func createTestServerWithResponseCode(results *[][]byte, waitgroup *sync.WaitGro
 		*results = append(*results, data)
 		w.WriteHeader(responseCode)
 		mutex.Unlock()
-		defer waitgroup.Done()
+		// defer waitgroup.Done()
 	}))
 }
 
-func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Server {
-	return createTestServerWithResponseCode(results, waitgroup, 200)
+func createTestServer(results *[][]byte) *httptest.Server {
+	return createTestServerWithResponseCode(results, 200)
 }
 
 func TestGetHeaders(t *testing.T) {
@@ -342,7 +343,7 @@ func TestHttpWrite_Simple(t *testing.T) {
 
 			var results [][]byte
 			wg := sync.WaitGroup{}
-			server := createTestServerWithResponseCode(&results, &wg, tt.ResponseCode)
+			server := createTestServerWithResponseCode(&results, tt.ResponseCode)
 			defer server.Close()
 
 			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
@@ -353,13 +354,17 @@ func TestHttpWrite_Simple(t *testing.T) {
 			var ackOps int64
 			ackFunc := func() {
 				atomic.AddInt64(&ackOps, 1)
+
+				wg.Done()
 			}
 
 			messages := testutil.GetTestMessages(501, "Hello Server!!", ackFunc)
 			wg.Add(501)
 			writeResult, err1 := target.Write(messages)
 
-			wg.Wait()
+			if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+				assert.Fail("Timed out waiting for acks")
+			}
 
 			assert.Nil(err1)
 			assert.Equal(501, len(writeResult.Sent))
@@ -378,7 +383,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 
 	var results [][]byte
 	wg := sync.WaitGroup{}
-	server := createTestServer(&results, &wg)
+	server := createTestServer(&results)
 	defer server.Close()
 
 	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
@@ -398,7 +403,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
 
 	for _, message := range messages {
-		wg.Add(2) // Both acking and returning results from server can have race conditions, so we add both to the waitgroup.
+		wg.Add(1)
 		go func(msg *models.Message) {
 			writeResult, err1 := target.Write([]*models.Message{msg})
 			assert.Nil(err1)
@@ -406,7 +411,9 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 		}(message)
 	}
 
-	wg.Wait()
+	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
 
 	assert.Equal(10, len(results))
 	for _, result := range results {
@@ -420,8 +427,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
-	wg := sync.WaitGroup{}
-	server := createTestServer(&results, &wg)
+	server := createTestServer(&results)
 	defer server.Close()
 
 	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
@@ -462,8 +468,7 @@ func TestHttpWrite_InvalidResponseCode(t *testing.T) {
 			assert := assert.New(t)
 
 			var results [][]byte
-			wg := sync.WaitGroup{}
-			server := createTestServerWithResponseCode(&results, &wg, tt.ResponseCode)
+			server := createTestServerWithResponseCode(&results, tt.ResponseCode)
 			defer server.Close()
 			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
 			if err != nil {
@@ -476,7 +481,6 @@ func TestHttpWrite_InvalidResponseCode(t *testing.T) {
 			}
 
 			messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
-			wg.Add(10)
 			writeResult, err1 := target.Write(messages)
 
 			assert.NotNil(err1)
@@ -496,7 +500,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 
 	var results [][]byte
 	wg := sync.WaitGroup{}
-	server := createTestServer(&results, &wg)
+	server := createTestServer(&results)
 	defer server.Close()
 
 	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
@@ -507,6 +511,8 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	var ackOps int64
 	ackFunc := func() {
 		atomic.AddInt64(&ackOps, 1)
+
+		wg.Done()
 	}
 
 	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
@@ -515,7 +521,9 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	wg.Add(10)
 	writeResult, err1 := target.Write(messages)
 
-	wg.Wait()
+	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
 
 	assert.Nil(err1)
 	assert.Equal(10, len(writeResult.Sent))
@@ -766,7 +774,7 @@ func TestHTTPWrite_GroupedRequests(t *testing.T) {
 	var results [][]byte
 	wg := sync.WaitGroup{}
 	wg.Add(3)
-	server := createTestServer(&results, &wg)
+	server := createTestServer(&results)
 	defer server.Close()
 
 	//dynamicHeaders enabled
@@ -833,4 +841,18 @@ func getNgrokAddress() string {
 		}
 	}
 	panic("no ngrok https endpoint found")
+}
+
+func WaitForAcksWithTimeout(timeout time.Duration, wg *sync.WaitGroup) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return true
+	case <-time.After(timeout * time.Millisecond):
+		return false
+	}
 }
