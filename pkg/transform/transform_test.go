@@ -13,7 +13,6 @@ package transform
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -23,6 +22,25 @@ import (
 // To test a function which creates a function, we're creating the function then testing that. Not sure if there's a better way?
 func TestNewTransformation_Passthrough(t *testing.T) {
 	assert := assert.New(t)
+
+	Msgs := []*models.Message{
+		{
+			Data:         SnowplowTsv1,
+			PartitionKey: "some-key",
+		},
+		{
+			Data:         SnowplowTsv2,
+			PartitionKey: "some-key1",
+		},
+		{
+			Data:         SnowplowTsv3,
+			PartitionKey: "some-key2",
+		},
+		{
+			Data:         nonSnowplowString,
+			PartitionKey: "some-key4",
+		},
+	}
 
 	// expected is equal to messages, specifying separately to avoid false positive if we accidentally mutate input.
 	var expected = []*models.Message{
@@ -46,13 +64,32 @@ func TestNewTransformation_Passthrough(t *testing.T) {
 
 	expectedNoTransformRes := models.NewTransformationResult(expected, make([]*models.Message, 0, 0), make([]*models.Message, 0, 0))
 	noTransform := NewTransformation(make([]TransformationFunction, 0, 0)...)
-	noTransformResult := noTransform(Messages)
+	noTransformResult := noTransform(Msgs)
 
 	assert.Equal(expectedNoTransformRes, noTransformResult)
 }
 
 func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	assert := assert.New(t)
+
+	Msgs := []*models.Message{
+		{
+			Data:         SnowplowTsv1,
+			PartitionKey: "some-key",
+		},
+		{
+			Data:         SnowplowTsv2,
+			PartitionKey: "some-key1",
+		},
+		{
+			Data:         SnowplowTsv3,
+			PartitionKey: "some-key2",
+		},
+		{
+			Data:         nonSnowplowString,
+			PartitionKey: "some-key4",
+		},
+	}
 
 	var expectedGood = []*models.Message{
 		{
@@ -69,18 +106,13 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 		},
 	}
 
-	tranformEnrichJSON := NewTransformation(SpEnrichedToJSON)
-	enrichJSONRes := tranformEnrichJSON(Messages)
+	transformEnrichJSON := NewTransformation(SpEnrichedToJSON)
+	enrichJSONRes := transformEnrichJSON(Msgs)
 
 	for index, value := range enrichJSONRes.Result {
 		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.NotNil(expectedGood[index].TimeTransformed)
-
-		// assertions to ensure we don't accidentally modify the input
-		assert.NotEqual(Messages[index].Data, value.Data)
-		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
-		assert.Equal(time.Time{}, Messages[index].TimeTransformed)
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
@@ -95,9 +127,28 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 }
 
 func Benchmark_Transform_EnrichToJson(b *testing.B) {
+	// Because we modify input, copy this first
+	Msgs := []*models.Message{
+		{
+			Data:         SnowplowTsv1,
+			PartitionKey: "some-key",
+		},
+		{
+			Data:         SnowplowTsv2,
+			PartitionKey: "some-key1",
+		},
+		{
+			Data:         SnowplowTsv3,
+			PartitionKey: "some-key2",
+		},
+		{
+			Data:         nonSnowplowString,
+			PartitionKey: "some-key4",
+		},
+	}
 	tranformEnrichJSON := NewTransformation(SpEnrichedToJSON)
 	for i := 0; i < b.N; i++ {
-		tranformEnrichJSON(Messages)
+		tranformEnrichJSON(Msgs)
 	}
 }
 
@@ -106,14 +157,53 @@ func testfunc(message *models.Message, intermediateState interface{}) (*models.M
 }
 
 func Benchmark_Transform_Passthrough(b *testing.B) {
+	// Because transform funcs modify input, copy this first
+	Msgs := []*models.Message{
+		{
+			Data:         SnowplowTsv1,
+			PartitionKey: "some-key",
+		},
+		{
+			Data:         SnowplowTsv2,
+			PartitionKey: "some-key1",
+		},
+		{
+			Data:         SnowplowTsv3,
+			PartitionKey: "some-key2",
+		},
+		{
+			Data:         nonSnowplowString,
+			PartitionKey: "some-key4",
+		},
+	}
 	tranformPassthrough := NewTransformation(testfunc)
 	for i := 0; i < b.N; i++ {
-		tranformPassthrough(Messages)
+		tranformPassthrough(Msgs)
 	}
 }
 
 func TestNewTransformation_Multiple(t *testing.T) {
 	assert := assert.New(t)
+
+	// Because transform funcs modify input, copy this first
+	Msgs := []*models.Message{
+		{
+			Data:         SnowplowTsv1,
+			PartitionKey: "some-key",
+		},
+		{
+			Data:         SnowplowTsv2,
+			PartitionKey: "some-key1",
+		},
+		{
+			Data:         SnowplowTsv3,
+			PartitionKey: "some-key2",
+		},
+		{
+			Data:         nonSnowplowString,
+			PartitionKey: "some-key4",
+		},
+	}
 
 	var expectedGood = []*models.Message{
 		{
@@ -133,19 +223,13 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	setPkToAppID, _ := NewSpEnrichedSetPkFunction("app_id")
 	tranformMultiple := NewTransformation(setPkToAppID, SpEnrichedToJSON)
 
-	enrichJSONRes := tranformMultiple(Messages)
+	enrichJSONRes := tranformMultiple(Msgs)
 
 	for index, value := range enrichJSONRes.Result {
 		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
 		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
 		assert.NotNil(expectedGood[index].TimeTransformed)
 		assert.NotNil(value.TimeTransformed)
-
-		// assertions to ensure we don't accidentally modify the input
-		assert.NotEqual(Messages[index].Data, value.Data)
-		assert.NotEqual(Messages[index].PartitionKey, value.PartitionKey)
-		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
-		assert.Equal(time.Time{}, Messages[index].TimeTransformed)
 	}
 
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
