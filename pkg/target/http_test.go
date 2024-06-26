@@ -645,6 +645,156 @@ func TestHttpWrite_TLS(t *testing.T) {
 	assert.Equal(int64(30), ackOps)
 }
 
+func TestHTTP_GroupByHeaders_Disabled(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: false}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value"), HTTPHeaders: map[string]string{"h2": "v2"}}, //group 1
+		{Data: []byte("value")}, //group 1
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+
+	assert.Len(groupedMessages, 1)
+	assert.Equal(inputMessages, groupedMessages[0]) //group 1
+}
+
+func TestHTTP_GroupByHeaders_Enabled_SameHeader(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value2"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+
+	assert.Len(groupedMessages, 1)
+	assert.Equal(inputMessages, groupedMessages[0]) //group 1
+}
+
+func TestHTTP_GroupByHeaders_Enabled_NoHeader(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value2")}, //group 2
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 2)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[1]}) //group 2
+}
+
+func TestHTTP_GroupByHeaders_Enabled_DifferentHeaderValue(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value2"), HTTPHeaders: map[string]string{"h1": "v2"}}, //group 2
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 2)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[1]}) //group 2
+}
+
+func TestHTTP_GroupByHeaders_Enabled_DifferentHeaderName(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value2"), HTTPHeaders: map[string]string{"h2": "v1"}}, //group 2
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 2)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[1]}) //group 2
+}
+
+func TestHTTP_GroupByHeaders_Enabled_AdditionalHeader(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}},                    //group 1
+		{Data: []byte("value2"), HTTPHeaders: map[string]string{"h1": "v1", "additonal": "v2"}}, //group 2
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 2)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[1]}) //group 2
+}
+
+func TestHTTP_GroupByHeaders_Enabled_MultipleGroups(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1")}, //group 1
+		{Data: []byte("value2")}, //group 1
+		{Data: []byte("value3"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte("value4"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte("value5"), HTTPHeaders: map[string]string{"h1": "v2"}}, //group 3
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 3)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0], inputMessages[1]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[2], inputMessages[3]}) //group 2
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[4]})                   //group 3
+}
+
+func TestHTTPWrite_GroupedRequests(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	wg := sync.WaitGroup{}
+	wg.Add(3)
+	server := createTestServer(&results, &wg)
+	defer server.Close()
+
+	//dynamicHeaders enabled
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, true, "", "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1")}, //group 1
+		{Data: []byte("value2")}, //group 1
+		{Data: []byte("value3"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte("value4"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte("value5"), HTTPHeaders: map[string]string{"h1": "v2"}}, //group 3
+	}
+
+	writeResult, err1 := target.Write(inputMessages)
+	wg.Wait()
+
+	assert.Nil(err1)
+	assert.Equal(5, len(writeResult.Sent))
+	assert.Equal(3, len(results)) // because 3 output groups, 1 request per group
+
+	assert.Contains(results, []byte(`["value1","value2"]`))
+	assert.Contains(results, []byte(`["value3","value4"]`))
+	assert.Contains(results, []byte(`["value5"]`))
+}
+
 type ngrokAPIObject struct {
 	PublicURL string `json:"public_url"`
 	Proto     string `json:"proto"`
