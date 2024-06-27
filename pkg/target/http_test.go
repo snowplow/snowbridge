@@ -967,7 +967,7 @@ func WaitForAcksWithTimeout(timeout time.Duration, wg *sync.WaitGroup) bool {
 	select {
 	case <-c:
 		return true
-	case <-time.After(timeout * time.Millisecond):
+	case <-time.After(timeout):
 		return false
 	}
 }
