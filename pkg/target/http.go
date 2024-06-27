@@ -437,20 +437,14 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 // This is a http specific function so we define it here to avoid scope for misconfiguration
 func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
 
-	// TODO: Add test for when messagess are just strings & confirm that it all works
-
-	// TODO: Note: This would mean that the GTM client gets arrays of single events instead of single events.
-	// But we could configure an explicit templater to change that if we wanted
-	// We should test to be certain that it's still compatible.
-
-	requestData := []string{}
+	// This assumes the data is a valid JSON. Plain strings are no longer supported, but can be handled via a combination of transformation and templater
+	requestData := make([]json.RawMessage, 0)
 	for _, msg := range messages {
-		requestData = append(requestData, string(msg.Data))
+		requestData = append(requestData, msg.Data)
 	}
-	// TODO: Add tests to be sure this produces the desired request
+
 	requestBody, err := json.Marshal(requestData)
 	if err != nil {
-		// TODO: Handle errors here
 		return nil, nil, messages, err
 	}
 
