@@ -105,10 +105,13 @@ func testE2EHttpTarget(t *testing.T) {
 				panic(err)
 			}
 
-			var unmarshalledBody []string
+			// Extract from array so we don't have to refactor existing JSON evaluate function
+			var unmarshalledBody []json.RawMessage
 
-			json.Unmarshal(body, &unmarshalledBody)
-			receiverChannel <- unmarshalledBody[0]
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			receiverChannel <- string(unmarshalledBody[0])
 
 		})
 
@@ -153,8 +156,9 @@ func testE2EHttpTarget(t *testing.T) {
 			}
 		}
 
-		// Expected is equal to input.
-		evaluateTestCaseString(t, foundData, inputFilePath, "HTTP target "+binary)
+		expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
+
+		evaluateTestCaseJSONString(t, foundData, expectedFilePath, "HTTP target "+binary)
 
 	}
 

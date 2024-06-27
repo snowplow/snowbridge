@@ -327,7 +327,7 @@ func TestNewHTTPTarget(t *testing.T) {
 	assert.Nil(failedHTTPTarget2)
 }
 
-func TestHttpWrite_Simple(t *testing.T) {
+func TestHTTPWrite_Simple(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
@@ -359,8 +359,8 @@ func TestHttpWrite_Simple(t *testing.T) {
 				wg.Done()
 			}
 
-			messages := testutil.GetTestMessages(200, "Hello Server!!", ackFunc)
-			wg.Add(200)
+			messages := testutil.GetTestMessages(25, `{"message": "Hello Server!!"}`, ackFunc)
+			wg.Add(25)
 			writeResult, err1 := target.Write(messages)
 
 			if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
@@ -368,18 +368,18 @@ func TestHttpWrite_Simple(t *testing.T) {
 			}
 
 			assert.Nil(err1)
-			assert.Equal(200, len(writeResult.Sent))
-			assert.Equal(200, len(results))
+			assert.Equal(25, len(writeResult.Sent))
+			assert.Equal(25, len(results))
 			for _, result := range results {
-				assert.Equal("[\"Hello Server!!\"]", string(result))
+				assert.Equal(`[{"message":"Hello Server!!"}]`, string(result))
 			}
 
-			assert.Equal(int64(200), ackOps)
+			assert.Equal(int64(25), ackOps)
 		})
 	}
 }
 
-func TestHttpWrite_Batched(t *testing.T) {
+func TestHTTPWrite_Batched(t *testing.T) {
 	testCases := []struct {
 		Name              string
 		BatchSize         int
@@ -410,7 +410,7 @@ func TestHttpWrite_Batched(t *testing.T) {
 				wg.Done()
 			}
 
-			messages := testutil.GetTestMessages(100, "Hello Server!!", ackFunc)
+			messages := testutil.GetTestMessages(100, `{"message": "Hello Server!!"}`, ackFunc)
 			wg.Add(100)
 			writeResult, err1 := target.Write(messages)
 
@@ -423,7 +423,7 @@ func TestHttpWrite_Batched(t *testing.T) {
 			assert.Equal(math.Ceil(100/float64(tt.BatchSize)), float64(len(results)))
 			for i, result := range results {
 
-				var res []string
+				var res []json.RawMessage
 				err := json.Unmarshal(result, &res)
 				if err != nil {
 					assert.Fail("Request not an array as expected - got error unmarshalling: " + err.Error())
@@ -438,7 +438,7 @@ func TestHttpWrite_Batched(t *testing.T) {
 				}
 				// Iterate and check the data is what we expect
 				for _, r := range res {
-					assert.Equal("Hello Server!!", string(r))
+					assert.Equal(`{"message":"Hello Server!!"}`, string(r))
 				}
 			}
 
@@ -447,7 +447,7 @@ func TestHttpWrite_Batched(t *testing.T) {
 	}
 }
 
-func TestHttpWrite_Concurrent(t *testing.T) {
+func TestHTTPWrite_Concurrent(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -469,7 +469,7 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 		wg.Done()
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 
 	for _, message := range messages {
 		wg.Add(1)
@@ -486,13 +486,13 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 
 	assert.Equal(10, len(results))
 	for _, result := range results {
-		assert.Equal("[\"Hello Server!!\"]", string(result))
+		assert.Equal(`[{"message":"Hello Server!!"}]`, string(result))
 	}
 
 	assert.Equal(int64(10), ackOps)
 }
 
-func TestHttpWrite_Failure(t *testing.T) {
+func TestHTTPWrite_Failure(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -509,7 +509,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 		atomic.AddInt64(&ackOps, 1)
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 
 	writeResult, err1 := target.Write(messages)
 
@@ -523,7 +523,7 @@ func TestHttpWrite_Failure(t *testing.T) {
 	assert.Empty(writeResult.Oversized)
 }
 
-func TestHttpWrite_InvalidResponseCode(t *testing.T) {
+func TestHTTPWrite_InvalidResponseCode(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
@@ -549,7 +549,7 @@ func TestHttpWrite_InvalidResponseCode(t *testing.T) {
 				atomic.AddInt64(&ackOps, 1)
 			}
 
-			messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+			messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 			writeResult, err1 := target.Write(messages)
 
 			assert.NotNil(err1)
@@ -564,7 +564,7 @@ func TestHttpWrite_InvalidResponseCode(t *testing.T) {
 	}
 }
 
-func TestHttpWrite_Oversized(t *testing.T) {
+func TestHTTPWrite_Oversized(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -584,7 +584,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 		wg.Done()
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 	messages = append(messages, testutil.GetTestMessages(1, testutil.GenRandomString(1048577), ackFunc)...)
 
 	wg.Add(10)
@@ -599,7 +599,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	assert.Equal(1, len(writeResult.Oversized))
 	assert.Equal(10, len(results))
 	for _, result := range results {
-		assert.Equal("[\"Hello Server!!\"]", string(result))
+		assert.Equal(`[{"message":"Hello Server!!"}]`, string(result))
 	}
 
 	assert.Equal(int64(10), ackOps)
@@ -649,7 +649,7 @@ func TestHTTPWrite_EnabledTemplating(t *testing.T) {
 // openssl req -new -key localhost.key -out localhost.csr -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost"
 // openssl x509 -req -in localhost.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -days 365 -out localhost.crt
 
-func TestHttpWrite_TLS(t *testing.T) {
+func TestHTTPWrite_TLS(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -684,7 +684,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		atomic.AddInt64(&ackOps, 1)
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 
 	writeResult, err1 := target.Write(messages)
 
@@ -894,18 +894,20 @@ func TestHTTPWrite_GroupedRequests(t *testing.T) {
 		wg.Done()
 	}
 
+	// Add 5 events to match the below
 	wg.Add(5)
+
 	inputMessages := []*models.Message{
-		{Data: []byte("value1"), AckFunc: ackFunc},                                             //group 1
-		{Data: []byte("value2"), AckFunc: ackFunc},                                             //group 1
-		{Data: []byte("value3"), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
-		{Data: []byte("value4"), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
-		{Data: []byte("value5"), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v2"}}, //group 3
+		{Data: []byte(`{"key": "value1"}`), AckFunc: ackFunc},                                             //group 1
+		{Data: []byte(`{"key": "value2"}`), AckFunc: ackFunc},                                             //group 1
+		{Data: []byte(`{"key": "value3"}`), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte(`{"key": "value4"}`), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte(`{"key": "value5"}`), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v2"}}, //group 3
 	}
 
 	writeResult, err1 := target.Write(inputMessages)
 
-	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+	if ok := WaitForAcksWithTimeout(1*time.Second, &wg); !ok {
 		assert.Fail("Timed out waiting for acks")
 	}
 
@@ -913,9 +915,9 @@ func TestHTTPWrite_GroupedRequests(t *testing.T) {
 	assert.Equal(5, len(writeResult.Sent))
 	assert.Equal(3, len(results)) // because 3 output groups, 1 request per group
 
-	assert.Contains(results, []byte(`["value1","value2"]`))
-	assert.Contains(results, []byte(`["value3","value4"]`))
-	assert.Contains(results, []byte(`["value5"]`))
+	assert.Contains(results, []byte(`[{"key":"value1"},{"key":"value2"}]`))
+	assert.Contains(results, []byte(`[{"key":"value3"},{"key":"value4"}]`))
+	assert.Contains(results, []byte(`[{"key":"value5"}]`))
 }
 
 type ngrokAPIObject struct {
