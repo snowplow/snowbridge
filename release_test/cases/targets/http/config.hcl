@@ -1,3 +1,10 @@
+# HTTP target default behaviour requires JSON
+transform {
+  use "spEnrichedToJson" {
+  }
+}
+
+
 target {
   use "http" {
 

@@ -97,7 +97,7 @@ func TestHttpOAuth2_CanNotFetchToken(t *testing.T) {
 	}
 }
 
-func TestHttpOAuth2_CallTargetWithoutToken(t *testing.T) {
+func TestHTTPOAuth2_CallTargetWithoutToken(t *testing.T) {
 	assert := assert.New(t)
 	writeResult, err := runTest(t, "", "", "")
 
@@ -115,7 +115,7 @@ func runTest(t *testing.T, inputClientID string, inputClientSecret string, input
 
 	target := oauth2Target(t, server.URL, inputClientID, inputClientSecret, inputRefreshToken, tokenServer.URL)
 
-	message := testutil.GetTestMessages(1, "Hello Server!!", func() {})
+	message := testutil.GetTestMessages(1, `{"message": "Hello Server!!"}`, func() {})
 	return target.Write(message)
 }
 
