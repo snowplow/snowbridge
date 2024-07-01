@@ -359,7 +359,11 @@ func TestHTTPWrite_Simple(t *testing.T) {
 				wg.Done()
 			}
 
-			messages := testutil.GetTestMessages(25, `{"message": "Hello Server!!"}`, ackFunc)
+			goodMessages := testutil.GetTestMessages(25, `{"message": "Hello Server!!"}`, ackFunc)
+			badMessages := testutil.GetTestMessages(3, `{"message": "Hello Server!!"`, ackFunc) // invalids
+
+			messages := append(goodMessages, badMessages...)
+
 			wg.Add(25)
 			writeResult, err1 := target.Write(messages)
 
@@ -372,6 +376,12 @@ func TestHTTPWrite_Simple(t *testing.T) {
 			assert.Equal(25, len(results))
 			for _, result := range results {
 				assert.Equal(`[{"message":"Hello Server!!"}]`, string(result))
+			}
+
+			assert.Equal(3, len(writeResult.Invalid)) // invalids went to the right place
+			for _, msg := range writeResult.Invalid {
+				// Check all invalids have error as expected
+				assert.Regexp("Message can't be parsed as valid JSON: .*", msg.GetError().Error())
 			}
 
 			assert.Equal(int64(25), ackOps)
