@@ -62,7 +62,7 @@ func targetServer() *httptest.Server {
 	}))
 }
 
-func TestHttpOAuth2_Success(t *testing.T) {
+func TestHTTP_OAuth2_Success(t *testing.T) {
 	assert := assert.New(t)
 
 	writeResult, err := runTest(t, validClientID, validClientSecret, validRefreshToken)
@@ -72,7 +72,7 @@ func TestHttpOAuth2_Success(t *testing.T) {
 	assert.Equal(0, len(writeResult.Failed))
 }
 
-func TestHttpOAuth2_CanNotFetchToken(t *testing.T) {
+func TestHTTP_OAuth2_CanNotFetchToken(t *testing.T) {
 	testCases := []struct {
 		Name              string
 		InputClientID     string
@@ -97,7 +97,7 @@ func TestHttpOAuth2_CanNotFetchToken(t *testing.T) {
 	}
 }
 
-func TestHTTPOAuth2_CallTargetWithoutToken(t *testing.T) {
+func TestHTTP_OAuth2_CallTargetWithoutToken(t *testing.T) {
 	assert := assert.New(t)
 	writeResult, err := runTest(t, "", "", "")
 
