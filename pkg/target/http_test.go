@@ -50,7 +50,7 @@ func createTestServer(results *[][]byte) *httptest.Server {
 	return createTestServerWithResponseCode(results, 200)
 }
 
-func TestGetHeaders(t *testing.T) {
+func TestHTTP_GetHeaders(t *testing.T) {
 	assert := assert.New(t)
 	valid1 := `{"Max Forwards": "10", "Accept-Language": "en-US", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}`
 
@@ -98,7 +98,7 @@ func TestGetHeaders(t *testing.T) {
 
 }
 
-func TestRetrieveHeaders(t *testing.T) {
+func TestHTTP_RetrieveHeaders(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		Msg      *models.Message
@@ -179,7 +179,7 @@ func TestRetrieveHeaders(t *testing.T) {
 	}
 }
 
-func TestAddHeadersToRequest(t *testing.T) {
+func TestHTTP_AddHeadersToRequest(t *testing.T) {
 	assert := assert.New(t)
 
 	req, err := http.NewRequest("POST", "abc", bytes.NewBuffer([]byte("def")))
@@ -209,7 +209,7 @@ func TestAddHeadersToRequest(t *testing.T) {
 	assert.Equal(noHeadersExpected, req2.Header)
 }
 
-func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
+func TestHTTP_AddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		ConfigHeaders  map[string]string
@@ -303,7 +303,7 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 	}
 }
 
-func TestNewHTTPTarget(t *testing.T) {
+func TestHTTP_NewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
@@ -327,7 +327,7 @@ func TestNewHTTPTarget(t *testing.T) {
 	assert.Nil(failedHTTPTarget2)
 }
 
-func TestHTTPWrite_Simple(t *testing.T) {
+func TestHTTP_Write_Simple(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
@@ -389,7 +389,7 @@ func TestHTTPWrite_Simple(t *testing.T) {
 	}
 }
 
-func TestHTTPWrite_Batched(t *testing.T) {
+func TestHTTP_Write_Batched(t *testing.T) {
 	testCases := []struct {
 		Name              string
 		BatchSize         int
@@ -457,7 +457,7 @@ func TestHTTPWrite_Batched(t *testing.T) {
 	}
 }
 
-func TestHTTPWrite_Concurrent(t *testing.T) {
+func TestHTTP_Write_Concurrent(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -502,7 +502,7 @@ func TestHTTPWrite_Concurrent(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 }
 
-func TestHTTPWrite_Failure(t *testing.T) {
+func TestHTTP_Write_Failure(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -533,7 +533,7 @@ func TestHTTPWrite_Failure(t *testing.T) {
 	assert.Empty(writeResult.Oversized)
 }
 
-func TestHTTPWrite_InvalidResponseCode(t *testing.T) {
+func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
@@ -574,7 +574,7 @@ func TestHTTPWrite_InvalidResponseCode(t *testing.T) {
 	}
 }
 
-func TestHTTPWrite_Oversized(t *testing.T) {
+func TestHTTP_Write_Oversized(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -615,7 +615,7 @@ func TestHTTPWrite_Oversized(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 }
 
-func TestHTTPWrite_EnabledTemplating(t *testing.T) {
+func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -666,7 +666,7 @@ func TestHTTPWrite_EnabledTemplating(t *testing.T) {
 // openssl req -new -key localhost.key -out localhost.csr -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost"
 // openssl x509 -req -in localhost.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -days 365 -out localhost.crt
 
-func TestHTTPWrite_TLS(t *testing.T) {
+func TestHTTP_Write_TLS(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -911,7 +911,7 @@ func TestHTTP_GroupByHeaders_Enabled_MultipleGroups(t *testing.T) {
 	assert.Contains(groupedMessages, []*models.Message{inputMessages[4]})                   //group 3
 }
 
-func TestHTTPWrite_GroupedRequests(t *testing.T) {
+func TestHTTP_Write_GroupedRequests(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
