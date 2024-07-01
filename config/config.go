@@ -240,8 +240,7 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 
 	useFailureTarget := c.Data.FailureTarget.Target
 	decoderOpts := &DecoderOptions{
-		Prefix: "FAILURE_",
-		Input:  useFailureTarget.Body,
+		Input: useFailureTarget.Body,
 	}
 
 	switch useFailureTarget.Name {

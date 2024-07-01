@@ -33,8 +33,7 @@ type Decoder interface {
 // Decoders. The zero value of DecoderOptions means no-prefix/nil-input,
 // which should be usable by the Decoders.
 type DecoderOptions struct {
-	Prefix string
-	Input  hcl.Body
+	Input hcl.Body
 }
 
 // envDecoder implements Decoder.
