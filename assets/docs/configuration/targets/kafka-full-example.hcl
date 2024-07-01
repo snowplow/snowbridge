@@ -12,10 +12,10 @@ target {
     target_version      = "2.7.0"
 
     # Max retries (default: 10)
-    max_retries         = 10
+    max_retries         = 11
 
     # Kafka default byte limit is 1MB (default: 1048576)
-    byte_limit          = 1048576
+    byte_limit          = 1000000
 
     # Whether to compress data (default: false).
     # Reduces network usage and increases latency.
@@ -42,7 +42,7 @@ target {
     cert_file            = "myLocalhost.crt"
 
     # The optional key file for client authentication
-    key_file             = "MyLocalhost.key"
+    key_file             = "myLocalhost.key"
 
     # The optional certificate authority file for TLS client authentication
     ca_file              = "myRootCA.crt"

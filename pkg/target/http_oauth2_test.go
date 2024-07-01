@@ -62,7 +62,7 @@ func targetServer() *httptest.Server {
 	}))
 }
 
-func TestHttpOAuth2_Success(t *testing.T) {
+func TestHTTP_OAuth2_Success(t *testing.T) {
 	assert := assert.New(t)
 
 	writeResult, err := runTest(t, validClientID, validClientSecret, validRefreshToken)
@@ -72,7 +72,7 @@ func TestHttpOAuth2_Success(t *testing.T) {
 	assert.Equal(0, len(writeResult.Failed))
 }
 
-func TestHttpOAuth2_CanNotFetchToken(t *testing.T) {
+func TestHTTP_OAuth2_CanNotFetchToken(t *testing.T) {
 	testCases := []struct {
 		Name              string
 		InputClientID     string
@@ -97,7 +97,7 @@ func TestHttpOAuth2_CanNotFetchToken(t *testing.T) {
 	}
 }
 
-func TestHttpOAuth2_CallTargetWithoutToken(t *testing.T) {
+func TestHTTP_OAuth2_CallTargetWithoutToken(t *testing.T) {
 	assert := assert.New(t)
 	writeResult, err := runTest(t, "", "", "")
 
@@ -115,12 +115,12 @@ func runTest(t *testing.T, inputClientID string, inputClientSecret string, input
 
 	target := oauth2Target(t, server.URL, inputClientID, inputClientSecret, inputRefreshToken, tokenServer.URL)
 
-	message := testutil.GetTestMessages(1, "Hello Server!!", func() {})
+	message := testutil.GetTestMessages(1, `{"message": "Hello Server!!"}`, func() {})
 	return target.Write(message)
 }
 
 func oauth2Target(t *testing.T, targetURL string, inputClientID string, inputClientSecret string, inputRefreshToken string, tokenServerURL string) *HTTPTarget {
-	target, err := newHTTPTarget(targetURL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false, inputClientID, inputClientSecret, inputRefreshToken, tokenServerURL)
+	target, err := newHTTPTarget(targetURL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, inputClientID, inputClientSecret, inputRefreshToken, tokenServerURL, "")
 	if err != nil {
 		t.Fatal(err)
 	}

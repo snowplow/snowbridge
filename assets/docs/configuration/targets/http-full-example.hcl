@@ -5,14 +5,20 @@ target {
     # URL endpoint
     url                        = "https://acme.com/x"
 
+    # Maximum number of events that can go into one batched request (default: 20)
+    request_max_messages       = 100
+
     # Byte limit for requests (default: 1048576)
-    byte_limit                 = 1048576
+    request_byte_limit         = 1000000
+
+    # Byte limit for individual messages (default: 1048576)
+    message_byte_limit         = 1000000
 
     # Request timeout in seconds (default: 5)
-    request_timeout_in_seconds = 5
+    request_timeout_in_seconds = 2
 
     # Content type for POST request (default: "application/json")
-    content_type               = "application/json"
+    content_type               = "text/html"
 
     # Optional headers to add to the request.
     # It is provided as a JSON string of key-value pairs (default: "").
@@ -30,7 +36,7 @@ target {
     cert_file                  = "myLocalhost.crt"
 
     # The optional key file for client authentication
-    key_file                   = "MyLocalhost.key"
+    key_file                   = "myLocalhost.key"
 
     # The optional certificate authority file for TLS client authentication
     ca_file                    = "myRootCA.crt"
@@ -43,15 +49,18 @@ target {
     dynamic_headers            = true
 
     # Optional. One of client credentials required when authorizing using OAuth2.
-    oauth2_client_id = env.CLIENT_ID
+    oauth2_client_id           = env.CLIENT_ID
 
     # Optional. One of client credentials required when authorizing using OAuth2.
-    oauth2_client_secret = env.CLIENT_SECRET
+    oauth2_client_secret       = env.CLIENT_SECRET
 
     # Optional. Required when using OAuth2. Long-lived token used to generate new short-lived access token when previous one experies.
-    oauth2_refresh_token = env.REFRESH_TOKEN
+    oauth2_refresh_token       = env.REFRESH_TOKEN
 
     # Optional. Required when using OAuth2. URL to authorization server providing access token. E.g. for Goggle API "https://oauth2.googleapis.com/token"  
-    oauth2_token_url = "https://my.auth.server/token"
+    oauth2_token_url           = "https://my.auth.server/token"
+
+    # Optional path to the file containing template which is used to build HTTP request based on a batch of input data
+    template_file              = "myTemplate.file"
   }
 }
