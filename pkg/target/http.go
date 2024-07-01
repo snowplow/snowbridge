@@ -194,7 +194,6 @@ func loadRequestTemplate(templateFile string) (*template.Template, error) {
 func parseRequestTemplate(templateContent string) (*template.Template, error) {
 	customTemplateFunctions := template.FuncMap{
 		// If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
-		// TODO: This works for now but we should check if there is more efficient solution.
 		"prettyPrint": func(v interface{}) string {
 			a, _ := json.Marshal(v)
 			return string(a)
