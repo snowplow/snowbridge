@@ -624,8 +624,10 @@ func TestHTTPWrite_EnabledTemplating(t *testing.T) {
 		wg.Done()
 	}
 
-	input := `{ "event_data": { "nested": "value1"}, "attribute_data": 1}`
-	messages := testutil.GetTestMessages(3, input, ackFunc)
+	goodMessages := testutil.GetTestMessages(3, `{ "event_data": { "nested": "value1"}, "attribute_data": 1}`, ackFunc)
+	badMessages := testutil.GetTestMessages(3, `{ "event_data": { "nested": "value1"},`, ackFunc) // invalid
+
+	messages := append(goodMessages, badMessages...)
 
 	wg.Add(3)
 	writeResult, err1 := target.Write(messages)
@@ -633,6 +635,11 @@ func TestHTTPWrite_EnabledTemplating(t *testing.T) {
 
 	assert.Nil(err1)
 	assert.Equal(3, len(writeResult.Sent))
+	assert.Equal(3, len(writeResult.Invalid)) // invalids went to the right place
+	for _, msg := range writeResult.Invalid {
+		// Invalids have errors as expected
+		assert.Regexp("Message can't be parsed as valid JSON: .*", msg.GetError().Error())
+	}
 	assert.Equal(1, len(results))
 
 	expectedOutput := "{\n  \"attributes\": [1,1,1],\n  \"events\": [{\"nested\":\"value1\"},{\"nested\":\"value1\"},{\"nested\":\"value1\"}]\n}\n"
