@@ -73,11 +73,8 @@ func TestInit_SLULAFailre(t *testing.T) {
 
 func TestInit_Failure(t *testing.T) {
 	assert := assert.New(t)
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "invalid-type.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "on")
-	t.Setenv("STATS_RECEIVER_TIMEOUT_SEC", "debug")
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)

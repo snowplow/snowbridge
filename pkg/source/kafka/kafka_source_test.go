@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/snowplow/snowbridge/assets"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
@@ -74,22 +75,37 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 
 	// Configure the kafka source
-	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-kafka-with-env.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-	t.Setenv("TEST_KAFKA_BROKERS", "localhost:9092")
-	t.Setenv("TEST_KAFKA_TOPIC_NAME", topicName)
-	t.Setenv("TEST_KAFKA_CONSUMER_NAME", "integration")
-	t.Setenv("TEST_KAFKA_OFFSETS_INITIAL", "-2")
 
 	adaptedHandle := adapterGenerator(configFunction)
 
 	kafkaSourceConfigPair := config.ConfigurationPair{Name: "kafka", Handle: adaptedHandle}
 	supportedSources := []config.ConfigurationPair{kafkaSourceConfigPair}
 
+	// Construct the config
 	kafkaSourceConfig, err := config.NewConfig()
 	assert.NotNil(kafkaSourceConfig)
-	assert.Nil(err)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %q", err.Error())
+	}
+
+	configBytesToMerge := []byte(fmt.Sprintf(`
+    brokers         = "localhost:9092"
+    topic_name      = "%s"
+    consumer_name   = "integration"
+    offsets_initial = "-2"
+`, topicName))
+
+	parser := hclparse.NewParser()
+	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse config bytes")
+	}
+
+	kafkaSourceConfig.Data.Source.Use.Name = "kafka"
+	kafkaSourceConfig.Data.Source.Use.Body = fileHCL.Body
 
 	kafkaSource, err := sourceconfig.GetSource(kafkaSourceConfig, supportedSources)
 
@@ -117,5 +133,4 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	for i, valFound := range found {
 		assert.Equal(i, valFound)
 	}
-
 }

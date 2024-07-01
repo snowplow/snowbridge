@@ -73,7 +73,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 }
 
 func TestGetSource_WithStdinSource(t *testing.T) {
-	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-stdin.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	assert := assert.New(t)

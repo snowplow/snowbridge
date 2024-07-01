@@ -76,7 +76,7 @@ var mockConfigPair = config.ConfigurationPair{
 func TestGetSource_ValidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-mock.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
@@ -84,6 +84,7 @@ func TestGetSource_ValidSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
+	c.Data.Source.Use.Name = "mock"
 
 	supportedSources := []config.ConfigurationPair{mockConfigPair}
 
@@ -97,7 +98,7 @@ func TestGetSource_ValidSource(t *testing.T) {
 func TestGetSource_InvalidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-invalid.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
@@ -105,6 +106,7 @@ func TestGetSource_InvalidSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
+	c.Data.Source.Use.Name = "fake"
 
 	supportedSources := []config.ConfigurationPair{}
 
@@ -132,7 +134,7 @@ var mockUnhappyConfigPair = config.ConfigurationPair{
 func TestGetSource_BadConfig(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-mock.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
@@ -140,6 +142,7 @@ func TestGetSource_BadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
+	c.Data.Source.Use.Name = "mock"
 
 	supportedSources := []config.ConfigurationPair{mockUnhappyConfigPair}
 

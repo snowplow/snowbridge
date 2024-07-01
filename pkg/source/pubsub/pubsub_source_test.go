@@ -13,6 +13,7 @@ package pubsubsource
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
@@ -48,20 +50,34 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-pubsub-with-env.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-	t.Setenv("TEST_PUBSUB_SUBSCRIPTION_ID", "test-sub")
-	t.Setenv("TEST_PUBSUB_PROJECT_ID", `project-test`)
 
 	adaptedHandle := adapterGenerator(configFunction)
 
 	pubsubSourceConfigPair := config.ConfigurationPair{Name: "pubsub", Handle: adaptedHandle}
 	supportedSources := []config.ConfigurationPair{pubsubSourceConfigPair}
 
+	// Construct the config
 	pubsubConfig, err := config.NewConfig()
 	assert.NotNil(pubsubConfig)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("unexpected error: %q", err.Error())
+	}
+
+	configBytesToMerge := []byte(fmt.Sprintf(`
+    project_id      = "project-test"
+    subscription_id = "test-sub"
+`))
+
+	parser := hclparse.NewParser()
+	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse config bytes")
+	}
+
+	pubsubConfig.Data.Source.Use.Name = "pubsub"
+	pubsubConfig.Data.Source.Use.Body = fileHCL.Body
 
 	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
 
@@ -165,20 +181,34 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 	}
 	wg.Wait()
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "source", "configs", "source-pubsub-with-env.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-	t.Setenv("TEST_PUBSUB_SUBSCRIPTION_ID", "test-sub")
-	t.Setenv("TEST_PUBSUB_PROJECT_ID", `project-test`)
 
 	adaptedHandle := adapterGenerator(configFunction)
 
 	pubsubSourceConfigPair := config.ConfigurationPair{Name: "pubsub", Handle: adaptedHandle}
 	supportedSources := []config.ConfigurationPair{pubsubSourceConfigPair}
 
+	// Construct the config
 	pubsubConfig, err := config.NewConfig()
 	assert.NotNil(pubsubConfig)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("unexpected error: %q", err.Error())
+	}
+
+	configBytesToMerge := []byte(fmt.Sprintf(`
+    project_id      = "project-test"
+    subscription_id = "test-sub"
+`))
+
+	parser := hclparse.NewParser()
+	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse config bytes")
+	}
+
+	pubsubConfig.Data.Source.Use.Name = "pubsub"
+	pubsubConfig.Data.Source.Use.Body = fileHCL.Body
 
 	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
 

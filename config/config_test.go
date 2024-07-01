@@ -34,7 +34,7 @@ func TestNewConfig_NoConfig(t *testing.T) {
 func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "invalid-failure-format.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
@@ -43,6 +43,7 @@ func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
+	c.Data.FailureTarget.Format = "fakeHCL"
 	ft, err := c.GetFailureTarget("testAppName", "0.0.0")
 	assert.Nil(ft)
 	assert.NotNil(err)
@@ -78,7 +79,7 @@ func TestNewConfig_GetTags(t *testing.T) {
 func TestNewConfig_Hcl_invalids(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "invalids.hcl")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := NewConfig()
@@ -87,6 +88,9 @@ func TestNewConfig_Hcl_invalids(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
+	c.Data.Target.Use.Name = "fakeHCL"
+	c.Data.FailureTarget.Target.Name = "fakeHCL"
+	c.Data.StatsReceiver.Receiver.Name = "fakeHCL"
 	t.Run("invalid_target", func(t *testing.T) {
 		target, err := c.GetTarget()
 		assert.Nil(target)

@@ -1,3 +1,0 @@
-source {
-  use "mock" {}
-}
