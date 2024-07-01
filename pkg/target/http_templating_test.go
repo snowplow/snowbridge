@@ -37,8 +37,7 @@ func TestTemplating_WithPrettyPrint(t *testing.T) {
 		{Data: []byte(`{ "event_data": { "nested": "value3"}, "attribute_data": 3}`)},
 	}
 
-	templated, goodMessages, invalidMessages, err := target.renderBatchUsingTemplate(inputMessages)
-	assert.Nil(err)
+	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
 	expectedOutput := "{\n  \"attributes\": [1,2,3],\n  \"events\": [{\"nested\":\"value1\"},{\"nested\":\"value2\"},{\"nested\":\"value3\"}]\n}"
 	assert.Equal(expectedOutput, string(templated))
@@ -65,8 +64,7 @@ func TestTemplating_NoPrettyPrinting(t *testing.T) {
 		{Data: []byte(`{ "event_data": { "nested": "value3"}, "attribute_data": 3}`)},
 	}
 
-	templated, goodMessages, invalidMessages, err := target.renderBatchUsingTemplate(inputMessages)
-	assert.Nil(err)
+	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
 	//we get a stringified map for JSON
 	expectedOutput := "{\n  \"attributes\": [1,2,3],\n  \"events\": [map[nested:value1],map[nested:value2],map[nested:value3]]\n}"
@@ -91,8 +89,7 @@ func TestTemplating_ArrayProvided(t *testing.T) {
 		{Data: []byte(`["value1", "value2", "value3"]`)},
 	}
 
-	templated, goodMessages, invalidMessages, err := target.renderBatchUsingTemplate(inputMessages)
-	assert.Nil(err)
+	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
 	expectedOutput := "{\n  \"attributes\": [\"Value: value1\",\"Value: value2\",\"Value: value3\"]\n}"
 	assert.Equal(expectedOutput, string(templated))
@@ -127,8 +124,7 @@ func TestTemplating_AccessNonExistingField(t *testing.T) {
 
 			inputMessages := []*models.Message{{Data: []byte(tt.Input)}}
 
-			templated, goodMessages, invalidMessages, err := target.renderBatchUsingTemplate(inputMessages)
-			assert.Nil(err)
+			templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
 			assert.Equal(tt.Output, string(templated))
 			assert.Equal(inputMessages, goodMessages)
@@ -160,8 +156,7 @@ func TestTemplating_JSONParseFailure(t *testing.T) {
 		{Data: []byte(`plain string, can't unmarshall`)},
 	}
 
-	templated, goodMessages, invalidMessages, err := target.renderBatchUsingTemplate(inputMessages)
-	assert.Nil(err)
+	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
 	assert.Equal("{\"nested\":\"value1\"}", string(templated))
 
@@ -187,10 +182,10 @@ func TestTemplating_RenderFailure(t *testing.T) {
 		{Data: []byte(`{ "event_data": { "nested": "value1"}, "attribute_data": 1}`)},
 	}
 
-	templated, goodMessages, invalidMessages, err := target.renderBatchUsingTemplate(inputMessages)
+	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
-	expectedError := `template: HTTP:1:3: executing "HTTP" at <index . 1>: error calling index: reflect: slice index out of range`
-	assert.Equal(expectedError, err.Error())
+	expectedError := `Could not create request JSON: template: HTTP:1:3: executing "HTTP" at <index . 1>: error calling index: reflect: slice index out of range`
+	assert.Equal(expectedError, invalidMessages[0].GetError().Error())
 	assert.Empty(templated)
 	assert.Empty(goodMessages)
 	assert.Equal(inputMessages, invalidMessages)

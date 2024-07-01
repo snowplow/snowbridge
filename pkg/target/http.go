@@ -302,6 +302,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 	sent := []*models.Message{}
 	failed := []*models.Message{}
+	invalid := []*models.Message{}
 	var errResult error
 
 	for _, chunk := range chunks {
@@ -314,16 +315,13 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			var err error
 
 			if ht.requestTemplate != nil {
-				reqBody, goodMsgs, badMsgs, err = ht.renderBatchUsingTemplate(group)
+				reqBody, goodMsgs, badMsgs = ht.renderBatchUsingTemplate(group)
 			} else {
-				reqBody, goodMsgs, badMsgs, err = ht.provideRequestBody(group)
+				reqBody, goodMsgs, badMsgs = ht.provideRequestBody(group)
 			}
 
-			failed = append(failed, badMsgs...)
-			if err != nil {
-				errResult = multierror.Append(errResult, errors.New("Error constructing request"))
-				continue
-			}
+			invalid = append(invalid, badMsgs...)
+
 			if len(goodMsgs) == 0 {
 				continue
 			}
@@ -375,8 +373,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		Sent:      sent,
 		Failed:    failed,
 		Oversized: oversized,
-		Invalid:   nil,
-		// TODO: design decision: Where we cannot create a request body, here we treat that as 'failed', but technically it may be considered 'invalid'. We should validate this design decision.
+		Invalid:   invalid,
 	}, errResult
 }
 
@@ -406,9 +403,7 @@ func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string]string {
 }
 
 // renderBatchUsingTemplate creates a request from a batch of messages based on configured template
-func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
-	invalid := make([]*models.Message, 0)
-	validMsgs := make([]*models.Message, 0)
+func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
 	validJsons := []interface{}{}
 
 	for _, msg := range messages {
@@ -420,35 +415,52 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 			continue
 		}
 
-		validMsgs = append(validMsgs, msg)
+		success = append(success, msg)
 		validJsons = append(validJsons, asJSON)
 	}
 
 	var buf bytes.Buffer
-	if err := ht.requestTemplate.Execute(&buf, validJsons); err != nil {
-		invalid = append(invalid, validMsgs...)
-		return nil, nil, invalid, err
+	tmplErr := ht.requestTemplate.Execute(&buf, validJsons)
+	if tmplErr != nil {
+		for _, msg := range success {
+			msg.SetError(errors.Wrap(tmplErr, "Could not create request JSON"))
+			invalid = append(invalid, msg)
+		}
+		return nil, nil, invalid
 	}
 
-	return buf.Bytes(), validMsgs, invalid, nil
+	return buf.Bytes(), success, invalid
 }
 
 // Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
 // This is a http specific function so we define it here to avoid scope for misconfiguration
-func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
+func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) { // TODO: REMOVE RETURNING ERROR FROM BOTH
 
 	// This assumes the data is a valid JSON. Plain strings are no longer supported, but can be handled via a combination of transformation and templater
 	requestData := make([]json.RawMessage, 0)
 	for _, msg := range messages {
+		var asRaw json.RawMessage
+		// If any data is not json compatible, we must treat as invalid
+		if err := json.Unmarshal(msg.Data, &asRaw); err != nil {
+			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))
+			invalid = append(invalid, msg)
+			continue
+		}
+
 		requestData = append(requestData, msg.Data)
+		success = append(success, msg)
 	}
 
 	requestBody, err := json.Marshal(requestData)
 	if err != nil {
-		return nil, nil, messages, err
+		for _, msg := range success {
+			msg.SetError(errors.Wrap(err, "Could not create request JSON"))
+			invalid = append(invalid, msg)
+		}
+		return nil, nil, invalid
 	}
 
-	return requestBody, messages, nil, nil
+	return requestBody, success, invalid
 }
 
 // groupByDynamicHeaders batches data by header if the dynamic header feature is turned on.
