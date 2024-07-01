@@ -760,6 +760,25 @@ func TestHTTPWrite_TLS(t *testing.T) {
 	assert.Equal(int64(30), ackOps)
 }
 
+func TestHTTP_ProvideRequestBody(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{}
+
+	inputMessages := []*models.Message{
+		{Data: []byte(`{"key": "value1"}`)},
+		{Data: []byte(`{"key": "value2"}`)},
+		{Data: []byte(`{"key": "value3"}`)},
+		{Data: []byte(`justastring`)},
+	}
+
+	templated, success, invalid := target.provideRequestBody(inputMessages)
+
+	assert.Equal(`[{"key":"value1"},{"key":"value2"},{"key":"value3"}]`, string(templated))
+	assert.Equal(3, len(success))
+	assert.Equal(1, len(invalid))
+	assert.Regexp("Message can't be parsed as valid JSON: .*", invalid[0].GetError().Error())
+}
+
 func TestHTTP_GroupByHeaders_Disabled(t *testing.T) {
 	assert := assert.New(t)
 	target := HTTPTarget{dynamicHeaders: false}
