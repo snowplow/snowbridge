@@ -409,10 +409,10 @@ func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string]string {
 func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (templated []byte, success []*models.Message, failed []*models.Message, err error) {
 	invalid := make([]*models.Message, 0)
 	validMsgs := make([]*models.Message, 0)
-	validJsons := []map[string]interface{}{}
+	validJsons := []interface{}{}
 
 	for _, msg := range messages {
-		var asJSON map[string]interface{}
+		var asJSON interface{}
 
 		if err := json.Unmarshal(msg.Data, &asJSON); err != nil {
 			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))

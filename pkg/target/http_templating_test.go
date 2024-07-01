@@ -75,6 +75,31 @@ func TestTemplating_NoPrettyPrinting(t *testing.T) {
 	assert.Empty(invalidMessages)
 }
 
+func TestTemplating_ArrayProvided(t *testing.T) {
+	assert := assert.New(t)
+
+	rawTemplate :=
+		`{
+  "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{range $i, $d := $data}}{{if $i}},{{end}}"Value: {{$d}}"{{end}}{{end}}]
+}`
+
+	parsedTemplate, err := parseRequestTemplate(rawTemplate)
+	assert.Nil(err)
+	target := HTTPTarget{requestTemplate: parsedTemplate}
+
+	inputMessages := []*models.Message{
+		{Data: []byte(`["value1", "value2", "value3"]`)},
+	}
+
+	templated, goodMessages, invalidMessages, err := target.renderBatchUsingTemplate(inputMessages)
+	assert.Nil(err)
+
+	expectedOutput := "{\n  \"attributes\": [\"Value: value1\",\"Value: value2\",\"Value: value3\"]\n}"
+	assert.Equal(expectedOutput, string(templated))
+	assert.Equal(inputMessages, goodMessages)
+	assert.Empty(invalidMessages)
+}
+
 func TestTemplating_AccessNonExistingField(t *testing.T) {
 	noPretty := "{{ (index . 0).nonexistent}}"
 	pretty := "{{ prettyPrint (index . 0).nonexistent}}"
@@ -132,7 +157,7 @@ func TestTemplating_JSONParseFailure(t *testing.T) {
 
 	inputMessages := []*models.Message{
 		{Data: []byte(`{ "event_data": { "nested": "value1"}}`)},
-		{Data: []byte(`plain string, can't parse as map[string]interface{}`)},
+		{Data: []byte(`plain string, can't unmarshall`)},
 	}
 
 	templated, goodMessages, invalidMessages, err := target.renderBatchUsingTemplate(inputMessages)
