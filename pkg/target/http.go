@@ -193,7 +193,6 @@ func loadRequestTemplate(templateFile string) (*template.Template, error) {
 func parseRequestTemplate(templateContent string) (*template.Template, error) {
 	customTemplateFunctions := template.FuncMap{
 		// If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
-		// TODO: This works for now but we should check if there is more efficient solution.
 		"prettyPrint": func(v interface{}) string {
 			a, _ := json.Marshal(v)
 			return string(a)
@@ -433,7 +432,7 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 
 // Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
 // This is a http specific function so we define it here to avoid scope for misconfiguration
-func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) { // TODO: REMOVE RETURNING ERROR FROM BOTH
+func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
 
 	// This assumes the data is a valid JSON. Plain strings are no longer supported, but can be handled via a combination of transformation and templater
 	requestData := make([]json.RawMessage, 0)

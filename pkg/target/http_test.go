@@ -50,7 +50,7 @@ func createTestServer(results *[][]byte) *httptest.Server {
 	return createTestServerWithResponseCode(results, 200)
 }
 
-func TestGetHeaders(t *testing.T) {
+func TestHTTP_GetHeaders(t *testing.T) {
 	assert := assert.New(t)
 	valid1 := `{"Max Forwards": "10", "Accept-Language": "en-US", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}`
 
@@ -98,7 +98,7 @@ func TestGetHeaders(t *testing.T) {
 
 }
 
-func TestRetrieveHeaders(t *testing.T) {
+func TestHTTP_RetrieveHeaders(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		Msg      *models.Message
@@ -179,7 +179,7 @@ func TestRetrieveHeaders(t *testing.T) {
 	}
 }
 
-func TestAddHeadersToRequest(t *testing.T) {
+func TestHTTP_AddHeadersToRequest(t *testing.T) {
 	assert := assert.New(t)
 
 	req, err := http.NewRequest("POST", "abc", bytes.NewBuffer([]byte("def")))
@@ -209,7 +209,7 @@ func TestAddHeadersToRequest(t *testing.T) {
 	assert.Equal(noHeadersExpected, req2.Header)
 }
 
-func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
+func TestHTTP_AddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		ConfigHeaders  map[string]string
@@ -303,7 +303,7 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 	}
 }
 
-func TestNewHTTPTarget(t *testing.T) {
+func TestHTTP_NewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
@@ -327,7 +327,7 @@ func TestNewHTTPTarget(t *testing.T) {
 	assert.Nil(failedHTTPTarget2)
 }
 
-func TestHTTPWrite_Simple(t *testing.T) {
+func TestHTTP_Write_Simple(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
@@ -359,7 +359,11 @@ func TestHTTPWrite_Simple(t *testing.T) {
 				wg.Done()
 			}
 
-			messages := testutil.GetTestMessages(25, `{"message": "Hello Server!!"}`, ackFunc)
+			goodMessages := testutil.GetTestMessages(25, `{"message": "Hello Server!!"}`, ackFunc)
+			badMessages := testutil.GetTestMessages(3, `{"message": "Hello Server!!"`, ackFunc) // invalids
+
+			messages := append(goodMessages, badMessages...)
+
 			wg.Add(25)
 			writeResult, err1 := target.Write(messages)
 
@@ -374,12 +378,18 @@ func TestHTTPWrite_Simple(t *testing.T) {
 				assert.Equal(`[{"message":"Hello Server!!"}]`, string(result))
 			}
 
+			assert.Equal(3, len(writeResult.Invalid)) // invalids went to the right place
+			for _, msg := range writeResult.Invalid {
+				// Check all invalids have error as expected
+				assert.Regexp("Message can't be parsed as valid JSON: .*", msg.GetError().Error())
+			}
+
 			assert.Equal(int64(25), ackOps)
 		})
 	}
 }
 
-func TestHTTPWrite_Batched(t *testing.T) {
+func TestHTTP_Write_Batched(t *testing.T) {
 	testCases := []struct {
 		Name              string
 		BatchSize         int
@@ -447,7 +457,7 @@ func TestHTTPWrite_Batched(t *testing.T) {
 	}
 }
 
-func TestHTTPWrite_Concurrent(t *testing.T) {
+func TestHTTP_Write_Concurrent(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -492,7 +502,7 @@ func TestHTTPWrite_Concurrent(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 }
 
-func TestHTTPWrite_Failure(t *testing.T) {
+func TestHTTP_Write_Failure(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -523,7 +533,7 @@ func TestHTTPWrite_Failure(t *testing.T) {
 	assert.Empty(writeResult.Oversized)
 }
 
-func TestHTTPWrite_InvalidResponseCode(t *testing.T) {
+func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
@@ -564,7 +574,7 @@ func TestHTTPWrite_InvalidResponseCode(t *testing.T) {
 	}
 }
 
-func TestHTTPWrite_Oversized(t *testing.T) {
+func TestHTTP_Write_Oversized(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -605,7 +615,7 @@ func TestHTTPWrite_Oversized(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 }
 
-func TestHTTPWrite_EnabledTemplating(t *testing.T) {
+func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
@@ -624,8 +634,10 @@ func TestHTTPWrite_EnabledTemplating(t *testing.T) {
 		wg.Done()
 	}
 
-	input := `{ "event_data": { "nested": "value1"}, "attribute_data": 1}`
-	messages := testutil.GetTestMessages(3, input, ackFunc)
+	goodMessages := testutil.GetTestMessages(3, `{ "event_data": { "nested": "value1"}, "attribute_data": 1}`, ackFunc)
+	badMessages := testutil.GetTestMessages(3, `{ "event_data": { "nested": "value1"},`, ackFunc) // invalid
+
+	messages := append(goodMessages, badMessages...)
 
 	wg.Add(3)
 	writeResult, err1 := target.Write(messages)
@@ -633,6 +645,11 @@ func TestHTTPWrite_EnabledTemplating(t *testing.T) {
 
 	assert.Nil(err1)
 	assert.Equal(3, len(writeResult.Sent))
+	assert.Equal(3, len(writeResult.Invalid)) // invalids went to the right place
+	for _, msg := range writeResult.Invalid {
+		// Invalids have errors as expected
+		assert.Regexp("Message can't be parsed as valid JSON: .*", msg.GetError().Error())
+	}
 	assert.Equal(1, len(results))
 
 	expectedOutput := "{\n  \"attributes\": [1,1,1],\n  \"events\": [{\"nested\":\"value1\"},{\"nested\":\"value1\"},{\"nested\":\"value1\"}]\n}\n"
@@ -649,7 +666,7 @@ func TestHTTPWrite_EnabledTemplating(t *testing.T) {
 // openssl req -new -key localhost.key -out localhost.csr -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost"
 // openssl x509 -req -in localhost.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -days 365 -out localhost.crt
 
-func TestHTTPWrite_TLS(t *testing.T) {
+func TestHTTP_Write_TLS(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -758,6 +775,25 @@ func TestHTTPWrite_TLS(t *testing.T) {
 	assert.Equal(10, len(writeResult3.Sent))
 
 	assert.Equal(int64(30), ackOps)
+}
+
+func TestHTTP_ProvideRequestBody(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{}
+
+	inputMessages := []*models.Message{
+		{Data: []byte(`{"key": "value1"}`)},
+		{Data: []byte(`{"key": "value2"}`)},
+		{Data: []byte(`{"key": "value3"}`)},
+		{Data: []byte(`justastring`)},
+	}
+
+	templated, success, invalid := target.provideRequestBody(inputMessages)
+
+	assert.Equal(`[{"key":"value1"},{"key":"value2"},{"key":"value3"}]`, string(templated))
+	assert.Equal(3, len(success))
+	assert.Equal(1, len(invalid))
+	assert.Regexp("Message can't be parsed as valid JSON: .*", invalid[0].GetError().Error())
 }
 
 func TestHTTP_GroupByHeaders_Disabled(t *testing.T) {
@@ -875,7 +911,7 @@ func TestHTTP_GroupByHeaders_Enabled_MultipleGroups(t *testing.T) {
 	assert.Contains(groupedMessages, []*models.Message{inputMessages[4]})                   //group 3
 }
 
-func TestHTTPWrite_GroupedRequests(t *testing.T) {
+func TestHTTP_Write_GroupedRequests(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte

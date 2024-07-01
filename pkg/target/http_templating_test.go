@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTemplating_WithPrettyPrint(t *testing.T) {
+func TestHTTP_Templating_WithPrettyPrint(t *testing.T) {
 	assert := assert.New(t)
 
 	rawTemplate :=
@@ -45,7 +45,7 @@ func TestTemplating_WithPrettyPrint(t *testing.T) {
 	assert.Empty(invalidMessages)
 }
 
-func TestTemplating_NoPrettyPrinting(t *testing.T) {
+func TestHTTP_Templating_NoPrettyPrinting(t *testing.T) {
 	assert := assert.New(t)
 
 	rawTemplate :=
@@ -73,7 +73,7 @@ func TestTemplating_NoPrettyPrinting(t *testing.T) {
 	assert.Empty(invalidMessages)
 }
 
-func TestTemplating_ArrayProvided(t *testing.T) {
+func TestHTTP_Templating_ArrayProvided(t *testing.T) {
 	assert := assert.New(t)
 
 	rawTemplate :=
@@ -97,7 +97,7 @@ func TestTemplating_ArrayProvided(t *testing.T) {
 	assert.Empty(invalidMessages)
 }
 
-func TestTemplating_AccessNonExistingField(t *testing.T) {
+func TestHTTP_Templating_AccessNonExistingField(t *testing.T) {
 	noPretty := "{{ (index . 0).nonexistent}}"
 	pretty := "{{ prettyPrint (index . 0).nonexistent}}"
 
@@ -134,7 +134,7 @@ func TestTemplating_AccessNonExistingField(t *testing.T) {
 	}
 }
 
-func TestTemplatating_ParsingTemplateFailure(t *testing.T) {
+func TestHTTP_Templatating_ParsingTemplateFailure(t *testing.T) {
 	assert := assert.New(t)
 
 	rawTemplate := "{{ "
@@ -142,7 +142,7 @@ func TestTemplatating_ParsingTemplateFailure(t *testing.T) {
 	assert.Equal("template: HTTP:1: unclosed action", err.Error())
 }
 
-func TestTemplating_JSONParseFailure(t *testing.T) {
+func TestHTTP_Templating_JSONParseFailure(t *testing.T) {
 	assert := assert.New(t)
 
 	rawTemplate := "{{ prettyPrint (index . 0).event_data}}"
@@ -170,7 +170,7 @@ func TestTemplating_JSONParseFailure(t *testing.T) {
 	assert.Equal(inputMessages[1], invalidMessages[0])
 }
 
-func TestTemplating_RenderFailure(t *testing.T) {
+func TestHTTP_Templating_RenderFailure(t *testing.T) {
 	assert := assert.New(t)
 
 	rawTemplate := "{{ index . 1 }}"
