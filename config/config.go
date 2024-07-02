@@ -125,7 +125,10 @@ func defaultConfigData() *configurationData {
 func NewConfig() (*Config, error) {
 	switch filename := os.Getenv("SNOWBRIDGE_CONFIG_FILE"); filename {
 	case "":
-		return nil, fmt.Errorf("configuration file not provided")
+		return &Config{
+			Data:    defaultConfigData(),
+			Decoder: &defaultsDecoder{},
+		}, nil
 
 	default:
 		// read the config file

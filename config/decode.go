@@ -147,3 +147,14 @@ func envVarsMap(environ []string) map[string]cty.Value {
 
 	return envMap
 }
+
+// defaultsDecoder is in use when no configuration file is provided.
+// Implements Decoder
+type defaultsDecoder struct{}
+
+// Decode for defaultsDecoder leaves the target unaffected.
+// The target argument must be a pointer to an allocated structure.
+// If the target is nil, we assume is not decodable.
+func (d *defaultsDecoder) Decode(opts *DecoderOptions, target interface{}) error {
+	return nil
+}

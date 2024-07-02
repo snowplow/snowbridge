@@ -57,7 +57,7 @@ func TestInit_Success(t *testing.T) {
 	assert.Nil(err)
 }
 
-func TestInit_SLULAFailre(t *testing.T) {
+func TestInit_SLULAFailure(t *testing.T) {
 	assert := assert.New(t)
 
 	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
@@ -71,8 +71,11 @@ func TestInit_SLULAFailre(t *testing.T) {
 	}
 }
 
-func TestInit_Failure(t *testing.T) {
+func TestInit_NewConfigFailure(t *testing.T) {
 	assert := assert.New(t)
+
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "fail.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "on")
 

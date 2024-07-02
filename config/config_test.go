@@ -23,12 +23,27 @@ func TestNewConfig_NoConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	c, err := NewConfig()
-	assert.Nil(c)
-	if err == nil {
-		t.Fatalf("expected a non nil error")
+	assert.NotNil(c)
+	if err != nil {
+		t.Fatalf("unexpected error: %q", err.Error())
 	}
 
-	assert.Equal("configuration file not provided", err.Error())
+	assert.Equal(c.Data.Source.Use.Name, "stdin")
+	assert.Nil(c.Data.Source.Use.Body)
+	assert.Equal(c.Data.Target.Use.Name, "stdout")
+	assert.Nil(c.Data.Target.Use.Body)
+	assert.Equal(c.Data.FailureTarget.Target.Name, "stdout")
+	assert.Nil(c.Data.FailureTarget.Target.Body)
+	assert.Equal(c.Data.FailureTarget.Format, "snowplow")
+	assert.Equal(c.Data.Sentry.Tags, "{}")
+	assert.Equal(c.Data.StatsReceiver.Receiver.Name, "")
+	assert.Nil(c.Data.StatsReceiver.Receiver.Body)
+	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
+	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
+	assert.Nil(c.Data.Transformations)
+	assert.Equal(c.Data.LogLevel, "info")
+	assert.Equal(c.Data.DisableTelemetry, false)
+	assert.Equal(c.Data.License.Accept, false)
 }
 
 func TestNewConfig_InvalidFailureFormat(t *testing.T) {
