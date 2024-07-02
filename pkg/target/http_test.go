@@ -159,6 +159,7 @@ func TestHTTP_RetrieveHeaders(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			testTargetConfig := &HTTPTargetConfig{
 				HTTPURL:                 "http://test",
+				MessageByteLimit:        1048576,
 				RequestByteLimit:        1048576,
 				RequestTimeoutInSeconds: 5,
 				ContentType:             "application/json",
@@ -166,7 +167,7 @@ func TestHTTP_RetrieveHeaders(t *testing.T) {
 			}
 			testTarget, err := HTTPTargetConfigFunction(testTargetConfig)
 			if err != nil {
-				t.Fatalf("failed to create test target")
+				t.Fatalf("failed to create test target: " + err.Error())
 			}
 
 			out := testTarget.retrieveHeaders(tt.Msg)
