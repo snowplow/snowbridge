@@ -13,7 +13,6 @@ package pubsubsource
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -65,10 +64,10 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 		t.Fatalf("unexpected error: %q", err.Error())
 	}
 
-	configBytesToMerge := []byte(fmt.Sprintf(`
+	configBytesToMerge := []byte(`
     project_id      = "project-test"
     subscription_id = "test-sub"
-`))
+`)
 
 	parser := hclparse.NewParser()
 	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
@@ -196,10 +195,10 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 		t.Fatalf("unexpected error: %q", err.Error())
 	}
 
-	configBytesToMerge := []byte(fmt.Sprintf(`
+	configBytesToMerge := []byte(`
     project_id      = "project-test"
     subscription_id = "test-sub"
-`))
+`)
 
 	parser := hclparse.NewParser()
 	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")

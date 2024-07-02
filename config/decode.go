@@ -36,9 +36,6 @@ type DecoderOptions struct {
 	Input hcl.Body
 }
 
-// envDecoder implements Decoder.
-type envDecoder struct{}
-
 // hclDecoder implements Decoder.
 type hclDecoder struct {
 	EvalContext *hcl.EvalContext
