@@ -15,7 +15,6 @@ import (
 	"errors"
 	"os"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/zclconf/go-cty/cty"
@@ -34,31 +33,7 @@ type Decoder interface {
 // Decoders. The zero value of DecoderOptions means no-prefix/nil-input,
 // which should be usable by the Decoders.
 type DecoderOptions struct {
-	Prefix string
-	Input  hcl.Body
-}
-
-// envDecoder implements Decoder.
-type envDecoder struct{}
-
-// Decode populates target from the environment.
-// The target argument must be a pointer to a struct type value.
-func (e *envDecoder) Decode(opts *DecoderOptions, target interface{}) error {
-	// Decoder Options cannot be missing
-	if opts == nil {
-		return errors.New("missing DecoderOptions for envDecoder")
-	}
-
-	// If target is nil then we assume that target is not decodable.
-	if target == nil {
-		return nil
-	}
-
-	envOpts := env.Options{
-		Prefix: opts.Prefix, // zero value ok
-	}
-
-	return env.Parse(target, envOpts)
+	Input hcl.Body
 }
 
 // hclDecoder implements Decoder.
@@ -171,4 +146,15 @@ func envVarsMap(environ []string) map[string]cty.Value {
 	}
 
 	return envMap
+}
+
+// defaultsDecoder is in use when no configuration file is provided.
+// Implements Decoder
+type defaultsDecoder struct{}
+
+// Decode for defaultsDecoder leaves the target unaffected.
+// The target argument must be a pointer to an allocated structure.
+// If the target is nil, we assume is not decodable.
+func (d *defaultsDecoder) Decode(opts *DecoderOptions, target interface{}) error {
+	return nil
 }

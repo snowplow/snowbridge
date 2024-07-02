@@ -12,7 +12,6 @@ require (
 	github.com/Azure/go-autorest/autorest/adal v0.9.23 // indirect
 	github.com/IBM/sarama v1.43.1
 	github.com/aws/aws-sdk-go v1.44.334
-	github.com/caarlos0/env/v6 v6.10.1
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/getsentry/sentry-go v0.27.0
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect

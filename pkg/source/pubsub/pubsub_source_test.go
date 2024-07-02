@@ -14,14 +14,17 @@ package pubsubsource
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow/snowbridge/assets"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
 	"github.com/snowplow/snowbridge/pkg/testutil"
@@ -46,18 +49,34 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
-	t.Setenv("SOURCE_NAME", "pubsub")
-	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
-	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", `project-test`)
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	adaptedHandle := adapterGenerator(configFunction)
 
 	pubsubSourceConfigPair := config.ConfigurationPair{Name: "pubsub", Handle: adaptedHandle}
 	supportedSources := []config.ConfigurationPair{pubsubSourceConfigPair}
 
+	// Construct the config
 	pubsubConfig, err := config.NewConfig()
 	assert.NotNil(pubsubConfig)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("unexpected error: %q", err.Error())
+	}
+
+	configBytesToMerge := []byte(`
+    project_id      = "project-test"
+    subscription_id = "test-sub"
+`)
+
+	parser := hclparse.NewParser()
+	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse config bytes")
+	}
+
+	pubsubConfig.Data.Source.Use.Name = "pubsub"
+	pubsubConfig.Data.Source.Use.Body = fileHCL.Body
 
 	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
 
@@ -161,18 +180,34 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Setenv("SOURCE_NAME", "pubsub")
-	t.Setenv("SOURCE_PUBSUB_SUBSCRIPTION_ID", "test-sub")
-	t.Setenv("SOURCE_PUBSUB_PROJECT_ID", `project-test`)
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	adaptedHandle := adapterGenerator(configFunction)
 
 	pubsubSourceConfigPair := config.ConfigurationPair{Name: "pubsub", Handle: adaptedHandle}
 	supportedSources := []config.ConfigurationPair{pubsubSourceConfigPair}
 
+	// Construct the config
 	pubsubConfig, err := config.NewConfig()
 	assert.NotNil(pubsubConfig)
-	assert.Nil(err)
+	if err != nil {
+		t.Fatalf("unexpected error: %q", err.Error())
+	}
+
+	configBytesToMerge := []byte(`
+    project_id      = "project-test"
+    subscription_id = "test-sub"
+`)
+
+	parser := hclparse.NewParser()
+	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse config bytes")
+	}
+
+	pubsubConfig.Data.Source.Use.Name = "pubsub"
+	pubsubConfig.Data.Source.Use.Body = fileHCL.Body
 
 	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
 

@@ -13,10 +13,12 @@ package sourceconfig
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow/snowbridge/assets"
 	config "github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 )
@@ -74,13 +76,15 @@ var mockConfigPair = config.ConfigurationPair{
 func TestGetSource_ValidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Setenv("SOURCE_NAME", "mock")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
+	c.Data.Source.Use.Name = "mock"
 
 	supportedSources := []config.ConfigurationPair{mockConfigPair}
 
@@ -94,13 +98,15 @@ func TestGetSource_ValidSource(t *testing.T) {
 func TestGetSource_InvalidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Setenv("SOURCE_NAME", "fake")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
+	c.Data.Source.Use.Name = "fake"
 
 	supportedSources := []config.ConfigurationPair{}
 
@@ -120,7 +126,7 @@ func brokenAdapterGenerator(f func(c *configuration) (sourceiface.Source, error)
 }
 
 var mockUnhappyConfigPair = config.ConfigurationPair{
-	Name:   "mockUnhappy",
+	Name:   "mock",
 	Handle: brokenAdapterGenerator(configfunction),
 }
 
@@ -128,13 +134,15 @@ var mockUnhappyConfigPair = config.ConfigurationPair{
 func TestGetSource_BadConfig(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Setenv("SOURCE_NAME", "mockUnhappy")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	c, err := config.NewConfig()
 	assert.NotNil(c)
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
+	c.Data.Source.Use.Name = "mock"
 
 	supportedSources := []config.ConfigurationPair{mockUnhappyConfigPair}
 
@@ -143,6 +151,6 @@ func TestGetSource_BadConfig(t *testing.T) {
 	assert.Nil(source)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("could not interpret source configuration for \"mockUnhappy\"", err.Error())
+		assert.Equal("could not interpret source configuration for \"mock\"", err.Error())
 	}
 }

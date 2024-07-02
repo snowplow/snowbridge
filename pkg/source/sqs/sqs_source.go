@@ -32,11 +32,11 @@ import (
 
 // Configuration configures the source for records pulled
 type Configuration struct {
-	QueueName         string `hcl:"queue_name" env:"SOURCE_SQS_QUEUE_NAME"`
-	Region            string `hcl:"region" env:"SOURCE_SQS_REGION"`
-	RoleARN           string `hcl:"role_arn,optional" env:"SOURCE_SQS_ROLE_ARN"`
-	ConcurrentWrites  int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
-	CustomAWSEndpoint string `hcl:"custom_aws_endpoint,optional" env:"SOURCE_CUSTOM_AWS_ENDPOINT"`
+	QueueName         string `hcl:"queue_name"`
+	Region            string `hcl:"region"`
+	RoleARN           string `hcl:"role_arn,optional"`
+	ConcurrentWrites  int    `hcl:"concurrent_writes,optional"`
+	CustomAWSEndpoint string `hcl:"custom_aws_endpoint,optional"`
 }
 
 // sqsSource holds a new client for reading messages from SQS

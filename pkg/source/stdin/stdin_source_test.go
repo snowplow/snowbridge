@@ -14,10 +14,12 @@ package stdinsource
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow/snowbridge/assets"
 	config "github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
@@ -71,7 +73,8 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 }
 
 func TestGetSource_WithStdinSource(t *testing.T) {
-	t.Setenv("SOURCE_NAME", "stdin")
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	assert := assert.New(t)
 

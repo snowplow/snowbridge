@@ -32,23 +32,23 @@ import (
 
 // HTTPTargetConfig configures the destination for records consumed
 type HTTPTargetConfig struct {
-	HTTPURL                 string `hcl:"url" env:"TARGET_HTTP_URL"`
-	ByteLimit               int    `hcl:"byte_limit,optional" env:"TARGET_HTTP_BYTE_LIMIT"`
-	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional" env:"TARGET_HTTP_TIMEOUT_IN_SECONDS"`
-	ContentType             string `hcl:"content_type,optional" env:"TARGET_HTTP_CONTENT_TYPE"`
-	Headers                 string `hcl:"headers,optional" env:"TARGET_HTTP_HEADERS" `
-	BasicAuthUsername       string `hcl:"basic_auth_username,optional" env:"TARGET_HTTP_BASICAUTH_USERNAME"`
-	BasicAuthPassword       string `hcl:"basic_auth_password,optional" env:"TARGET_HTTP_BASICAUTH_PASSWORD"`
-	CertFile                string `hcl:"cert_file,optional" env:"TARGET_HTTP_TLS_CERT_FILE"`
-	KeyFile                 string `hcl:"key_file,optional" env:"TARGET_HTTP_TLS_KEY_FILE"`
-	CaFile                  string `hcl:"ca_file,optional" env:"TARGET_HTTP_TLS_CA_FILE"`
-	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional" env:"TARGET_HTTP_TLS_SKIP_VERIFY_TLS"` // false
-	DynamicHeaders          bool   `hcl:"dynamic_headers,optional" env:"TARGET_HTTP_DYNAMIC_HEADERS"`
+	HTTPURL                 string `hcl:"url"`
+	ByteLimit               int    `hcl:"byte_limit,optional"`
+	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional"`
+	ContentType             string `hcl:"content_type,optional"`
+	Headers                 string `hcl:"headers,optional"`
+	BasicAuthUsername       string `hcl:"basic_auth_username,optional"`
+	BasicAuthPassword       string `hcl:"basic_auth_password,optional"`
+	CertFile                string `hcl:"cert_file,optional"`
+	KeyFile                 string `hcl:"key_file,optional"`
+	CaFile                  string `hcl:"ca_file,optional"`
+	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional"` // false
+	DynamicHeaders          bool   `hcl:"dynamic_headers,optional"`
 
-	OAuth2ClientID     string `hcl:"oauth2_client_id,optional" env:"TARGET_HTTP_OAUTH2_CLIENT_ID"`
-	OAuth2ClientSecret string `hcl:"oauth2_client_secret,optional" env:"TARGET_HTTP_OAUTH2_CLIENT_SECRET"`
-	OAuth2RefreshToken string `hcl:"oauth2_refresh_token,optional" env:"TARGET_HTTP_OAUTH2_REFRESH_TOKEN"`
-	OAuth2TokenURL     string `hcl:"oauth2_token_url,optional" env:"TARGET_HTTP_OAUTH2_TOKEN_URL"`
+	OAuth2ClientID     string `hcl:"oauth2_client_id,optional"`
+	OAuth2ClientSecret string `hcl:"oauth2_client_secret,optional"`
+	OAuth2RefreshToken string `hcl:"oauth2_refresh_token,optional"`
+	OAuth2TokenURL     string `hcl:"oauth2_token_url,optional"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints

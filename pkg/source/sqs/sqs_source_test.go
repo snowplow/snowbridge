@@ -13,6 +13,7 @@ package sqssource
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
@@ -164,14 +166,29 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 
 	defer testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName)
 
-	t.Setenv("SOURCE_NAME", "sqs")
-	t.Setenv("SOURCE_SQS_QUEUE_NAME", queueName)
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
+	// Construct the config
 	c, err := config.NewConfig()
 	assert.NotNil(c)
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
+
+	configBytesToMerge := []byte(fmt.Sprintf(`
+    queue_name = "%s"
+    region     = "us-test-1"
+`, queueName))
+
+	parser := hclparse.NewParser()
+	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
+	if diags.HasErrors() {
+		t.Fatalf("failed to parse config bytes")
+	}
+
+	c.Data.Source.Use.Name = "sqs"
+	c.Data.Source.Use.Body = fileHCL.Body
 
 	sqsSourceConfigFunctionWithLocalStack := configFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
 	adaptedHandle := adapterGenerator(sqsSourceConfigFunctionWithLocalStack)
