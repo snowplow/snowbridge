@@ -75,6 +75,7 @@ type HTTPTarget struct {
 	messageByteLimit   int
 
 	requestTemplate *template.Template
+	approxTmplSize  int
 }
 
 func checkURL(str string) error {
@@ -155,10 +156,12 @@ func newHTTPTarget(
 	client := createHTTPClient(oAuth2ClientID, oAuth2ClientSecret, oAuth2TokenURL, oAuth2RefreshToken, transport)
 	client.Timeout = time.Duration(requestTimeout) * time.Second
 
-	requestTemplate, err := loadRequestTemplate(templateFile)
-
+	approxTmplSize, requestTemplate, err := loadRequestTemplate(templateFile)
 	if err != nil {
 		return nil, err
+	}
+	if approxTmplSize >= requestByteLimit || approxTmplSize >= messageByteLimit {
+		return nil, errors.New("target error: Byte limit must be larger than template size")
 	}
 
 	return &HTTPTarget{
@@ -176,19 +179,21 @@ func newHTTPTarget(
 		messageByteLimit:   messageByteLimit,
 
 		requestTemplate: requestTemplate,
+		approxTmplSize:  approxTmplSize,
 	}, nil
 }
 
-func loadRequestTemplate(templateFile string) (*template.Template, error) {
+func loadRequestTemplate(templateFile string) (int, *template.Template, error) {
 	if templateFile != "" {
 		content, err := os.ReadFile(templateFile)
 
 		if err != nil {
-			return nil, err
+			return 0, nil, err
 		}
-		return parseRequestTemplate(string(content))
+		tmpl, err := parseRequestTemplate(string(content))
+		return len(content), tmpl, err
 	}
-	return nil, nil
+	return 0, nil, nil
 }
 
 func parseRequestTemplate(templateContent string) (*template.Template, error) {
@@ -295,8 +300,8 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	chunks, oversized := models.GetChunkedMessages(
 		messages,
 		ht.requestMaxMessages,
-		ht.messageByteLimit,
-		ht.requestByteLimit,
+		ht.messageByteLimit-ht.approxTmplSize,
+		ht.requestByteLimit-ht.approxTmplSize,
 	)
 
 	sent := []*models.Message{}
