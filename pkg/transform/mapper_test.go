@@ -13,6 +13,7 @@ package transform
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -33,6 +34,25 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 		ExpInterState   interface{}
 		Error           error
 	}{
+		{
+			Scenario:  "test_timestamp_to_epoch",
+			JQCommand: `{ foo: (.collector_tstamp | strptime("%Y-%m-%d %H:%M:%S.%f")) }`, // | mktime * 1000   // 2022-02-01 00:30:04.684
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"foo":1643675404684}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
 		{
 			Scenario:  "happy_path",
 			JQCommand: `{foo: .app_id}`,
@@ -105,6 +125,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			transFun, err := jqMapperConfigFunction(jqConfig)
 			assert.NotNil(transFun)
 			if err != nil {
+				fmt.Println(err.Error())
 				t.Fatalf("failed to create transformation function with error: %q", err.Error())
 			}
 
