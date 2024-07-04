@@ -108,7 +108,11 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 		return nil, fmt.Errorf("error parsing jq command: %q", err.Error())
 	}
 
-	code, err := gojq.Compile(query)
+	withEpochFunction := gojq.WithFunction("epoch", 0, 1, func(a1 any, a2 []any) any {
+		return a1.(time.Time).UnixMilli()
+	})
+
+	code, err := gojq.Compile(query, withEpochFunction)
 	if err != nil {
 		return nil, fmt.Errorf("error compiling jq query: %q", err.Error())
 	}
