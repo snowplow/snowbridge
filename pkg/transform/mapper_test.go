@@ -34,6 +34,25 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 		Error           error
 	}{
 		{
+			Scenario:  "test_timestamp_to_epoch",
+			JQCommand: `{ foo: .collector_tstamp | epoch }`,
+      InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"foo":1557499235972}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
 			Scenario:  "happy_path",
 			JQCommand: `{foo: .app_id}`,
 			InputMsg: &models.Message{
