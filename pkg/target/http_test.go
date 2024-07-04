@@ -15,12 +15,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +31,7 @@ import (
 	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
-func createTestServerWithResponseCode(results *[][]byte, waitgroup *sync.WaitGroup, responseCode int) *httptest.Server {
+func createTestServerWithResponseCode(results *[][]byte, responseCode int) *httptest.Server {
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer req.Body.Close()
@@ -41,15 +43,14 @@ func createTestServerWithResponseCode(results *[][]byte, waitgroup *sync.WaitGro
 		*results = append(*results, data)
 		w.WriteHeader(responseCode)
 		mutex.Unlock()
-		defer waitgroup.Done()
 	}))
 }
 
-func createTestServer(results *[][]byte, waitgroup *sync.WaitGroup) *httptest.Server {
-	return createTestServerWithResponseCode(results, waitgroup, 200)
+func createTestServer(results *[][]byte) *httptest.Server {
+	return createTestServerWithResponseCode(results, 200)
 }
 
-func TestGetHeaders(t *testing.T) {
+func TestHTTP_GetHeaders(t *testing.T) {
 	assert := assert.New(t)
 	valid1 := `{"Max Forwards": "10", "Accept-Language": "en-US", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}`
 
@@ -97,7 +98,7 @@ func TestGetHeaders(t *testing.T) {
 
 }
 
-func TestRetrieveHeaders(t *testing.T) {
+func TestHTTP_RetrieveHeaders(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		Msg      *models.Message
@@ -158,14 +159,15 @@ func TestRetrieveHeaders(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			testTargetConfig := &HTTPTargetConfig{
 				HTTPURL:                 "http://test",
-				ByteLimit:               1048576,
+				MessageByteLimit:        1048576,
+				RequestByteLimit:        1048576,
 				RequestTimeoutInSeconds: 5,
 				ContentType:             "application/json",
 				DynamicHeaders:          tt.Dynamic,
 			}
 			testTarget, err := HTTPTargetConfigFunction(testTargetConfig)
 			if err != nil {
-				t.Fatalf("failed to create test target")
+				t.Fatalf("failed to create test target: " + err.Error())
 			}
 
 			out := testTarget.retrieveHeaders(tt.Msg)
@@ -178,7 +180,7 @@ func TestRetrieveHeaders(t *testing.T) {
 	}
 }
 
-func TestAddHeadersToRequest(t *testing.T) {
+func TestHTTP_AddHeadersToRequest(t *testing.T) {
 	assert := assert.New(t)
 
 	req, err := http.NewRequest("POST", "abc", bytes.NewBuffer([]byte("def")))
@@ -208,7 +210,7 @@ func TestAddHeadersToRequest(t *testing.T) {
 	assert.Equal(noHeadersExpected, req2.Header)
 }
 
-func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
+func TestHTTP_AddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		ConfigHeaders  map[string]string
@@ -302,15 +304,15 @@ func TestAddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 	}
 }
 
-func TestNewHTTPTarget(t *testing.T) {
+func TestHTTP_NewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := newHTTPTarget("http://something", 5, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 
 	assert.Nil(err)
 	assert.NotNil(httpTarget)
 
-	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 
 	assert.NotNil(err1)
 	if err1 != nil {
@@ -318,7 +320,7 @@ func TestNewHTTPTarget(t *testing.T) {
 	}
 	assert.Nil(failedHTTPTarget)
 
-	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 	assert.NotNil(err2)
 	if err2 != nil {
 		assert.Equal("Invalid url for HTTP target: ''", err2.Error())
@@ -326,10 +328,11 @@ func TestNewHTTPTarget(t *testing.T) {
 	assert.Nil(failedHTTPTarget2)
 }
 
-func TestHttpWrite_Simple(t *testing.T) {
+func TestHTTP_Write_Simple(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
+		BatchSize    int
 	}{
 		{Name: "200 response Code", ResponseCode: 200},
 		{Name: "201 response Code", ResponseCode: 201},
@@ -342,10 +345,10 @@ func TestHttpWrite_Simple(t *testing.T) {
 
 			var results [][]byte
 			wg := sync.WaitGroup{}
-			server := createTestServerWithResponseCode(&results, &wg, tt.ResponseCode)
+			server := createTestServerWithResponseCode(&results, tt.ResponseCode)
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -353,35 +356,122 @@ func TestHttpWrite_Simple(t *testing.T) {
 			var ackOps int64
 			ackFunc := func() {
 				atomic.AddInt64(&ackOps, 1)
+
+				wg.Done()
 			}
 
-			messages := testutil.GetTestMessages(501, "Hello Server!!", ackFunc)
-			wg.Add(501)
+			goodMessages := testutil.GetTestMessages(25, `{"message": "Hello Server!!"}`, ackFunc)
+			badMessages := testutil.GetTestMessages(3, `{"message": "Hello Server!!"`, ackFunc) // invalids
+
+			messages := append(goodMessages, badMessages...)
+
+			wg.Add(25)
 			writeResult, err1 := target.Write(messages)
 
-			wg.Wait()
-
-			assert.Nil(err1)
-			assert.Equal(501, len(writeResult.Sent))
-			assert.Equal(501, len(results))
-			for _, result := range results {
-				assert.Equal("Hello Server!!", string(result))
+			if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+				assert.Fail("Timed out waiting for acks")
 			}
 
-			assert.Equal(int64(501), ackOps)
+			assert.Nil(err1)
+			assert.Equal(int64(25), writeResult.SentCount)
+			assert.Equal(int64(0), writeResult.FailedCount)
+
+			assert.Equal(25, len(writeResult.Sent))
+			assert.Equal(25, len(results))
+			for _, result := range results {
+				assert.Equal(`[{"message":"Hello Server!!"}]`, string(result))
+			}
+
+			assert.Equal(3, len(writeResult.Invalid)) // invalids went to the right place
+			for _, msg := range writeResult.Invalid {
+				// Check all invalids have error as expected
+				assert.Regexp("Message can't be parsed as valid JSON: .*", msg.GetError().Error())
+			}
+
+			assert.Equal(int64(25), ackOps)
 		})
 	}
 }
 
-func TestHttpWrite_Concurrent(t *testing.T) {
+func TestHTTP_Write_Batched(t *testing.T) {
+	testCases := []struct {
+		Name              string
+		BatchSize         int
+		LastBatchExpected int
+	}{
+		{Name: "Batches of 20", BatchSize: 20, LastBatchExpected: 20},
+		{Name: "Batches of 15", BatchSize: 15, LastBatchExpected: 10},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			var results [][]byte
+			wg := sync.WaitGroup{}
+			server := createTestServerWithResponseCode(&results, 200)
+			defer server.Close()
+
+			target, err := newHTTPTarget(server.URL, 5, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var ackOps int64
+			ackFunc := func() {
+				atomic.AddInt64(&ackOps, 1)
+
+				wg.Done()
+			}
+
+			messages := testutil.GetTestMessages(100, `{"message": "Hello Server!!"}`, ackFunc)
+			wg.Add(100)
+			writeResult, err1 := target.Write(messages)
+
+			if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+				assert.Fail("Timed out waiting for acks")
+			}
+
+			assert.Nil(err1)
+			assert.Equal(int64(100), writeResult.SentCount)
+			assert.Equal(int64(0), writeResult.FailedCount)
+			assert.Equal(100, len(writeResult.Sent))
+			assert.Equal(math.Ceil(100/float64(tt.BatchSize)), float64(len(results)))
+			for i, result := range results {
+
+				var res []json.RawMessage
+				err := json.Unmarshal(result, &res)
+				if err != nil {
+					assert.Fail("Request not an array as expected - got error unmarshalling: " + err.Error())
+				}
+				// Check the amount f events in the batch is as expected
+				if i == len(results)-1 {
+					// Check the last batch size
+					assert.Equal(tt.LastBatchExpected, len(res))
+				} else {
+					// Check the others
+					assert.Equal(tt.BatchSize, len(res))
+				}
+				// Iterate and check the data is what we expect
+				for _, r := range res {
+					assert.Equal(`{"message":"Hello Server!!"}`, string(r))
+				}
+			}
+
+			assert.Equal(int64(100), ackOps)
+		})
+	}
+}
+
+func TestHTTP_Write_Concurrent(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
 	wg := sync.WaitGroup{}
-	server := createTestServer(&results, &wg)
+	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,10 +485,10 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 		wg.Done()
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 
 	for _, message := range messages {
-		wg.Add(2) // Both acking and returning results from server can have race conditions, so we add both to the waitgroup.
+		wg.Add(1)
 		go func(msg *models.Message) {
 			writeResult, err1 := target.Write([]*models.Message{msg})
 			assert.Nil(err1)
@@ -406,25 +496,26 @@ func TestHttpWrite_Concurrent(t *testing.T) {
 		}(message)
 	}
 
-	wg.Wait()
+	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
 
 	assert.Equal(10, len(results))
 	for _, result := range results {
-		assert.Equal("Hello Server!!", string(result))
+		assert.Equal(`[{"message":"Hello Server!!"}]`, string(result))
 	}
 
 	assert.Equal(int64(10), ackOps)
 }
 
-func TestHttpWrite_Failure(t *testing.T) {
+func TestHTTP_Write_Failure(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
-	wg := sync.WaitGroup{}
-	server := createTestServer(&results, &wg)
+	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -434,21 +525,23 @@ func TestHttpWrite_Failure(t *testing.T) {
 		atomic.AddInt64(&ackOps, 1)
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 
 	writeResult, err1 := target.Write(messages)
 
 	assert.NotNil(err1)
 	if err1 != nil {
-		assert.Regexp("Error sending http requests: 10 errors occurred:.*", err1.Error())
+		assert.Regexp("10 errors occurred:.*", err1.Error())
 	}
 
+	assert.Equal(int64(0), writeResult.SentCount)
+	assert.Equal(int64(10), writeResult.FailedCount)
 	assert.Equal(10, len(writeResult.Failed))
-	assert.Nil(writeResult.Sent)
-	assert.Nil(writeResult.Oversized)
+	assert.Empty(writeResult.Sent)
+	assert.Empty(writeResult.Oversized)
 }
 
-func TestHttpWrite_InvalidResponseCode(t *testing.T) {
+func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		ResponseCode int
@@ -462,10 +555,9 @@ func TestHttpWrite_InvalidResponseCode(t *testing.T) {
 			assert := assert.New(t)
 
 			var results [][]byte
-			wg := sync.WaitGroup{}
-			server := createTestServerWithResponseCode(&results, &wg, tt.ResponseCode)
+			server := createTestServerWithResponseCode(&results, tt.ResponseCode)
 			defer server.Close()
-			target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -475,31 +567,32 @@ func TestHttpWrite_InvalidResponseCode(t *testing.T) {
 				atomic.AddInt64(&ackOps, 1)
 			}
 
-			messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
-			wg.Add(10)
+			messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 			writeResult, err1 := target.Write(messages)
 
 			assert.NotNil(err1)
 			if err1 != nil {
-				assert.Regexp("Error sending http requests: 10 errors occurred:.*", err1.Error())
+				assert.Regexp("10 errors occurred:.*", err1.Error())
 			}
 
+			assert.Equal(int64(0), writeResult.SentCount)
+			assert.Equal(int64(10), writeResult.FailedCount)
 			assert.Equal(10, len(writeResult.Failed))
-			assert.Nil(writeResult.Sent)
-			assert.Nil(writeResult.Oversized)
+			assert.Empty(writeResult.Sent)
+			assert.Empty(writeResult.Oversized)
 		})
 	}
 }
 
-func TestHttpWrite_Oversized(t *testing.T) {
+func TestHTTP_Write_Oversized(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
 	wg := sync.WaitGroup{}
-	server := createTestServer(&results, &wg)
+	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "")
+	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -507,25 +600,75 @@ func TestHttpWrite_Oversized(t *testing.T) {
 	var ackOps int64
 	ackFunc := func() {
 		atomic.AddInt64(&ackOps, 1)
+
+		wg.Done()
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 	messages = append(messages, testutil.GetTestMessages(1, testutil.GenRandomString(1048577), ackFunc)...)
 
 	wg.Add(10)
 	writeResult, err1 := target.Write(messages)
 
-	wg.Wait()
+	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
 
 	assert.Nil(err1)
+	assert.Equal(int64(10), writeResult.SentCount)
+	assert.Equal(int64(0), writeResult.FailedCount)
 	assert.Equal(10, len(writeResult.Sent))
 	assert.Equal(1, len(writeResult.Oversized))
 	assert.Equal(10, len(results))
 	for _, result := range results {
-		assert.Equal("Hello Server!!", string(result))
+		assert.Equal(`[{"message":"Hello Server!!"}]`, string(result))
 	}
 
 	assert.Equal(int64(10), ackOps)
+}
+
+func TestHTTP_Write_EnabledTemplating(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	wg := sync.WaitGroup{}
+	server := createTestServer(&results)
+	defer server.Close()
+
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var ackOps int64
+	ackFunc := func() {
+		atomic.AddInt64(&ackOps, 1)
+		wg.Done()
+	}
+
+	goodMessages := testutil.GetTestMessages(3, `{ "event_data": { "nested": "value1"}, "attribute_data": 1}`, ackFunc)
+	badMessages := testutil.GetTestMessages(3, `{ "event_data": { "nested": "value1"},`, ackFunc) // invalid
+
+	messages := append(goodMessages, badMessages...)
+
+	wg.Add(3)
+	writeResult, err1 := target.Write(messages)
+	wg.Wait()
+
+	assert.Nil(err1)
+	assert.Equal(int64(3), writeResult.SentCount)
+	assert.Equal(int64(0), writeResult.FailedCount)
+	assert.Equal(3, len(writeResult.Sent))
+	assert.Equal(3, len(writeResult.Invalid)) // invalids went to the right place
+	for _, msg := range writeResult.Invalid {
+		// Invalids have errors as expected
+		assert.Regexp("Message can't be parsed as valid JSON: .*", msg.GetError().Error())
+	}
+	assert.Equal(1, len(results))
+
+	expectedOutput := "{\n  \"attributes\": [1,1,1],\n  \"events\": [{\"nested\":\"value1\"},{\"nested\":\"value1\"},{\"nested\":\"value1\"}]\n}\n"
+	assert.Equal(expectedOutput, string(results[0]))
+	assert.Equal(int64(3), ackOps)
 }
 
 // Steps to create certs manually:
@@ -537,7 +680,7 @@ func TestHttpWrite_Oversized(t *testing.T) {
 // openssl req -new -key localhost.key -out localhost.csr -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost"
 // openssl x509 -req -in localhost.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -days 365 -out localhost.crt
 
-func TestHttpWrite_TLS(t *testing.T) {
+func TestHTTP_Write_TLS(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -546,6 +689,8 @@ func TestHttpWrite_TLS(t *testing.T) {
 	// Test that https requests work with manually provided certs
 	target, err := newHTTPTarget("https://localhost:8999/hello",
 		5,
+		1,
+		1048576,
 		1048576,
 		"application/json",
 		"",
@@ -556,6 +701,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		string(`../../integration/http/rootCA.crt`),
 		false,
 		false,
+		"",
 		"",
 		"",
 		"",
@@ -569,7 +715,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		atomic.AddInt64(&ackOps, 1)
 	}
 
-	messages := testutil.GetTestMessages(10, "Hello Server!!", ackFunc)
+	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 
 	writeResult, err1 := target.Write(messages)
 
@@ -583,6 +729,8 @@ func TestHttpWrite_TLS(t *testing.T) {
 	// Test that https requests work for different endpoints when different certs are provided manually
 	target2, err2 := newHTTPTarget(ngrokAddress,
 		5,
+		1,
+		1048576,
 		1048576,
 		"application/json",
 		"",
@@ -593,6 +741,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		string(`../../integration/http/rootCA.crt`),
 		false,
 		false,
+		"",
 		"",
 		"",
 		"",
@@ -613,6 +762,8 @@ func TestHttpWrite_TLS(t *testing.T) {
 	// Test that https requests work for different endpoints when different certs are provided manually
 	target3, err4 := newHTTPTarget(ngrokAddress,
 		5,
+		1,
+		1048576,
 		1048576,
 		"application/json",
 		"",
@@ -623,6 +774,7 @@ func TestHttpWrite_TLS(t *testing.T) {
 		"",
 		false,
 		false,
+		"",
 		"",
 		"",
 		"",
@@ -637,6 +789,185 @@ func TestHttpWrite_TLS(t *testing.T) {
 	assert.Equal(10, len(writeResult3.Sent))
 
 	assert.Equal(int64(30), ackOps)
+}
+
+func TestHTTP_ProvideRequestBody(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{}
+
+	inputMessages := []*models.Message{
+		{Data: []byte(`{"key": "value1"}`)},
+		{Data: []byte(`{"key": "value2"}`)},
+		{Data: []byte(`{"key": "value3"}`)},
+		{Data: []byte(`justastring`)},
+	}
+
+	templated, success, invalid := target.provideRequestBody(inputMessages)
+
+	assert.Equal(`[{"key":"value1"},{"key":"value2"},{"key":"value3"}]`, string(templated))
+	assert.Equal(3, len(success))
+	assert.Equal(1, len(invalid))
+	assert.Regexp("Message can't be parsed as valid JSON: .*", invalid[0].GetError().Error())
+}
+
+func TestHTTP_GroupByHeaders_Disabled(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: false}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value"), HTTPHeaders: map[string]string{"h2": "v2"}}, //group 1
+		{Data: []byte("value")}, //group 1
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+
+	assert.Len(groupedMessages, 1)
+	assert.Equal(inputMessages, groupedMessages[0]) //group 1
+}
+
+func TestHTTP_GroupByHeaders_Enabled_SameHeader(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value2"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+
+	assert.Len(groupedMessages, 1)
+	assert.Equal(inputMessages, groupedMessages[0]) //group 1
+}
+
+func TestHTTP_GroupByHeaders_Enabled_NoHeader(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value2")}, //group 2
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 2)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[1]}) //group 2
+}
+
+func TestHTTP_GroupByHeaders_Enabled_DifferentHeaderValue(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value2"), HTTPHeaders: map[string]string{"h1": "v2"}}, //group 2
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 2)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[1]}) //group 2
+}
+
+func TestHTTP_GroupByHeaders_Enabled_DifferentHeaderName(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 1
+		{Data: []byte("value2"), HTTPHeaders: map[string]string{"h2": "v1"}}, //group 2
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 2)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[1]}) //group 2
+}
+
+func TestHTTP_GroupByHeaders_Enabled_AdditionalHeader(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1"), HTTPHeaders: map[string]string{"h1": "v1"}},                    //group 1
+		{Data: []byte("value2"), HTTPHeaders: map[string]string{"h1": "v1", "additonal": "v2"}}, //group 2
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 2)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[1]}) //group 2
+}
+
+func TestHTTP_GroupByHeaders_Enabled_MultipleGroups(t *testing.T) {
+	assert := assert.New(t)
+	target := HTTPTarget{dynamicHeaders: true}
+
+	inputMessages := []*models.Message{
+		{Data: []byte("value1")}, //group 1
+		{Data: []byte("value2")}, //group 1
+		{Data: []byte("value3"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte("value4"), HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte("value5"), HTTPHeaders: map[string]string{"h1": "v2"}}, //group 3
+	}
+
+	groupedMessages := target.groupByDynamicHeaders(inputMessages)
+	assert.Len(groupedMessages, 3)
+
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[0], inputMessages[1]}) //group 1
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[2], inputMessages[3]}) //group 2
+	assert.Contains(groupedMessages, []*models.Message{inputMessages[4]})                   //group 3
+}
+
+func TestHTTP_Write_GroupedRequests(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	server := createTestServer(&results)
+	defer server.Close()
+
+	//dynamicHeaders enabled
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, true, "", "", "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wg := sync.WaitGroup{}
+
+	ackFunc := func() {
+		wg.Done()
+	}
+
+	// Add 5 events to match the below
+	wg.Add(5)
+
+	inputMessages := []*models.Message{
+		{Data: []byte(`{"key": "value1"}`), AckFunc: ackFunc},                                             //group 1
+		{Data: []byte(`{"key": "value2"}`), AckFunc: ackFunc},                                             //group 1
+		{Data: []byte(`{"key": "value3"}`), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte(`{"key": "value4"}`), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v1"}}, //group 2
+		{Data: []byte(`{"key": "value5"}`), AckFunc: ackFunc, HTTPHeaders: map[string]string{"h1": "v2"}}, //group 3
+	}
+
+	writeResult, err1 := target.Write(inputMessages)
+
+	if ok := WaitForAcksWithTimeout(1*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
+
+	assert.Nil(err1)
+	assert.Equal(5, len(writeResult.Sent))
+	assert.Equal(3, len(results)) // because 3 output groups, 1 request per group
+
+	assert.Contains(results, []byte(`[{"key":"value1"},{"key":"value2"}]`))
+	assert.Contains(results, []byte(`[{"key":"value3"},{"key":"value4"}]`))
+	assert.Contains(results, []byte(`[{"key":"value5"}]`))
 }
 
 type ngrokAPIObject struct {
@@ -677,4 +1008,18 @@ func getNgrokAddress() string {
 		}
 	}
 	panic("no ngrok https endpoint found")
+}
+
+func WaitForAcksWithTimeout(timeout time.Duration, wg *sync.WaitGroup) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
 }
