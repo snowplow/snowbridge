@@ -21,11 +21,11 @@ import (
 func TestHTTP_Templating_WithPrettyPrint(t *testing.T) {
 	assert := assert.New(t)
 
-	rawTemplate :=
-		`{
-  "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{.attribute_data}}{{end}}],
-  "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{prettyPrint .event_data}}{{end}}]
-}`
+	rawTemplate := `
+  {
+    "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{.attribute_data}}{{end}}],
+    "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{prettyPrint .event_data}}{{end}}]
+  }`
 
 	parsedTemplate, err := parseRequestTemplate(rawTemplate)
 	assert.Nil(err)
@@ -39,8 +39,12 @@ func TestHTTP_Templating_WithPrettyPrint(t *testing.T) {
 
 	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
-	expectedOutput := "{\n  \"attributes\": [1,2,3],\n  \"events\": [{\"nested\":\"value1\"},{\"nested\":\"value2\"},{\"nested\":\"value3\"}]\n}"
-	assert.Equal(expectedOutput, string(templated))
+	expectedOutput := `
+  { 
+    "attributes": [1,2,3],
+    "events": [{"nested":"value1"},{"nested":"value2"},{"nested":"value3"}]
+  }`
+	assert.JSONEq(expectedOutput, string(templated))
 	assert.Equal(inputMessages, goodMessages)
 	assert.Empty(invalidMessages)
 }
@@ -48,11 +52,11 @@ func TestHTTP_Templating_WithPrettyPrint(t *testing.T) {
 func TestHTTP_Templating_NoPrettyPrinting(t *testing.T) {
 	assert := assert.New(t)
 
-	rawTemplate :=
-		`{
-  "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{.attribute_data}}{{end}}],
-  "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{.event_data}}{{end}}]
-}`
+	rawTemplate := `
+  {
+    "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{.attribute_data}}{{end}}],
+    "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{.event_data}}{{end}}]
+  }`
 
 	parsedTemplate, err := parseRequestTemplate(rawTemplate)
 	assert.Nil(err)
@@ -67,8 +71,44 @@ func TestHTTP_Templating_NoPrettyPrinting(t *testing.T) {
 	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
 	//we get a stringified map for JSON
-	expectedOutput := "{\n  \"attributes\": [1,2,3],\n  \"events\": [map[nested:value1],map[nested:value2],map[nested:value3]]\n}"
+	expectedOutput := `
+  {
+    "attributes": [1,2,3],
+    "events": [map[nested:value1],map[nested:value2],map[nested:value3]]
+  }`
 	assert.Equal(expectedOutput, string(templated))
+	assert.Equal(inputMessages, goodMessages)
+	assert.Empty(invalidMessages)
+}
+
+func TestHTTP_Templating_WithEnvVariable(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Setenv("API_KEY", "supersecret")
+
+	rawTemplate := `
+  {
+    "api_key": "{{ env "API_KEY" }}",
+    "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{prettyPrint .}}{{end}}]
+  }`
+
+	parsedTemplate, err := parseRequestTemplate(rawTemplate)
+	assert.Nil(err)
+	target := HTTPTarget{requestTemplate: parsedTemplate}
+
+	inputMessages := []*models.Message{
+		{Data: []byte(`{ "data": 1}`)},
+		{Data: []byte(`{ "data": 2}`)},
+	}
+
+	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
+
+	expectedOutput := `
+  {
+    "api_key": "supersecret",
+    "events": [{"data":1},{"data":2}]
+  }`
+	assert.JSONEq(expectedOutput, string(templated))
 	assert.Equal(inputMessages, goodMessages)
 	assert.Empty(invalidMessages)
 }
@@ -76,10 +116,10 @@ func TestHTTP_Templating_NoPrettyPrinting(t *testing.T) {
 func TestHTTP_Templating_ArrayProvided(t *testing.T) {
 	assert := assert.New(t)
 
-	rawTemplate :=
-		`{
-  "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{range $i, $d := $data}}{{if $i}},{{end}}"Value: {{$d}}"{{end}}{{end}}]
-}`
+	rawTemplate := `
+  {
+    "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{range $i, $d := $data}}{{if $i}},{{end}}"Value: {{$d}}"{{end}}{{end}}]
+  }`
 
 	parsedTemplate, err := parseRequestTemplate(rawTemplate)
 	assert.Nil(err)
@@ -91,8 +131,11 @@ func TestHTTP_Templating_ArrayProvided(t *testing.T) {
 
 	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
-	expectedOutput := "{\n  \"attributes\": [\"Value: value1\",\"Value: value2\",\"Value: value3\"]\n}"
-	assert.Equal(expectedOutput, string(templated))
+	expectedOutput := `
+  {
+    "attributes": ["Value: value1","Value: value2","Value: value3"]
+  }`
+	assert.JSONEq(expectedOutput, string(templated))
 	assert.Equal(inputMessages, goodMessages)
 	assert.Empty(invalidMessages)
 }
@@ -158,7 +201,7 @@ func TestHTTP_Templating_JSONParseFailure(t *testing.T) {
 
 	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
 
-	assert.Equal("{\"nested\":\"value1\"}", string(templated))
+	assert.JSONEq(`{"nested":"value1"}`, string(templated))
 
 	assert.Len(goodMessages, 1)
 	assert.Len(invalidMessages, 1)
