@@ -202,6 +202,9 @@ func parseRequestTemplate(templateContent string) (*template.Template, error) {
 			a, _ := json.Marshal(v)
 			return string(a)
 		},
+		"env": func(name string) string {
+			return os.Getenv(name)
+		},
 	}
 
 	parsedTemplate, err := template.New("HTTP").Funcs(customTemplateFunctions).Parse(templateContent)
