@@ -36,7 +36,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 		{
 			Scenario:  "test_timestamp_to_epoch",
 			JQCommand: `{ foo: .collector_tstamp | epoch }`,
-      InputMsg: &models.Message{
+			InputMsg: &models.Message{
 				Data:         SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
@@ -203,6 +203,29 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 			Expected: map[string]*models.Message{
 				"success": {
 					Data:         []byte(`{"bar":[1,2,3]}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario: "epoch_on_nullable",
+			JQCommand: `
+      { 
+        explicit_null: .explicit | epoch,
+        no_such_field: .nonexistent | epoch
+      }`,
+			InputMsg: &models.Message{
+				Data:         []byte(`{"explicit": null}`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"explicit_null":null,"no_such_field":null}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -386,6 +409,29 @@ func TestJQRunFunction_errors(t *testing.T) {
 			},
 			ExpInterState: nil,
 			Error:         errors.New("jq query got no output"),
+		},
+		{
+			Scenario: "epoch_on_non_time_type",
+			JQConfig: &JQMapperConfig{
+				JQCommand:    `.str | epoch`,
+				RunTimeoutMs: 100,
+				SpMode:       false,
+			},
+			InputMsg: &models.Message{
+				Data:         []byte(`{"str": "value"}`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{"str": "value"}`),
+					PartitionKey: "some-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         errors.New("Not a valid time input to 'epoch' function"),
 		},
 	}
 
