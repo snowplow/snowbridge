@@ -14,6 +14,7 @@ package transform
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -109,7 +110,17 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 	}
 
 	withEpochFunction := gojq.WithFunction("epoch", 0, 1, func(a1 any, a2 []any) any {
-		return a1.(time.Time).UnixMilli()
+		if a1 == nil {
+			return nil
+		}
+
+		validTime, ok := a1.(time.Time)
+
+		if !ok {
+			return errors.New("Not a valid time input to 'epoch' function")
+		}
+
+		return validTime.UnixMilli()
 	})
 
 	code, err := gojq.Compile(query, withEpochFunction)
