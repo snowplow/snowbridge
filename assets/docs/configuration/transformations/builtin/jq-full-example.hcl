@@ -9,7 +9,7 @@ transform {
 }
 JQEOT
 
-    timeout_sec = 5
+    timeout_ms = 800
     snowplow_mode = true
   }
 }
