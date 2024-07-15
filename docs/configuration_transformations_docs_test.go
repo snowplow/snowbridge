@@ -29,7 +29,7 @@ import (
 )
 
 func TestBuiltinTransformationDocumentation(t *testing.T) {
-	transformationsToTest := []string{"base64Decode", "base64Encode"}
+	transformationsToTest := []string{"base64Decode", "base64Encode", "jq"}
 
 	for _, tfm := range transformationsToTest {
 
@@ -159,6 +159,8 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 			configObject = &transform.GTMSSPreviewConfig{}
 		case "js":
 			configObject = &engine.JSEngineConfig{}
+		case "jq":
+			configObject = &transform.JQMapperConfig{}
 		default:
 			assert.Fail(fmt.Sprint("Source not recognised: ", use.Name))
 		}
