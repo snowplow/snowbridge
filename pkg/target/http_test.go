@@ -373,6 +373,9 @@ func TestHTTP_Write_Simple(t *testing.T) {
 			}
 
 			assert.Nil(err1)
+			assert.Equal(int64(25), writeResult.SentCount)
+			assert.Equal(int64(0), writeResult.FailedCount)
+
 			assert.Equal(25, len(writeResult.Sent))
 			assert.Equal(25, len(results))
 			for _, result := range results {
@@ -430,6 +433,8 @@ func TestHTTP_Write_Batched(t *testing.T) {
 			}
 
 			assert.Nil(err1)
+			assert.Equal(int64(100), writeResult.SentCount)
+			assert.Equal(int64(0), writeResult.FailedCount)
 			assert.Equal(100, len(writeResult.Sent))
 			assert.Equal(math.Ceil(100/float64(tt.BatchSize)), float64(len(results)))
 			for i, result := range results {
@@ -529,6 +534,8 @@ func TestHTTP_Write_Failure(t *testing.T) {
 		assert.Regexp("10 errors occurred:.*", err1.Error())
 	}
 
+	assert.Equal(int64(0), writeResult.SentCount)
+	assert.Equal(int64(10), writeResult.FailedCount)
 	assert.Equal(10, len(writeResult.Failed))
 	assert.Empty(writeResult.Sent)
 	assert.Empty(writeResult.Oversized)
@@ -568,6 +575,8 @@ func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 				assert.Regexp("10 errors occurred:.*", err1.Error())
 			}
 
+			assert.Equal(int64(0), writeResult.SentCount)
+			assert.Equal(int64(10), writeResult.FailedCount)
 			assert.Equal(10, len(writeResult.Failed))
 			assert.Empty(writeResult.Sent)
 			assert.Empty(writeResult.Oversized)
@@ -606,6 +615,8 @@ func TestHTTP_Write_Oversized(t *testing.T) {
 	}
 
 	assert.Nil(err1)
+	assert.Equal(int64(10), writeResult.SentCount)
+	assert.Equal(int64(0), writeResult.FailedCount)
 	assert.Equal(10, len(writeResult.Sent))
 	assert.Equal(1, len(writeResult.Oversized))
 	assert.Equal(10, len(results))
@@ -645,6 +656,8 @@ func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 	wg.Wait()
 
 	assert.Nil(err1)
+	assert.Equal(int64(3), writeResult.SentCount)
+	assert.Equal(int64(0), writeResult.FailedCount)
 	assert.Equal(3, len(writeResult.Sent))
 	assert.Equal(3, len(writeResult.Invalid)) // invalids went to the right place
 	for _, msg := range writeResult.Invalid {
