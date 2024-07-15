@@ -375,12 +375,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	}
 
 	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
-	return &models.TargetWriteResult{
-		Sent:      sent,
-		Failed:    failed,
-		Oversized: oversized,
-		Invalid:   invalid,
-	}, errResult
+	return models.NewTargetWriteResult(sent, failed, oversized, invalid), errResult
 }
 
 // Open does nothing for this target
