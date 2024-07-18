@@ -8,6 +8,7 @@ ADD build/output/linux/aws/cli/$TARGETARCH/snowbridge /opt/snowplow/
 RUN adduser -D snowplow
 USER snowplow
 
+RUN touch /tmp/config.hcl
 ENV SNOWBRIDGE_CONFIG_FILE=/tmp/config.hcl
 
 CMD ["/opt/snowplow/snowbridge"]
