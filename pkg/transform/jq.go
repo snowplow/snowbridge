@@ -54,7 +54,7 @@ func (jqm *jqMapper) RunFunction() TransformationFunction {
 		// no looping since we only keep first value
 		v, ok := iter.Next()
 		if !ok {
-			message.SetError(fmt.Errorf("jq query got no output"))
+			message.SetError(errors.New("jq query got no output"))
 			return nil, nil, message, nil
 		}
 
@@ -66,7 +66,7 @@ func (jqm *jqMapper) RunFunction() TransformationFunction {
 		// here v is any, so we Marshal. alternative: gojq.Marshal
 		data, err := json.Marshal(v)
 		if err != nil {
-			message.SetError(fmt.Errorf("error encoding jq query output data"))
+			message.SetError(errors.New("error encoding jq query output data"))
 			return nil, nil, message, nil
 		}
 
@@ -95,7 +95,7 @@ func jqMapperAdapterGenerator(f func(c *JQMapperConfig) (TransformationFunction,
 	return func(i interface{}) (interface{}, error) {
 		cfg, ok := i.(*JQMapperConfig)
 		if !ok {
-			return nil, fmt.Errorf("invalid input, expected JQMapperConfig")
+			return nil, errors.New("invalid input, expected JQMapperConfig")
 		}
 
 		return f(cfg)
@@ -106,7 +106,7 @@ func jqMapperAdapterGenerator(f func(c *JQMapperConfig) (TransformationFunction,
 func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 	query, err := gojq.Parse(c.JQCommand)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing jq command: %q", err.Error())
+		return nil, fmt.Errorf("error parsing jq command: %s", err)
 	}
 
 	withEpochFunction := gojq.WithFunction("epoch", 0, 1, func(a1 any, a2 []any) any {
@@ -125,7 +125,7 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 
 	code, err := gojq.Compile(query, withEpochFunction)
 	if err != nil {
-		return nil, fmt.Errorf("error compiling jq query: %q", err.Error())
+		return nil, fmt.Errorf("error compiling jq query: %s", err)
 	}
 
 	jq := &jqMapper{
