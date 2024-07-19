@@ -63,6 +63,8 @@ func (jqm *jqMapper) RunFunction() TransformationFunction {
 			return nil, nil, message, nil
 		}
 
+		removeNullFields(v)
+
 		// here v is any, so we Marshal. alternative: gojq.Marshal
 		data, err := json.Marshal(v)
 		if err != nil {
@@ -168,4 +170,32 @@ func mkJQInput(jqm *jqMapper, message *models.Message, interState interface{}) (
 	}
 
 	return spInput, nil
+}
+
+func removeNullFields(data any) {
+	switch input := data.(type) {
+	case map[string]any:
+		removeNullFromMap(input)
+	case []any:
+		removeNullFromSlice(input)
+	default:
+		return
+	}
+}
+
+func removeNullFromMap(input map[string]any) {
+	for key := range input {
+		field := input[key]
+		if field == nil {
+			delete(input, key)
+			continue
+		}
+		removeNullFields(field)
+	}
+}
+
+func removeNullFromSlice(input []any) {
+	for _, item := range input {
+		removeNullFields(item)
+	}
 }
