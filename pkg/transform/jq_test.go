@@ -496,7 +496,7 @@ func TestJQMapperConfigFunction(t *testing.T) {
 		{
 			Scenario:  "parsing_error",
 			JQCommand: `^`,
-			Error:     errors.New("error parsing jq command"),
+			Error:     errors.New(`error parsing jq command: unexpected token "^"`),
 		},
 	}
 
