@@ -216,16 +216,86 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 			JQCommand: `
       { 
         explicit_null: .explicit | epoch,
-        no_such_field: .nonexistent | epoch
+        no_such_field: .nonexistent | epoch,
+        non_null: .non_null
       }`,
 			InputMsg: &models.Message{
-				Data:         []byte(`{"explicit": null}`),
+				Data:         []byte(`{"explicit": null, "non_null": "hello"}`),
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"explicit_null":null,"no_such_field":null}`),
+					Data:         []byte(`{"non_null":"hello"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "remove_nulls_struct",
+			JQCommand: ".",
+			InputMsg: &models.Message{
+				Data: []byte(`
+        {
+          "f1": "value1",
+          "f2": 2,
+          "f3": {
+            "f5": null,
+            "f6": "value6",
+            "f7": {
+              "f8": 100,
+              "f9": null
+             }
+           },
+          "f4": null
+        }`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"f1":"value1","f2":2,"f3":{"f6":"value6","f7":{"f8":100}}}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "remove_nulls_arrays",
+			JQCommand: ".",
+			InputMsg: &models.Message{
+				Data: []byte(`
+          {
+            "items": [
+              {
+                "f1": "value1",
+                "f2": null,
+                "f3": [
+                  {
+                    "f4": 1,
+                    "f5": null
+                  },
+                  {
+                    "f4": null,
+                    "f5": 20
+                  }
+                ]
+              }
+            ]
+          }`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"items":[{"f1":"value1","f3":[{"f4":1},{"f5":20}]}]}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
