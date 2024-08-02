@@ -55,6 +55,7 @@ type configurationData struct {
 	UserProvidedID   string         `hcl:"user_provided_id,optional"`
 	DisableTelemetry bool           `hcl:"disable_telemetry,optional"`
 	License          *licenseConfig `hcl:"license,block"`
+	Retry            *retryConfig   `hcl:"retry,block"`
 }
 
 // component is a type to abstract over configuration blocks.
@@ -94,6 +95,20 @@ type licenseConfig struct {
 	Accept bool `hcl:"accept,optional"`
 }
 
+type retryConfig struct {
+	Transient *transientRetryConfig `hcl:"transient,block"`
+	Setup     *setupRetryConfig     `hcl:"setup,block"`
+}
+
+type transientRetryConfig struct {
+	Delay       int `hcl:"delay_sec,optional"`
+	MaxAttempts int `hcl:"max_attempts,optional"`
+}
+
+type setupRetryConfig struct {
+	Delay int `hcl:"delay_sec,optional"`
+}
+
 // defaultConfigData returns the initial main configuration target.
 func defaultConfigData() *configurationData {
 	return &configurationData{
@@ -117,6 +132,15 @@ func defaultConfigData() *configurationData {
 		DisableTelemetry: false,
 		License: &licenseConfig{
 			Accept: false,
+		},
+		Retry: &retryConfig{
+			Transient: &transientRetryConfig{
+				Delay:       2,
+				MaxAttempts: 5,
+			},
+			Setup: &setupRetryConfig{
+				Delay: 20,
+			},
 		},
 	}
 }

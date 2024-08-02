@@ -19,13 +19,13 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
-	retry "github.com/snowplow-devops/go-retry"
 	"github.com/urfave/cli"
 
 	"net/http"
 	// pprof imported for the side effect of registering its HTTP handlers
 	_ "net/http/pprof"
 
+	retry "github.com/avast/retry-go/v4"
 	"github.com/snowplow/snowbridge/cmd"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
@@ -171,7 +171,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	// Callback functions for the source to leverage when writing data
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: sourceWriteFunc(t, ft, tr, o),
+		WriteToTarget: sourceWriteFunc(t, ft, tr, o, cfg),
 	}
 
 	// Read is a long running process and will only return when the source
@@ -195,7 +195,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 // 4. Observing these results
 //
 // All with retry logic baked in to remove any of this handling from the implementations
-func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform.TransformationApplyFunction, o *observer.Observer) func(messages []*models.Message) error {
+func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
 
 		// Apply transformations
@@ -215,63 +215,117 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 
 		// Send message buffer
 		messagesToSend := transformed.Result
+		invalid := transformed.Invalid
+		var oversized []*models.Message
 
-		res, err := retry.ExponentialWithInterface(5, time.Second, "target.Write", func() (interface{}, error) {
-			res, err := t.Write(messagesToSend)
+		write := func() error {
+			result, err := t.Write(messagesToSend)
 
-			o.TargetWrite(res)
-			messagesToSend = res.Failed
-			return res, err
-		})
+			o.TargetWrite(result)
+			messagesToSend = result.Failed
+			oversized = append(oversized, result.Oversized...)
+			invalid = append(invalid, result.Invalid...)
+			return err
+		}
+
+		err := handleWrite(cfg, write)
+
 		if err != nil {
 			return err
 		}
-		resCast := res.(*models.TargetWriteResult)
 
 		// Send oversized message buffer
-		messagesToSend = resCast.Oversized
-		if len(messagesToSend) > 0 {
-			err2 := retry.Exponential(5, time.Second, "failureTarget.WriteOversized", func() error {
-				res, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), messagesToSend)
-				if err != nil {
-					return err
-				}
-				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+		if len(oversized) > 0 {
+			messagesToSend = oversized
+			writeOversized := func() error {
+				result, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), messagesToSend)
+				if len(result.Oversized) != 0 || len(result.Invalid) != 0 {
 					log.Fatal("Oversized message transformation resulted in new oversized / invalid messages")
 				}
 
-				o.TargetWriteOversized(res)
-				messagesToSend = res.Failed
+				o.TargetWriteOversized(result)
+				messagesToSend = result.Failed
 				return err
-			})
-			if err2 != nil {
-				return err2
+			}
+
+			err := handleWrite(cfg, writeOversized)
+
+			if err != nil {
+				return err
 			}
 		}
 
 		// Send invalid message buffer
-		messagesToSend = append(resCast.Invalid, transformed.Invalid...)
-		if len(messagesToSend) > 0 {
-			err3 := retry.Exponential(5, time.Second, "failureTarget.WriteInvalid", func() error {
-				res, err := ft.WriteInvalid(messagesToSend)
-				if err != nil {
-					return err
-				}
-				if len(res.Oversized) != 0 || len(res.Invalid) != 0 {
+		if len(invalid) > 0 {
+			messagesToSend = invalid
+			writeInvalid := func() error {
+				result, err := ft.WriteInvalid(messagesToSend)
+				if len(result.Oversized) != 0 || len(result.Invalid) != 0 {
 					log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
 				}
 
-				o.TargetWriteInvalid(res)
-				messagesToSend = res.Failed
+				o.TargetWriteInvalid(result)
+				messagesToSend = result.Failed
 				return err
-			})
-			if err3 != nil {
-				return err3
+			}
+
+			err := handleWrite(cfg, writeInvalid)
+
+			if err != nil {
+				return err
 			}
 		}
-
 		return nil
 	}
+}
+
+// Wrap each target write operation with 2 kinds of retries:
+// - setup errors: long delay, unlimited attempts, unhealthy state + alerts
+// - transient errors: short delay, limited attempts
+// If it's setup/transient error is decided based on a response returned by the target.
+func handleWrite(cfg *config.Config, write func() error) error {
+	retryOnlySetupErrors := retry.RetryIf(func(err error) bool {
+		_, isSetup := err.(models.SetupWriteError)
+		return isSetup
+	})
+
+	onSetupError := retry.OnRetry(func(attempt uint, err error) {
+		log.Infof("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
+		// Here we can set unhealthy status + send monitoring alerts in the future. Nothing happens here now.
+	})
+
+	//First try to handle error as setup...
+	err := retry.Do(
+		write,
+		retryOnlySetupErrors,
+		onSetupError,
+		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay)*time.Second),
+		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally. Unlimited attempts don't make sense right now.
+		retry.Attempts(5),
+		retry.LastErrorOnly(true),
+		//enable when health check + monitoring implemented
+		// retry.Attempts(0), //unlimited
+	)
+
+	if err == nil {
+		return err
+	}
+
+	//If no setup, then handle as transient. We already had at least 1 attempt from above 'setup' retrying section.
+	log.Infof("Transient target write error. Starting retrying. error: %s\n", err)
+
+	onTransientError := retry.OnRetry(func(retry uint, err error) {
+		log.Infof("Retry failed with transient error. Retry counter: %d, error: %s\n", retry+1, err)
+	})
+
+	err = retry.Do(
+		write,
+		onTransientError,
+		retry.Delay(time.Duration(cfg.Data.Retry.Transient.Delay)*time.Second),
+		retry.Attempts(uint(cfg.Data.Retry.Transient.MaxAttempts)),
+		retry.LastErrorOnly(true),
+	)
+	return err
 }
 
 // exitWithError will ensure we log the error and leave time for Sentry to flush
