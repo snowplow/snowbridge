@@ -87,6 +87,10 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				KeyFile:                 "",
 				CaFile:                  "",
 				SkipVerifyTLS:           false,
+				ResponseRules: &target.ResponseRules{
+					Invalid:    []target.Rule{},
+					SetupError: []target.Rule{},
+				},
 			},
 		},
 		{
@@ -112,6 +116,23 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				SkipVerifyTLS:           true,
 				DynamicHeaders:          true,
 				TemplateFile:            "myTemplate.file",
+				ResponseRules: &target.ResponseRules{
+					Invalid: []target.Rule{
+						{
+							MatchingHTTPCodes: []int{400},
+							MatchingBodyPart:  "Invalid value for 'purchase' field",
+						},
+						{
+							MatchingHTTPCodes: []int{400},
+							MatchingBodyPart:  "Invalid value for 'attributes' field",
+						},
+					},
+					SetupError: []target.Rule{
+						{
+							MatchingHTTPCodes: []int{401, 403},
+						},
+					},
+				},
 			},
 		},
 		{

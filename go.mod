@@ -46,6 +46,7 @@ require (
 )
 
 require (
+	github.com/avast/retry-go/v4 v4.6.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dop251/goja v0.0.0-20240220182346-e401ed450204
 	github.com/hashicorp/hcl/v2 v2.20.1

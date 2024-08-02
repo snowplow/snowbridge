@@ -31,7 +31,7 @@ import (
 	"github.com/snowplow/snowbridge/pkg/testutil"
 )
 
-func createTestServerWithResponseCode(results *[][]byte, responseCode int) *httptest.Server {
+func createTestServerWithResponseCode(results *[][]byte, responseCode int, responseBody string) *httptest.Server {
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer req.Body.Close()
@@ -42,12 +42,13 @@ func createTestServerWithResponseCode(results *[][]byte, responseCode int) *http
 		mutex.Lock()
 		*results = append(*results, data)
 		w.WriteHeader(responseCode)
+		w.Write([]byte(responseBody))
 		mutex.Unlock()
 	}))
 }
 
 func createTestServer(results *[][]byte) *httptest.Server {
-	return createTestServerWithResponseCode(results, 200)
+	return createTestServerWithResponseCode(results, 200, "")
 }
 
 func TestHTTP_GetHeaders(t *testing.T) {
@@ -307,12 +308,12 @@ func TestHTTP_AddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 func TestHTTP_NewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 
 	assert.Nil(err)
 	assert.NotNil(httpTarget)
 
-	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 
 	assert.NotNil(err1)
 	if err1 != nil {
@@ -320,7 +321,7 @@ func TestHTTP_NewHTTPTarget(t *testing.T) {
 	}
 	assert.Nil(failedHTTPTarget)
 
-	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 	assert.NotNil(err2)
 	if err2 != nil {
 		assert.Equal("Invalid url for HTTP target: ''", err2.Error())
@@ -345,10 +346,10 @@ func TestHTTP_Write_Simple(t *testing.T) {
 
 			var results [][]byte
 			wg := sync.WaitGroup{}
-			server := createTestServerWithResponseCode(&results, tt.ResponseCode)
+			server := createTestServerWithResponseCode(&results, tt.ResponseCode, "")
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -409,10 +410,10 @@ func TestHTTP_Write_Batched(t *testing.T) {
 
 			var results [][]byte
 			wg := sync.WaitGroup{}
-			server := createTestServerWithResponseCode(&results, 200)
+			server := createTestServerWithResponseCode(&results, 200, "")
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+			target, err := newHTTPTarget(server.URL, 5, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -471,7 +472,7 @@ func TestHTTP_Write_Concurrent(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,7 +516,7 @@ func TestHTTP_Write_Failure(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -555,9 +556,9 @@ func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 			assert := assert.New(t)
 
 			var results [][]byte
-			server := createTestServerWithResponseCode(&results, tt.ResponseCode)
+			server := createTestServerWithResponseCode(&results, tt.ResponseCode, "")
 			defer server.Close()
-			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -592,7 +593,7 @@ func TestHTTP_Write_Oversized(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "")
+	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -635,7 +636,7 @@ func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`))
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), defaultResponseRules())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -680,7 +681,67 @@ func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 // openssl req -new -key localhost.key -out localhost.csr -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost"
 // openssl x509 -req -in localhost.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -days 365 -out localhost.crt
 
+func TestHTTP_Write_Invalid(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	server := createTestServerWithResponseCode(&results, 400, "Request is invalid. Invalid value for field 'attribute'")
+	defer server.Close()
+
+	responseRules := ResponseRules{
+		Invalid: []Rule{
+			{MatchingHTTPCodes: []int{400, 401}, MatchingBodyPart: "Invalid value for field 'attribute'"},
+		},
+	}
+
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{ "attribute": "value"}`)}}
+
+	writeResult, err1 := target.Write(input)
+
+	assert.Nil(err1)
+	assert.Equal(0, len(writeResult.Sent))
+	assert.Equal(1, len(writeResult.Invalid))
+	assert.Equal("Request is invalid. Invalid value for field 'attribute'", writeResult.Invalid[0].GetError().Error())
+}
+
+func TestHTTP_Write_Setup(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	server := createTestServerWithResponseCode(&results, 401, "Authentication issue. Invalid token")
+	defer server.Close()
+
+	responseRules := ResponseRules{
+		SetupError: []Rule{
+			{MatchingHTTPCodes: []int{401}, MatchingBodyPart: "Invalid token"},
+		},
+	}
+
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{ "attribute": "value"}`)}}
+
+	writeResult, err := target.Write(input)
+
+	assert.Equal(0, len(writeResult.Sent))
+	assert.Equal(0, len(writeResult.Invalid))
+	assert.Equal(1, len(writeResult.Failed))
+
+	_, isSetup := err.(models.SetupWriteError)
+	assert.True(isSetup)
+	assert.Regexp(".*Got setup error, response status: '401 Unauthorized' with error details: 'Invalid token'", err.Error())
+}
+
 func TestHTTP_Write_TLS(t *testing.T) {
+
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -705,7 +766,8 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		"")
+		"",
+		defaultResponseRules())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -745,7 +807,8 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		"")
+		"",
+		defaultResponseRules())
 	if err2 != nil {
 		t.Fatal(err2)
 	}
@@ -778,7 +841,8 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		"")
+		"",
+		defaultResponseRules())
 	if err4 != nil {
 		t.Fatal(err4)
 	}
@@ -933,7 +997,7 @@ func TestHTTP_Write_GroupedRequests(t *testing.T) {
 	defer server.Close()
 
 	//dynamicHeaders enabled
-	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, true, "", "", "", "", "")
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, true, "", "", "", "", "", defaultResponseRules())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1008,6 +1072,13 @@ func getNgrokAddress() string {
 		}
 	}
 	panic("no ngrok https endpoint found")
+}
+
+func defaultResponseRules() *ResponseRules {
+	return &ResponseRules{
+		Invalid:    []Rule{},
+		SetupError: []Rule{},
+	}
 }
 
 func WaitForAcksWithTimeout(timeout time.Duration, wg *sync.WaitGroup) bool {
