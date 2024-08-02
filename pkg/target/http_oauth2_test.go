@@ -102,7 +102,7 @@ func TestHTTP_OAuth2_CallTargetWithoutToken(t *testing.T) {
 	writeResult, err := runTest(t, "", "", "")
 
 	assert.NotNil(err)
-	assert.Contains(err.Error(), `Got response status: 403 Forbidden`)
+	assert.Contains(err.Error(), `Got transient error, response status: '403 Forbidden'`)
 	assert.Equal(0, len(writeResult.Sent))
 	assert.Equal(1, len(writeResult.Failed))
 }
@@ -120,7 +120,7 @@ func runTest(t *testing.T, inputClientID string, inputClientSecret string, input
 }
 
 func oauth2Target(t *testing.T, targetURL string, inputClientID string, inputClientSecret string, inputRefreshToken string, tokenServerURL string) *HTTPTarget {
-	target, err := newHTTPTarget(targetURL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, inputClientID, inputClientSecret, inputRefreshToken, tokenServerURL, "")
+	target, err := newHTTPTarget(targetURL, 5, 1, 1048576, 1048576, "application/json", "", "", "", "", "", "", true, false, inputClientID, inputClientSecret, inputRefreshToken, tokenServerURL, "", defaultResponseRules())
 	if err != nil {
 		t.Fatal(err)
 	}

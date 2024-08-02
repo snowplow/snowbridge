@@ -93,6 +93,17 @@ stats_receiver {
 // log level configuration (default: "info")
 log_level = "info"
 
+// Specifies how failed writes to the target should be retried, depending on an error type 
+retry {
+  transient {
+    delay_ms = 1000 
+    max_attempts = 5 
+  }
+  setup {
+    delay_ms = 20000
+  }
+}
+
 license {
   accept = true
 }

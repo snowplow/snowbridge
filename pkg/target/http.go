@@ -16,9 +16,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"text/template"
 	"time"
 
@@ -55,7 +57,26 @@ type HTTPTargetConfig struct {
 	RequestByteLimit   int `hcl:"request_byte_limit,optional"` // note: breaking change here
 	MessageByteLimit   int `hcl:"message_byte_limit,optional"`
 
-	TemplateFile string `hcl:"template_file,optional"`
+	TemplateFile  string         `hcl:"template_file,optional"`
+	ResponseRules *ResponseRules `hcl:"response_rules,block"`
+}
+
+// ResponseRules is part of HTTP target configuration. It provides rules how HTTP respones should be handled. Response can be categerized as 'invalid' (bad data), as setup error or (if none of the rules matches) as a transient error.
+type ResponseRules struct {
+	Invalid    []Rule `hcl:"invalid,block"`
+	SetupError []Rule `hcl:"setup,block"`
+}
+
+// Rule configuration defines what kind of values are expected to exist in HTTP response, like status code or message in the body.
+type Rule struct {
+	MatchingHTTPCodes []int  `hcl:"http_codes,optional"`
+	MatchingBodyPart  string `hcl:"body,optional"`
+}
+
+// Helper struct storing response HTTP status code and parsed response body
+type response struct {
+	Status int
+	Body   string
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -75,6 +96,7 @@ type HTTPTarget struct {
 
 	requestTemplate *template.Template
 	approxTmplSize  int
+	responseRules   *ResponseRules
 }
 
 func checkURL(str string) error {
@@ -133,7 +155,8 @@ func newHTTPTarget(
 	oAuth2ClientSecret string,
 	oAuth2RefreshToken string,
 	oAuth2TokenURL string,
-	templateFile string) (*HTTPTarget, error) {
+	templateFile string,
+	responseRules *ResponseRules) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -179,6 +202,7 @@ func newHTTPTarget(
 
 		requestTemplate: requestTemplate,
 		approxTmplSize:  approxTmplSize,
+		responseRules:   responseRules,
 	}, nil
 }
 
@@ -259,6 +283,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.OAuth2RefreshToken,
 		c.OAuth2TokenURL,
 		c.TemplateFile,
+		c.ResponseRules,
 	)
 }
 
@@ -282,6 +307,10 @@ func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
 
 		RequestTimeoutInSeconds: 5,
 		ContentType:             "application/json",
+		ResponseRules: &ResponseRules{
+			Invalid:    []Rule{},
+			SetupError: []Rule{},
+		},
 	}
 
 	return cfg, nil
@@ -313,6 +342,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	failed := []*models.Message{}
 	invalid := []*models.Message{}
 	var errResult error
+	var hitSetupError bool
 
 	for _, chunk := range chunks {
 		grouped := ht.groupByDynamicHeaders(chunk)
@@ -336,11 +366,11 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			}
 
 			request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(reqBody))
+
 			if err != nil {
-				failed = append(failed, goodMsgs...)
-				errResult = errors.Wrap(errResult, "Error creating request: "+err.Error())
-				continue
+				panic(err)
 			}
+
 			request.Header.Add("Content-Type", ht.contentType)                        // Add content type
 			addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(goodMsgs[0])) // Add headers if there are any - because they're grouped by header, we just need to pick the header from one message
 			if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {             // Add basic auth if set
@@ -362,6 +392,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				continue
 			}
 			defer resp.Body.Close()
+
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				for _, msg := range goodMsgs {
 					if msg.AckFunc != nil { // Ack successful messages
@@ -369,16 +400,81 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 					}
 					sent = append(sent, msg)
 				}
-			} else {
-				errResult = multierror.Append(errResult, errors.New("Got response status: "+resp.Status))
-				failed = append(failed, goodMsgs...)
 				continue
 			}
+
+			responseBody, err := io.ReadAll(resp.Body)
+
+			if err != nil {
+				failed = append(failed, goodMsgs...)
+				errResult = multierror.Append(errResult, errors.New("Error reading response body: "+err.Error()))
+				continue
+			}
+
+			response := response{Body: string(responseBody), Status: resp.StatusCode}
+
+			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
+				for _, msg := range goodMsgs {
+					// can we use response body as an error message for invalid data?
+					msg.SetError(errors.New(response.Body))
+				}
+
+				invalid = append(invalid, goodMsgs...)
+				continue
+			}
+
+			var errorDetails error
+			if rule := findMatchingRule(response, ht.responseRules.SetupError); rule != nil {
+				hitSetupError = true
+				if rule.MatchingBodyPart != "" {
+					errorDetails = fmt.Errorf("Got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
+				} else {
+					errorDetails = fmt.Errorf("Got setup error, response status: '%s'", resp.Status)
+				}
+			} else {
+				errorDetails = fmt.Errorf("Got transient error, response status: '%s'", resp.Status)
+			}
+			errResult = multierror.Append(errResult, errorDetails)
+			failed = append(failed, goodMsgs...)
 		}
+	}
+
+	if hitSetupError {
+		errResult = models.SetupWriteError{Err: errResult}
 	}
 
 	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
 	return models.NewTargetWriteResult(sent, failed, oversized, invalid), errResult
+}
+
+func findMatchingRule(res response, rules []Rule) *Rule {
+	for _, rule := range rules {
+		if ruleMatches(res, rule) {
+			return &rule
+		}
+	}
+	return nil
+}
+
+func ruleMatches(res response, rule Rule) bool {
+	codeMatch := httpStatusMatches(res.Status, rule.MatchingHTTPCodes)
+	if rule.MatchingBodyPart != "" {
+		return codeMatch && responseBodyMatches(res.Body, rule.MatchingBodyPart)
+	}
+	return codeMatch
+}
+
+func httpStatusMatches(actual int, expectedCodes []int) bool {
+	for _, expected := range expectedCodes {
+		if expected == actual {
+			return true
+		}
+	}
+	return false
+}
+
+func responseBodyMatches(actual string, bodyPattern string) bool {
+	return strings.Contains(actual, bodyPattern)
 }
 
 // Open does nothing for this target
