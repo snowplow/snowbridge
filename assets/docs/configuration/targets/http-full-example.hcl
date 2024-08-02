@@ -62,5 +62,27 @@ target {
 
     # Optional path to the file containing template which is used to build HTTP request based on a batch of input data
     template_file              = "myTemplate.file"
+
+    # 2 invalid + 1 setup error rules
+    response_rules {
+      # This one is a match when... 
+      invalid {
+          # ...HTTP statuses match...
+          http_codes = [400]
+          # AND this string exists in a response body
+          body =  "Invalid value for 'purchase' field"
+        }
+      # If no match yet, we can check the next one... 
+      invalid {
+          # again 400 status...
+          http_codes = [400]
+          # BUT we expect different error message in the response body
+          body =  "Invalid value for 'attributes' field"
+        }
+      # Same for 'setup' rules..  
+      setup {
+          http_codes =  [401, 403]
+        }
+    }
   }
 }
