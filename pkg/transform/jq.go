@@ -122,7 +122,7 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 			return errors.New("Not a valid time input to 'epoch' function")
 		}
 
-		return validTime.UnixMilli()
+		return int(validTime.Unix())
 	})
 
 	code, err := gojq.Compile(query, withEpochFunction)
