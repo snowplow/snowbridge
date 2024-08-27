@@ -16,7 +16,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/twinj/uuid"
+	"github.com/google/uuid"
 
 	"github.com/snowplow/snowbridge/pkg/models"
 )
@@ -45,7 +45,7 @@ func GetTestMessages(count int, body string, ackFunc func()) []*models.Message {
 	for i := 0; i < count; i++ {
 		messages = append(messages, &models.Message{
 			Data:         []byte(body),
-			PartitionKey: uuid.NewV4().String(),
+			PartitionKey: uuid.New().String(),
 			AckFunc:      ackFunc,
 		})
 	}
@@ -59,7 +59,7 @@ func GetSequentialTestMessages(count int, ackFunc func()) []*models.Message {
 	for i := 0; i < count; i++ {
 		messages = append(messages, &models.Message{
 			Data:         []byte(fmt.Sprint(i)),
-			PartitionKey: uuid.NewV4().String(),
+			PartitionKey: uuid.New().String(),
 			AckFunc:      ackFunc,
 		})
 	}

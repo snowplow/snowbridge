@@ -17,9 +17,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -84,6 +84,8 @@ var ConfigPair = config.ConfigurationPair{
 
 // newStdinSource creates a new client for reading messages from stdin
 func newStdinSource(concurrentWrites int) (*stdinSource, error) {
+	// Ensures as even as possible distribution of UUIDs
+	uuid.EnableRandPool()
 	return &stdinSource{
 		concurrentWrites: concurrentWrites,
 		log:              log.WithFields(log.Fields{"source": "stdin"}),
@@ -103,7 +105,7 @@ func (ss *stdinSource) Read(sf *sourceiface.SourceFunctions) error {
 		messages := []*models.Message{
 			{
 				Data:         []byte(scanner.Text()),
-				PartitionKey: uuid.NewV4().String(),
+				PartitionKey: uuid.New().String(),
 				TimeCreated:  timeNow,
 				TimePulled:   timeNow,
 			},

@@ -17,9 +17,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -96,6 +96,9 @@ var ConfigPair = config.ConfigurationPair{
 func newPubSubSource(concurrentWrites int, projectID string, subscriptionID string) (*pubSubSource, error) {
 	ctx := context.Background()
 
+	// Ensures as even as possible distribution of UUIDs
+	uuid.EnableRandPool()
+
 	client, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create PubSub client")
@@ -137,7 +140,7 @@ func (ps *pubSubSource) Read(sf *sourceiface.SourceFunctions) error {
 		messages := []*models.Message{
 			{
 				Data:         msg.Data,
-				PartitionKey: uuid.NewV4().String(),
+				PartitionKey: uuid.New().String(),
 				AckFunc:      ackFunc,
 				TimeCreated:  timeCreated,
 				TimePulled:   timePulled,
