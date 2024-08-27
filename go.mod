@@ -17,13 +17,12 @@ require (
 	github.com/getsentry/sentry-go v0.27.0
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/smira/go-statsd v1.3.3
@@ -31,19 +30,17 @@ require (
 	github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a
 	github.com/snowplow/snowplow-golang-analytics-sdk v0.3.0
 	github.com/stretchr/testify v1.9.0
-	github.com/twinj/uuid v1.0.0
 	github.com/twitchscience/kinsumer v0.0.0-20240315191529-9a48088063ec
 	github.com/urfave/cli v1.22.14
 	github.com/xdg/scram v1.0.5
 	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/oauth2 v0.19.0 // indirect
+	golang.org/x/oauth2 v0.19.0
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/api v0.172.0 // indirect
 	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda
 	google.golang.org/grpc v1.63.2
-	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
 )
 
 require (

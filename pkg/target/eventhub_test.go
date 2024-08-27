@@ -21,9 +21,9 @@ import (
 	"time"
 
 	eventhub "github.com/Azure/azure-event-hubs-go/v3"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/twinj/uuid"
 
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/testutil"
@@ -71,7 +71,7 @@ func (m mockHub) SendBatch(ctx context.Context, iterator eventhub.BatchIterator,
 	}
 
 	for !iterator.Done() {
-		id := uuid.NewV4()
+		id := uuid.New()
 
 		batch, err := iterator.Next(id.String(), batchOptions)
 		if err != nil {

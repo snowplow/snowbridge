@@ -20,10 +20,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 	"github.com/twitchscience/kinsumer"
 
 	"github.com/snowplow/snowbridge/config"
@@ -181,8 +181,11 @@ func newKinesisSourceWithInterfaces(
 		WithIteratorStartTimestamp(startTimestamp).
 		WithThrottleDelay(time.Duration(readThrottleDelay) * time.Millisecond)
 
+	// Ensures as even as possible distribution of UUIDs
+	uuid.EnableRandPool()
+
 	// TODO: See if the client name can be reused to survive same node reboots
-	name := uuid.NewV4().String()
+	name := uuid.New().String()
 
 	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, name, config)
 	if err != nil {
@@ -228,10 +231,11 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 
 		if record != nil {
 			timeCreated := record.ApproximateArrivalTimestamp.UTC()
+
 			messages := []*models.Message{
 				{
 					Data:         record.Data,
-					PartitionKey: uuid.NewV4().String(),
+					PartitionKey: uuid.New().String(),
 					AckFunc:      ackFunc,
 					TimeCreated:  timeCreated,
 					TimePulled:   timePulled,
