@@ -20,9 +20,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/common"
@@ -121,6 +121,8 @@ var ConfigPair = config.ConfigurationPair{
 // newSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
 func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
+	// Ensures as even as possible distribution of UUIDs
+	uuid.EnableRandPool()
 	return &sqsSource{
 		client:             client,
 		queueName:          queueName,
@@ -228,7 +230,7 @@ func (ss *sqsSource) process(sf *sourceiface.SourceFunctions) error {
 
 		messages = append(messages, &models.Message{
 			Data:         []byte(*msg.Body),
-			PartitionKey: uuid.NewV4().String(),
+			PartitionKey: uuid.New().String(),
 			AckFunc:      ackFunc,
 			TimeCreated:  timeCreated,
 			TimePulled:   timePulled,

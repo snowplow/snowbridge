@@ -19,13 +19,13 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
-	"github.com/twinj/uuid"
 )
 
 // Configuration configures the source for records
@@ -92,7 +92,7 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 
 			newMessage := &models.Message{
 				Data:         message.Value,
-				PartitionKey: uuid.NewV4().String(),
+				PartitionKey: uuid.New().String(),
 				TimeCreated:  message.Timestamp,
 				TimePulled:   time.Now().UTC(),
 			}
@@ -284,6 +284,8 @@ func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
 
 // newKafkaSourceWithInterfaces creates a new source for reading messages from Apache Kafka, allowing the user to provide a mocked client.
 func newKafkaSourceWithInterfaces(client sarama.ConsumerGroup, s *kafkaSource) (*kafkaSource, error) {
+	// Ensures as even as possible distribution of UUIDs
+	uuid.EnableRandPool()
 	s.client = client
 	return s, nil
 }

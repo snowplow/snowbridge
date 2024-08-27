@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	conf "github.com/snowplow/snowbridge/config"
 	gt "github.com/snowplow/snowplow-golang-tracker/v2/tracker"
-	"github.com/twinj/uuid"
 )
 
 // config holds the configuration for telemetry
@@ -36,7 +36,7 @@ func newTelemetryWithConfig(cfg *conf.Config) *config {
 		userProvidedID:     cfg.Data.UserProvidedID,
 		applicationName:    applicationName,
 		applicationVersion: applicationVersion,
-		appGeneratedID:     uuid.NewV4().String(),
+		appGeneratedID:     uuid.New().String(),
 	}
 }
 
