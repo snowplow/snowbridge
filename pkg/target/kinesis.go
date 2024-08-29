@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"time"
 
+	rand "math/rand/v2"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
@@ -161,74 +163,112 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 	messageCount := int64(len(messages))
 	kt.log.Debugf("Writing chunk of %d messages to stream ...", messageCount)
 
-	entries := make([]*kinesis.PutRecordsRequestEntry, messageCount)
-	for i := 0; i < len(entries); i++ {
-		msg := messages[i]
-		entries[i] = &kinesis.PutRecordsRequestEntry{
-			Data:         msg.Data,
-			PartitionKey: aws.String(msg.PartitionKey),
-		}
-	}
+	messagesToTry := messages
+	success := make([]*models.Message, 0)
+	nonTrottleFailures := make([]*models.Message, 0)
+	errorsEncountered := make([]error, 0)
 
-	requestStarted := time.Now()
-	res, err := kt.client.PutRecords(&kinesis.PutRecordsInput{
-		Records:    entries,
-		StreamName: aws.String(kt.streamName),
-	})
-	requestFinished := time.Now()
+	retryDelay := 100 * time.Millisecond
 
-	for _, msg := range messages {
-		msg.TimeRequestStarted = requestStarted
-		msg.TimeRequestFinished = requestFinished
-	}
+	for {
+		// We loop through until we have no throttle errors
+		entries := make([]*kinesis.PutRecordsRequestEntry, len(messagesToTry))
 
-	if err != nil {
-		failed := messages
-
-		return models.NewTargetWriteResult(
-			nil,
-			failed,
-			nil,
-			nil,
-		), errors.Wrap(err, "Failed to send message batch to Kinesis stream")
-	}
-
-	// TODO: Can we ack successful messages when some fail in the batch? This will cause duplicate processing on failure.
-	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
-		failed := messages
-
-		// Wrap produces nil if the initial error is nil, so create an empty error instead
-		kinesisErrs := errors.New("")
-
-		for _, record := range res.Records {
-			if record.ErrorMessage != nil {
-				kinesisErrs = errors.Wrap(kinesisErrs, *record.ErrorMessage)
+		// TODO: We need to reconstruct this each time
+		for i := 0; i < len(entries); i++ {
+			msg := messagesToTry[i]
+			entries[i] = &kinesis.PutRecordsRequestEntry{
+				Data:         msg.Data,
+				PartitionKey: aws.String(msg.PartitionKey),
 			}
 		}
 
-		return models.NewTargetWriteResult(
-			nil,
-			failed,
-			nil,
-			nil,
-		), errors.Wrap(kinesisErrs, "Failed to write all messages in batch to Kinesis stream")
+		requestStarted := time.Now()
+		res, err := kt.client.PutRecords(&kinesis.PutRecordsInput{
+			Records:    entries,
+			StreamName: aws.String(kt.streamName),
+		})
+		requestFinished := time.Now()
+
+		// Assign timings
+		// Retries will be overwritten on the next retry
+		for _, msg := range messagesToTry {
+			msg.TimeRequestStarted = requestStarted
+			msg.TimeRequestFinished = requestFinished
+		}
+		// TODO: We can do this in the loop below instead
+
+		// If the entire request errors, log timings and set all messages as failed
+		if err != nil {
+			nonTrottleFailures = messagesToTry
+			// TODO: REVIEW WHETHER ERRORS ARE HANDLED APPROPRIATELY HERE
+
+			// Record error - these won't be retried
+			errorsEncountered = append(errorsEncountered, errors.Wrap(err, "Failed to send message batch to Kinesis stream"))
+		}
+
+		throttled := make([]*models.Message, 0)
+		for i, resultRecord := range res.Records {
+			// If we have an error code, check if it's a throttle error
+			if resultRecord.ErrorCode != nil {
+				switch *resultRecord.ErrorCode {
+				case "ProvisionedThroughputExceededException":
+					// If we got throttled, add the corresponding record to the list for next retry
+					throttled = append(throttled, messagesToTry[i])
+				default:
+					// If it's another error, treat this as a failure
+					errorsEncountered = append(errorsEncountered, errors.New(*resultRecord.ErrorMessage))
+					nonTrottleFailures = append(nonTrottleFailures, messagesToTry[i])
+
+					// TODO: MAYBE THIS CAN BE BETTER??? - REVIEW
+				}
+			} else {
+				// If there is no error, the record was a success!
+				if messagesToTry[i].AckFunc != nil {
+					messagesToTry[i].AckFunc()
+				}
+				success = append(success, messagesToTry[i])
+			}
+		}
+		if len(throttled) > 0 {
+			// Assign throttles to be tried next loop
+			messagesToTry = throttled
+
+			// Wait for the delay plus jitter before the next loop
+			jitter := time.Duration(1+rand.IntN(1-1000)) * time.Microsecond
+			time.Sleep(retryDelay + jitter)
+
+			// Extend delay for next loop, to a maximum of 1s
+			if retryDelay < 1*time.Second {
+				retryDelay = retryDelay + 100*time.Millisecond
+			}
+		} else {
+			// Break the loop if we have no throttles to retry
+			break
+		}
+
 	}
 
-	for _, msg := range messages {
-		if msg.AckFunc != nil {
-			msg.AckFunc()
+	// If we got non-throttle errors, aggregate them so we can surface to the main app flow
+	var aggregateErr error
+
+	if len(errorsEncountered) > 0 {
+		aggregateErr = errors.New("")
+		for _, errToAdd := range errorsEncountered {
+			aggregateErr = errors.Wrap(aggregateErr, errToAdd.Error())
+
+			// TODO: CHECK THAT THIS WORKS
+			// aggregateErr is nil when we have none, and not when we don't
 		}
 	}
 
-	sent := messages
-
-	kt.log.Debugf("Successfully wrote %d messages", len(entries))
+	kt.log.Debugf("Successfully wrote %d messages, with %d failures", len(success), len(nonTrottleFailures))
 	return models.NewTargetWriteResult(
-		sent,
+		success,
+		nonTrottleFailures,
 		nil,
 		nil,
-		nil,
-	), nil
+	), aggregateErr
 }
 
 // Open does not do anything for this target
