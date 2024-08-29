@@ -193,70 +193,25 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 		), errors.Wrap(err, "Failed to send message batch to Kinesis stream")
 	}
 
-	// Hack to test if retries fix the problem
+	// TODO: Can we ack successful messages when some fail in the batch? This will cause duplicate processing on failure.
+	if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
+		failed := messages
 
-	backoff := 100 * time.Millisecond
-	// infinitely loop
-	for {
-		// Cap backoff to 1s max
-		if backoff > 1*time.Second {
-			backoff = 1 * time.Second
-		}
-		// TODO: Can we ack successful messages when some fail in the batch? This will cause duplicate processing on failure.
-		if res.FailedRecordCount != nil && *res.FailedRecordCount > int64(0) {
-			// if we have any failure, log it and retry the same request on a backoff (for our hacky test this is fine)
+		// Wrap produces nil if the initial error is nil, so create an empty error instead
+		kinesisErrs := errors.New("")
 
-			// Log the error
-			kt.log.Warnf("Hit kinesis error: %s", *res.Records[0].ErrorMessage)
-
-			// back off
-			time.Sleep(backoff)
-
-			// retry the request
-			res2, err := kt.client.PutRecords(&kinesis.PutRecordsInput{
-				Records:    entries,
-				StreamName: aws.String(kt.streamName),
-			})
-
-			// If the request errors, fail
-			if err != nil {
-				failed := messages
-
-				return models.NewTargetWriteResult(
-					nil,
-					failed,
-					nil,
-					nil,
-				), errors.Wrap(err, "Failed to send message batch to Kinesis stream")
+		for _, record := range res.Records {
+			if record.ErrorMessage != nil {
+				kinesisErrs = errors.Wrap(kinesisErrs, *record.ErrorMessage)
 			}
-
-			// Overwrite old res with new
-			res = res2
-
-			// increase the backoff
-			backoff = backoff * 2
-
-			// failed := messages
-
-			// // Wrap produces nil if the initial error is nil, so create an empty error instead
-			// kinesisErrs := errors.New("")
-
-			// for _, record := range res.Records {
-			// 	if record.ErrorMessage != nil {
-			// 		kinesisErrs = errors.Wrap(kinesisErrs, *record.ErrorMessage)
-			// 	}
-			// }
-
-			// return models.NewTargetWriteResult(
-			// 	nil,
-			// 	failed,
-			// 	nil,
-			// 	nil,
-			// ), errors.Wrap(kinesisErrs, "Failed to write all messages in batch to Kinesis stream")
-		} else {
-			// if we no longer have a failure, exit the loop
-			break
 		}
+
+		return models.NewTargetWriteResult(
+			nil,
+			failed,
+			nil,
+			nil,
+		), errors.Wrap(kinesisErrs, "Failed to write all messages in batch to Kinesis stream")
 	}
 
 	for _, msg := range messages {
