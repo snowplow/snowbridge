@@ -234,8 +234,10 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 			// Assign throttles to be tried next loop
 			messagesToTry = throttled
 
+			// TODO - log a warning or info here
+
 			// Wait for the delay plus jitter before the next loop
-			jitter := time.Duration(1+rand.IntN(1-1000)) * time.Microsecond
+			jitter := time.Duration(1+rand.IntN(30000-1)) * time.Microsecond // any value between 1 microsecond and 30 milliseconds
 			time.Sleep(retryDelay + jitter)
 
 			// Extend delay for next loop, to a maximum of 1s
