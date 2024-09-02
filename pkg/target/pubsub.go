@@ -143,9 +143,9 @@ func (ps *PubSubTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 		pubSubMsg := &pubsub.Message{
 			Data: msg.Data,
 		}
-		requestStarted := time.Now()
+		requestStarted := time.Now().UTC()
 		r := ps.topic.Publish(ctx, pubSubMsg)
-		requestFinished := time.Now()
+		requestFinished := time.Now().UTC()
 
 		msg.TimeRequestStarted = requestStarted
 		msg.TimeRequestFinished = requestFinished

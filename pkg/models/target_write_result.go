@@ -39,13 +39,13 @@ type TargetWriteResult struct {
 	// and need to be specially handled.
 	Invalid []*Message
 
-	// Delta between TimePulled and TimeOfWrite tells us how well the
+	// Delta between TimePulled and TimeRequestfinished tells us how well the
 	// application is at processing data internally
 	MaxProcLatency time.Duration
 	MinProcLatency time.Duration
 	AvgProcLatency time.Duration
 
-	// Delta between TimeCreated and TimeOfWrite tells us how far behind
+	// Delta between TimeCreated and TimeRequestfinished tells us how far behind
 	// the application is on the stream it is consuming from
 	MaxMsgLatency time.Duration
 	MinMsgLatency time.Duration
@@ -63,15 +63,10 @@ type TargetWriteResult struct {
 	AvgRequestLatency time.Duration
 }
 
-// NewTargetWriteResult uses the current time as the WriteTime and then calls NewTargetWriteResultWithTime
-func NewTargetWriteResult(sent []*Message, failed []*Message, oversized []*Message, invalid []*Message) *TargetWriteResult {
-	return NewTargetWriteResultWithTime(sent, failed, oversized, invalid, time.Now().UTC())
-}
-
-// NewTargetWriteResultWithTime builds a result structure to return from a target write
+// NewTargetWriteResult builds a result structure to return from a target write
 // attempt which contains the sent and failed message counts as well as several
 // derived latency measures.
-func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized []*Message, invalid []*Message, timeOfWrite time.Time) *TargetWriteResult {
+func NewTargetWriteResult(sent []*Message, failed []*Message, oversized []*Message, invalid []*Message) *TargetWriteResult {
 	r := TargetWriteResult{
 		SentCount:   int64(len(sent)),
 		FailedCount: int64(len(failed)),
@@ -91,7 +86,7 @@ func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized 
 	var sumRequestLatency time.Duration
 
 	for _, msg := range processed {
-		procLatency := timeOfWrite.Sub(msg.TimePulled)
+		procLatency := msg.TimeRequestFinished.Sub(msg.TimePulled)
 		if r.MaxProcLatency < procLatency {
 			r.MaxProcLatency = procLatency
 		}
@@ -100,7 +95,7 @@ func NewTargetWriteResultWithTime(sent []*Message, failed []*Message, oversized 
 		}
 		sumProcLatency += procLatency
 
-		messageLatency := timeOfWrite.Sub(msg.TimeCreated)
+		messageLatency := msg.TimeRequestFinished.Sub(msg.TimeCreated)
 		if r.MaxMsgLatency < messageLatency {
 			r.MaxMsgLatency = messageLatency
 		}
