@@ -168,12 +168,12 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 		lookup[msgID] = msg
 	}
 
-	requestStarted := time.Now()
+	requestStarted := time.Now().UTC()
 	res, err := st.client.SendMessageBatch(&sqs.SendMessageBatchInput{
 		Entries:  entries,
 		QueueUrl: aws.String(st.queueURL),
 	})
-	requestFinished := time.Now()
+	requestFinished := time.Now().UTC()
 
 	for _, msg := range messages {
 		msg.TimeRequestStarted = requestStarted

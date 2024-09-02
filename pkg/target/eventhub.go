@@ -197,9 +197,9 @@ func (eht *EventHubTarget) process(messages []*models.Message) (*models.TargetWr
 	defer cancel()
 
 	batchIterator := eventhub.NewEventBatchIterator(ehBatch...)
-	requestStarted := time.Now()
+	requestStarted := time.Now().UTC()
 	err := eht.client.SendBatch(ctx, batchIterator, eventhub.BatchWithMaxSizeInBytes(eht.batchByteLimit))
-	requestFinished := time.Now()
+	requestFinished := time.Now().UTC()
 
 	// Not clean but for a quick test release it's fine
 	for _, msg := range messages {

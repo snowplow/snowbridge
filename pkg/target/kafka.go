@@ -247,13 +247,13 @@ func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteRes
 		}
 	} else if kt.syncProducer != nil {
 		for _, msg := range safeMessages {
-			requestStarted := time.Now()
+			requestStarted := time.Now().UTC()
 			_, _, err := kt.syncProducer.SendMessage(&sarama.ProducerMessage{
 				Topic: kt.topicName,
 				Key:   sarama.StringEncoder(msg.PartitionKey),
 				Value: sarama.ByteEncoder(msg.Data),
 			})
-			requestFinished := time.Now()
+			requestFinished := time.Now().UTC()
 
 			msg.TimeRequestStarted = requestStarted
 			msg.TimeRequestFinished = requestFinished

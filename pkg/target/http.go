@@ -237,9 +237,9 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 		if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {     // Add basic auth if set
 			request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 		}
-		requestStarted := time.Now()
+		requestStarted := time.Now().UTC()
 		resp, err := ht.client.Do(request) // Make request
-		requestFinished := time.Now()
+		requestFinished := time.Now().UTC()
 
 		msg.TimeRequestStarted = requestStarted
 		msg.TimeRequestFinished = requestFinished

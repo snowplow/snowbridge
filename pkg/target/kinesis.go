@@ -181,12 +181,12 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 			}
 		}
 
-		requestStarted := time.Now()
+		requestStarted := time.Now().UTC()
 		res, err := kt.client.PutRecords(&kinesis.PutRecordsInput{
 			Records:    entries,
 			StreamName: aws.String(kt.streamName),
 		})
-		requestFinished := time.Now()
+		requestFinished := time.Now().UTC()
 
 		// Assign timings
 		// These will only get recorded in metrics once the messages are successful
