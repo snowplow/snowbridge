@@ -63,27 +63,30 @@ func TestObserverTargetWrite(t *testing.T) {
 	timeNow := time.Now().UTC()
 	sent := []*models.Message{
 		{
-			Data:         []byte("Baz"),
-			PartitionKey: "partition1",
-			TimeCreated:  timeNow.Add(time.Duration(-50) * time.Minute),
-			TimePulled:   timeNow.Add(time.Duration(-4) * time.Minute),
+			Data:                []byte("Baz"),
+			PartitionKey:        "partition1",
+			TimeCreated:         timeNow.Add(time.Duration(-50) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-4) * time.Minute),
+			TimeRequestFinished: timeNow,
 		},
 		{
-			Data:         []byte("Bar"),
-			PartitionKey: "partition2",
-			TimeCreated:  timeNow.Add(time.Duration(-70) * time.Minute),
-			TimePulled:   timeNow.Add(time.Duration(-7) * time.Minute),
+			Data:                []byte("Bar"),
+			PartitionKey:        "partition2",
+			TimeCreated:         timeNow.Add(time.Duration(-70) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-7) * time.Minute),
+			TimeRequestFinished: timeNow,
 		},
 	}
 	failed := []*models.Message{
 		{
-			Data:         []byte("Foo"),
-			PartitionKey: "partition3",
-			TimeCreated:  timeNow.Add(time.Duration(-30) * time.Minute),
-			TimePulled:   timeNow.Add(time.Duration(-10) * time.Minute),
+			Data:                []byte("Foo"),
+			PartitionKey:        "partition3",
+			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
+			TimeRequestFinished: timeNow,
 		},
 	}
-	r := models.NewTargetWriteResultWithTime(sent, failed, nil, nil, timeNow)
+	r := models.NewTargetWriteResult(sent, failed, nil, nil)
 	for i := 0; i < 5; i++ {
 		observer.TargetWrite(r)
 		observer.TargetWriteOversized(r)

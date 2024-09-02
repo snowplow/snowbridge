@@ -14,6 +14,7 @@ package target
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -74,7 +75,9 @@ func (st *StdoutTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 	var sent []*models.Message
 
 	for _, msg := range safeMessages {
+		msg.TimeRequestStarted = time.Now().UTC()
 		fmt.Println(msg.String())
+		msg.TimeRequestFinished = time.Now().UTC()
 
 		if msg.AckFunc != nil {
 			msg.AckFunc()
