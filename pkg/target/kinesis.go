@@ -167,7 +167,7 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 	nonThrottleFailures := make([]*models.Message, 0)
 	errorsEncountered := make([]error, 0)
 
-	retryDelay := 100 * time.Millisecond
+	retryDelay := 50 * time.Millisecond
 
 	for {
 		// We loop through until we have no throttle errors
@@ -243,7 +243,7 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 
 			// Extend delay for next loop, to a maximum of 1s
 			if retryDelay < 1*time.Second {
-				retryDelay = retryDelay + 100*time.Millisecond
+				retryDelay = retryDelay + 50*time.Millisecond
 			}
 		} else {
 			// Break the loop and handle results if we have no throttles to retry
