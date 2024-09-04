@@ -1,3 +1,10 @@
+Version 2.4.2 (2024-09-04)
+--------------------------
+Use existing timestamp for request finish in measuring latency metrics
+Handle throttles in kinesis target
+Use update UUID package for UUIDs
+Set random pk in kinesis source
+
 Version 2.4.1 (2024-05-28)
 --------------------------
 Use US spelling for license
