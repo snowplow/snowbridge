@@ -111,6 +111,23 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 		return nil, fmt.Errorf("error parsing jq command: %s", err)
 	}
 
+	// epoch converts a time.Time to an epoch in seconds, as integer type.
+	// It must be an integer in order to chain with jq-native time functions
+	withEpochFunction := gojq.WithFunction("epoch", 0, 1, func(a1 any, a2 []any) any {
+		if a1 == nil {
+			return nil
+		}
+
+		validTime, ok := a1.(time.Time)
+
+		if !ok {
+			return errors.New("Not a valid time input to 'epoch' function")
+		}
+
+		return int(validTime.Unix())
+	})
+
+	// epochMillis converts a time.Time to an epoch in milliseconds
 	withEpochMillisFunction := gojq.WithFunction("epochMillis", 0, 1, func(a1 any, a2 []any) any {
 		if a1 == nil {
 			return nil
@@ -125,7 +142,7 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 		return validTime.UnixMilli()
 	})
 
-	code, err := gojq.Compile(query, withEpochMillisFunction)
+	code, err := gojq.Compile(query, withEpochMillisFunction, withEpochFunction)
 	if err != nil {
 		return nil, fmt.Errorf("error compiling jq query: %s", err)
 	}
