@@ -34,8 +34,8 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 		Error           error
 	}{
 		{
-			Scenario:  "test_timestamp_to_epoch",
-			JQCommand: `{ foo: .collector_tstamp | epoch }`,
+			Scenario:  "test_timestamp_to_epochMillis",
+			JQCommand: `{ foo: .collector_tstamp | epochMillis }`,
 			InputMsg: &models.Message{
 				Data:         SnowplowTsv1,
 				PartitionKey: "some-key",
@@ -212,11 +212,11 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 			Error:         nil,
 		},
 		{
-			Scenario: "epoch_on_nullable",
+			Scenario: "epochMillis_on_nullable",
 			JQCommand: `
       { 
-        explicit_null: .explicit | epoch,
-        no_such_field: .nonexistent | epoch,
+        explicit_null: .explicit | epochMillis,
+        no_such_field: .nonexistent | epochMillis,
         non_null: .non_null
       }`,
 			InputMsg: &models.Message{
@@ -483,7 +483,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 		{
 			Scenario: "epoch_on_non_time_type",
 			JQConfig: &JQMapperConfig{
-				JQCommand:    `.str | epoch`,
+				JQCommand:    `.str | epochMillis`,
 				RunTimeoutMs: 100,
 				SpMode:       false,
 			},
@@ -501,7 +501,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         errors.New("Not a valid time input to 'epoch' function"),
+			Error:         errors.New("Not a valid time input to 'epochMillis' function"),
 		},
 	}
 

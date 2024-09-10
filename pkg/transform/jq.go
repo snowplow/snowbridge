@@ -111,7 +111,7 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 		return nil, fmt.Errorf("error parsing jq command: %s", err)
 	}
 
-	withEpochFunction := gojq.WithFunction("epoch", 0, 1, func(a1 any, a2 []any) any {
+	withEpochMillisFunction := gojq.WithFunction("epochMillis", 0, 1, func(a1 any, a2 []any) any {
 		if a1 == nil {
 			return nil
 		}
@@ -119,13 +119,13 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 		validTime, ok := a1.(time.Time)
 
 		if !ok {
-			return errors.New("Not a valid time input to 'epoch' function")
+			return errors.New("Not a valid time input to 'epochMillis' function")
 		}
 
 		return validTime.UnixMilli()
 	})
 
-	code, err := gojq.Compile(query, withEpochFunction)
+	code, err := gojq.Compile(query, withEpochMillisFunction)
 	if err != nil {
 		return nil, fmt.Errorf("error compiling jq query: %s", err)
 	}
