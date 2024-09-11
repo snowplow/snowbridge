@@ -34,6 +34,25 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 		Error           error
 	}{
 		{
+			Scenario:  "test_timestamp_to_epochMillis",
+			JQCommand: `{ foo: .collector_tstamp | epochMillis }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"foo":1557499235972}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
 			Scenario:  "test_timestamp_to_epoch",
 			JQCommand: `{ foo: .collector_tstamp | epoch }`,
 			InputMsg: &models.Message{
@@ -43,7 +62,26 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"foo":1557499235972}`),
+					Data:         []byte(`{"foo":1557499235}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "test_timestamp_to_epoch_chained",
+			JQCommand: `{ foo: .collector_tstamp | epoch | todateiso8601 }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"foo":"2019-05-10T14:40:35Z"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -203,6 +241,30 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 			Expected: map[string]*models.Message{
 				"success": {
 					Data:         []byte(`{"bar":[1,2,3]}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario: "epochMillis_on_nullable",
+			JQCommand: `
+      { 
+        explicit_null: .explicit | epochMillis,
+        no_such_field: .nonexistent | epochMillis,
+        non_null: .non_null
+      }`,
+			InputMsg: &models.Message{
+				Data:         []byte(`{"explicit": null, "non_null": "hello"}`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"non_null":"hello"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -479,6 +541,29 @@ func TestJQRunFunction_errors(t *testing.T) {
 			},
 			ExpInterState: nil,
 			Error:         errors.New("jq query got no output"),
+		},
+		{
+			Scenario: "epochMillis_on_non_time_type",
+			JQConfig: &JQMapperConfig{
+				JQCommand:    `.str | epochMillis`,
+				RunTimeoutMs: 100,
+				SpMode:       false,
+			},
+			InputMsg: &models.Message{
+				Data:         []byte(`{"str": "value"}`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{"str": "value"}`),
+					PartitionKey: "some-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         errors.New("Not a valid time input to 'epochMillis' function"),
 		},
 		{
 			Scenario: "epoch_on_non_time_type",
