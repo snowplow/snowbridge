@@ -25,7 +25,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/smira/go-statsd v1.3.3
-	github.com/snowplow-devops/go-retry v0.0.0-20210106090855-8989bbdbae1c
 	github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a
 	github.com/snowplow/snowplow-golang-analytics-sdk v0.3.0
 	github.com/stretchr/testify v1.9.0
@@ -50,6 +49,7 @@ require (
 	github.com/itchyny/gojq v0.12.16
 	github.com/json-iterator/go v1.1.12
 	github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1
+	github.com/twinj/uuid v1.0.0
 	github.com/zclconf/go-cty v1.14.4
 )
 
@@ -97,6 +97,7 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
@@ -117,6 +118,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240401170217-c3f982113cda // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
+	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
