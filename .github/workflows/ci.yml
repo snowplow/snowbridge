@@ -30,6 +30,9 @@ jobs:
         check-latest: true
         cache: true
 
+    - name: Check if go mod tidy should be run
+      uses: katexochen/go-tidy-check@v2
+
     - name: Extract project version from file
       id: version
       run: |
