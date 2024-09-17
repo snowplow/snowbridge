@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
@@ -13,12 +14,15 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
+const fiftyYears = time.Hour * 24 * 365 * 50
+
 func TestGTMSSPreview(t *testing.T) {
 	testCases := []struct {
 		Scenario        string
 		Ctx             string
 		Property        string
 		HeaderKey       string
+		Expiry          time.Duration
 		InputMsg        *models.Message
 		InputInterState interface{}
 		Expected        map[string]*models.Message
@@ -30,6 +34,7 @@ func TestGTMSSPreview(t *testing.T) {
 			Ctx:       "contexts_com_google_tag-manager_server-side_preview_mode_1",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
+			Expiry:    fiftyYears,
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
@@ -54,6 +59,7 @@ func TestGTMSSPreview(t *testing.T) {
 			Ctx:       "contexts_com_google_tag-manager_server-side_preview_mode_1",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
+			Expiry:    fiftyYears,
 			InputMsg: &models.Message{
 				Data:         spTsvNoGtmss,
 				PartitionKey: "pk",
@@ -76,6 +82,7 @@ func TestGTMSSPreview(t *testing.T) {
 			Ctx:       "contexts_com_google_tag-manager_server-side_preview_mode_1",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
+			Expiry:    fiftyYears,
 			InputMsg: &models.Message{
 				Data:         []byte(`asdf`),
 				PartitionKey: "pk",
@@ -98,6 +105,7 @@ func TestGTMSSPreview(t *testing.T) {
 			Ctx:       "contexts_com_google_tag-manager_server-side_preview_mode_1",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
+			Expiry:    fiftyYears,
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
@@ -126,6 +134,7 @@ func TestGTMSSPreview(t *testing.T) {
 			Ctx:       "contexts_com_google_tag-manager_server-side_preview_mode_1",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
+			Expiry:    fiftyYears,
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
@@ -155,6 +164,7 @@ func TestGTMSSPreview(t *testing.T) {
 			Ctx:       "contexts_com_google_tag-manager_server-side_preview_mode_1",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
+			Expiry:    fiftyYears,
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
@@ -180,6 +190,7 @@ func TestGTMSSPreview(t *testing.T) {
 			Ctx:       "app_id",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
+			Expiry:    fiftyYears,
 			InputMsg: &models.Message{
 				Data:         spTsvWithGtmss,
 				PartitionKey: "pk",
@@ -200,11 +211,34 @@ func TestGTMSSPreview(t *testing.T) {
 			ExpInterState: spTsvWithGtmssParsed,
 			Error:         nil,
 		},
+		{
+			Scenario:  "expired_message",
+			Ctx:       "contexts_com_google_tag-manager_server-side_preview_mode_1",
+			Property:  "x-gtm-server-preview",
+			HeaderKey: "x-gtm-server-preview",
+			Expiry:    1 * time.Hour,
+			InputMsg: &models.Message{
+				Data:         spTsvWithGtmss,
+				PartitionKey: "pk",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(spTsvWithGtmss),
+					PartitionKey: "pk",
+					HTTPHeaders:  nil,
+				},
+			},
+			ExpInterState: nil,
+			Error:         errors.New("Message has expired"),
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.Scenario, func(t *testing.T) {
-			transFunction := gtmssPreviewTransformation(tt.Ctx, tt.Property, tt.HeaderKey)
+			transFunction := gtmssPreviewTransformation(tt.Ctx, tt.Property, tt.HeaderKey, tt.Expiry)
 			s, f, e, i := transFunction(tt.InputMsg, tt.InputInterState)
 
 			if !reflect.DeepEqual(i, tt.ExpInterState) {
@@ -281,12 +315,20 @@ func TestExtractHeaderValue(t *testing.T) {
 			Error:    nil,
 		},
 		{
-			Scenario: "invalid_header_value",
+			Scenario: "invalid_header_value (not a string type)",
 			Event:    fakeSpTsvParsed,
 			Ctx:      "contexts_com_snowplowanalytics_snowplow_web_page_1",
 			Prop:     "id",
 			Expected: nil,
 			Error:    errors.New("invalid header value"),
+		},
+		{
+			Scenario: "invalid_header_value (not base64 encoding)",
+			Event:    gtmssInvalidNoB64Parsed,
+			Ctx:      "contexts_com_google_tag-manager_server-side_preview_mode_1",
+			Prop:     "x-gtm-server-preview",
+			Expected: nil,
+			Error:    errors.New("illegal base64 data at input"),
 		},
 		{
 			Scenario: "event_without_contexts",
@@ -343,7 +385,7 @@ func Benchmark_GTMSSPreview_With_Preview_Ctx_no_intermediate(b *testing.B) {
 	prop := "x-gtm-server-preview"
 	header := "x-gtm-server-preview"
 
-	transFunction := gtmssPreviewTransformation(ctx, prop, header)
+	transFunction := gtmssPreviewTransformation(ctx, prop, header, fiftyYears)
 
 	for n := 0; n < b.N; n++ {
 		transFunction(inputMsg, nil)
@@ -362,7 +404,7 @@ func Benchmark_GTMSSPreview_With_Preview_Ctx_With_intermediate(b *testing.B) {
 	prop := "x-gtm-server-preview"
 	header := "x-gtm-server-preview"
 
-	transFunction := gtmssPreviewTransformation(ctx, prop, header)
+	transFunction := gtmssPreviewTransformation(ctx, prop, header, fiftyYears)
 
 	for n := 0; n < b.N; n++ {
 		transFunction(inputMsg, interState)
@@ -380,7 +422,7 @@ func Benchmark_GTMSSPreview_No_Preview_Ctx_no_intermediate(b *testing.B) {
 	prop := "x-gtm-server-preview"
 	header := "x-gtm-server-preview"
 
-	transFunction := gtmssPreviewTransformation(ctx, prop, header)
+	transFunction := gtmssPreviewTransformation(ctx, prop, header, fiftyYears)
 
 	for n := 0; n < b.N; n++ {
 		transFunction(inputMsg, nil)
@@ -399,7 +441,7 @@ func Benchmark_GTMSSPreview_No_Preview_Ctx_With_intermediate(b *testing.B) {
 	prop := "x-gtm-server-preview"
 	header := "x-gtm-server-preview"
 
-	transFunction := gtmssPreviewTransformation(ctx, prop, header)
+	transFunction := gtmssPreviewTransformation(ctx, prop, header, fiftyYears)
 
 	for n := 0; n < b.N; n++ {
 		transFunction(inputMsg, interState)
@@ -448,6 +490,9 @@ var spTsvNoGtmssParsed, _ = analytics.ParseEvent(string(spTsvNoGtmss))
 
 var spTsvWithGtmss = []byte(`media-test	web	2024-03-12 04:27:01.760	2024-03-12 04:27:01.755	2024-03-12 04:27:01.743	unstruct	9be3afe8-8a62-41ac-93db-12f425d82ac9		spTest	js-3.17.0	snowplow-micro-2.0.0-stdout$	snowplow-micro-2.0.0	media_tester	172.17.0.1		23a0eb65-83f6-4957-839e-f3044bfefb99	1	a2f53212-26a3-4781-81d6-f14aa8d4552b												http://localhost:8000/?sgtm-preview-header=ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==			http	localhost	8000	/	sgtm-preview-header=ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==																{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0","data":[{"schema":"iglu:org.whatwg/media_element/jsonschema/1-0-0","data":{"htmlId":"bunny-mp4","mediaType":"VIDEO","autoPlay":false,"buffered":[{"start":0,"end":1.291666}],"controls":true,"currentSrc":"https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4","defaultMuted":false,"defaultPlaybackRate":1,"error":null,"networkState":"NETWORK_LOADING","preload":"","readyState":"HAVE_ENOUGH_DATA","seekable":[{"start":0,"end":596.503219}],"seeking":false,"src":"https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4","textTracks":[],"fileExtension":"mp4","fullscreen":false,"pictureInPicture":false}},{"schema":"iglu:com.snowplowanalytics.snowplow/media_player/jsonschema/1-0-0","data":{"currentTime":0,"duration":596.503219,"ended":false,"loop":false,"muted":false,"paused":false,"playbackRate":1,"volume":100}},{"schema":"iglu:org.whatwg/video_element/jsonschema/1-0-0","data":{"poster":"","videoHeight":360,"videoWidth":640}},{"schema":"iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0","data":{"id":"021c4d09-e502-4562-8182-5ac7247125ec"}},{"schema":"iglu:com.google.tag-manager.server-side/user_data/jsonschema/1-0-0","data":{"email_address":"foo@example.com","phone_number":"+15551234567","address":{"first_name":"Jane","last_name":"Doe","street":"123 Fake St","city":"San Francisco","region":"CA","postal_code":"94016","country":"US"}}},{"schema":"iglu:com.snowplowanalytics.snowplow/mobile_context/jsonschema/1-0-2","data":{"osType":"testOsType","osVersion":"testOsVersion","deviceManufacturer":"testDevMan","deviceModel":"testDevModel"}},{"schema":"iglu:com.google.tag-manager.server-side/preview_mode/jsonschema/1-0-0","data":{"x-gtm-server-preview":"ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw=="}},{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-2","data":{"userId":"23a0eb65-83f6-4957-839e-f3044bfefb99","sessionId":"73fcdaa3-0164-41ce-a336-fb00c4ebf68c","eventIndex":7,"sessionIndex":1,"previousSessionId":null,"storageMechanism":"COOKIE_1","firstEventId":"327b9ff9-ed5f-40cf-918a-1b1a775ae347","firstEventTimestamp":"2024-03-12T04:25:36.684Z"}}]}						{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/media_player_event/jsonschema/1-0-0","data":{"type":"play"}}}																			Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0						en-US										1	24	1920	935				Europe/Athens			1920	1080	windows-1252	1920	935												2024-03-12 04:27:01.745				73fcdaa3-0164-41ce-a336-fb00c4ebf68c	2024-03-12 04:27:01.753	com.snowplowanalytics.snowplow	media_player_event	jsonschema	1-0-0		`)
 var spTsvWithGtmssParsed, _ = analytics.ParseEvent(string(spTsvWithGtmss))
+
+var gtmssInvalidNoB64 = []byte(`media-test	web	2024-03-12 04:27:01.760	2024-03-12 04:27:01.755	2024-03-12 04:27:01.743	unstruct	9be3afe8-8a62-41ac-93db-12f425d82ac9		spTest	js-3.17.0	snowplow-micro-2.0.0-stdout$	snowplow-micro-2.0.0	media_tester	172.17.0.1		23a0eb65-83f6-4957-839e-f3044bfefb99	1	a2f53212-26a3-4781-81d6-f14aa8d4552b												http://localhost:8000/?sgtm-preview-header=ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==			http	localhost	8000	/	sgtm-preview-header=ZW52LTcyN3wtMkMwR084ekptbWxiZmpkcHNIRENBfDE4ZTJkYzgxMDc2NDg1MjVmMzI2Mw==																{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0","data":[{"schema":"iglu:org.whatwg/media_element/jsonschema/1-0-0","data":{"htmlId":"bunny-mp4","mediaType":"VIDEO","autoPlay":false,"buffered":[{"start":0,"end":1.291666}],"controls":true,"currentSrc":"https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4","defaultMuted":false,"defaultPlaybackRate":1,"error":null,"networkState":"NETWORK_LOADING","preload":"","readyState":"HAVE_ENOUGH_DATA","seekable":[{"start":0,"end":596.503219}],"seeking":false,"src":"https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4","textTracks":[],"fileExtension":"mp4","fullscreen":false,"pictureInPicture":false}},{"schema":"iglu:com.snowplowanalytics.snowplow/media_player/jsonschema/1-0-0","data":{"currentTime":0,"duration":596.503219,"ended":false,"loop":false,"muted":false,"paused":false,"playbackRate":1,"volume":100}},{"schema":"iglu:org.whatwg/video_element/jsonschema/1-0-0","data":{"poster":"","videoHeight":360,"videoWidth":640}},{"schema":"iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0","data":{"id":"021c4d09-e502-4562-8182-5ac7247125ec"}},{"schema":"iglu:com.google.tag-manager.server-side/user_data/jsonschema/1-0-0","data":{"email_address":"foo@example.com","phone_number":"+15551234567","address":{"first_name":"Jane","last_name":"Doe","street":"123 Fake St","city":"San Francisco","region":"CA","postal_code":"94016","country":"US"}}},{"schema":"iglu:com.snowplowanalytics.snowplow/mobile_context/jsonschema/1-0-2","data":{"osType":"testOsType","osVersion":"testOsVersion","deviceManufacturer":"testDevMan","deviceModel":"testDevModel"}},{"schema":"iglu:com.google.tag-manager.server-side/preview_mode/jsonschema/1-0-0","data":{"x-gtm-server-preview":"this is not valid base64"}},{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-2","data":{"userId":"23a0eb65-83f6-4957-839e-f3044bfefb99","sessionId":"73fcdaa3-0164-41ce-a336-fb00c4ebf68c","eventIndex":7,"sessionIndex":1,"previousSessionId":null,"storageMechanism":"COOKIE_1","firstEventId":"327b9ff9-ed5f-40cf-918a-1b1a775ae347","firstEventTimestamp":"2024-03-12T04:25:36.684Z"}}]}						{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/media_player_event/jsonschema/1-0-0","data":{"type":"play"}}}																			Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0						en-US										1	24	1920	935				Europe/Athens			1920	1080	windows-1252	1920	935												2024-03-12 04:27:01.745				73fcdaa3-0164-41ce-a336-fb00c4ebf68c	2024-03-12 04:27:01.753	com.snowplowanalytics.snowplow	media_player_event	jsonschema	1-0-0		`)
+var gtmssInvalidNoB64Parsed, _ = analytics.ParseEvent(string(gtmssInvalidNoB64))
 
 var fakeSpTsv = []byte(`media-test	web	2024-03-12 04:25:40.277	2024-03-12 04:25:40.272	2024-03-12 04:25:36.685	page_view	1313411b-282f-4aa9-b37c-c60d4723cf47		spTest	js-3.17.0	snowplow-micro-2.0.0-stdout$	snowplow-micro-2.0.0	media_tester	172.17.0.1		23a0eb65-83f6-4957-839e-f3044bfefb99	1	a2f53212-26a3-4781-81d6-f14aa8d4552b												http://localhost:8000/	Test Media Tracking		http	localhost	8000	/																	{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0","data":[{"schema":"iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0","data":{"id":["FAILS"]}},{"schema":"iglu:com.google.tag-manager.server-side/user_data/jsonschema/1-0-0","data":{"email_address":"foo@example.com","phone_number":"+15551234567","address":{"first_name":"Jane","last_name":"Doe","street":"123 Fake St","city":"San Francisco","region":"CA","postal_code":"94016","country":"US"}}},{"schema":"iglu:com.snowplowanalytics.snowplow/mobile_context/jsonschema/1-0-2","data":{"osType":"testOsType","osVersion":"testOsVersion","deviceManufacturer":"testDevMan","deviceModel":"testDevModel"}},{"schema":"iglu:com.snowplowanalytics.snowplow/client_session/jsonschema/1-0-2","data":{"userId":"23a0eb65-83f6-4957-839e-f3044bfefb99","sessionId":"73fcdaa3-0164-41ce-a336-fb00c4ebf68c","eventIndex":2,"sessionIndex":1,"previousSessionId":null,"storageMechanism":"COOKIE_1","firstEventId":"327b9ff9-ed5f-40cf-918a-1b1a775ae347","firstEventTimestamp":"2024-03-12T04:25:36.684Z"}}]}																									Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0						en-US										1	24	1920	935				Europe/Athens			1920	1080	windows-1252	1920	935												2024-03-12 04:25:40.268				73fcdaa3-0164-41ce-a336-fb00c4ebf68c	2024-03-12 04:25:36.689	com.snowplowanalytics.snowplow	page_view	jsonschema	1-0-0		`)
 var fakeSpTsvParsed, _ = analytics.ParseEvent(string(fakeSpTsv))
