@@ -34,6 +34,9 @@ source {
     # The SASL Algorithm to use: "plaintext", "sha512" or "sha256" (default: "sha512")
     sasl_algorithm = "sha256"
 
+    # Whether to enable TLS
+    enable_tls = true
+
     # The optional certificate file for client authentication
     cert_file            = "myLocalhost.crt"
 
