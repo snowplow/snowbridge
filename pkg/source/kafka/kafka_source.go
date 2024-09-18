@@ -42,6 +42,7 @@ type Configuration struct {
 	SASLUsername     string `hcl:"sasl_username,optional" `
 	SASLPassword     string `hcl:"sasl_password,optional"`
 	SASLAlgorithm    string `hcl:"sasl_algorithm,optional"`
+	EnableTLS        bool   `hcl:"enable_tls,optional"`
 	CertFile         string `hcl:"cert_file,optional"`
 	KeyFile          string `hcl:"key_file,optional"`
 	CaFile           string `hcl:"ca_file,optional"`
@@ -50,7 +51,6 @@ type Configuration struct {
 
 // kafkaSource holds a new client for reading messages from Apache Kafka
 type kafkaSource struct {
-	config           *sarama.Config
 	concurrentWrites int
 	topic            string
 	brokers          string
@@ -197,6 +197,7 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 		Assignor:         "range",
 		SASLAlgorithm:    "sha512",
 		ConcurrentWrites: 15,
+		EnableTLS:        false,
 	}
 
 	return cfg, nil
@@ -259,14 +260,14 @@ func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
 		}
 	}
 
+	// returns nil, nil if provided empty certs
 	tlsConfig, err := common.CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
-	if tlsConfig != nil {
-		saramaConfig.Net.TLS.Config = tlsConfig
-		saramaConfig.Net.TLS.Enable = true
-	}
+
+	saramaConfig.Net.TLS.Enable = cfg.EnableTLS
+	saramaConfig.Net.TLS.Config = tlsConfig
 
 	client, err := sarama.NewConsumerGroup(strings.Split(cfg.Brokers, ","), fmt.Sprintf(`%s-%s`, cfg.ConsumerName, cfg.TopicName), saramaConfig)
 	if err != nil {
