@@ -42,11 +42,13 @@ type HTTPTargetConfig struct {
 	Headers                 string `hcl:"headers,optional"`
 	BasicAuthUsername       string `hcl:"basic_auth_username,optional"`
 	BasicAuthPassword       string `hcl:"basic_auth_password,optional"`
-	CertFile                string `hcl:"cert_file,optional"`
-	KeyFile                 string `hcl:"key_file,optional"`
-	CaFile                  string `hcl:"ca_file,optional"`
-	SkipVerifyTLS           bool   `hcl:"skip_verify_tls,optional"` // false
-	DynamicHeaders          bool   `hcl:"dynamic_headers,optional"`
+
+	EnableTLS      bool   `hcl:"enable_tls,optional"`
+	CertFile       string `hcl:"cert_file,optional"`
+	KeyFile        string `hcl:"key_file,optional"`
+	CaFile         string `hcl:"ca_file,optional"`
+	SkipVerifyTLS  bool   `hcl:"skip_verify_tls,optional"` // false
+	DynamicHeaders bool   `hcl:"dynamic_headers,optional"`
 
 	OAuth2ClientID     string `hcl:"oauth2_client_id,optional"`
 	OAuth2ClientSecret string `hcl:"oauth2_client_secret,optional"`
@@ -146,6 +148,7 @@ func newHTTPTarget(
 	headers string,
 	basicAuthUsername string,
 	basicAuthPassword string,
+	enableTLS bool,
 	certFile string,
 	keyFile string,
 	caFile string,
@@ -171,7 +174,8 @@ func newHTTPTarget(
 	if err2 != nil {
 		return nil, err2
 	}
-	if tlsConfig != nil {
+
+	if enableTLS && tlsConfig != nil {
 		transport.TLSClientConfig = tlsConfig
 	}
 
@@ -273,6 +277,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.Headers,
 		c.BasicAuthUsername,
 		c.BasicAuthPassword,
+		c.EnableTLS,
 		c.CertFile,
 		c.KeyFile,
 		c.CaFile,
@@ -304,6 +309,7 @@ func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
 		RequestMaxMessages: 20,
 		RequestByteLimit:   1048576,
 		MessageByteLimit:   1048576,
+		EnableTLS:          false,
 
 		RequestTimeoutInSeconds: 5,
 		ContentType:             "application/json",
