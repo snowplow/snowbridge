@@ -38,6 +38,7 @@ type KafkaConfig struct {
 	SASLUsername   string `hcl:"sasl_username,optional"`
 	SASLPassword   string `hcl:"sasl_password,optional"`
 	SASLAlgorithm  string `hcl:"sasl_algorithm,optional"`
+	EnableTLS      bool   `hcl:"enable_tls,optional"`
 	CertFile       string `hcl:"cert_file,optional"`
 	KeyFile        string `hcl:"key_file,optional"`
 	CaFile         string `hcl:"ca_file,optional"`
@@ -111,14 +112,13 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		}
 	}
 
+	// returns nil if certs are empty
 	tlsConfig, err := common.CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
-	if tlsConfig != nil {
-		saramaConfig.Net.TLS.Config = tlsConfig
-		saramaConfig.Net.TLS.Enable = true
-	}
+	saramaConfig.Net.TLS.Enable = cfg.EnableTLS
+	saramaConfig.Net.TLS.Config = tlsConfig
 
 	var asyncResults chan *saramaResult = nil
 	var asyncProducer sarama.AsyncProducer = nil
@@ -187,6 +187,7 @@ func (f KafkaTargetAdapter) ProvideDefault() (interface{}, error) {
 		MaxRetries:    10,
 		ByteLimit:     1048576,
 		SASLAlgorithm: "sha512",
+		EnableTLS:     false,
 	}
 
 	return cfg, nil
