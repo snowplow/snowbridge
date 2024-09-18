@@ -32,6 +32,9 @@ target {
     # you could also reference an environment variable.
     basic_auth_password        = env.MY_AUTH_PASSWORD
 
+    # Whether to enable TLS
+    enable_tls = true
+
     # The optional certificate file for client authentication
     cert_file                  = "myLocalhost.crt"
 
