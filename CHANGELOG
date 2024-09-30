@@ -1,3 +1,20 @@
+Version 3.0.0 (2024-10-30)
+--------------------------
+Add JQ filter
+Patch bug in avg request latency calculation (#376)
+Update dependencies (#371)
+Add expiry config + base64 validation to the GTM SS preview header transformation
+Add boolean config to enable TLS (#370)
+Add configurable retries for target writes
+Add in memory source
+Add empty `/tmp/config.hcl` file to Dockerfile
+Feat/batch templating (#347)
+Remove env configuration
+Add a note on preserving transformation input
+Patch kinesis source leader action frequency setting
+Remove Lua transformation
+Add jq generic mapper transformation
+
 Version 2.4.2 (2024-09-05)
 --------------------------
 Use existing timestamp for request finish in measuring latency metrics
