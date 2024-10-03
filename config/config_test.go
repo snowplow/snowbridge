@@ -44,7 +44,7 @@ func TestNewConfig_NoConfig(t *testing.T) {
 	assert.Equal(c.Data.LogLevel, "info")
 	assert.Equal(c.Data.DisableTelemetry, false)
 	assert.Equal(c.Data.License.Accept, false)
-	assert.Equal(1, c.Data.Retry.Transient.Delay)
+	assert.Equal(2, c.Data.Retry.Transient.Delay)
 	assert.Equal(5, c.Data.Retry.Transient.MaxAttempts)
 	assert.Equal(20, c.Data.Retry.Setup.Delay)
 }
@@ -176,7 +176,7 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert.Equal(1, c.Data.StatsReceiver.TimeoutSec)
 	assert.Equal(15, c.Data.StatsReceiver.BufferSec)
 	assert.Equal("info", c.Data.LogLevel)
-	assert.Equal(1, c.Data.Retry.Transient.Delay)
+	assert.Equal(2, c.Data.Retry.Transient.Delay)
 	assert.Equal(5, c.Data.Retry.Transient.MaxAttempts)
 	assert.Equal(20, c.Data.Retry.Setup.Delay)
 }

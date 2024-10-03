@@ -135,7 +135,7 @@ func defaultConfigData() *configurationData {
 		},
 		Retry: &retryConfig{
 			Transient: &transientRetryConfig{
-				Delay:       1,
+				Delay:       2,
 				MaxAttempts: 5,
 			},
 			Setup: &setupRetryConfig{

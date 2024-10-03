@@ -290,7 +290,7 @@ func handleWrite(cfg *config.Config, write func() error) error {
 	})
 
 	onSetupError := retry.OnRetry(func(attempt uint, err error) {
-		log.Infof("Retrying setup target write - attempt: %d, error: %s\n", attempt, err)
+		log.Infof("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
 		// Here we can set unhealthy status + send monitoring alerts in the future. Nothing happens here now.
 	})
 
@@ -302,6 +302,7 @@ func handleWrite(cfg *config.Config, write func() error) error {
 		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay)*time.Second),
 		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally. Unlimited attempts don't make sense right now.
 		retry.Attempts(5),
+		retry.LastErrorOnly(true),
 		//enable when health check + monitoring implemented
 		// retry.Attempts(0), //unlimited
 	)
@@ -310,13 +311,13 @@ func handleWrite(cfg *config.Config, write func() error) error {
 		return err
 	}
 
-	log.Infof("Retrying transient target write - attempt: %d, error: %s\n", 0, err)
+	//If no setup, then handle as transient. We already had at least 1 attempt from above 'setup' retrying section.
+	log.Infof("Transient target write error. Starting retrying. error: %s\n", err)
 
-	onTransientError := retry.OnRetry(func(attempt uint, err error) {
-		log.Infof("Retrying transient target write - attempt: %d, error: %s\n", attempt+1, err)
+	onTransientError := retry.OnRetry(func(retry uint, err error) {
+		log.Infof("Retry failed with transient error. Retry counter: %d, error: %s\n", retry+1, err)
 	})
 
-	//If no setup, then handle as transient
 	err = retry.Do(
 		write,
 		onTransientError,
