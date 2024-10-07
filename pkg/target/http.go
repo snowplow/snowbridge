@@ -421,7 +421,6 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
 				for _, msg := range goodMsgs {
-					// can we use response body as an error message for invalid data?
 					msg.SetError(errors.New(response.Body))
 				}
 

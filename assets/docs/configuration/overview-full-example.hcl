@@ -90,16 +90,20 @@ stats_receiver {
   buffer_sec  = 20
 }
 
-// log level configuration (default: "info")
+# log level configuration (default: "info")
 log_level = "info"
 
-// Specifies how failed writes to the target should be retried, depending on an error type 
+# Specifies how failed writes to the target should be retried, depending on an error type 
 retry {
   transient {
+    # Initial delay (before first retry) for transient errors
     delay_ms = 1000 
+
+    # Maximum number of retries for transient errors
     max_attempts = 5 
   }
   setup {
+    # Initial delay (before first retry) for setup errors
     delay_ms = 20000
   }
 }
