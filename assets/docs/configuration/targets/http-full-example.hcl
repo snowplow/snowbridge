@@ -66,7 +66,8 @@ target {
     # Optional path to the file containing template which is used to build HTTP request based on a batch of input data
     template_file              = "myTemplate.file"
 
-    # 2 invalid + 1 setup error rules
+    # Optional HTTP response rules which are used to match HTTP response code/body and categorize it as either invalid data or target setup error.
+    # For example, we can have 2 invalid + 1 setup error rules:
     response_rules {
       # This one is a match when... 
       invalid {
