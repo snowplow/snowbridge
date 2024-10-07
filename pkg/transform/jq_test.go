@@ -212,7 +212,7 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 			Scenario:  "happy_path",
 			JQCommand: `{foo: .app_id}`,
 			InputMsg: &models.Message{
-				Data:         snowplowJSON1,
+				Data:         SnowplowJSON1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
