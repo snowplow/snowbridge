@@ -1,0 +1,6 @@
+{
+  "secret_key": "{{ env "SECRET_KEY" }}",
+  "data": [
+        {{ range $i, $data := . }} {{if $i}},{{end}} {{ prettyPrint .foo }} {{ end }}
+  ]
+}
