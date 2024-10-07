@@ -25,6 +25,7 @@ var SupportedTransformations = []config.ConfigurationPair{
 	filter.AtomicFilterConfigPair,
 	filter.UnstructFilterConfigPair,
 	filter.ContextFilterConfigPair,
+	filter.JQFilterConfigPair,
 	transform.SetPkConfigPair,
 	transform.EnrichedToJSONConfigPair,
 	transform.Base64DecodeConfigPair,
