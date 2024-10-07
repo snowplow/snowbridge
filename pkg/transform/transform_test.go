@@ -56,7 +56,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 
 	var expectedGood = []*models.Message{
 		{
-			Data:         snowplowJSON1,
+			Data:         SnowplowJSON1,
 			PartitionKey: "some-key",
 		},
 		{
@@ -117,7 +117,7 @@ func TestNewTransformation_Multiple(t *testing.T) {
 
 	var expectedGood = []*models.Message{
 		{
-			Data:         snowplowJSON1,
+			Data:         SnowplowJSON1,
 			PartitionKey: "test-data1",
 		},
 		{
