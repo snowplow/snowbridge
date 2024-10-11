@@ -28,17 +28,21 @@ import (
 
 // Configuration configures the source for records pulled
 type Configuration struct {
-	ProjectID        string `hcl:"project_id"`
-	SubscriptionID   string `hcl:"subscription_id"`
-	ConcurrentWrites int    `hcl:"concurrent_writes,optional"`
+	ProjectID              string `hcl:"project_id"`
+	SubscriptionID         string `hcl:"subscription_id"`
+	ConcurrentWrites       int    `hcl:"concurrent_writes,optional"`
+	MaxOutstandingMessages int    `hcl:"max_outstanding_messages,optional"`
+	MaxOutstandingBytes    int    `hcl:"max_outstanding_bytes,optional"`
 }
 
 // pubSubSource holds a new client for reading messages from PubSub
 type pubSubSource struct {
-	projectID        string
-	client           *pubsub.Client
-	subscriptionID   string
-	concurrentWrites int
+	projectID              string
+	client                 *pubsub.Client
+	subscriptionID         string
+	concurrentWrites       int
+	maxOutstandingMessages int
+	maxOutstandingBytes    int
 
 	log *log.Entry
 
@@ -52,6 +56,8 @@ func configFunction(c *Configuration) (sourceiface.Source, error) {
 		c.ConcurrentWrites,
 		c.ProjectID,
 		c.SubscriptionID,
+		c.MaxOutstandingMessages,
+		c.MaxOutstandingBytes,
 	)
 }
 
@@ -68,7 +74,9 @@ func (f adapter) Create(i interface{}) (interface{}, error) {
 func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
 	cfg := &Configuration{
-		ConcurrentWrites: 50,
+		ConcurrentWrites:       50,
+		MaxOutstandingMessages: 1000,
+		MaxOutstandingBytes:    1e9,
 	}
 
 	return cfg, nil
@@ -93,7 +101,7 @@ var ConfigPair = config.ConfigurationPair{
 }
 
 // newPubSubSource creates a new client for reading messages from PubSub
-func newPubSubSource(concurrentWrites int, projectID string, subscriptionID string) (*pubSubSource, error) {
+func newPubSubSource(concurrentWrites int, projectID string, subscriptionID string, maxOutstandingMessages, maxOutstandingBytes int) (*pubSubSource, error) {
 	ctx := context.Background()
 
 	// Ensures as even as possible distribution of UUIDs
@@ -105,11 +113,13 @@ func newPubSubSource(concurrentWrites int, projectID string, subscriptionID stri
 	}
 
 	return &pubSubSource{
-		projectID:        projectID,
-		client:           client,
-		subscriptionID:   subscriptionID,
-		concurrentWrites: concurrentWrites,
-		log:              log.WithFields(log.Fields{"source": "pubsub", "cloud": "GCP", "project": projectID, "subscription": subscriptionID}),
+		projectID:              projectID,
+		client:                 client,
+		subscriptionID:         subscriptionID,
+		concurrentWrites:       concurrentWrites,
+		maxOutstandingMessages: maxOutstandingMessages,
+		maxOutstandingBytes:    maxOutstandingBytes,
+		log:                    log.WithFields(log.Fields{"source": "pubsub", "cloud": "GCP", "project": projectID, "subscription": subscriptionID}),
 	}, nil
 }
 
@@ -121,6 +131,8 @@ func (ps *pubSubSource) Read(sf *sourceiface.SourceFunctions) error {
 
 	sub := ps.client.Subscription(ps.subscriptionID)
 	sub.ReceiveSettings.NumGoroutines = ps.concurrentWrites
+	sub.ReceiveSettings.MaxOutstandingMessages = ps.maxOutstandingMessages
+	sub.ReceiveSettings.MaxOutstandingBytes = ps.maxOutstandingBytes
 
 	cctx, cancel := context.WithCancel(ctx)
 
