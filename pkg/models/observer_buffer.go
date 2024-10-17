@@ -177,7 +177,7 @@ func (b *ObserverBuffer) GetAvgFilterLatency() time.Duration {
 
 // GetAvgRequestLatency calculates average request latency
 func (b *ObserverBuffer) GetAvgRequestLatency() time.Duration {
-	return common.GetAverageFromDuration(b.SumRequestLatency, b.MsgFiltered)
+	return common.GetAverageFromDuration(b.SumRequestLatency, b.MsgTotal)
 }
 
 func (b *ObserverBuffer) String() string {
