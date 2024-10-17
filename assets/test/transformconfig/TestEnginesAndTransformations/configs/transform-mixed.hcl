@@ -9,9 +9,3 @@ transform {
     script_path = env.JS_ALTER_AID_2_PATH
   }
 }
-
-transform {
-  use "lua" {
-    script_path = env.LUA_ADD_HELLO_PATH
-  }
-}

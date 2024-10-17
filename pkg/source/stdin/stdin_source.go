@@ -28,7 +28,7 @@ import (
 
 // Configuration configures the source for records pulled
 type Configuration struct {
-	ConcurrentWrites int `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
+	ConcurrentWrites int `hcl:"concurrent_writes,optional"`
 }
 
 // stdinSource holds a new client for reading messages from stdin

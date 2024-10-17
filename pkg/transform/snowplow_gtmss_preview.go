@@ -1,7 +1,9 @@
 package transform
 
 import (
+	"encoding/base64"
 	"errors"
+	"time"
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -11,6 +13,7 @@ import (
 
 // GTMSSPreviewConfig is a configuration object for the spEnrichedToJson transformation
 type GTMSSPreviewConfig struct {
+	Expiry int `hcl:"expiry_seconds,optional"`
 }
 
 // The gtmssPreviewAdapter implements the Pluggable interface
@@ -18,7 +21,8 @@ type gtmssPreviewAdapter func(i interface{}) (interface{}, error)
 
 // ProvideDefault implements the ComponentConfigurable interface
 func (f gtmssPreviewAdapter) ProvideDefault() (interface{}, error) {
-	return nil, nil
+	cfg := &GTMSSPreviewConfig{Expiry: 300} // seconds -> 5 minutes
+	return cfg, nil
 }
 
 // Create implements the ComponentCreator interface.
@@ -27,22 +31,24 @@ func (f gtmssPreviewAdapter) Create(i interface{}) (interface{}, error) {
 }
 
 // gtmssPreviewAdapterGenerator returns a gtmssPreviewAdapter
-func gtmssPreviewAdapterGenerator(f func() (TransformationFunction, error)) gtmssPreviewAdapter {
+func gtmssPreviewAdapterGenerator(f func(cfg *GTMSSPreviewConfig) (TransformationFunction, error)) gtmssPreviewAdapter {
 	return func(i interface{}) (interface{}, error) {
-		if i != nil {
+		cfg, ok := i.(*GTMSSPreviewConfig)
+		if !ok {
 			return nil, errors.New("unexpected configuration input for gtmssPreview transformation")
 		}
 
-		return f()
+		return f(cfg)
 	}
 }
 
 // gtmssPreviewConfigFunction returns a transformation function
-func gtmssPreviewConfigFunction() (TransformationFunction, error) {
+func gtmssPreviewConfigFunction(cfg *GTMSSPreviewConfig) (TransformationFunction, error) {
 	ctx := "contexts_com_google_tag-manager_server-side_preview_mode_1"
 	property := "x-gtm-server-preview"
 	header := "x-gtm-server-preview"
-	return gtmssPreviewTransformation(ctx, property, header), nil
+	expiry := time.Duration(cfg.Expiry) * time.Second
+	return gtmssPreviewTransformation(ctx, property, header, expiry), nil
 }
 
 // GTMSSPreviewConfigPair is the configuration pair for the gtmss preview transformation
@@ -52,12 +58,25 @@ var GTMSSPreviewConfigPair = config.ConfigurationPair{
 }
 
 // gtmssPreviewTransformation returns a transformation function
-func gtmssPreviewTransformation(ctx, property, headerKey string) TransformationFunction {
+func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Duration) TransformationFunction {
 	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
 		parsedEvent, err := IntermediateAsSpEnrichedParsed(interState, message)
 		if err != nil {
 			message.SetError(err)
 			return nil, nil, message, nil
+		}
+
+		tstamp, err := parsedEvent.GetValue("collector_tstamp")
+		if err != nil {
+			message.SetError(err)
+			return nil, nil, message, nil
+		}
+
+		if collectorTstamp, ok := tstamp.(time.Time); ok {
+			if time.Now().UTC().After(collectorTstamp.Add(expiry)) {
+				message.SetError(errors.New("Message has expired"))
+				return nil, nil, message, nil
+			}
 		}
 
 		headerVal, err := extractHeaderValue(parsedEvent, ctx, property)
@@ -96,6 +115,10 @@ func extractHeaderValue(parsedEvent analytics.ParsedEvent, ctx, prop string) (*s
 			return nil, errors.New("invalid header value")
 		}
 
+		_, err = base64.StdEncoding.DecodeString(headerVal)
+		if err != nil {
+			return nil, err
+		}
 		return &headerVal, nil
 	}
 

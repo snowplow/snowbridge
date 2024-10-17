@@ -12,7 +12,6 @@
 package releasetest
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -23,7 +22,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestE2ETransformations(t *testing.T) {
@@ -37,54 +35,10 @@ func TestE2ETransformations(t *testing.T) {
 
 // Helper function to evaluate tests for JSON data
 func evaluateTestCaseJSON(t *testing.T, actual []byte, expectedFilePath string, testCase string) {
-	assert := assert.New(t)
-
-	expectedChunk, err := os.ReadFile(expectedFilePath)
-	if err != nil {
-		panic(err)
-	}
 
 	foundData := getDataFromStdoutResult(actual)
 
-	expectedData := strings.Split(string(expectedChunk), "\n")
-
-	require.Equal(t, len(expectedData), len(foundData), testCase)
-
-	// Make maps of eid:data, so that we can match like for like events later
-	foundWithEids := make(map[string]string)
-	expectedWithEids := make(map[string]string)
-
-	for _, row := range foundData {
-		var asMap map[string]interface{}
-		err = json.Unmarshal([]byte(row), &asMap)
-		if err != nil {
-			panic(err)
-		}
-		eid, ok := asMap["event_id"].(string)
-		require.True(t, ok)
-		// Make a map entry with Eid Key
-		foundWithEids[eid] = row
-
-	}
-
-	for _, row := range expectedData {
-
-		var asMap map[string]interface{}
-		err = json.Unmarshal([]byte(row), &asMap)
-		if err != nil {
-			panic(err)
-		}
-		eid, ok := asMap["event_id"].(string)
-		require.True(t, ok)
-		expectedWithEids[eid] = row
-	}
-
-	// Iterate and assert against the values. Since we require equal lengths above, we don't need to check for entries existing in one but not the other.
-	for foundEid, foundValue := range foundWithEids {
-
-		assert.JSONEq(foundValue, expectedWithEids[foundEid], testCase)
-
-	}
+	evaluateTestCaseJSONString(t, foundData, expectedFilePath, testCase)
 
 }
 
@@ -125,20 +79,9 @@ func getFileMountArg(testCase string) string {
 		panic(err)
 	}
 
-	LuaScriptFilePath, err := filepath.Abs(filepath.Join("cases", "transformations", testCase, "script.lua"))
-	if err != nil {
-		panic(err)
-	}
-
 	// Check if we have a script & mount it if so
 	if _, err := os.Stat(JSScriptFilePath); err == nil {
 		return fmt.Sprintf("--mount type=bind,source=%s,target=/script.js", JSScriptFilePath)
-	} else if !errors.Is(err, os.ErrNotExist) {
-		panic(err)
-	}
-
-	if _, err := os.Stat(LuaScriptFilePath); err == nil {
-		return fmt.Sprintf("--mount type=bind,source=%s,target=/script.lua", LuaScriptFilePath)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		panic(err)
 	}
@@ -149,7 +92,7 @@ func getFileMountArg(testCase string) string {
 func testE2ETransformTSVCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct", "jsPlainFilter", "jsPlainTransform", "luaPlainFilter", "luaPlainTransform"}
+	casesToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstruct", "jsPlainFilter", "jsPlainTransform"}
 
 	for _, testCase := range casesToTest {
 
@@ -204,7 +147,7 @@ func testE2ETransformJSONCases(t *testing.T) {
 func testE2ETransformPKCases(t *testing.T) {
 	assert := assert.New(t)
 
-	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk", "luaPlainSetPk"}
+	casesToTest := []string{"spEnrichedSetPk", "jsSnowplowSetPk", "jsPlainSetPk"}
 
 	for _, testCase := range casesToTest {
 

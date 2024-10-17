@@ -1,0 +1,4 @@
+{
+  "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{.attribute_data}}{{end}}],
+  "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{prettyPrint .event_data}}{{end}}]
+}

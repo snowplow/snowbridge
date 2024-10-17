@@ -30,7 +30,7 @@ var SupportedTransformations = []config.ConfigurationPair{
 	transform.Base64DecodeConfigPair,
 	transform.Base64EncodeConfigPair,
 	transform.GTMSSPreviewConfigPair,
-	engine.LuaConfigPair,
+	transform.JQMapperConfigPair,
 	engine.JSConfigPair,
 }
 

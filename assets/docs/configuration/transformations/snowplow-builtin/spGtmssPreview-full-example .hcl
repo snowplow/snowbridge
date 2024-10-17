@@ -1,4 +1,0 @@
-transform {
-  use "spGtmssPreview" {
-  }
-}

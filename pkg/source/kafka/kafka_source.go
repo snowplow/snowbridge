@@ -30,27 +30,27 @@ import (
 
 // Configuration configures the source for records
 type Configuration struct {
-	Brokers        string `hcl:"brokers" env:"SOURCE_KAFKA_BROKERS"`
-	TopicName      string `hcl:"topic_name" env:"SOURCE_KAFKA_TOPIC_NAME"`
-	ConsumerName   string `hcl:"consumer_name" env:"SOURCE_KAFKA_CONSUMER_NAME"`
-	OffsetsInitial int64  `hcl:"offsets_initial" env:"SOURCE_KAFKA_OFFSETS_INITIAL"`
+	Brokers        string `hcl:"brokers"`
+	TopicName      string `hcl:"topic_name"`
+	ConsumerName   string `hcl:"consumer_name"`
+	OffsetsInitial int64  `hcl:"offsets_initial"`
 
-	ConcurrentWrites int    `hcl:"concurrent_writes,optional" env:"SOURCE_CONCURRENT_WRITES"`
-	Assignor         string `hcl:"assignor,optional" env:"SOURCE_KAFKA_ASSIGNOR"`
-	TargetVersion    string `hcl:"target_version,optional" env:"SOURCE_KAFKA_SOURCE_VERSION"`
-	EnableSASL       bool   `hcl:"enable_sasl,optional" env:"SOURCE_KAFKA_ENABLE_SASL"`
-	SASLUsername     string `hcl:"sasl_username,optional" env:"SOURCE_KAFKA_SASL_USERNAME" `
-	SASLPassword     string `hcl:"sasl_password,optional" env:"SOURCE_KAFKA_SASL_PASSWORD"`
-	SASLAlgorithm    string `hcl:"sasl_algorithm,optional" env:"SOURCE_KAFKA_SASL_ALGORITHM"`
-	CertFile         string `hcl:"cert_file,optional" env:"SOURCE_KAFKA_TLS_CERT_FILE"`
-	KeyFile          string `hcl:"key_file,optional" env:"SOURCE_KAFKA_TLS_KEY_FILE"`
-	CaFile           string `hcl:"ca_file,optional" env:"SOURCE_KAFKA_TLS_CA_FILE"`
-	SkipVerifyTLS    bool   `hcl:"skip_verify_tls,optional" env:"SOURCE_KAFKA_TLS_SKIP_VERIFY_TLS"`
+	ConcurrentWrites int    `hcl:"concurrent_writes,optional"`
+	Assignor         string `hcl:"assignor,optional"`
+	TargetVersion    string `hcl:"target_version,optional"`
+	EnableSASL       bool   `hcl:"enable_sasl,optional"`
+	SASLUsername     string `hcl:"sasl_username,optional" `
+	SASLPassword     string `hcl:"sasl_password,optional"`
+	SASLAlgorithm    string `hcl:"sasl_algorithm,optional"`
+	EnableTLS        bool   `hcl:"enable_tls,optional"`
+	CertFile         string `hcl:"cert_file,optional"`
+	KeyFile          string `hcl:"key_file,optional"`
+	CaFile           string `hcl:"ca_file,optional"`
+	SkipVerifyTLS    bool   `hcl:"skip_verify_tls,optional"`
 }
 
 // kafkaSource holds a new client for reading messages from Apache Kafka
 type kafkaSource struct {
-	config           *sarama.Config
 	concurrentWrites int
 	topic            string
 	brokers          string
@@ -197,6 +197,7 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 		Assignor:         "range",
 		SASLAlgorithm:    "sha512",
 		ConcurrentWrites: 15,
+		EnableTLS:        false,
 	}
 
 	return cfg, nil
@@ -259,14 +260,14 @@ func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
 		}
 	}
 
+	// returns nil, nil if provided empty certs
 	tlsConfig, err := common.CreateTLSConfiguration(cfg.CertFile, cfg.KeyFile, cfg.CaFile, cfg.SkipVerifyTLS)
 	if err != nil {
 		return nil, err
 	}
-	if tlsConfig != nil {
-		saramaConfig.Net.TLS.Config = tlsConfig
-		saramaConfig.Net.TLS.Enable = true
-	}
+
+	saramaConfig.Net.TLS.Enable = cfg.EnableTLS
+	saramaConfig.Net.TLS.Config = tlsConfig
 
 	client, err := sarama.NewConsumerGroup(strings.Split(cfg.Brokers, ","), fmt.Sprintf(`%s-%s`, cfg.ConsumerName, cfg.TopicName), saramaConfig)
 	if err != nil {

@@ -12,6 +12,7 @@
 package releasetest
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -131,5 +132,54 @@ func evaluateTestCaseString(t *testing.T, foundData []string, expectedFilePath s
 
 	for i, expected := range expectedData {
 		assert.Equal(expected, foundData[i], testCase)
+	}
+}
+
+func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePath string, testCase string) {
+	assert := assert.New(t)
+
+	expectedChunk, err := os.ReadFile(expectedFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	expectedData := strings.Split(string(expectedChunk), "\n")
+
+	require.Equal(t, len(expectedData), len(foundData), testCase)
+
+	// Make maps of eid:data, so that we can match like for like events later
+	foundWithEids := make(map[string]string)
+	expectedWithEids := make(map[string]string)
+
+	for _, row := range foundData {
+		var asMap map[string]interface{}
+		err = json.Unmarshal([]byte(row), &asMap)
+		if err != nil {
+			panic(err)
+		}
+		eid, ok := asMap["event_id"].(string)
+		require.True(t, ok)
+		// Make a map entry with Eid Key
+		foundWithEids[eid] = row
+
+	}
+
+	for _, row := range expectedData {
+
+		var asMap map[string]interface{}
+		err = json.Unmarshal([]byte(row), &asMap)
+		if err != nil {
+			panic(err)
+		}
+		eid, ok := asMap["event_id"].(string)
+		require.True(t, ok)
+		expectedWithEids[eid] = row
+	}
+
+	// Iterate and assert against the values. Since we require equal lengths above, we don't need to check for entries existing in one but not the other.
+	for foundEid, foundValue := range foundWithEids {
+
+		assert.JSONEq(foundValue, expectedWithEids[foundEid], testCase)
+
 	}
 }

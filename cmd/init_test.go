@@ -13,9 +13,13 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/snowplow/snowbridge/assets"
 )
 
 func TestMain(m *testing.M) {
@@ -43,6 +47,9 @@ func TestHandleSLULAEnvVar(t *testing.T) {
 func TestInit_Success(t *testing.T) {
 	assert := assert.New(t)
 
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
 	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "yes")
 
 	cfg, _, err := Init()
@@ -50,8 +57,11 @@ func TestInit_Success(t *testing.T) {
 	assert.Nil(err)
 }
 
-func TestInit_SLULAFailre(t *testing.T) {
+func TestInit_SLULAFailure(t *testing.T) {
 	assert := assert.New(t)
+
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)
@@ -61,26 +71,29 @@ func TestInit_SLULAFailre(t *testing.T) {
 	}
 }
 
-func TestInit_Failure(t *testing.T) {
+func TestInit_NewConfigFailure(t *testing.T) {
 	assert := assert.New(t)
 
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "fail.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
 	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "on")
-	t.Setenv("STATS_RECEIVER_TIMEOUT_SEC", "debug")
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to build config: Error parsing env config: env: parse error on field \"TimeoutSec\" of type \"int\": strconv.ParseInt: parsing \"debug\": invalid syntax", err.Error())
+		assert.Equal(strings.Contains(err.Error(), "Failed to build config"), true)
 	}
 }
 
 func TestInit_Success_Sentry(t *testing.T) {
 	assert := assert.New(t)
 
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "sentry-valid.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
 	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "1")
-	t.Setenv("SENTRY_DSN", "https://1111111111111111111111111111111d@sentry.snplow.net/28")
-	t.Setenv("SENTRY_TAGS", "{\"client_name\":\"com.acme\"}")
 
 	cfg, _, err := Init()
 	assert.NotNil(cfg)
@@ -89,6 +102,9 @@ func TestInit_Success_Sentry(t *testing.T) {
 
 func TestInit_Failure_LogLevel(t *testing.T) {
 	assert := assert.New(t)
+
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "invalids.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
 
 	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "true")
 	t.Setenv("LOG_LEVEL", "DEBUG")
@@ -104,8 +120,10 @@ func TestInit_Failure_LogLevel(t *testing.T) {
 func TestInit_Failure_SentryDSN(t *testing.T) {
 	assert := assert.New(t)
 
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "sentry.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
 	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "yes")
-	t.Setenv("SENTRY_DSN", "blahblah")
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)
@@ -118,9 +136,10 @@ func TestInit_Failure_SentryDSN(t *testing.T) {
 func TestInit_Failure_SentryTags(t *testing.T) {
 	assert := assert.New(t)
 
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "sentry-invalid-tags.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
 	t.Setenv("ACCEPT_LIMITED_USE_LICENSE", "yes")
-	t.Setenv("SENTRY_DSN", "https://1111111111111111111111111111111d@sentry.snplow.net/28")
-	t.Setenv("SENTRY_TAGS", "asdasdasd")
 
 	cfg, _, err := Init()
 	assert.Nil(cfg)

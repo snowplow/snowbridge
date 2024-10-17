@@ -41,11 +41,11 @@ const (
 
 // KinesisTargetConfig configures the destination for records consumed
 type KinesisTargetConfig struct {
-	StreamName         string `hcl:"stream_name" env:"TARGET_KINESIS_STREAM_NAME"`
-	Region             string `hcl:"region" env:"TARGET_KINESIS_REGION"`
-	RoleARN            string `hcl:"role_arn,optional" env:"TARGET_KINESIS_ROLE_ARN"`
-	RequestMaxMessages int    `hcl:"request_max_messages,optional" env:"TARGET_KINESIS_REQUEST_MAX_MESSAGES"`
-	CustomAWSEndpoint  string `hcl:"custom_aws_endpoint,optional" env:"SOURCE_CUSTOM_AWS_ENDPOINT"`
+	StreamName         string `hcl:"stream_name"`
+	Region             string `hcl:"region"`
+	RoleARN            string `hcl:"role_arn,optional"`
+	RequestMaxMessages int    `hcl:"request_max_messages,optional"`
+	CustomAWSEndpoint  string `hcl:"custom_aws_endpoint,optional"`
 }
 
 // KinesisTarget holds a new client for writing messages to kinesis
