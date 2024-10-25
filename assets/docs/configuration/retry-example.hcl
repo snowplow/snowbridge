@@ -1,9 +1,9 @@
 retry {
   transient {
-    delay_sec = 5 
+    delay_ms = 5000 
     max_attempts = 10 
   }
   setup {
-    delay_sec = 30
+    delay_ms = 30000
   }
 }

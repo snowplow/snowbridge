@@ -290,7 +290,7 @@ func handleWrite(cfg *config.Config, write func() error) error {
 	})
 
 	onSetupError := retry.OnRetry(func(attempt uint, err error) {
-		log.Infof("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
+		log.Warnf("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
 		// Here we can set unhealthy status + send monitoring alerts in the future. Nothing happens here now.
 	})
 
@@ -299,7 +299,7 @@ func handleWrite(cfg *config.Config, write func() error) error {
 		write,
 		retryOnlySetupErrors,
 		onSetupError,
-		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay)*time.Second),
+		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay) * time.Millisecond),
 		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally. Unlimited attempts don't make sense right now.
 		retry.Attempts(5),
 		retry.LastErrorOnly(true),
@@ -311,17 +311,21 @@ func handleWrite(cfg *config.Config, write func() error) error {
 		return err
 	}
 
-	//If no setup, then handle as transient. We already had at least 1 attempt from above 'setup' retrying section.
-	log.Infof("Transient target write error. Starting retrying. error: %s\n", err)
+	// If no setup, then handle as transient.
+	log.Warnf("Transient target write error. Starting retrying. error: %s\n", err)
+
+	// We already had at least 1 attempt from above 'setup' retrying section, so before we start transient retrying we need add 'manual' initial delay.
+	time.Sleep(time.Duration(cfg.Data.Retry.Transient.Delay) * time.Millisecond)
 
 	onTransientError := retry.OnRetry(func(retry uint, err error) {
-		log.Infof("Retry failed with transient error. Retry counter: %d, error: %s\n", retry+1, err)
+		log.Warnf("Retry failed with transient error. Retry counter: %d, error: %s\n", retry+1, err)
 	})
 
 	err = retry.Do(
 		write,
 		onTransientError,
-		retry.Delay(time.Duration(cfg.Data.Retry.Transient.Delay)*time.Second),
+		// * 2 because we have initial sleep above
+		retry.Delay(time.Duration(cfg.Data.Retry.Transient.Delay*2) * time.Millisecond),
 		retry.Attempts(uint(cfg.Data.Retry.Transient.MaxAttempts)),
 		retry.LastErrorOnly(true),
 	)

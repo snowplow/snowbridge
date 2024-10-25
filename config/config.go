@@ -101,12 +101,12 @@ type retryConfig struct {
 }
 
 type transientRetryConfig struct {
-	Delay       int `hcl:"delay_sec,optional"`
+	Delay       int `hcl:"delay_ms,optional"`
 	MaxAttempts int `hcl:"max_attempts,optional"`
 }
 
 type setupRetryConfig struct {
-	Delay int `hcl:"delay_sec,optional"`
+	Delay int `hcl:"delay_ms,optional"`
 }
 
 // defaultConfigData returns the initial main configuration target.
@@ -135,11 +135,11 @@ func defaultConfigData() *configurationData {
 		},
 		Retry: &retryConfig{
 			Transient: &transientRetryConfig{
-				Delay:       2,
+				Delay:       1000,
 				MaxAttempts: 5,
 			},
 			Setup: &setupRetryConfig{
-				Delay: 20,
+				Delay: 20000,
 			},
 		},
 	}

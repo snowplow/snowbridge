@@ -26,7 +26,7 @@ func TestRetryConfigDocumentation(t *testing.T) {
 
 	retryConfig := c.Data.Retry
 	assert.NotNil(retryConfig)
-	assert.Equal(5, retryConfig.Transient.Delay)
+	assert.Equal(5000, retryConfig.Transient.Delay)
 	assert.Equal(10, retryConfig.Transient.MaxAttempts)
-	assert.Equal(30, retryConfig.Setup.Delay)
+	assert.Equal(30000, retryConfig.Setup.Delay)
 }
