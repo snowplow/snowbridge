@@ -28,21 +28,25 @@ import (
 
 // Configuration configures the source for records pulled
 type Configuration struct {
-	ProjectID              string `hcl:"project_id"`
-	SubscriptionID         string `hcl:"subscription_id"`
-	ConcurrentWrites       int    `hcl:"concurrent_writes,optional"`
-	MaxOutstandingMessages int    `hcl:"max_outstanding_messages,optional"`
-	MaxOutstandingBytes    int    `hcl:"max_outstanding_bytes,optional"`
+	ProjectID                 string `hcl:"project_id"`
+	SubscriptionID            string `hcl:"subscription_id"`
+	ConcurrentWrites          int    `hcl:"concurrent_writes,optional"`
+	MaxOutstandingMessages    int    `hcl:"max_outstanding_messages,optional"`
+	MaxOutstandingBytes       int    `hcl:"max_outstanding_bytes,optional"`
+	minExtensionPeriodSeconds int    `hcl:"min_extension_period_seconds"`
+	streamingPullGoRoutines   int    `hcl:"streaming_pull_goroutines"`
 }
 
 // pubSubSource holds a new client for reading messages from PubSub
 type pubSubSource struct {
-	projectID              string
-	client                 *pubsub.Client
-	subscriptionID         string
-	concurrentWrites       int
-	maxOutstandingMessages int
-	maxOutstandingBytes    int
+	projectID                 string
+	client                    *pubsub.Client
+	subscriptionID            string
+	concurrentWrites          int
+	maxOutstandingMessages    int
+	maxOutstandingBytes       int
+	minExtensionPeriodSeconds int
+	streamingPullGoRoutines   int
 
 	log *log.Entry
 
@@ -58,6 +62,8 @@ func configFunction(c *Configuration) (sourceiface.Source, error) {
 		c.SubscriptionID,
 		c.MaxOutstandingMessages,
 		c.MaxOutstandingBytes,
+		c.minExtensionPeriodSeconds,
+		c.streamingPullGoRoutines,
 	)
 }
 
@@ -74,9 +80,11 @@ func (f adapter) Create(i interface{}) (interface{}, error) {
 func (f adapter) ProvideDefault() (interface{}, error) {
 	// Provide defaults
 	cfg := &Configuration{
-		ConcurrentWrites:       50,
-		MaxOutstandingMessages: 1000,
-		MaxOutstandingBytes:    1e9,
+		ConcurrentWrites:          50,
+		MaxOutstandingMessages:    1000,
+		MaxOutstandingBytes:       1e9,
+		minExtensionPeriodSeconds: 0,
+		streamingPullGoRoutines:   1,
 	}
 
 	return cfg, nil
@@ -101,7 +109,7 @@ var ConfigPair = config.ConfigurationPair{
 }
 
 // newPubSubSource creates a new client for reading messages from PubSub
-func newPubSubSource(concurrentWrites int, projectID string, subscriptionID string, maxOutstandingMessages, maxOutstandingBytes int) (*pubSubSource, error) {
+func newPubSubSource(concurrentWrites int, projectID string, subscriptionID string, maxOutstandingMessages, maxOutstandingBytes int, minExtensionPeriodSeconds int, streamingPullGoRoutines int) (*pubSubSource, error) {
 	ctx := context.Background()
 
 	// Ensures as even as possible distribution of UUIDs
@@ -113,13 +121,15 @@ func newPubSubSource(concurrentWrites int, projectID string, subscriptionID stri
 	}
 
 	return &pubSubSource{
-		projectID:              projectID,
-		client:                 client,
-		subscriptionID:         subscriptionID,
-		concurrentWrites:       concurrentWrites,
-		maxOutstandingMessages: maxOutstandingMessages,
-		maxOutstandingBytes:    maxOutstandingBytes,
-		log:                    log.WithFields(log.Fields{"source": "pubsub", "cloud": "GCP", "project": projectID, "subscription": subscriptionID}),
+		projectID:                 projectID,
+		client:                    client,
+		subscriptionID:            subscriptionID,
+		concurrentWrites:          concurrentWrites,
+		maxOutstandingMessages:    maxOutstandingMessages,
+		maxOutstandingBytes:       maxOutstandingBytes,
+		minExtensionPeriodSeconds: minExtensionPeriodSeconds, // default to off to match client default
+		streamingPullGoRoutines:   streamingPullGoRoutines,
+		log:                       log.WithFields(log.Fields{"source": "pubsub", "cloud": "GCP", "project": projectID, "subscription": subscriptionID}),
 	}, nil
 }
 
@@ -130,9 +140,10 @@ func (ps *pubSubSource) Read(sf *sourceiface.SourceFunctions) error {
 	ps.log.Info("Reading messages from subscription ...")
 
 	sub := ps.client.Subscription(ps.subscriptionID)
-	sub.ReceiveSettings.NumGoroutines = ps.concurrentWrites
-	sub.ReceiveSettings.MaxOutstandingMessages = ps.maxOutstandingMessages
+	sub.ReceiveSettings.NumGoroutines = ps.streamingPullGoRoutines   // This sets the number of goroutines that can open a streaming pull at once, not the concurrency
+	sub.ReceiveSettings.MaxOutstandingMessages = ps.concurrentWrites // maxOutstandingMessages limits concurrency
 	sub.ReceiveSettings.MaxOutstandingBytes = ps.maxOutstandingBytes
+	sub.ReceiveSettings.MinExtensionPeriod = time.Duration(ps.minExtensionPeriodSeconds) * time.Second
 
 	cctx, cancel := context.WithCancel(ctx)
 
