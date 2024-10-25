@@ -33,8 +33,8 @@ type Configuration struct {
 	ConcurrentWrites          int    `hcl:"concurrent_writes,optional"`
 	MaxOutstandingMessages    int    `hcl:"max_outstanding_messages,optional"`
 	MaxOutstandingBytes       int    `hcl:"max_outstanding_bytes,optional"`
-	minExtensionPeriodSeconds int    `hcl:"min_extension_period_seconds"`
-	streamingPullGoRoutines   int    `hcl:"streaming_pull_goroutines"`
+	minExtensionPeriodSeconds int    `hcl:"min_extension_period_seconds,optional"`
+	streamingPullGoRoutines   int    `hcl:"streaming_pull_goroutines,optional"`
 }
 
 // pubSubSource holds a new client for reading messages from PubSub

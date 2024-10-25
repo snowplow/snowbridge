@@ -13,6 +13,7 @@ package pubsubsource
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -82,6 +83,9 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 
 	assert.NotNil(pubsubSource)
 	assert.Nil(err)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
 	output := testutil.ReadAndReturnMessages(pubsubSource, 5*time.Second, testutil.DefaultTestWriteBuilder, nil)
