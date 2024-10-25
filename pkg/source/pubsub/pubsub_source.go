@@ -33,8 +33,8 @@ type Configuration struct {
 	ConcurrentWrites          int    `hcl:"concurrent_writes,optional"`
 	MaxOutstandingMessages    int    `hcl:"max_outstanding_messages,optional"`
 	MaxOutstandingBytes       int    `hcl:"max_outstanding_bytes,optional"`
-	minExtensionPeriodSeconds int    `hcl:"min_extension_period_seconds,optional"`
-	streamingPullGoRoutines   int    `hcl:"streaming_pull_goroutines,optional"`
+	MinExtensionPeriodSeconds int    `hcl:"min_extension_period_seconds,optional"`
+	StreamingPullGoRoutines   int    `hcl:"streaming_pull_goroutines,optional"`
 }
 
 // pubSubSource holds a new client for reading messages from PubSub
@@ -62,8 +62,8 @@ func configFunction(c *Configuration) (sourceiface.Source, error) {
 		c.SubscriptionID,
 		c.MaxOutstandingMessages,
 		c.MaxOutstandingBytes,
-		c.minExtensionPeriodSeconds,
-		c.streamingPullGoRoutines,
+		c.MinExtensionPeriodSeconds,
+		c.StreamingPullGoRoutines,
 	)
 }
 
@@ -83,8 +83,8 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 		ConcurrentWrites:          50,
 		MaxOutstandingMessages:    1000,
 		MaxOutstandingBytes:       1e9,
-		minExtensionPeriodSeconds: 0,
-		streamingPullGoRoutines:   1,
+		MinExtensionPeriodSeconds: 0,
+		StreamingPullGoRoutines:   1,
 	}
 
 	return cfg, nil
