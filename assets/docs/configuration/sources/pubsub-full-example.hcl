@@ -16,5 +16,9 @@ source {
 
     # Maximum size of unprocessed messages (default 1e9)
     max_outstanding_bytes = 2e9
+
+    min_extension_period_seconds = 10
+
+    streaming_pull_goroutines = 2
   }
 }
