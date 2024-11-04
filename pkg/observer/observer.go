@@ -64,7 +64,7 @@ func (o *Observer) Start() {
 	o.isRunning = true
 
 	go func() {
-		reportTime := time.Now().Add(o.reportInterval)
+		reportTime := time.Now().UTC().Add(o.reportInterval)
 		buffer := models.ObserverBuffer{}
 
 	ObserverLoop:
@@ -93,13 +93,13 @@ func (o *Observer) Start() {
 				o.log.Debugf("Observer timed out after (%v) waiting for result", o.timeout)
 			}
 
-			if time.Now().After(reportTime) {
+			if time.Now().UTC().After(reportTime) {
 				o.log.Infof(buffer.String())
 				if o.statsClient != nil {
 					o.statsClient.Send(&buffer)
 				}
 
-				reportTime = time.Now().Add(o.reportInterval)
+				reportTime = time.Now().UTC().Add(o.reportInterval)
 				buffer = models.ObserverBuffer{}
 			}
 		}
