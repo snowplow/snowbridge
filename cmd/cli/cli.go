@@ -57,7 +57,7 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 	app.Usage = appUsage
 	app.Version = appVersion
 	app.Copyright = appCopyright
-	app.Compiled = time.Now()
+	app.Compiled = time.Now().UTC()
 	app.Authors = []cli.Author{
 		{
 			Name:  "Joshua Beemster",
@@ -299,7 +299,7 @@ func handleWrite(cfg *config.Config, write func() error) error {
 		write,
 		retryOnlySetupErrors,
 		onSetupError,
-		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay) * time.Millisecond),
+		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay)*time.Millisecond),
 		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally. Unlimited attempts don't make sense right now.
 		retry.Attempts(5),
 		retry.LastErrorOnly(true),
@@ -325,7 +325,7 @@ func handleWrite(cfg *config.Config, write func() error) error {
 		write,
 		onTransientError,
 		// * 2 because we have initial sleep above
-		retry.Delay(time.Duration(cfg.Data.Retry.Transient.Delay*2) * time.Millisecond),
+		retry.Delay(time.Duration(cfg.Data.Retry.Transient.Delay*2)*time.Millisecond),
 		retry.Attempts(uint(cfg.Data.Retry.Transient.MaxAttempts)),
 		retry.LastErrorOnly(true),
 	)

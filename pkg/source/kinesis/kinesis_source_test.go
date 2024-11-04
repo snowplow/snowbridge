@@ -188,7 +188,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	}
 
 	time.Sleep(1 * time.Second) // Put a 1s buffer either side of the start timestamp
-	timeToStart := time.Now()
+	timeToStart := time.Now().UTC()
 	time.Sleep(1 * time.Second)
 
 	putErr2 := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "Second batch")
