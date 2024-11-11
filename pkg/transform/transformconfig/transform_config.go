@@ -40,6 +40,10 @@ var SupportedTransformations = []config.ConfigurationPair{
 func GetTransformations(c *config.Config, supportedTransformations []config.ConfigurationPair) (transform.TransformationApplyFunction, error) {
 	funcs := make([]transform.TransformationFunction, 0)
 
+	if c.Data.Metrics.E2ELatencyEnabled {
+		funcs = append(funcs, transform.CollectorTstampTransformation())
+	}
+
 	for _, transformation := range c.Data.Transformations {
 
 		useTransf := transformation.Use

@@ -56,6 +56,7 @@ type configurationData struct {
 	DisableTelemetry bool           `hcl:"disable_telemetry,optional"`
 	License          *licenseConfig `hcl:"license,block"`
 	Retry            *retryConfig   `hcl:"retry,block"`
+	Metrics          *metricsConfig `hcl:"metrics,block"`
 }
 
 // component is a type to abstract over configuration blocks.
@@ -100,6 +101,10 @@ type retryConfig struct {
 	Setup     *setupRetryConfig     `hcl:"setup,block"`
 }
 
+type metricsConfig struct {
+	E2ELatencyEnabled bool `hcl:"enable_e2e_latency,optional"`
+}
+
 type transientRetryConfig struct {
 	Delay       int `hcl:"delay_ms,optional"`
 	MaxAttempts int `hcl:"max_attempts,optional"`
@@ -141,6 +146,9 @@ func defaultConfigData() *configurationData {
 			Setup: &setupRetryConfig{
 				Delay: 20000,
 			},
+		},
+		Metrics: &metricsConfig{
+			E2ELatencyEnabled: false,
 		},
 	}
 }
@@ -359,7 +367,7 @@ func (c *Config) getStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	switch useReceiver.Name {
 	case "statsd":
 		plug := statsreceiver.AdaptStatsDStatsReceiverFunc(
-			statsreceiver.NewStatsDReceiverWithTags(tags),
+			statsreceiver.NewStatsDReceiverWithTags(tags, c.Data.Metrics.E2ELatencyEnabled),
 		)
 		component, err := c.CreateComponent(plug, decoderOpts)
 		if err != nil {

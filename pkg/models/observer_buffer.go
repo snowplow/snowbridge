@@ -52,6 +52,9 @@ type ObserverBuffer struct {
 	MaxRequestLatency   time.Duration
 	MinRequestLatency   time.Duration
 	SumRequestLatency   time.Duration
+	MaxE2ELatency       time.Duration
+	MinE2ELatency       time.Duration
+	SumE2ELatency       time.Duration
 }
 
 // AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
@@ -128,6 +131,14 @@ func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
 		b.MinRequestLatency = res.MinRequestLatency
 	}
 	b.SumRequestLatency += res.AvgRequestLatency
+
+	if b.MaxE2ELatency < res.MaxE2ELatency {
+		b.MaxE2ELatency = res.MaxE2ELatency
+	}
+	if b.MinE2ELatency > res.MinE2ELatency || b.MinE2ELatency == time.Duration(0) {
+		b.MinE2ELatency = res.MinE2ELatency
+	}
+	b.SumE2ELatency += res.AvgE2ELatency
 }
 
 // AppendFiltered adds a FilterResult onto the buffer and stores the result
@@ -180,9 +191,14 @@ func (b *ObserverBuffer) GetAvgRequestLatency() time.Duration {
 	return common.GetAverageFromDuration(b.SumRequestLatency, b.MsgTotal)
 }
 
+// GetAvgE2ELatency calculates average E2E latency
+func (b *ObserverBuffer) GetAvgE2ELatency() time.Duration {
+	return common.GetAverageFromDuration(b.SumE2ELatency, b.MsgTotal)
+}
+
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d,SumTransformLatency:%d,SumProcLatency:%d,SumMsgLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d",
+		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d,SumTransformLatency:%d,SumProcLatency:%d,SumMsgLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d,SumE2ELatency:%d",
 		b.TargetResults,
 		b.MsgFiltered,
 		b.MsgSent,
@@ -203,5 +219,8 @@ func (b *ObserverBuffer) String() string {
 		b.MinRequestLatency.Milliseconds(),
 		b.MaxRequestLatency.Milliseconds(),
 		b.SumRequestLatency.Milliseconds(),
+		b.MinE2ELatency.Milliseconds(),
+		b.MaxE2ELatency.Milliseconds(),
+		b.SumE2ELatency.Milliseconds(),
 	)
 }
