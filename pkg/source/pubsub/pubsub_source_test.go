@@ -13,6 +13,7 @@ package pubsubsource
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -82,6 +83,9 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 
 	assert.NotNil(pubsubSource)
 	assert.Nil(err)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
 	output := testutil.ReadAndReturnMessages(pubsubSource, 5*time.Second, testutil.DefaultTestWriteBuilder, nil)
@@ -116,7 +120,7 @@ func TestNewPubSubSource_Success(t *testing.T) {
 
 	testutil.InitMockPubsubServer(8010, nil, t)
 
-	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub")
+	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub", 1000, 1e9, 0, 1, 0)
 	assert.Nil(err)
 	assert.IsType(&pubSubSource{}, pubsubSource)
 	// This should return an error when we can't connect, rather than proceeding to the Write() function before we hit a problem.
@@ -141,7 +145,7 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	}
 	wg.Wait()
 
-	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub")
+	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub", 1000, 1e9, 0, 1, 0)
 
 	assert.NotNil(pubsubSource)
 	assert.Nil(err)
