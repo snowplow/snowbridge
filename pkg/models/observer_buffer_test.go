@@ -30,6 +30,7 @@ func TestObserverBuffer(t *testing.T) {
 		{
 			Data:                []byte("Baz"),
 			PartitionKey:        "partition1",
+			CollectorTstamp:     timeNow.Add(time.Duration(-60) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-50) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-4) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-2) * time.Minute),
@@ -39,6 +40,7 @@ func TestObserverBuffer(t *testing.T) {
 		{
 			Data:                []byte("Bar"),
 			PartitionKey:        "partition2",
+			CollectorTstamp:     timeNow.Add(time.Duration(-80) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-70) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-7) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-4) * time.Minute),
@@ -50,6 +52,7 @@ func TestObserverBuffer(t *testing.T) {
 		{
 			Data:                []byte("Foo"),
 			PartitionKey:        "partition3",
+			CollectorTstamp:     timeNow.Add(time.Duration(-40) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-9) * time.Minute),
@@ -119,7 +122,11 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(8)*time.Minute, b.MaxRequestLatency)
 	assert.Equal(time.Duration(1)*time.Minute, b.MinRequestLatency)
 
-	assert.Equal("TargetResults:2,MsgFiltered:1,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:600000,MaxMsgLatency:4200000,MaxFilterLatency:600000,MaxTransformLatency:180000,SumTransformLatency:720000,SumProcLatency:2520000,SumMsgLatency:18000000,MinReqLatency:60000,MaxReqLatency:480000,SumReqLatency:1320000", b.String())
+	assert.Equal(time.Duration(80)*time.Minute, b.MaxE2ELatency)
+	assert.Equal(time.Duration(40)*time.Minute, b.MinE2ELatency)
+	assert.Equal(time.Duration(60)*time.Minute, b.GetAvgE2ELatency())
+
+	assert.Equal("TargetResults:2,MsgFiltered:1,MsgSent:4,MsgFailed:2,OversizedTargetResults:2,OversizedMsgSent:4,OversizedMsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MaxProcLatency:600000,MaxMsgLatency:4200000,MaxFilterLatency:600000,MaxTransformLatency:180000,SumTransformLatency:720000,SumProcLatency:2520000,SumMsgLatency:18000000,MinReqLatency:60000,MaxReqLatency:480000,SumReqLatency:1320000,MinE2ELatency:2400000,MaxE2ELatency:4800000,SumE2ELatency:21600000", b.String())
 }
 
 // TestObserverBuffer_Basic is a basic version of the above test, stripping away all but one event
@@ -191,7 +198,7 @@ func TestObserverBuffer_Basic(t *testing.T) {
 	assert.Equal(time.Duration(1)*time.Minute, b.MaxRequestLatency)
 	assert.Equal(time.Duration(1)*time.Minute, b.MinRequestLatency)
 
-	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MaxProcLatency:240000,MaxMsgLatency:3000000,MaxFilterLatency:0,MaxTransformLatency:120000,SumTransformLatency:120000,SumProcLatency:240000,SumMsgLatency:3000000,MinReqLatency:60000,MaxReqLatency:60000,SumReqLatency:60000", b.String())
+	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MaxProcLatency:240000,MaxMsgLatency:3000000,MaxFilterLatency:0,MaxTransformLatency:120000,SumTransformLatency:120000,SumProcLatency:240000,SumMsgLatency:3000000,MinReqLatency:60000,MaxReqLatency:60000,SumReqLatency:60000,MinE2ELatency:0,MaxE2ELatency:0,SumE2ELatency:0", b.String())
 }
 
 // TestObserverBuffer_BasicNoTransform is a basic version of the above test, stripping away all but one event.
@@ -260,5 +267,5 @@ func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 	assert.Equal(time.Duration(1)*time.Minute, b.MaxRequestLatency)
 	assert.Equal(time.Duration(1)*time.Minute, b.MinRequestLatency)
 
-	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MaxProcLatency:240000,MaxMsgLatency:3000000,MaxFilterLatency:0,MaxTransformLatency:0,SumTransformLatency:0,SumProcLatency:240000,SumMsgLatency:3000000,MinReqLatency:60000,MaxReqLatency:60000,SumReqLatency:60000", b.String())
+	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,OversizedTargetResults:0,OversizedMsgSent:0,OversizedMsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MaxProcLatency:240000,MaxMsgLatency:3000000,MaxFilterLatency:0,MaxTransformLatency:0,SumTransformLatency:0,SumProcLatency:240000,SumMsgLatency:3000000,MinReqLatency:60000,MaxReqLatency:60000,SumReqLatency:60000,MinE2ELatency:0,MaxE2ELatency:0,SumE2ELatency:0", b.String())
 }

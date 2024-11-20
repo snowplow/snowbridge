@@ -44,10 +44,9 @@ func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOu
 			return nil
 		}
 
-		validTime, ok := a1.(time.Time)
-
-		if !ok {
-			return errors.New("Not a valid time input to 'epoch' function")
+		validTime, err := parseTime(a1, a2)
+		if err != nil {
+			return err
 		}
 
 		return int(validTime.Unix())
@@ -59,12 +58,10 @@ func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOu
 			return nil
 		}
 
-		validTime, ok := a1.(time.Time)
-
-		if !ok {
-			return errors.New("Not a valid time input to 'epochMillis' function")
+		validTime, err := parseTime(a1, a2)
+		if err != nil {
+			return err
 		}
-
 		return validTime.UnixMilli()
 	})
 
@@ -74,6 +71,40 @@ func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOu
 	}
 
 	return runFunction(code, timeoutMs, spMode, jqOutputHandler), nil
+}
+
+func parseTime(input any, params []any) (time.Time, error) {
+	switch v := input.(type) {
+	case string:
+		timeLayout, err := parseTimeLayout(params)
+		if err != nil {
+			return time.Time{}, err
+		}
+
+		validTime, err := time.Parse(timeLayout, v)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("Could not parse input - '%s' using provided time layout - '%s'", v, timeLayout)
+		}
+		return validTime, nil
+	case time.Time:
+		return v, nil
+	default:
+		return time.Time{}, fmt.Errorf("Not a valid time input to 'epochMillis' function - '%v'; expected string or time.Time", input)
+	}
+}
+
+func parseTimeLayout(params []any) (string, error) {
+	if len(params) == 0 {
+		return "2006-01-02T15:04:05.999Z", nil
+	} else if len(params) == 1 {
+		str, ok := params[0].(string)
+		if !ok {
+			return "", fmt.Errorf("Function argument is invalid '%v'; expected string", params[0])
+		}
+		return str, nil
+	} else {
+		return "", fmt.Errorf("Too many function arguments - %d; expected 1", len(params))
+	}
 }
 
 func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) TransformationFunction {

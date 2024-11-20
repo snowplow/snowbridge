@@ -22,6 +22,9 @@ type Message struct {
 	Data         []byte
 	HTTPHeaders  map[string]string
 
+	// CollectorTstamp is the timestamp created by the Snowplow collector, extracted from the `collector_tstamp` atomic field. Used to measure E2E latency
+	CollectorTstamp time.Time
+
 	// TimeCreated is when the message was created originally
 	TimeCreated time.Time
 

@@ -53,6 +53,25 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Error:         nil,
 		},
 		{
+			Scenario:  "test_timestamp_to_epochMillis_context",
+			JQCommand: `{ sessionId: .contexts_com_snowplowanalytics_snowplow_client_session_1[0].firstEventTimestamp | epochMillis }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"sessionId":1730129267100}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
 			Scenario:  "test_timestamp_to_epoch",
 			JQCommand: `{ foo: .collector_tstamp | epoch }`,
 			InputMsg: &models.Message{
@@ -265,6 +284,25 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 			Expected: map[string]*models.Message{
 				"success": {
 					Data:         []byte(`{"non_null":"hello"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "epochMillis_custom_timelayout",
+			JQCommand: `{ sessionId: .time | epochMillis("2006-01-02 15:04:05.999")}`,
+			InputMsg: &models.Message{
+				Data:         []byte(`{"time": "2024-10-28 15:27:47.100"}`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"sessionId":1730129267100}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -563,7 +601,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         errors.New("Not a valid time input to 'epochMillis' function"),
+			Error:         errors.New("Could not parse input - 'value' using provided time layout - '2006-01-02T15:04:05.999Z'"),
 		},
 		{
 			Scenario: "epoch_on_non_time_type",
@@ -586,7 +624,30 @@ func TestJQRunFunction_errors(t *testing.T) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         errors.New("Not a valid time input to 'epoch' function"),
+			Error:         errors.New("Could not parse input - 'value' using provided time layout - '2006-01-02T15:04:05.999Z'"),
+		},
+		{
+			Scenario: "epochMillis_with_not_matching_timelayout",
+			JQConfig: &JQMapperConfig{
+				JQCommand:    `{ sessionId: .time | epochMillis("2006-01-02 15:04:05") }`,
+				RunTimeoutMs: 100,
+				SpMode:       false,
+			},
+			InputMsg: &models.Message{
+				Data:         []byte(`{"time": "2024-10-28T15:27:47.100"}`),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{"time": "2024-10-28T15:27:47.100"}`),
+					PartitionKey: "some-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         errors.New("Could not parse input - '2024-10-28T15:27:47.100' using provided time layout - '2006-01-02 15:04:05'"),
 		},
 	}
 

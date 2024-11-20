@@ -40,30 +40,10 @@ func TestNewTargetWriteResult_EmptyWithoutTime(t *testing.T) {
 	assert.Equal(time.Duration(0), r.MaxTransformLatency)
 	assert.Equal(time.Duration(0), r.MinTransformLatency)
 	assert.Equal(time.Duration(0), r.AvgTransformLatency)
-}
 
-// TestNewTargetWriteResult_EmptyWithTime tests that an empty targetWriteResult with no a provided timestamp will report 0s across the board
-func TestNewTargetWriteResult_EmptyWithTime(t *testing.T) {
-	assert := assert.New(t)
-
-	r := NewTargetWriteResult(nil, nil, nil, nil)
-	assert.NotNil(r)
-
-	assert.Equal(int64(0), r.SentCount)
-	assert.Equal(int64(0), r.FailedCount)
-	assert.Equal(int64(0), r.Total())
-
-	assert.Equal(time.Duration(0), r.MaxProcLatency)
-	assert.Equal(time.Duration(0), r.MinProcLatency)
-	assert.Equal(time.Duration(0), r.AvgProcLatency)
-
-	assert.Equal(time.Duration(0), r.MaxMsgLatency)
-	assert.Equal(time.Duration(0), r.MinMsgLatency)
-	assert.Equal(time.Duration(0), r.AvgMsgLatency)
-
-	assert.Equal(time.Duration(0), r.MaxTransformLatency)
-	assert.Equal(time.Duration(0), r.MinTransformLatency)
-	assert.Equal(time.Duration(0), r.AvgTransformLatency)
+	assert.Equal(time.Duration(0), r.MaxE2ELatency)
+	assert.Equal(time.Duration(0), r.MinE2ELatency)
+	assert.Equal(time.Duration(0), r.AvgE2ELatency)
 }
 
 // TestNewTargetWriteResult_WithMessages tests that reporting of statistics is as it should be when we have all data
@@ -76,6 +56,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 		{
 			Data:                []byte("Baz"),
 			PartitionKey:        "partition1",
+			CollectorTstamp:     timeNow.Add(time.Duration(-60) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-50) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-4) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-2) * time.Minute),
@@ -84,6 +65,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 		{
 			Data:                []byte("Bar"),
 			PartitionKey:        "partition2",
+			CollectorTstamp:     timeNow.Add(time.Duration(-80) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-70) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-7) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-4) * time.Minute),
@@ -94,6 +76,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 		{
 			Data:                []byte("Foo"),
 			PartitionKey:        "partition3",
+			CollectorTstamp:     timeNow.Add(time.Duration(-40) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-9) * time.Minute),
@@ -116,11 +99,15 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	assert.Equal(time.Duration(3)*time.Minute, r.MaxTransformLatency)
 	assert.Equal(time.Duration(1)*time.Minute, r.MinTransformLatency)
 	assert.Equal(time.Duration(2)*time.Minute, r.AvgTransformLatency)
+	assert.Equal(time.Duration(80)*time.Minute, r.MaxE2ELatency)
+	assert.Equal(time.Duration(40)*time.Minute, r.MinE2ELatency)
+	assert.Equal(time.Duration(60)*time.Minute, r.AvgE2ELatency)
 
 	sent1 := []*Message{
 		{
 			Data:                []byte("Baz"),
 			PartitionKey:        "partition1",
+			CollectorTstamp:     timeNow.Add(time.Duration(-60) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-55) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-2) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-1) * time.Minute),
@@ -131,6 +118,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 		{
 			Data:                []byte("Bar"),
 			PartitionKey:        "partition2",
+			CollectorTstamp:     timeNow.Add(time.Duration(-120) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-75) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-7) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-4) * time.Minute),
@@ -139,6 +127,7 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 		{
 			Data:                []byte("Foo"),
 			PartitionKey:        "partition3",
+			CollectorTstamp:     timeNow.Add(time.Duration(-30) * time.Minute),
 			TimeCreated:         timeNow.Add(time.Duration(-25) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-15) * time.Minute),
 			TimeTransformed:     timeNow.Add(time.Duration(-7) * time.Minute),
@@ -172,10 +161,13 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	assert.Equal(time.Duration(8)*time.Minute, r3.MaxTransformLatency)
 	assert.Equal(time.Duration(1)*time.Minute, r3.MinTransformLatency)
 	assert.Equal(time.Duration(3)*time.Minute, r3.AvgTransformLatency)
+	assert.Equal(time.Duration(120)*time.Minute, r3.MaxE2ELatency)
+	assert.Equal(time.Duration(30)*time.Minute, r3.MinE2ELatency)
+	assert.Equal(time.Duration(65)*time.Minute, r3.AvgE2ELatency)
 }
 
-// TestNewTargetWriteResult_NoTransformation tests that reporting of statistics is as it should be when we don't have a timeTransformed
-func TestNewTargetWriteResult_NoTransformation(t *testing.T) {
+// TestNewTargetWriteResult_NoTransformation_NoE2E tests that reporting of statistics is as it should be when we don't have a timeTransformed and no collector timestamp
+func TestNewTargetWriteResult_NoTransformation_NoE2E(t *testing.T) {
 	assert := assert.New(t)
 
 	timeNow := time.Now().UTC()
@@ -221,4 +213,7 @@ func TestNewTargetWriteResult_NoTransformation(t *testing.T) {
 	assert.Equal(time.Duration(0), r.MaxTransformLatency)
 	assert.Equal(time.Duration(0), r.MinTransformLatency)
 	assert.Equal(time.Duration(0), r.AvgTransformLatency)
+	assert.Equal(time.Duration(0), r.MaxE2ELatency)
+	assert.Equal(time.Duration(0), r.MinE2ELatency)
+	assert.Equal(time.Duration(0), r.AvgE2ELatency)
 }

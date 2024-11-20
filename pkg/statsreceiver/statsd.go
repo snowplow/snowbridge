@@ -31,11 +31,13 @@ type StatsDStatsReceiverConfig struct {
 
 // statsDStatsReceiver holds a new client for writing statistics to a StatsD server
 type statsDStatsReceiver struct {
-	client *statsd.Client
+	client           *statsd.Client
+	enableE2ELatency bool
 }
 
 // newStatsDStatsReceiver creates a new client for writing metrics to StatsD
-func newStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsMapClient map[string]string) (*statsDStatsReceiver, error) {
+func newStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsMapClient map[string]string, enableE2ELatency bool) (*statsDStatsReceiver, error) {
+
 	tagsMap := map[string]string{}
 	err := json.Unmarshal([]byte(tagsRaw), &tagsMap)
 	if err != nil {
@@ -59,19 +61,21 @@ func newStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsM
 	)
 
 	return &statsDStatsReceiver{
-		client: client,
+		client:           client,
+		enableE2ELatency: enableE2ELatency,
 	}, nil
 }
 
 // NewStatsDReceiverWithTags closes over a given tags map and returns a function
 // that creates a statsDStatsReceiver given a StatsDStatsReceiverConfig.
-func NewStatsDReceiverWithTags(tags map[string]string) func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error) {
+func NewStatsDReceiverWithTags(tags map[string]string, enableE2ELatency bool) func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error) {
 	return func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error) {
 		return newStatsDStatsReceiver(
 			c.Address,
 			c.Prefix,
 			c.Tags,
 			tags,
+			enableE2ELatency,
 		)
 	}
 }
@@ -141,4 +145,10 @@ func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
 	s.client.PrecisionTiming("min_request_latency", b.MinRequestLatency)
 	s.client.PrecisionTiming("max_request_latency", b.MaxRequestLatency)
 	s.client.PrecisionTiming("avg_request_latency", b.GetAvgRequestLatency())
+
+	if s.enableE2ELatency {
+		s.client.PrecisionTiming("min_e2e_latency", b.MinE2ELatency)
+		s.client.PrecisionTiming("max_e2e_latency", b.MaxE2ELatency)
+		s.client.PrecisionTiming("avg_e2e_latency", b.GetAvgE2ELatency())
+	}
 }

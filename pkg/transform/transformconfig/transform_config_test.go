@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -165,6 +166,21 @@ func TestEnginesAndTransformations(t *testing.T) {
 				}},
 			},
 		},
+		{
+			Description: `e2e latency metric enabled -> collector tstamp attached`,
+			File:        "transform-collector-tstamp.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:            snowplowTsv1,
+					PartitionKey:    "some-key",
+					CollectorTstamp: time.Date(2019, 5, 10, 14, 40, 35, 972000000, time.UTC),
+				}},
+			},
+		},
 	}
 
 	// Absolute paths to scripts
@@ -230,6 +246,11 @@ func TestEnginesAndTransformations(t *testing.T) {
 			// check errors for invalid messages
 			for idx, resultMessage := range result.Invalid {
 				assert.Equal(resultMessage.GetError(), tt.ExpectedMessages.After[idx].GetError())
+			}
+
+			// check if collector timestamp has been attached
+			for idx, resultMessage := range result.Result {
+				assert.Equal(resultMessage.CollectorTstamp, tt.ExpectedMessages.After[idx].CollectorTstamp)
 			}
 
 			// check result for transformed messages in case of filtered results

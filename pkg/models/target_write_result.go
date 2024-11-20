@@ -61,6 +61,10 @@ type TargetWriteResult struct {
 	MaxRequestLatency time.Duration
 	MinRequestLatency time.Duration
 	AvgRequestLatency time.Duration
+
+	MaxE2ELatency time.Duration
+	MinE2ELatency time.Duration
+	AvgE2ELatency time.Duration
 }
 
 // NewTargetWriteResult builds a result structure to return from a target write
@@ -84,6 +88,7 @@ func NewTargetWriteResult(sent []*Message, failed []*Message, oversized []*Messa
 	var sumMessageLatency time.Duration
 	var sumTransformLatency time.Duration
 	var sumRequestLatency time.Duration
+	var sumE2ELatency time.Duration
 
 	for _, msg := range processed {
 		procLatency := msg.TimeRequestFinished.Sub(msg.TimePulled)
@@ -124,6 +129,18 @@ func NewTargetWriteResult(sent []*Message, failed []*Message, oversized []*Messa
 			r.MinRequestLatency = requestLatency
 		}
 		sumRequestLatency += requestLatency
+
+		var e2eLatency time.Duration
+		if !msg.CollectorTstamp.IsZero() {
+			e2eLatency = msg.TimeRequestFinished.Sub(msg.CollectorTstamp)
+		}
+		if r.MaxE2ELatency < e2eLatency {
+			r.MaxE2ELatency = e2eLatency
+		}
+		if r.MinE2ELatency > e2eLatency || r.MinE2ELatency == time.Duration(0) {
+			r.MinE2ELatency = e2eLatency
+		}
+		sumE2ELatency += e2eLatency
 	}
 
 	if processedLen > 0 {
@@ -131,6 +148,7 @@ func NewTargetWriteResult(sent []*Message, failed []*Message, oversized []*Messa
 		r.AvgMsgLatency = common.GetAverageFromDuration(sumMessageLatency, processedLen)
 		r.AvgTransformLatency = common.GetAverageFromDuration(sumTransformLatency, processedLen)
 		r.AvgRequestLatency = common.GetAverageFromDuration(sumRequestLatency, processedLen)
+		r.AvgE2ELatency = common.GetAverageFromDuration(sumE2ELatency, processedLen)
 	}
 
 	return &r
@@ -186,6 +204,14 @@ func (wr *TargetWriteResult) Append(nwr *TargetWriteResult) *TargetWriteResult {
 			wrC.MinRequestLatency = nwr.MinRequestLatency
 		}
 		wrC.AvgRequestLatency = common.GetAverageFromDuration(wrC.AvgRequestLatency+nwr.AvgRequestLatency, 2)
+
+		if wrC.MaxE2ELatency < nwr.MaxE2ELatency {
+			wrC.MaxE2ELatency = nwr.MaxE2ELatency
+		}
+		if wrC.MinE2ELatency > nwr.MinE2ELatency || wrC.MinE2ELatency == time.Duration(0) {
+			wrC.MinE2ELatency = nwr.MinE2ELatency
+		}
+		wrC.AvgE2ELatency = common.GetAverageFromDuration(wrC.AvgE2ELatency+nwr.AvgE2ELatency, 2)
 	}
 
 	return &wrC
