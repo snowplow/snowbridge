@@ -36,5 +36,8 @@ source {
 
     # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
     concurrent_writes = 15
+
+    # The name of the Kinesis client that is used to allocate shards. It must be unique per instance of Snowbridge.
+    client_name = env.HOSTNAME
   }
 }

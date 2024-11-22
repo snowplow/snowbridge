@@ -44,7 +44,7 @@ func TestBuiltinTransformationDocumentation(t *testing.T) {
 }
 
 func TestBuiltinSnowplowTransformationDocumentation(t *testing.T) {
-  transformationsToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstructEvent", "spEnrichedSetPk", "spEnrichedToJson", "spGtmssPreview"}
+	transformationsToTest := []string{"spEnrichedFilter", "spEnrichedFilterContext", "spEnrichedFilterUnstructEvent", "spEnrichedSetPk", "spEnrichedToJson", "spGtmssPreview"}
 
 	for _, tfm := range transformationsToTest {
 

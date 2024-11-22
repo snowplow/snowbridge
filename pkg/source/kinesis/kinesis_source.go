@@ -44,6 +44,7 @@ type Configuration struct {
 	ShardCheckFreqSeconds   int    `hcl:"shard_check_freq_seconds,optional"`
 	LeaderActionFreqSeconds int    `hcl:"leader_action_freq_seconds,optional"`
 	ConcurrentWrites        int    `hcl:"concurrent_writes,optional"`
+	ClientName              string `hcl:"client_name,optional"`
 }
 
 // --- Kinesis source
@@ -87,7 +88,8 @@ func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 			&iteratorTstamp,
 			c.ReadThrottleDelayMs,
 			c.ShardCheckFreqSeconds,
-			c.LeaderActionFreqSeconds)
+			c.LeaderActionFreqSeconds,
+			c.ClientName)
 	}
 }
 
@@ -119,12 +121,16 @@ func (f adapter) Create(i interface{}) (interface{}, error) {
 
 // ProvideDefault implements the ComponentConfigurable interface.
 func (f adapter) ProvideDefault() (interface{}, error) {
+	// Ensures as even as possible distribution of UUIDs
+	uuid.EnableRandPool()
+
 	// Provide defaults
 	cfg := &Configuration{
 		ReadThrottleDelayMs:     250, // Kinsumer default is 250ms
 		ConcurrentWrites:        50,
 		ShardCheckFreqSeconds:   10,
 		LeaderActionFreqSeconds: 60,
+		ClientName:              uuid.New().String(),
 	}
 
 	return cfg, nil
@@ -171,7 +177,8 @@ func newKinesisSourceWithInterfaces(
 	startTimestamp *time.Time,
 	readThrottleDelay int,
 	shardCheckFreq int,
-	leaderActionFreq int) (*kinesisSource, error) {
+	leaderActionFreq int,
+	clientName string) (*kinesisSource, error) {
 
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(time.Duration(shardCheckFreq) * time.Second).
@@ -181,13 +188,7 @@ func newKinesisSourceWithInterfaces(
 		WithIteratorStartTimestamp(startTimestamp).
 		WithThrottleDelay(time.Duration(readThrottleDelay) * time.Millisecond)
 
-	// Ensures as even as possible distribution of UUIDs
-	uuid.EnableRandPool()
-
-	// TODO: See if the client name can be reused to survive same node reboots
-	name := uuid.New().String()
-
-	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, name, config)
+	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, clientName, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create Kinsumer client")
 	}
