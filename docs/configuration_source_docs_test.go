@@ -31,6 +31,7 @@ func TestSourceDocumentation(t *testing.T) {
 	// Set env vars referenced in the config examples
 	t.Setenv("MY_AUTH_PASSWORD", "test")
 	t.Setenv("SASL_PASSWORD", "test")
+	t.Setenv("HOSTNAME", "hostname")
 
 	sourcesToTest := []string{"kafka", "kinesis", "pubsub", "sqs", "stdin"}
 
