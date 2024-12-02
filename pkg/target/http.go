@@ -397,9 +397,13 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				errResult = multierror.Append(errResult, errors.New("Error sending request: "+err.Error()))
 				continue
 			}
-			defer resp.Body.Close()
 
+			// Ensure response body is always closed
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				// Drain and close the body for successful responses
+				_, _ = io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+
 				for _, msg := range goodMsgs {
 					if msg.AckFunc != nil { // Ack successful messages
 						msg.AckFunc()
@@ -409,7 +413,10 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				continue
 			}
 
+			// Process non-2xx responses
 			responseBody, err := io.ReadAll(resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
+			resp.Body.Close() // Explicitly close the body after reading
 
 			if err != nil {
 				failed = append(failed, goodMsgs...)
