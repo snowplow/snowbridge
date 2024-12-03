@@ -399,55 +399,60 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			}
 
 			// Ensure response body is always closed
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				// Drain and close the body for successful responses
-				_, _ = io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
+			func() {
+				defer resp.Body.Close()
 
-				for _, msg := range goodMsgs {
-					if msg.AckFunc != nil { // Ack successful messages
-						msg.AckFunc()
+				// Drain and discard the response body
+				_, err := io.Copy(io.Discard, resp.Body)
+				if err != nil {
+					errResult = multierror.Append(errResult, fmt.Errorf("Error discarding response body: %v", err))
+					failed = append(failed, goodMsgs...)
+					return
+				}
+
+				if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+					for _, msg := range goodMsgs {
+						if msg.AckFunc != nil { // Ack successful messages
+							msg.AckFunc()
+						}
+						sent = append(sent, msg)
 					}
-					sent = append(sent, msg)
-				}
-				continue
-			}
-
-			// Process non-2xx responses
-			responseBody, err := io.ReadAll(resp.Body)
-			_, _ = io.Copy(io.Discard, resp.Body)
-			resp.Body.Close() // Explicitly close the body after reading
-
-			if err != nil {
-				failed = append(failed, goodMsgs...)
-				errResult = multierror.Append(errResult, errors.New("Error reading response body: "+err.Error()))
-				continue
-			}
-
-			response := response{Body: string(responseBody), Status: resp.StatusCode}
-
-			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
-				for _, msg := range goodMsgs {
-					msg.SetError(errors.New(response.Body))
+					return
 				}
 
-				invalid = append(invalid, goodMsgs...)
-				continue
-			}
+				// Process non-2xx responses
+				responseBody, err := io.ReadAll(resp.Body)
+				if err != nil {
+					failed = append(failed, goodMsgs...)
+					errResult = multierror.Append(errResult, errors.New("Error reading response body: "+err.Error()))
+					return
+				}
 
-			var errorDetails error
-			if rule := findMatchingRule(response, ht.responseRules.SetupError); rule != nil {
-				hitSetupError = true
-				if rule.MatchingBodyPart != "" {
-					errorDetails = fmt.Errorf("Got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
+				response := response{Body: string(responseBody), Status: resp.StatusCode}
+
+				if findMatchingRule(response, ht.responseRules.Invalid) != nil {
+					for _, msg := range goodMsgs {
+						msg.SetError(errors.New(response.Body))
+					}
+
+					invalid = append(invalid, goodMsgs...)
+					return
+				}
+
+				var errorDetails error
+				if rule := findMatchingRule(response, ht.responseRules.SetupError); rule != nil {
+					hitSetupError = true
+					if rule.MatchingBodyPart != "" {
+						errorDetails = fmt.Errorf("Got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
+					} else {
+						errorDetails = fmt.Errorf("Got setup error, response status: '%s'", resp.Status)
+					}
 				} else {
-					errorDetails = fmt.Errorf("Got setup error, response status: '%s'", resp.Status)
+					errorDetails = fmt.Errorf("Got transient error, response status: '%s'", resp.Status)
 				}
-			} else {
-				errorDetails = fmt.Errorf("Got transient error, response status: '%s'", resp.Status)
-			}
-			errResult = multierror.Append(errResult, errorDetails)
-			failed = append(failed, goodMsgs...)
+				errResult = multierror.Append(errResult, errorDetails)
+				failed = append(failed, goodMsgs...)
+			}()
 		}
 	}
 
