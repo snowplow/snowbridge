@@ -383,6 +383,8 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 			}
 			requestStarted := time.Now().UTC()
+
+			request.Header.Add("sp-request-time", requestStarted.Format("2006-01-02T15:04:05.999Z"))
 			resp, err := ht.client.Do(request) // Make request
 			requestFinished := time.Now().UTC()
 
