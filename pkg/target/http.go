@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -384,7 +385,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			}
 			requestStarted := time.Now().UTC()
 
-			request.Header.Add("sp-request-time", requestStarted.Format("2006-01-02T15:04:05.999Z"))
+			request.Header.Add("sp-request-time", strconv.FormatInt(requestStarted.UnixMilli(), 10))
 			resp, err := ht.client.Do(request) // Make request
 			requestFinished := time.Now().UTC()
 
