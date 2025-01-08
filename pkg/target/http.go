@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -111,7 +112,8 @@ func newHTTPTarget(httpURL string, requestTimeout int, byteLimit int, contentTyp
 	if err1 != nil {
 		return nil, err1
 	}
-	transport := &http.Transport{}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
 
 	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, skipVerifyTLS)
 	if err2 != nil {
@@ -249,7 +251,10 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			failed = append(failed, msg)
 			continue
 		}
-		defer resp.Body.Close()
+		defer func() {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}()
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			sent = append(sent, msg)
 			if msg.AckFunc != nil { // Ack successful messages
