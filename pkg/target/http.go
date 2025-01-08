@@ -168,7 +168,8 @@ func newHTTPTarget(
 	if err1 != nil {
 		return nil, err1
 	}
-	transport := &http.Transport{}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
 
 	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, skipVerifyTLS)
 	if err2 != nil {
@@ -398,12 +399,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				continue
 			}
 
-			// Ensure response body is always closed
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				// Drain and close the body for successful responses
-				_, _ = io.Copy(io.Discard, resp.Body)
+			defer func() {
+				io.Copy(io.Discard, resp.Body)
 				resp.Body.Close()
+			}()
 
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				for _, msg := range goodMsgs {
 					if msg.AckFunc != nil { // Ack successful messages
 						msg.AckFunc()
@@ -415,8 +416,6 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			// Process non-2xx responses
 			responseBody, err := io.ReadAll(resp.Body)
-			_, _ = io.Copy(io.Discard, resp.Body)
-			resp.Body.Close() // Explicitly close the body after reading
 
 			if err != nil {
 				failed = append(failed, goodMsgs...)
