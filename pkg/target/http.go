@@ -61,6 +61,10 @@ type HTTPTargetConfig struct {
 
 	TemplateFile  string         `hcl:"template_file,optional"`
 	ResponseRules *ResponseRules `hcl:"response_rules,block"`
+
+	MaxConnections            int `hcl:"max_connections,optional"`
+	MaxIdleConnections        int `hcl:"max_idle_connections,optional"`
+	MaxIdleConnectionsPerHost int `hcl:"max_idle_connections_per_host,optional"`
 }
 
 // ResponseRules is part of HTTP target configuration. It provides rules how HTTP respones should be handled. Response can be categerized as 'invalid' (bad data), as setup error or (if none of the rules matches) as a transient error.
@@ -99,6 +103,10 @@ type HTTPTarget struct {
 	requestTemplate *template.Template
 	approxTmplSize  int
 	responseRules   *ResponseRules
+
+	maxConnections            int
+	maxIdleConnections        int
+	maxIdleConnectionsPerHost int
 }
 
 func checkURL(str string) error {
@@ -159,7 +167,11 @@ func newHTTPTarget(
 	oAuth2RefreshToken string,
 	oAuth2TokenURL string,
 	templateFile string,
-	responseRules *ResponseRules) (*HTTPTarget, error) {
+	responseRules *ResponseRules,
+	maxConnections int,
+	maxIdleConnections int,
+	maxIdleConnectionsPerHost int,
+) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -169,7 +181,9 @@ func newHTTPTarget(
 		return nil, err1
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
+	transport.MaxConnsPerHost = maxConnections
+	transport.MaxIdleConns = maxIdleConnections
+	transport.MaxIdleConnsPerHost = maxIdleConnectionsPerHost
 
 	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, skipVerifyTLS)
 	if err2 != nil {
@@ -208,6 +222,10 @@ func newHTTPTarget(
 		requestTemplate: requestTemplate,
 		approxTmplSize:  approxTmplSize,
 		responseRules:   responseRules,
+
+		maxConnections:            maxConnections,
+		maxIdleConnections:        maxIdleConnections,
+		maxIdleConnectionsPerHost: maxIdleConnectionsPerHost,
 	}, nil
 }
 
@@ -290,6 +308,9 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.OAuth2TokenURL,
 		c.TemplateFile,
 		c.ResponseRules,
+		c.MaxConnections,
+		c.MaxIdleConnections,
+		c.MaxIdleConnectionsPerHost,
 	)
 }
 
@@ -318,6 +339,9 @@ func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
 			Invalid:    []Rule{},
 			SetupError: []Rule{},
 		},
+		MaxConnections:            0, // no limit
+		MaxIdleConnections:        100,
+		MaxIdleConnectionsPerHost: 100,
 	}
 
 	return cfg, nil

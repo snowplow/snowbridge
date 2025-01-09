@@ -88,6 +88,9 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				KeyFile:                 "",
 				CaFile:                  "",
 				SkipVerifyTLS:           false,
+        MaxConnections:            0,
+        MaxIdleConnections:        100,
+        MaxIdleConnectionsPerHost: 100,
 				ResponseRules: &target.ResponseRules{
 					Invalid:    []target.Rule{},
 					SetupError: []target.Rule{},
@@ -118,6 +121,10 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				SkipVerifyTLS:           true,
 				DynamicHeaders:          true,
 				TemplateFile:            "myTemplate.file",
+
+        MaxConnections:            100,
+        MaxIdleConnections:        100,
+        MaxIdleConnectionsPerHost: 100,
 				ResponseRules: &target.ResponseRules{
 					Invalid: []target.Rule{
 						{

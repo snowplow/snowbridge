@@ -308,12 +308,12 @@ func TestHTTP_AddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 func TestHTTP_NewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+	httpTarget, err := newHTTPTarget("http://something", 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(),  0, 100, 100)
 
 	assert.Nil(err)
 	assert.NotNil(httpTarget)
 
-	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+	failedHTTPTarget, err1 := newHTTPTarget("something", 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(),  0, 100, 100)
 
 	assert.NotNil(err1)
 	if err1 != nil {
@@ -321,7 +321,7 @@ func TestHTTP_NewHTTPTarget(t *testing.T) {
 	}
 	assert.Nil(failedHTTPTarget)
 
-	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+	failedHTTPTarget2, err2 := newHTTPTarget("", 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(),  0, 100, 100)
 	assert.NotNil(err2)
 	if err2 != nil {
 		assert.Equal("Invalid url for HTTP target: ''", err2.Error())
@@ -349,7 +349,7 @@ func TestHTTP_Write_Simple(t *testing.T) {
 			server := createTestServerWithResponseCode(&results, tt.ResponseCode, "")
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), 0, 100, 100)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -413,7 +413,7 @@ func TestHTTP_Write_Batched(t *testing.T) {
 			server := createTestServerWithResponseCode(&results, 200, "")
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+			target, err := newHTTPTarget(server.URL, 5, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), 0, 100, 100)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -472,7 +472,7 @@ func TestHTTP_Write_Concurrent(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), 0, 100, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -516,7 +516,7 @@ func TestHTTP_Write_Failure(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+	target, err := newHTTPTarget("http://NonexistentEndpoint", 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), 0, 100, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -558,7 +558,7 @@ func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 			var results [][]byte
 			server := createTestServerWithResponseCode(&results, tt.ResponseCode, "")
 			defer server.Close()
-			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+			target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), 0, 100, 100)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -593,7 +593,7 @@ func TestHTTP_Write_Oversized(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules())
+	target, err := newHTTPTarget(server.URL, 5, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), 0, 100, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -636,7 +636,7 @@ func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), defaultResponseRules())
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), defaultResponseRules(), 0, 100, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -694,7 +694,7 @@ func TestHTTP_Write_Invalid(t *testing.T) {
 		},
 	}
 
-	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules)
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules, 0, 100, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -722,7 +722,7 @@ func TestHTTP_Write_Setup(t *testing.T) {
 		},
 	}
 
-	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules)
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules,  0, 100, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -768,7 +768,7 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		defaultResponseRules())
+		defaultResponseRules(),  0, 100, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -810,7 +810,7 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		defaultResponseRules())
+		defaultResponseRules(),  0, 100, 100)
 	if err2 != nil {
 		t.Fatal(err2)
 	}
@@ -845,7 +845,7 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		defaultResponseRules())
+		defaultResponseRules(),  0, 100, 100)
 	if err4 != nil {
 		t.Fatal(err4)
 	}
@@ -1000,7 +1000,7 @@ func TestHTTP_Write_GroupedRequests(t *testing.T) {
 	defer server.Close()
 
 	//dynamicHeaders enabled
-	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, true, "", "", "", "", "", defaultResponseRules())
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, true, "", "", "", "", "", defaultResponseRules(),  0, 100, 100)
 	if err != nil {
 		t.Fatal(err)
 	}

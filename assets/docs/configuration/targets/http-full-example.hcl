@@ -66,6 +66,10 @@ target {
     # Optional path to the file containing template which is used to build HTTP request based on a batch of input data
     template_file              = "myTemplate.file"
 
+    max_connections               = 100
+    max_idle_connections          = 100
+    max_idle_connections_per_host = 100
+
     # Optional HTTP response rules which are used to match HTTP response code/body and categorize it as either invalid data or target setup error.
     # For example, we can have 2 invalid + 1 setup error rules:
     response_rules {
