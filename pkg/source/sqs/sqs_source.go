@@ -121,10 +121,20 @@ var ConfigPair = config.ConfigurationPair{
 // newSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
 func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
+
+	urlResult, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{
+		QueueName: aws.String(queueName),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get SQS queue URL")
+	}
+
 	// Ensures as even as possible distribution of UUIDs
 	uuid.EnableRandPool()
+
 	return &sqsSource{
 		client:             client,
+		queueURL:           *urlResult.QueueUrl,
 		queueName:          queueName,
 		concurrentWrites:   concurrentWrites,
 		region:             region,
@@ -138,14 +148,6 @@ func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, con
 // Read will pull messages from the noted SQS queue forever
 func (ss *sqsSource) Read(sf *sourceiface.SourceFunctions) error {
 	ss.log.Info("Reading messages from queue ...")
-
-	urlResult, err := ss.client.GetQueueUrl(&sqs.GetQueueUrlInput{
-		QueueName: aws.String(ss.queueName),
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to get SQS queue URL")
-	}
-	ss.queueURL = *urlResult.QueueUrl
 
 	throttle := make(chan struct{}, ss.concurrentWrites)
 	wg := sync.WaitGroup{}
