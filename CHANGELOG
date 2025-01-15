@@ -1,3 +1,15 @@
+Version 3.1.0 (2025-01-20)
+--------------------------
+Bump alpine version in Dockerfile
+More improvements in HTTP client
+Bump all dependencies and use latest localstack (#389)
+Add option to set kinsumer client name
+Improvements to HTTP Connection Pooling (#385)
+Update kinsumer to v1.4.0
+Add configuration settings for PubSub source (#380)
+Add E2E latency metrics
+Configurable time layout in `epoch`/`epochMillis` JQ functions
+
 Version 3.0.0 (2024-11-06)
 --------------------------
 Ensure all timestamps used in reporting are UTC
