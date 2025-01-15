@@ -74,8 +74,7 @@ func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
 }
 */
 
-// TODO: When we address https://github.com/snowplow/snowbridge/issues/151, this test will need to change.
-func TestSQSSource_ReadFailure(t *testing.T) {
+func TestSQSSource_SetupFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
@@ -84,12 +83,7 @@ func TestSQSSource_ReadFailure(t *testing.T) {
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	source, err := newSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
-	assert.Nil(err)
-	assert.NotNil(source)
-	assert.Equal("arn:aws:sqs:us-east-1:00000000000:not-exists", source.GetID())
-
-	err = source.Read(nil)
+	_, err := newSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
 	assert.NotNil(err)
 	if err != nil {
 		assert.Contains(err.Error(), "Failed to get SQS queue URL:")
