@@ -59,21 +59,6 @@ func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	assert.Nil(err)
 }
 
-// newSQSSourceWithInterfaces should fail if we can't reach SQS, commented out this test until we look into https://github.com/snowplow/snowbridge/issues/151
-/*
-func TestNewSQSSourceWithInterfaces_Failure(t *testing.T) {
-	// Unlike the success test, we don't require anything to exist for this one
-	assert := assert.New(t)
-
-	client := testutil.GetAWSLocalstackSQSClient()
-
-	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, "nonexistent-queue")
-
-	assert.Nil(source)
-	assert.NotNil(err)
-}
-*/
-
 func TestSQSSource_SetupFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
