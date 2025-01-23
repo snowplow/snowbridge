@@ -77,25 +77,26 @@ func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Dur
 			return nil, nil, message, nil
 		}
 
-		tstamp, err := parsedEvent.GetValue("collector_tstamp")
-		if err != nil {
-			message.SetError(err)
-			return nil, nil, message, nil
-		}
-
-		if collectorTstamp, ok := tstamp.(time.Time); ok {
-			if time.Now().UTC().After(collectorTstamp.Add(expiry)) {
-				message.SetError(errors.New("Message has expired"))
-				return nil, nil, message, nil
-			}
-		}
-
 		headerVal, err := extractHeaderValue(parsedEvent, ctx, property)
 		if err != nil {
 			message.SetError(err)
 			return nil, nil, message, nil
 		}
+
 		if headerVal != nil {
+			tstamp, err := parsedEvent.GetValue("collector_tstamp")
+			if err != nil {
+				message.SetError(err)
+				return nil, nil, message, nil
+			}
+
+			if collectorTstamp, ok := tstamp.(time.Time); ok {
+				if time.Now().UTC().After(collectorTstamp.Add(expiry)) {
+					message.SetError(errors.New("Message has expired"))
+					return nil, nil, message, nil
+				}
+			}
+
 			if message.HTTPHeaders == nil {
 				message.HTTPHeaders = make(map[string]string)
 			}
