@@ -59,7 +59,7 @@ func TestGTMSSPreview(t *testing.T) {
 			Ctx:       "contexts_com_google_tag-manager_server-side_preview_mode_1",
 			Property:  "x-gtm-server-preview",
 			HeaderKey: "x-gtm-server-preview",
-			Expiry:    fiftyYears,
+			Expiry:    1 * time.Hour,
 			InputMsg: &models.Message{
 				Data:         spTsvNoGtmss,
 				PartitionKey: "pk",
