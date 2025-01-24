@@ -18,6 +18,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"hash"
+	"net/http"
 	"os"
 	"time"
 
@@ -33,11 +34,20 @@ import (
 // using the standard auth flow.  We also have the ability to pass a role ARN
 // to allow for roles to be assumed in cross-account access flows.
 func GetAWSSession(region string, roleARN string, endpoint string) (sess *session.Session, cfg *aws.Config, accountID *string, err error) {
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        100, // Maximum number of idle connections
+			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConnsPerHost: 10, // Maximum idle connections per host
+		},
+	}
+
 	sess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 		Config: aws.Config{
-			Region:   aws.String(region),
-			Endpoint: aws.String(endpoint),
+			Region:     aws.String(region),
+			Endpoint:   aws.String(endpoint),
+			HTTPClient: httpClient,
 		},
 	}))
 
@@ -46,6 +56,7 @@ func GetAWSSession(region string, roleARN string, endpoint string) (sess *sessio
 		cfg = &aws.Config{
 			Credentials: creds,
 			Region:      aws.String(region),
+			HTTPClient:  httpClient,
 		}
 	}
 
