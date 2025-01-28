@@ -222,3 +222,7 @@ func (ps *pubSubSource) Stop() {
 func (ps *pubSubSource) GetID() string {
 	return fmt.Sprintf("projects/%s/subscriptions/%s", ps.projectID, ps.subscriptionID)
 }
+
+func (ps *pubSubSource) Health() sourceiface.HealthStatus {
+  return sourceiface.HealthStatus{ IsHealthy: true}
+}

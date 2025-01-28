@@ -295,3 +295,7 @@ func newKafkaSourceWithInterfaces(client sarama.ConsumerGroup, s *kafkaSource) (
 func (ks *kafkaSource) GetID() string {
 	return fmt.Sprintf("brokers:%s:topic:%s", ks.brokers, ks.topic)
 }
+
+func (ks *kafkaSource) Health() sourceiface.HealthStatus {
+  return sourceiface.HealthStatus{ IsHealthy: true}
+}
