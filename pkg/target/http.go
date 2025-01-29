@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -61,6 +62,8 @@ type HTTPTargetConfig struct {
 
 	TemplateFile  string         `hcl:"template_file,optional"`
 	ResponseRules *ResponseRules `hcl:"response_rules,block"`
+
+	IncludeTimingHeaders bool `hcl:"include_timing_headers,optional"`
 }
 
 // ResponseRules is part of HTTP target configuration. It provides rules how HTTP respones should be handled. Response can be categerized as 'invalid' (bad data), as setup error or (if none of the rules matches) as a transient error.
@@ -99,6 +102,8 @@ type HTTPTarget struct {
 	requestTemplate *template.Template
 	approxTmplSize  int
 	responseRules   *ResponseRules
+
+	includeTimingHeaders bool
 }
 
 func checkURL(str string) error {
@@ -159,7 +164,8 @@ func newHTTPTarget(
 	oAuth2RefreshToken string,
 	oAuth2TokenURL string,
 	templateFile string,
-	responseRules *ResponseRules) (*HTTPTarget, error) {
+	responseRules *ResponseRules,
+	includeTimingHeaders bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -208,6 +214,8 @@ func newHTTPTarget(
 		requestTemplate: requestTemplate,
 		approxTmplSize:  approxTmplSize,
 		responseRules:   responseRules,
+
+		includeTimingHeaders: includeTimingHeaders,
 	}, nil
 }
 
@@ -290,6 +298,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.OAuth2TokenURL,
 		c.TemplateFile,
 		c.ResponseRules,
+		c.IncludeTimingHeaders,
 	)
 }
 
@@ -318,6 +327,7 @@ func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
 			Invalid:    []Rule{},
 			SetupError: []Rule{},
 		},
+		IncludeTimingHeaders: false,
 	}
 
 	return cfg, nil
@@ -383,7 +393,13 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {             // Add basic auth if set
 				request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 			}
+
 			requestStarted := time.Now().UTC()
+			if ht.includeTimingHeaders {
+				request.Header.Add("Request-Timeout", strconv.FormatInt(ht.client.Timeout.Milliseconds(), 10))
+				request.Header.Add("Request-Timestamp", strconv.FormatInt(requestStarted.UnixMilli(), 10))
+			}
+
 			resp, err := ht.client.Do(request) // Make request
 			requestFinished := time.Now().UTC()
 
