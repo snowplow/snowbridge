@@ -39,6 +39,7 @@ import (
 type HTTPTargetConfig struct {
 	HTTPURL                 string `hcl:"url"`
 	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional"`
+	RequestTimeoutInMillis  int    `hcl:"request_timeout_in_millis,optional"`
 	ContentType             string `hcl:"content_type,optional"`
 	Headers                 string `hcl:"headers,optional"`
 	BasicAuthUsername       string `hcl:"basic_auth_username,optional"`
@@ -145,7 +146,7 @@ func addHeadersToRequest(request *http.Request, headers map[string]string, dynam
 // newHTTPTarget creates a client for writing events to HTTP
 func newHTTPTarget(
 	httpURL string,
-	requestTimeout int,
+	requestTimeoutMillis int,
 	requestMaxMessages int,
 	requestByteLimit int,
 	messageByteLimit int,
@@ -187,7 +188,7 @@ func newHTTPTarget(
 	}
 
 	client := createHTTPClient(oAuth2ClientID, oAuth2ClientSecret, oAuth2TokenURL, oAuth2RefreshToken, transport)
-	client.Timeout = time.Duration(requestTimeout) * time.Second
+	client.Timeout = time.Duration(requestTimeoutMillis) * time.Millisecond
 
 	approxTmplSize, requestTemplate, err := loadRequestTemplate(templateFile)
 	if err != nil {
@@ -276,9 +277,30 @@ func createHTTPClient(oAuth2ClientID string, oAuth2ClientSecret string, oAuth2To
 
 // HTTPTargetConfigFunction creates HTTPTarget from HTTPTargetConfig
 func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
+	var requestTimeoutInMillis int
+
+	if c.RequestTimeoutInMillis != 0 && c.RequestTimeoutInSeconds == 0 {
+		requestTimeoutInMillis = c.RequestTimeoutInMillis
+	}
+
+	if c.RequestTimeoutInMillis != 0 && c.RequestTimeoutInSeconds != 0 {
+		requestTimeoutInMillis = c.RequestTimeoutInMillis
+		log.Warn("Both 'request_timeout_in_millis' and 'request_timeout_in_seconds' options are set. In this case 'request_timeout_in_millis' takes precendence and 'request_timeout_in_seconds' is ignored. Using 'request_timeout_in_seconds' is deprecated, and will be removed in the next major version. Use 'request_timeout_in_millis' only")
+	}
+
+	if c.RequestTimeoutInMillis == 0 && c.RequestTimeoutInSeconds != 0 {
+		requestTimeoutInMillis = c.RequestTimeoutInSeconds * 1000
+		log.Warn("For the HTTP target, 'request_timeout_in_seconds' is deprecated, and will be removed in the next major version. Use 'request_timeout_in_millis' instead")
+	}
+
+	if c.RequestTimeoutInMillis == 0 && c.RequestTimeoutInSeconds == 0 {
+		requestTimeoutInMillis = 5000
+		log.Warn("Neither 'request_timeout_in_millis' nor 'request_timeout_in_seconds' are set. The previous default is preserved, but strongly advise manual configuration of 'request_timeout_in_millis'")
+	}
+
 	return newHTTPTarget(
 		c.HTTPURL,
-		c.RequestTimeoutInSeconds,
+		requestTimeoutInMillis,
 		c.RequestMaxMessages,
 		c.RequestByteLimit,
 		c.MessageByteLimit,
@@ -321,8 +343,7 @@ func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
 		MessageByteLimit:   1048576,
 		EnableTLS:          false,
 
-		RequestTimeoutInSeconds: 5,
-		ContentType:             "application/json",
+		ContentType: "application/json",
 		ResponseRules: &ResponseRules{
 			Invalid:    []Rule{},
 			SetupError: []Rule{},
