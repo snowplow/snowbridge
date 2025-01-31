@@ -130,6 +130,8 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	}
 	o.Start()
 
+	runHealthServer(s)
+
 	stopTelemetry := telemetry.InitTelemetryWithCollector(cfg)
 
 	// Handle SIGTERM
@@ -339,4 +341,19 @@ func exitWithError(err error, flushSentry bool) {
 		sentry.Flush(2 * time.Second)
 	}
 	os.Exit(1)
+}
+
+func runHealthServer(source sourceiface.Source) {
+	healthServer := http.NewServeMux()
+	healthServer.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		status := source.Health()
+		if status.IsHealthy {
+			w.Write([]byte("ok"))
+		} else {
+		  log.Warnf("Service is unhealthy, reson: %s\n", status.Message)
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+	})
+
+	go http.ListenAndServe(":9000", healthServer)
 }

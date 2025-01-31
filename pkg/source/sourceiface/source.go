@@ -11,9 +11,26 @@
 
 package sourceiface
 
+type HealthStatus struct {
+  IsHealthy bool
+  Message string
+}
+
+func Unhealthy(message string) HealthStatus {
+  return HealthStatus {
+    IsHealthy: false,
+    Message: message,
+  }
+}
+
+func Healthy() HealthStatus {
+  return HealthStatus{IsHealthy: true}
+}
+
 // Source describes the interface for how to read the data pulled from the source
 type Source interface {
 	Read(sf *SourceFunctions) error
 	Stop()
 	GetID() string
+  Health() HealthStatus 
 }

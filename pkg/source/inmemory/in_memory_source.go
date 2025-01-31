@@ -115,3 +115,7 @@ func (ss *inMemorySource) Stop() {
 func (ss *inMemorySource) GetID() string {
 	return "inMemory"
 }
+
+func (ss *inMemorySource) Health() sourceiface.HealthStatus {
+  return sourceiface.HealthStatus{ IsHealthy: true}
+}
