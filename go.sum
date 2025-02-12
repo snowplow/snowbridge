@@ -335,8 +335,8 @@ github.com/smira/go-statsd v1.3.4 h1:kBYWcLSGT+qC6JVbvfz48kX7mQys32fjDOPrfmsSx2c
 github.com/smira/go-statsd v1.3.4/go.mod h1:RjdsESPgDODtg1VpVVf9MJrEW2Hw0wtRNbmB1CAhu6A=
 github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a h1:9T2asgfkxijl85+wpKyCje4DgcjqAJH2czqEWk6+HI0=
 github.com/snowplow-devops/go-sentryhook v0.0.0-20210106082031-21bf7f9dac2a/go.mod h1:7/jMxl0yrvgiUlv5L37fw6pql71aNh55sKQc4kBFj5s=
-github.com/snowplow-devops/kinsumer v1.4.1-0.20250212134755-d052c49963d2 h1:iY84PyS/4HEgFujBNYg8MgvmLjS6OLKRh1TmnVMnwWc=
-github.com/snowplow-devops/kinsumer v1.4.1-0.20250212134755-d052c49963d2/go.mod h1:SebvcasLweQnOygk9SOFkM/JjBtXFviUxoAq19CwrHQ=
+github.com/snowplow-devops/kinsumer v1.5.0 h1:axui/eEtKa+bSloBUbEO1xIq3R3mSKV/HRIlFmzuM1Q=
+github.com/snowplow-devops/kinsumer v1.5.0/go.mod h1:SebvcasLweQnOygk9SOFkM/JjBtXFviUxoAq19CwrHQ=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.3.0 h1:lkWd2JDVG8+X8UPJYdru2EgRW4w/TVnWCmKhW5lPJvc=
 github.com/snowplow/snowplow-golang-analytics-sdk v0.3.0/go.mod h1:KCL+i2+Uj9lvSdknXOA7lBQoBUWGW6ovJgTao7Fkdxk=
 github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1 h1:bp1MynC4BkywqTfpt4wddqZxtN4U7d3UUqxjalcGR1s=

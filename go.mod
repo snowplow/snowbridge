@@ -123,4 +123,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/twitchscience/kinsumer => github.com/snowplow-devops/kinsumer v1.4.1-0.20250212134755-d052c49963d2
+replace github.com/twitchscience/kinsumer => github.com/snowplow-devops/kinsumer v1.5.0
