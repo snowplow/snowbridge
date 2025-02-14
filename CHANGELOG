@@ -1,3 +1,13 @@
+Version 3.2.0 (2025-02-17)
+--------------------------
+Fix string format issues
+Bump dependencies and Go version
+Configure kinsumer clientid (#399)
+Add custom http client to helpers aws session
+Add option to configure HTTP request timeout in milliseconds
+Add request timeout and timestamp as headers in HTTP target
+Fix/sqs apicall rate (#390)
+
 Version 3.1.1 (2025-01-23)
 --------------------------
 Fix GTMSS preview expired message handling
