@@ -231,7 +231,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 			}
 
 			if err != nil {
-				t.Fatalf(err.Error())
+				t.Fatal(err.Error())
 			}
 
 			result := tr(tt.ExpectedMessages.Before)

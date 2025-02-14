@@ -171,7 +171,7 @@ func TestHTTP_RetrieveHeaders(t *testing.T) {
 			}
 			testTarget, err := HTTPTargetConfigFunction(testTargetConfig)
 			if err != nil {
-				t.Fatalf("failed to create test target: " + err.Error())
+				t.Fatalf("failed to create test target: %s", err.Error())
 			}
 
 			out := testTarget.retrieveHeaders(tt.Msg)

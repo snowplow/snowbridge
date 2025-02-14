@@ -74,7 +74,7 @@ func (o *Observer) Start() {
 				o.log.Warn("Received exit signal, shutting down Observer ...")
 
 				// Attempt final flush
-				o.log.Infof(buffer.String())
+				o.log.Info(buffer.String())
 				if o.statsClient != nil {
 					o.statsClient.Send(&buffer)
 				}
@@ -94,7 +94,7 @@ func (o *Observer) Start() {
 			}
 
 			if time.Now().UTC().After(reportTime) {
-				o.log.Infof(buffer.String())
+				o.log.Info(buffer.String())
 				if o.statsClient != nil {
 					o.statsClient.Send(&buffer)
 				}

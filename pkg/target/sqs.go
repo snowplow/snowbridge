@@ -201,7 +201,7 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 		fErr := errors.New(fmt.Sprintf("%s: %s", *f.Code, *f.Message))
 
 		if *f.Code == sqs.ErrCodeInvalidMessageContents {
-			st.log.Warnf(fErr.Error())
+			st.log.Warn(fErr.Error())
 
 			// Append error to message
 			msg.SetError(fErr)

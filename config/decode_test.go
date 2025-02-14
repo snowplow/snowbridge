@@ -136,7 +136,7 @@ test_int = env("TEST_INT")
 
 			err := hclDecoder.Decode(tt.DecoderOpts, tt.Target)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Error(err.Error())
 			}
 			assert.Nil(err)
 
