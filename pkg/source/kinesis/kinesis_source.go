@@ -188,7 +188,7 @@ func newKinesisSourceWithInterfaces(
 		WithIteratorStartTimestamp(startTimestamp).
 		WithThrottleDelay(time.Duration(readThrottleDelay) * time.Millisecond)
 
-	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, clientName, config)
+	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, clientName, clientName, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create Kinsumer client")
 	}
