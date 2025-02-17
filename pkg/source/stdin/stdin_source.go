@@ -139,3 +139,7 @@ func (ss *stdinSource) Stop() {
 func (ss *stdinSource) GetID() string {
 	return "stdin"
 }
+
+func (ss *stdinSource) Health() sourceiface.HealthStatus {
+  return sourceiface.HealthStatus{ IsHealthy: true}
+}
