@@ -11,4 +11,4 @@ USER snowplow
 RUN touch /tmp/config.hcl
 ENV SNOWBRIDGE_CONFIG_FILE=/tmp/config.hcl
 
-CMD ["/opt/snowplow/snowbridge"]
+ENTRYPOINT ["/opt/snowplow/snowbridge"]
