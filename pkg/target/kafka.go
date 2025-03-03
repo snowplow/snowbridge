@@ -234,20 +234,19 @@ func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteRes
 
 			result := <-kt.asyncResults // Block until result is returned
 
+			originalMessage := result.Msg.Metadata.(*models.Message)
+			originalMessage.TimeRequestStarted = requestStarted
+			originalMessage.TimeRequestFinished = time.Now().UTC()
+
 			if result.Err != nil {
 				errResult = multierror.Append(errResult, result.Err)
-				originalMessage := result.Msg.Metadata.(*models.Message)
-				originalMessage.TimeRequestStarted = requestStarted
-				originalMessage.TimeRequestFinished = time.Now().UTC()
 				originalMessage.SetError(result.Err)
 				failed = append(failed, originalMessage)
 			} else {
-				originalMessage := result.Msg.Metadata.(*models.Message)
+
 				if originalMessage.AckFunc != nil {
 					originalMessage.AckFunc()
 				}
-				originalMessage.TimeRequestStarted = requestStarted
-				originalMessage.TimeRequestFinished = time.Now().UTC()
 				sent = append(sent, originalMessage)
 			}
 		}
