@@ -237,6 +237,8 @@ func (kt *KafkaTarget) Write(messages []*models.Message) (*models.TargetWriteRes
 			if result.Err != nil {
 				errResult = multierror.Append(errResult, result.Err)
 				originalMessage := result.Msg.Metadata.(*models.Message)
+				originalMessage.TimeRequestStarted = requestStarted
+				originalMessage.TimeRequestFinished = time.Now().UTC()
 				originalMessage.SetError(result.Err)
 				failed = append(failed, originalMessage)
 			} else {
