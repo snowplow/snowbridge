@@ -1,4 +1,4 @@
-Version 3.2.0 (2025-03-04)
+Version 3.2.1 (2025-03-04)
 --------------------------
 Patch kafka metrics (#402)
 Use `ENTRYPOINT` instead of  `CMD` in Dockerfiles
