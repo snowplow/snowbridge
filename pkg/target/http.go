@@ -65,6 +65,9 @@ type HTTPTargetConfig struct {
 	ResponseRules *ResponseRules `hcl:"response_rules,block"`
 
 	IncludeTimingHeaders bool `hcl:"include_timing_headers,optional"`
+
+  // Debug mode info lives only at the HTTP target level
+  DebugMode            bool `hcl:"debug_mode,optional"`
 }
 
 // ResponseRules is part of HTTP target configuration. It provides rules how HTTP respones should be handled. Response can be categerized as 'invalid' (bad data), as setup error or (if none of the rules matches) as a transient error.
@@ -83,6 +86,11 @@ type Rule struct {
 type response struct {
 	Status int
 	Body   string
+}
+
+type debugRequest struct {
+	OriginalTsv []byte `json:"originalTsv"`
+	RequestBody []byte `json:"requestBody"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -105,6 +113,7 @@ type HTTPTarget struct {
 	responseRules   *ResponseRules
 
 	includeTimingHeaders bool
+  debugMode bool
 }
 
 func checkURL(str string) error {
@@ -166,7 +175,8 @@ func newHTTPTarget(
 	oAuth2TokenURL string,
 	templateFile string,
 	responseRules *ResponseRules,
-	includeTimingHeaders bool) (*HTTPTarget, error) {
+	includeTimingHeaders bool,
+  debugMode bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -217,6 +227,7 @@ func newHTTPTarget(
 		responseRules:   responseRules,
 
 		includeTimingHeaders: includeTimingHeaders,
+    debugMode: debugMode,
 	}, nil
 }
 
@@ -321,6 +332,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.TemplateFile,
 		c.ResponseRules,
 		c.IncludeTimingHeaders,
+    c.DebugMode,
 	)
 }
 
@@ -493,6 +505,40 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
 	return models.NewTargetWriteResult(sent, failed, oversized, invalid), errResult
+}
+
+func (ht *HTTPTarget) gimmeBody(group []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+	if ht.debugMode {
+		if len(group) > 1 {
+			panic("Debug mode is not supported with batching")
+		}
+		firstMsg := group[0]
+
+    // No need to check what kind of data we have here (success, filter, failure), they have separate targets
+	  request, ok, bad := ht.gimmeNonEmptyBody(group)
+    wrapped := wrapBodyForDebugging(firstMsg, request)
+		return wrapped, ok, bad
+	}
+
+	// And this is for regular non-debug mode flow
+	return ht.gimmeNonEmptyBody(group)
+}
+
+func (ht *HTTPTarget) gimmeNonEmptyBody(group []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+	if ht.requestTemplate != nil {
+		return ht.renderBatchUsingTemplate(group)
+	} else {
+		return ht.provideRequestBody(group)
+	}
+}
+
+func wrapBodyForDebugging(msg *models.Message, originalBody []byte) []byte {
+	request := debugRequest{
+		OriginalTsv: msg.OriginalData,
+		RequestBody: originalBody,
+	}
+	output, _ := json.Marshal(request)
+	return output
 }
 
 func findMatchingRule(res response, rules []Rule) *Rule {
