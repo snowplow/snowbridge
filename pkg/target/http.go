@@ -65,6 +65,7 @@ type HTTPTargetConfig struct {
 	ResponseRules *ResponseRules `hcl:"response_rules,block"`
 
 	IncludeTimingHeaders bool `hcl:"include_timing_headers,optional"`
+	DebugMode            bool `hcl:"debug_mode,optional"`
 }
 
 // ResponseRules is part of HTTP target configuration. It provides rules how HTTP respones should be handled. Response can be categerized as 'invalid' (bad data), as setup error or (if none of the rules matches) as a transient error.
@@ -83,6 +84,11 @@ type Rule struct {
 type response struct {
 	Status int
 	Body   string
+}
+
+type debugRequest struct {
+	OriginalTsv string          `json:"originalTsv"`
+	RequestBody json.RawMessage `json:"requestBody"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -105,6 +111,7 @@ type HTTPTarget struct {
 	responseRules   *ResponseRules
 
 	includeTimingHeaders bool
+	debugMode            bool
 }
 
 func checkURL(str string) error {
@@ -166,7 +173,8 @@ func newHTTPTarget(
 	oAuth2TokenURL string,
 	templateFile string,
 	responseRules *ResponseRules,
-	includeTimingHeaders bool) (*HTTPTarget, error) {
+	includeTimingHeaders bool,
+	debugMode bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -217,6 +225,7 @@ func newHTTPTarget(
 		responseRules:   responseRules,
 
 		includeTimingHeaders: includeTimingHeaders,
+		debugMode:            debugMode,
 	}, nil
 }
 
@@ -321,6 +330,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		c.TemplateFile,
 		c.ResponseRules,
 		c.IncludeTimingHeaders,
+		c.DebugMode,
 	)
 }
 
@@ -391,11 +401,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			var badMsgs []*models.Message
 			var err error
 
-			if ht.requestTemplate != nil {
-				reqBody, goodMsgs, badMsgs = ht.renderBatchUsingTemplate(group)
-			} else {
-				reqBody, goodMsgs, badMsgs = ht.provideRequestBody(group)
-			}
+			reqBody, goodMsgs, badMsgs = ht.prepareRequestBody(group)
 
 			invalid = append(invalid, badMsgs...)
 
@@ -495,6 +501,37 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	return models.NewTargetWriteResult(sent, failed, oversized, invalid), errResult
 }
 
+func (ht *HTTPTarget) prepareRequestBody(group []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+	if ht.debugMode {
+		if len(group) > 1 {
+			panic("Debug mode is not supported with batching")
+		}
+		firstMsg := group[0]
+
+		request, ok, bad := ht.prepareBodyWithTransformedData(group)
+		wrapped := wrapBodyForDebugging(firstMsg, request)
+		return wrapped, ok, bad
+	}
+
+	return ht.prepareBodyWithTransformedData(group)
+}
+
+func (ht *HTTPTarget) prepareBodyWithTransformedData(group []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+	if ht.requestTemplate != nil {
+		return ht.renderBatchUsingTemplate(group)
+	}
+	return ht.renderJSONArray(group)
+}
+
+func wrapBodyForDebugging(msg *models.Message, originalBody []byte) []byte {
+	request := debugRequest{
+		OriginalTsv: string(msg.OriginalData),
+		RequestBody: originalBody,
+	}
+	output, _ := json.Marshal(request)
+	return output
+}
+
 func findMatchingRule(res response, rules []Rule) *Rule {
 	for _, rule := range rules {
 		if ruleMatches(res, rule) {
@@ -582,7 +619,7 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 
 // Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
 // This is a http specific function so we define it here to avoid scope for misconfiguration
-func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
 
 	// This assumes the data is a valid JSON. Plain strings are no longer supported, but can be handled via a combination of transformation and templater
 	requestData := make([]json.RawMessage, 0)
