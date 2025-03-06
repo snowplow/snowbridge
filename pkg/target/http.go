@@ -166,7 +166,8 @@ func newHTTPTarget(
 	oAuth2TokenURL string,
 	templateFile string,
 	responseRules *ResponseRules,
-	includeTimingHeaders bool) (*HTTPTarget, error) {
+	includeTimingHeaders bool,
+	debugMode bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -217,6 +218,7 @@ func newHTTPTarget(
 		responseRules:   responseRules,
 
 		includeTimingHeaders: includeTimingHeaders,
+		debugMode:            debugMode,
 	}, nil
 }
 
@@ -394,7 +396,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			if ht.requestTemplate != nil {
 				reqBody, goodMsgs, badMsgs = ht.renderBatchUsingTemplate(group)
 			} else {
-				reqBody, goodMsgs, badMsgs = ht.provideRequestBody(group)
+				reqBody, goodMsgs, badMsgs = ht.renderJSONArray(group)
 			}
 
 			invalid = append(invalid, badMsgs...)
@@ -582,7 +584,7 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 
 // Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
 // This is a http specific function so we define it here to avoid scope for misconfiguration
-func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
 
 	// This assumes the data is a valid JSON. Plain strings are no longer supported, but can be handled via a combination of transformation and templater
 	requestData := make([]json.RawMessage, 0)
