@@ -351,12 +351,12 @@ func TestHTTP_AddHeadersToRequest_WithDynamicHeaders(t *testing.T) {
 func TestHTTP_NewHTTPTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	httpTarget, err := newHTTPTarget("http://something", 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+	httpTarget, err := newHTTPTarget("http://something", 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 
 	assert.Nil(err)
 	assert.NotNil(httpTarget)
 
-	failedHTTPTarget, err1 := newHTTPTarget("something", 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+	failedHTTPTarget, err1 := newHTTPTarget("something", 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 
 	assert.NotNil(err1)
 	if err1 != nil {
@@ -364,7 +364,7 @@ func TestHTTP_NewHTTPTarget(t *testing.T) {
 	}
 	assert.Nil(failedHTTPTarget)
 
-	failedHTTPTarget2, err2 := newHTTPTarget("", 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+	failedHTTPTarget2, err2 := newHTTPTarget("", 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 	assert.NotNil(err2)
 	if err2 != nil {
 		assert.Equal("Invalid url for HTTP target: ''", err2.Error())
@@ -393,7 +393,7 @@ func TestHTTP_Write_Simple(t *testing.T) {
 			server := createTestServerWithResponseCode(&results, &headers, tt.ResponseCode, "")
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+			target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -461,7 +461,7 @@ func TestHTTP_Write_Batched(t *testing.T) {
 			server := createTestServerWithResponseCode(&results, &headers, 200, "")
 			defer server.Close()
 
-			target, err := newHTTPTarget(server.URL, 5000, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+			target, err := newHTTPTarget(server.URL, 5000, tt.BatchSize, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -520,7 +520,7 @@ func TestHTTP_Write_Concurrent(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+	target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -564,7 +564,7 @@ func TestHTTP_Write_Failure(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget("http://NonexistentEndpoint", 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+	target, err := newHTTPTarget("http://NonexistentEndpoint", 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -607,7 +607,7 @@ func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 			var headers http.Header
 			server := createTestServerWithResponseCode(&results, &headers, tt.ResponseCode, "")
 			defer server.Close()
-			target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+			target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -642,7 +642,7 @@ func TestHTTP_Write_Oversized(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false)
+	target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -685,7 +685,7 @@ func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 	server := createTestServer(&results)
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5000, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), defaultResponseRules(), false)
+	target, err := newHTTPTarget(server.URL, 5000, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), defaultResponseRules(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -745,7 +745,7 @@ func TestHTTP_Write_Invalid(t *testing.T) {
 		},
 	}
 
-	target, err := newHTTPTarget(server.URL, 5000, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules, false)
+	target, err := newHTTPTarget(server.URL, 5000, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -775,7 +775,7 @@ func TestHTTP_Write_Setup(t *testing.T) {
 		},
 	}
 
-	target, err := newHTTPTarget(server.URL, 5000, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules, false)
+	target, err := newHTTPTarget(server.URL, 5000, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), &responseRules, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -802,7 +802,7 @@ func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
 	server := createTestServerWithResponseCode(&results, &headers, 200, "ok")
 	defer server.Close()
 
-	target, err := newHTTPTarget(server.URL, 5000, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), true)
+	target, err := newHTTPTarget(server.URL, 5000, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -848,7 +848,7 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		defaultResponseRules(), false)
+		defaultResponseRules(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -890,7 +890,7 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		defaultResponseRules(), false)
+		defaultResponseRules(), false, false)
 	if err2 != nil {
 		t.Fatal(err2)
 	}
@@ -925,7 +925,7 @@ func TestHTTP_Write_TLS(t *testing.T) {
 		"",
 		"",
 		"",
-		defaultResponseRules(), false)
+		defaultResponseRules(), false, false)
 	if err4 != nil {
 		t.Fatal(err4)
 	}
@@ -949,7 +949,7 @@ func TestHTTP_ProvideRequestBody(t *testing.T) {
 		{Data: []byte(`justastring`)},
 	}
 
-	templated, success, invalid := target.provideRequestBody(inputMessages)
+	templated, success, invalid := target.renderJSONArray(inputMessages)
 
 	assert.Equal(`[{"key":"value1"},{"key":"value2"},{"key":"value3"}]`, string(templated))
 	assert.Equal(3, len(success))
@@ -1080,7 +1080,7 @@ func TestHTTP_Write_GroupedRequests(t *testing.T) {
 	defer server.Close()
 
 	//dynamicHeaders enabled
-	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, true, "", "", "", "", "", defaultResponseRules(), false)
+	target, err := newHTTPTarget(server.URL, 5, 5, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, true, "", "", "", "", "", defaultResponseRules(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1115,6 +1115,64 @@ func TestHTTP_Write_GroupedRequests(t *testing.T) {
 	assert.Contains(results, []byte(`[{"key":"value1"},{"key":"value2"}]`))
 	assert.Contains(results, []byte(`[{"key":"value3"},{"key":"value4"}]`))
 	assert.Contains(results, []byte(`[{"key":"value5"}]`))
+}
+
+func TestHTTP_Write_DebugMode_NoTemplate(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	wg := sync.WaitGroup{}
+	server := createTestServer(&results)
+	defer server.Close()
+
+	target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", "", defaultResponseRules(), false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{
+		{OriginalData: []byte(`some raw tsv string`), Data: []byte(`{ "event_data": { "nested": "value1"}, "attribute_data": 1}`), AckFunc: func() { wg.Done() }},
+	}
+
+	wg.Add(1)
+	_, err1 := target.Write(input)
+
+	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
+
+	assert.Nil(err1)
+
+	assert.Equal(`{"originalTsv":"some raw tsv string","requestBody":[{"event_data":{"nested":"value1"},"attribute_data":1}]}`, string(results[0]))
+}
+
+func TestHTTP_Write_DebugMode_WithTemplate(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	wg := sync.WaitGroup{}
+	server := createTestServer(&results)
+	defer server.Close()
+
+	target, err := newHTTPTarget(server.URL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, "", "", "", "", string(`../../integration/http/template`), defaultResponseRules(), false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{
+		{OriginalData: []byte(`some raw tsv string`), Data: []byte(`{ "event_data": { "nested": "value1"}, "attribute_data": 1}`), AckFunc: func() { wg.Done() }},
+	}
+
+	wg.Add(1)
+	_, err1 := target.Write(input)
+
+	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
+
+	assert.Nil(err1)
+
+	assert.Equal(`{"originalTsv":"some raw tsv string","requestBody":{"attributes":[1],"events":[{"nested":"value1"}]}}`, string(results[0]))
 }
 
 type ngrokAPIObject struct {

@@ -90,6 +90,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				CaFile:                  "",
 				SkipVerifyTLS:           false,
         IncludeTimingHeaders:    false,
+        DebugMode:               false,
 				ResponseRules: &target.ResponseRules{
 					Invalid:    []target.Rule{},
 					SetupError: []target.Rule{},
@@ -122,6 +123,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				DynamicHeaders:          true,
 				TemplateFile:            "myTemplate.file",
         IncludeTimingHeaders:    true,
+        DebugMode:               true,
 				ResponseRules: &target.ResponseRules{
 					Invalid: []target.Rule{
 						{

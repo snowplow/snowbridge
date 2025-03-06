@@ -235,6 +235,7 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 
 			messages := []*models.Message{
 				{
+          OriginalData: record.Data,
 					Data:         record.Data,
 					PartitionKey: uuid.New().String(),
 					AckFunc:      ackFunc,

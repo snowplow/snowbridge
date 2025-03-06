@@ -74,6 +74,9 @@ target {
     # Optional. When enabled, configured client timeout and timestamp of request are attached as HTTP headers.
     include_timing_headers     = true
 
+    # Optional. When enabled, original messages are sent alongside transformed data to the target. 
+    debug_mode                 = true
+
     # Optional HTTP response rules which are used to match HTTP response code/body and categorize it as either invalid data or target setup error.
     # For example, we can have 2 invalid + 1 setup error rules:
     response_rules {
