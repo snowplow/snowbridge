@@ -18,6 +18,9 @@ import (
 
 // Message holds the structure of a generic message to be sent to a target
 type Message struct {
+  // Raw data provided by source, never modifed by Snowbridge
+  OriginalData []byte
+
 	PartitionKey string
 	Data         []byte
 	HTTPHeaders  map[string]string

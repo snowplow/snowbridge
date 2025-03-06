@@ -202,25 +202,40 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 		transformed := tr(messages)
 		// no error as errors should be returned in the failures array of TransformationResult
 
-		// Ack filtered messages with no further action
-		messagesToFilter := transformed.Filtered
-		for _, msg := range messagesToFilter {
-			if msg.AckFunc != nil {
-				msg.AckFunc()
-			}
-		}
-		// Push filter result to observer
-		filterRes := models.NewFilterResult(messagesToFilter)
-		o.Filtered(filterRes)
-
 		// Send message buffer
 		messagesToSend := transformed.Result
+		messagesToFilter := transformed.Filtered
+
+		if cfg.Data.DebugMode {
+			// Make 'Data' field nil for filtered data (we still have original data in a separate field)
+			// This can be used to differentiate data at the target level.
+      // Very ugly. Maybe another boolean field in message to mark it as filtered...?
+			for _, msg := range messagesToFilter {
+				msg.Data = nil
+			}
+
+			// append to the buffer to send them later. No ack here.
+			messagesToSend = append(messagesToSend, messagesToFilter...)
+		} else {
+			// regular ack flow
+			for _, msg := range messagesToFilter {
+				if msg.AckFunc != nil {
+					msg.AckFunc()
+				}
+			}
+		}
+
+		// In debug mode is metrics something we care about?
+		// If we redirect filtered to the target...should it be considered as filtered or as sent in the observer buffer?
+		o.Filtered(models.NewFilterResult(messagesToFilter))
+
 		invalid := transformed.Invalid
 		var oversized []*models.Message
 
 		write := func() error {
 			result, err := t.Write(messagesToSend)
 
+			// Again about metrics and if we care about them - in debug mode this result would also contain filtered data.
 			o.TargetWrite(result)
 			messagesToSend = result.Failed
 			oversized = append(oversized, result.Oversized...)
