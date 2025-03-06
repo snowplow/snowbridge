@@ -120,6 +120,12 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	}
 	ft.Open()
 
+	filter, err := cfg.GetFilterTarget()
+	if err != nil {
+		return err
+	}
+	filter.Open()
+
 	tags, err := cfg.GetTags()
 	if err != nil {
 		return err
@@ -158,6 +164,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 			t.Close()
 			ft.Close()
+			filter.Close()
 			o.Stop()
 			stopTelemetry()
 
@@ -171,7 +178,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	// Callback functions for the source to leverage when writing data
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: sourceWriteFunc(t, ft, tr, o, cfg),
+		WriteToTarget: sourceWriteFunc(t, ft, filter, tr, o, cfg),
 	}
 
 	// Read is a long running process and will only return when the source
@@ -183,6 +190,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	t.Close()
 	ft.Close()
+	filter.Close()
 	o.Stop()
 	return nil
 }
@@ -195,43 +203,57 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 // 4. Observing these results
 //
 // All with retry logic baked in to remove any of this handling from the implementations
-func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config) func(messages []*models.Message) error {
+func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targetiface.Target, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
+
+		copyOriginalData(messages)
 
 		// Apply transformations
 		transformed := tr(messages)
 		// no error as errors should be returned in the failures array of TransformationResult
 
-		// Ack filtered messages with no further action
-		messagesToFilter := transformed.Filtered
-		for _, msg := range messagesToFilter {
-			if msg.AckFunc != nil {
-				msg.AckFunc()
-			}
-		}
-		// Push filter result to observer
-		filterRes := models.NewFilterResult(messagesToFilter)
-		o.Filtered(filterRes)
-
 		// Send message buffer
-		messagesToSend := transformed.Result
 		invalid := transformed.Invalid
+		var messagesToSend []*models.Message
 		var oversized []*models.Message
 
-		write := func() error {
-			result, err := t.Write(messagesToSend)
+		if len(transformed.Result) > 0 {
+			messagesToSend = transformed.Result
+			writeTransformed := func() error {
+				result, err := t.Write(messagesToSend)
 
-			o.TargetWrite(result)
-			messagesToSend = result.Failed
-			oversized = append(oversized, result.Oversized...)
-			invalid = append(invalid, result.Invalid...)
-			return err
+				o.TargetWrite(result)
+				messagesToSend = result.Failed
+				oversized = append(oversized, result.Oversized...)
+				invalid = append(invalid, result.Invalid...)
+				return err
+			}
+
+			err := handleWrite(cfg, writeTransformed)
+
+			if err != nil {
+				return err
+			}
 		}
 
-		err := handleWrite(cfg, write)
+		if len(transformed.Filtered) > 0 {
+			messagesToSend = transformed.Filtered
+			writeFiltered := func() error {
+				result, err := filter.Write(messagesToSend)
+				filterRes := models.NewFilterResult(result.Sent)
+				o.Filtered(filterRes)
 
-		if err != nil {
-			return err
+				messagesToSend = result.Failed
+				oversized = append(oversized, result.Oversized...)
+				invalid = append(invalid, result.Invalid...)
+				return err
+			}
+
+			err := handleWrite(cfg, writeFiltered)
+
+			if err != nil {
+				return err
+			}
 		}
 
 		// Send oversized message buffer
@@ -339,4 +361,13 @@ func exitWithError(err error, flushSentry bool) {
 		sentry.Flush(2 * time.Second)
 	}
 	os.Exit(1)
+}
+
+func copyOriginalData(messages []*models.Message) {
+	// To preserve original data (which may be needed downstream) we copy data provided by source before we run any transformations
+	for _, msg := range messages {
+		buffer := make([]byte, len(msg.Data))
+		copy(buffer, msg.Data)
+		msg.OriginalData = buffer
+	}
 }

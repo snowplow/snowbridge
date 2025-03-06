@@ -19,6 +19,7 @@ import (
 // Message holds the structure of a generic message to be sent to a target
 type Message struct {
 	PartitionKey string
+	OriginalData []byte
 	Data         []byte
 	HTTPHeaders  map[string]string
 
