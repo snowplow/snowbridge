@@ -48,6 +48,7 @@ type configurationData struct {
 	Source           *component     `hcl:"source,block"`
 	Target           *component     `hcl:"target,block"`
 	FailureTarget    *failureConfig `hcl:"failure_target,block"`
+	FilterTarget     *component     `hcl:"filter_target,block"`
 	Sentry           *sentryConfig  `hcl:"sentry,block"`
 	StatsReceiver    *statsConfig   `hcl:"stats_receiver,block"`
 	Transformations  []*component   `hcl:"transform,block"`
@@ -124,6 +125,7 @@ func defaultConfigData() *configurationData {
 			Target: &use{Name: "stdout"},
 			Format: "snowplow",
 		},
+		FilterTarget: &component{&use{Name: "silent"}},
 		Sentry: &sentryConfig{
 			Tags: "{}",
 		},
@@ -326,6 +328,64 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 	}
 
 	return nil, fmt.Errorf("could not interpret failure target configuration for %q", useFailureTarget.Name)
+}
+
+// GetFilterTarget builds and returns the target for filtered data
+func (c *Config) GetFilterTarget() (targetiface.Target, error) {
+	var plug Pluggable
+	useTarget := c.Data.FilterTarget.Use
+	decoderOpts := &DecoderOptions{
+		Input: useTarget.Body,
+	}
+
+	switch useTarget.Name {
+	case "stdout":
+		plug = target.AdaptStdoutTargetFunc(
+			target.StdoutTargetConfigFunction,
+		)
+	case "kinesis":
+		plug = target.AdaptKinesisTargetFunc(
+			target.KinesisTargetConfigFunction,
+		)
+	case "pubsub":
+		plug = target.AdaptPubSubTargetFunc(
+			target.PubSubTargetConfigFunction,
+		)
+	case "sqs":
+		plug = target.AdaptSQSTargetFunc(
+			target.SQSTargetConfigFunction,
+		)
+	case "kafka":
+		plug = target.AdaptKafkaTargetFunc(
+			target.NewKafkaTarget,
+		)
+	case "eventhub":
+		plug = target.AdaptEventHubTargetFunc(
+			target.EventHubTargetConfigFunction,
+		)
+	case "http":
+		plug = target.AdaptHTTPTargetFunc(
+			target.HTTPTargetConfigFunction,
+		)
+	//This one is only available for filter target
+	case "silent":
+		plug = target.AdaptSilentTargetFunc(
+			target.SilentTargetConfigFunction,
+		)
+	default:
+		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http, silent' and got '%s'", useTarget.Name))
+	}
+
+	component, err := c.CreateComponent(plug, decoderOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	if t, ok := component.(targetiface.Target); ok {
+		return t, nil
+	}
+
+	return nil, fmt.Errorf("could not interpret filter target configuration for %q", useTarget.Name)
 }
 
 // GetTags returns a list of tags to use in identifying this instance of snowbridge with enough
