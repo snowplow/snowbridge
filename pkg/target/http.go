@@ -85,6 +85,11 @@ type response struct {
 	Body   string
 }
 
+type debugRequest struct {
+	OriginalTsv []byte `json:"originalTsv"`
+	RequestBody []byte `json:"requestBody"`
+}
+
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
 type HTTPTarget struct {
 	client            *http.Client
@@ -105,6 +110,7 @@ type HTTPTarget struct {
 	responseRules   *ResponseRules
 
 	includeTimingHeaders bool
+	debugMode            bool
 }
 
 func checkURL(str string) error {
@@ -166,7 +172,8 @@ func newHTTPTarget(
 	oAuth2TokenURL string,
 	templateFile string,
 	responseRules *ResponseRules,
-	includeTimingHeaders bool) (*HTTPTarget, error) {
+	includeTimingHeaders bool,
+	debugMode bool) (*HTTPTarget, error) {
 	err := checkURL(httpURL)
 	if err != nil {
 		return nil, err
@@ -217,6 +224,7 @@ func newHTTPTarget(
 		responseRules:   responseRules,
 
 		includeTimingHeaders: includeTimingHeaders,
+		debugMode:            debugMode,
 	}, nil
 }
 
@@ -276,52 +284,56 @@ func createHTTPClient(oAuth2ClientID string, oAuth2ClientSecret string, oAuth2To
 }
 
 // HTTPTargetConfigFunction creates HTTPTarget from HTTPTargetConfig
-func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
-	var requestTimeoutInMillis int
+// Passing debug mode option from the top-level config
+func HTTPTargetConfigFunction(debugMode bool) func(*HTTPTargetConfig) (*HTTPTarget, error) {
+	return func(c *HTTPTargetConfig) (*HTTPTarget, error) {
+		var requestTimeoutInMillis int
 
-	if c.RequestTimeoutInMillis != 0 && c.RequestTimeoutInSeconds == 0 {
-		requestTimeoutInMillis = c.RequestTimeoutInMillis
+		if c.RequestTimeoutInMillis != 0 && c.RequestTimeoutInSeconds == 0 {
+			requestTimeoutInMillis = c.RequestTimeoutInMillis
+		}
+
+		if c.RequestTimeoutInMillis != 0 && c.RequestTimeoutInSeconds != 0 {
+			requestTimeoutInMillis = c.RequestTimeoutInMillis
+			log.Warn("Both 'request_timeout_in_millis' and 'request_timeout_in_seconds' options are set. In this case 'request_timeout_in_millis' takes precendence and 'request_timeout_in_seconds' is ignored. Using 'request_timeout_in_seconds' is deprecated, and will be removed in the next major version. Use 'request_timeout_in_millis' only")
+		}
+
+		if c.RequestTimeoutInMillis == 0 && c.RequestTimeoutInSeconds != 0 {
+			requestTimeoutInMillis = c.RequestTimeoutInSeconds * 1000
+			log.Warn("For the HTTP target, 'request_timeout_in_seconds' is deprecated, and will be removed in the next major version. Use 'request_timeout_in_millis' instead")
+		}
+
+		if c.RequestTimeoutInMillis == 0 && c.RequestTimeoutInSeconds == 0 {
+			requestTimeoutInMillis = 5000
+			log.Warn("Neither 'request_timeout_in_millis' nor 'request_timeout_in_seconds' are set. The previous default is preserved, but strongly advise manual configuration of 'request_timeout_in_millis'")
+		}
+
+		return newHTTPTarget(
+			c.HTTPURL,
+			requestTimeoutInMillis,
+			c.RequestMaxMessages,
+			c.RequestByteLimit,
+			c.MessageByteLimit,
+			c.ContentType,
+			c.Headers,
+			c.BasicAuthUsername,
+			c.BasicAuthPassword,
+			c.EnableTLS,
+			c.CertFile,
+			c.KeyFile,
+			c.CaFile,
+			c.SkipVerifyTLS,
+			c.DynamicHeaders,
+			c.OAuth2ClientID,
+			c.OAuth2ClientSecret,
+			c.OAuth2RefreshToken,
+			c.OAuth2TokenURL,
+			c.TemplateFile,
+			c.ResponseRules,
+			c.IncludeTimingHeaders,
+			debugMode,
+		)
 	}
-
-	if c.RequestTimeoutInMillis != 0 && c.RequestTimeoutInSeconds != 0 {
-		requestTimeoutInMillis = c.RequestTimeoutInMillis
-		log.Warn("Both 'request_timeout_in_millis' and 'request_timeout_in_seconds' options are set. In this case 'request_timeout_in_millis' takes precendence and 'request_timeout_in_seconds' is ignored. Using 'request_timeout_in_seconds' is deprecated, and will be removed in the next major version. Use 'request_timeout_in_millis' only")
-	}
-
-	if c.RequestTimeoutInMillis == 0 && c.RequestTimeoutInSeconds != 0 {
-		requestTimeoutInMillis = c.RequestTimeoutInSeconds * 1000
-		log.Warn("For the HTTP target, 'request_timeout_in_seconds' is deprecated, and will be removed in the next major version. Use 'request_timeout_in_millis' instead")
-	}
-
-	if c.RequestTimeoutInMillis == 0 && c.RequestTimeoutInSeconds == 0 {
-		requestTimeoutInMillis = 5000
-		log.Warn("Neither 'request_timeout_in_millis' nor 'request_timeout_in_seconds' are set. The previous default is preserved, but strongly advise manual configuration of 'request_timeout_in_millis'")
-	}
-
-	return newHTTPTarget(
-		c.HTTPURL,
-		requestTimeoutInMillis,
-		c.RequestMaxMessages,
-		c.RequestByteLimit,
-		c.MessageByteLimit,
-		c.ContentType,
-		c.Headers,
-		c.BasicAuthUsername,
-		c.BasicAuthPassword,
-		c.EnableTLS,
-		c.CertFile,
-		c.KeyFile,
-		c.CaFile,
-		c.SkipVerifyTLS,
-		c.DynamicHeaders,
-		c.OAuth2ClientID,
-		c.OAuth2ClientSecret,
-		c.OAuth2RefreshToken,
-		c.OAuth2TokenURL,
-		c.TemplateFile,
-		c.ResponseRules,
-		c.IncludeTimingHeaders,
-	)
 }
 
 // The HTTPTargetAdapter type is an adapter for functions to be used as
@@ -390,12 +402,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			var goodMsgs []*models.Message
 			var badMsgs []*models.Message
 			var err error
-
-			if ht.requestTemplate != nil {
-				reqBody, goodMsgs, badMsgs = ht.renderBatchUsingTemplate(group)
-			} else {
-				reqBody, goodMsgs, badMsgs = ht.provideRequestBody(group)
-			}
+			reqBody, goodMsgs, badMsgs = ht.gimmeBody(group)
 
 			invalid = append(invalid, badMsgs...)
 
@@ -548,6 +555,43 @@ func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string]string {
 	}
 
 	return msg.HTTPHeaders
+}
+
+func (ht *HTTPTarget) gimmeBody(group []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+	if ht.debugMode {
+		if len(group) > 1 {
+			panic("Debug mode is not supported with batching")
+		}
+		firstMsg := group[0]
+
+		// This is transformed, non-filtered data. We render proper request body
+		if len(firstMsg.Data) > 0 {
+			request, ok, bad := ht.gimmeNonEmptyBody(group)
+			return wrapBodyForDebugging(firstMsg, request), ok, bad
+		}
+		// This is for filtered data, inner request body is nil
+		return wrapBodyForDebugging(firstMsg, nil), group, nil
+	}
+
+	// And this is for regular non-debug mode flow
+	return ht.gimmeNonEmptyBody(group)
+}
+
+func (ht *HTTPTarget) gimmeNonEmptyBody(group []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+	if ht.requestTemplate != nil {
+		return ht.renderBatchUsingTemplate(group)
+	} else {
+		return ht.provideRequestBody(group)
+	}
+}
+
+func wrapBodyForDebugging(msg *models.Message, originalBody []byte) []byte {
+	request := debugRequest{
+		OriginalTsv: msg.OriginalData,
+		RequestBody: originalBody,
+	}
+	output, _ := json.Marshal(request)
+	return output
 }
 
 // renderBatchUsingTemplate creates a request from a batch of messages based on configured template

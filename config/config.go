@@ -57,7 +57,9 @@ type configurationData struct {
 	License          *licenseConfig `hcl:"license,block"`
 	Retry            *retryConfig   `hcl:"retry,block"`
 	Metrics          *metricsConfig `hcl:"metrics,block"`
-}
+
+  // Is this how we want to enable debug mode?
+  DebugMode        bool           `hcl:"debug_mode,optional"` }
 
 // component is a type to abstract over configuration blocks.
 type component struct {
@@ -150,6 +152,7 @@ func defaultConfigData() *configurationData {
 		Metrics: &metricsConfig{
 			E2ELatencyEnabled: false,
 		},
+    DebugMode: false,
 	}
 }
 
@@ -250,7 +253,7 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		)
 	case "http":
 		plug = target.AdaptHTTPTargetFunc(
-			target.HTTPTargetConfigFunction,
+			target.HTTPTargetConfigFunction(c.Data.DebugMode),
 		)
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useTarget.Name))
@@ -305,7 +308,7 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 		)
 	case "http":
 		plug = target.AdaptHTTPTargetFunc(
-			target.HTTPTargetConfigFunction,
+			target.HTTPTargetConfigFunction(c.Data.DebugMode),
 		)
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useFailureTarget.Name))
