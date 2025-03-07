@@ -120,6 +120,12 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	}
 	ft.Open()
 
+	filter, err := cfg.GetFilterTarget()
+	if err != nil {
+		return err
+	}
+	filter.Open()
+
 	tags, err := cfg.GetTags()
 	if err != nil {
 		return err
@@ -158,6 +164,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 			t.Close()
 			ft.Close()
+			filter.Close()
 			o.Stop()
 			stopTelemetry()
 
@@ -171,7 +178,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	// Callback functions for the source to leverage when writing data
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: sourceWriteFunc(t, ft, tr, o, cfg),
+		WriteToTarget: sourceWriteFunc(t, ft, filter, tr, o, cfg),
 	}
 
 	// Read is a long running process and will only return when the source
@@ -183,6 +190,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	t.Close()
 	ft.Close()
+	filter.Close()
 	o.Stop()
 	return nil
 }
@@ -195,23 +203,12 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 // 4. Observing these results
 //
 // All with retry logic baked in to remove any of this handling from the implementations
-func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config) func(messages []*models.Message) error {
+func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targetiface.Target, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
 
 		// Apply transformations
 		transformed := tr(messages)
 		// no error as errors should be returned in the failures array of TransformationResult
-
-		// Ack filtered messages with no further action
-		messagesToFilter := transformed.Filtered
-		for _, msg := range messagesToFilter {
-			if msg.AckFunc != nil {
-				msg.AckFunc()
-			}
-		}
-		// Push filter result to observer
-		filterRes := models.NewFilterResult(messagesToFilter)
-		o.Filtered(filterRes)
 
 		// Send message buffer
 		messagesToSend := transformed.Result
@@ -232,6 +229,26 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, tr transform
 
 		if err != nil {
 			return err
+		}
+
+		if len(transformed.Filtered) > 0 {
+			messagesToSend = transformed.Filtered
+			writeFiltered := func() error {
+				result, err := t.Write(messagesToSend)
+				filterRes := models.NewFilterResult(result.Sent)
+				o.Filtered(filterRes)
+
+				messagesToSend = result.Failed
+				oversized = append(oversized, result.Oversized...)
+				invalid = append(invalid, result.Invalid...)
+				return err
+			}
+
+			err := handleWrite(cfg, writeFiltered)
+
+			if err != nil {
+				return err
+			}
 		}
 
 		// Send oversized message buffer
