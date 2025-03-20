@@ -32,6 +32,9 @@ linux_container_image_out_dir = $(output_dir)/container/linux
 
 container_name = snowplow/snowbridge
 
+CURRENT_UID := $(shell id -u)
+CURRENT_GID := $(shell id -g)
+
 # -----------------------------------------------------------------------------
 #  BUILDING
 # -----------------------------------------------------------------------------
@@ -168,7 +171,10 @@ integration-reset: integration-down integration-up
 # For integration tests we need localstack, pubsub kafka and http server
 # To run on mac M1, for example, set the default docker platform: export DOCKER_DEFAULT_PLATFORM=linux/arm64
 integration-up: http-up
-	(cd $(integration_dir) && docker compose up -d)
+	LOCALSTACK_USER=$(CURRENT_UID):$(CURRENT_GID) \
+	DOCKER_UID=$(CURRENT_UID) \
+	DOCKER_GID=$(CURRENT_GID) \
+	cd $(integration_dir) && docker compose up -d
 	sleep 5
 
 # We can just shut everything down here

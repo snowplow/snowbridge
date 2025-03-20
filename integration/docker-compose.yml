@@ -1,5 +1,3 @@
-version: "3"
-
 services:
   localstack:
     image: localstack/localstack:4.0.3
@@ -17,6 +15,8 @@ services:
       - SERVICES=sqs,kinesis,dynamodb,sts
       # Kinesis target handles throttling, but it breaks source tests. Configuration added here so we can manually configure testing with throttling for the target.
       - KINESIS_ERROR_PROBABILITY=0.0
+      - LOCALSTACK_USER=${DOCKER_UID:-1000}:${DOCKER_GID:-1000}
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
 
   pubsub:
     image: bigtruedata/gcloud-pubsub-emulator
