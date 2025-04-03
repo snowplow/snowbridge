@@ -23,7 +23,7 @@ import (
 func TestSilentTarget_WriteSuccess(t *testing.T) {
 	assert := assert.New(t)
 
-  target := SilentTarget{}
+	target := SilentTarget{}
 	assert.Equal("silent", target.GetID())
 
 	defer target.Close()
