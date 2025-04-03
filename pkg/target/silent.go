@@ -16,7 +16,7 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
-// SilentTarget holds a new client for silently acking data 
+// SilentTarget holds a new client for silently acking data
 type SilentTarget struct{}
 
 // SilentTargetConfigFunction creates an SilentTarget

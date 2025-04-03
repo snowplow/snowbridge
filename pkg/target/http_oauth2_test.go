@@ -113,16 +113,18 @@ func runTest(t *testing.T, inputClientID string, inputClientSecret string, input
 	defer tokenServer.Close()
 	defer server.Close()
 
-	target := oauth2Target(t, server.URL, inputClientID, inputClientSecret, inputRefreshToken, tokenServer.URL)
+	config := defaultConfiguration()
+	config.URL = server.URL
+	config.OAuth2ClientID = inputClientID
+	config.OAuth2ClientSecret = inputClientSecret
+	config.OAuth2RefreshToken = inputRefreshToken
+	config.OAuth2TokenURL = tokenServer.URL
+	target, err := HTTPTargetConfigFunction(config)
 
-	message := testutil.GetTestMessages(1, `{"message": "Hello Server!!"}`, func() {})
-	return target.Write(message)
-}
-
-func oauth2Target(t *testing.T, targetURL string, inputClientID string, inputClientSecret string, inputRefreshToken string, tokenServerURL string) *HTTPTarget {
-	target, err := newHTTPTarget(targetURL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, inputClientID, inputClientSecret, inputRefreshToken, tokenServerURL, "", defaultResponseRules(), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return target
+
+	message := testutil.GetTestMessages(1, `{"message": "Hello Server!!"}`, func() {})
+	return target.Write(message)
 }
