@@ -71,8 +71,11 @@ target {
     # Optional path to the file containing template which is used to build HTTP request based on a batch of input data
     template_file              = "myTemplate.file"
 
-    # Optional. When enabled, configured client timeout and timestamp of request are attached as HTTP headers.
+    # Optional. When enabled, precalculated rejection timestamp is attached as HTTP header. This option is part of a feature of the Snowplow Event Forwarding product.
     include_timing_headers     = true
+
+    # Optional. Used in combination with `include_timing_headers` to precalculate rejection timestamp. 
+    rejection_threshold_in_millis = 100
 
     # Optional HTTP response rules which are used to match HTTP response code/body and categorize it as either invalid data or target setup error.
     # For example, we can have 2 invalid + 1 setup error rules:
