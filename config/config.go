@@ -228,6 +228,10 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 		plug = target.AdaptStdoutTargetFunc(
 			target.StdoutTargetConfigFunction,
 		)
+	case "file":
+		plug = target.AdaptFileTargetFunc(
+			target.FileTargetConfigFunction,
+		)
 	case "kinesis":
 		plug = target.AdaptKinesisTargetFunc(
 			target.KinesisTargetConfigFunction,
@@ -253,7 +257,7 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 			target.HTTPTargetConfigFunction,
 		)
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useTarget.Name))
+		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, file, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useTarget.Name))
 	}
 
 	component, err := c.CreateComponent(plug, decoderOpts)
@@ -283,6 +287,10 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 		plug = target.AdaptStdoutTargetFunc(
 			target.StdoutTargetConfigFunction,
 		)
+	case "file":
+		plug = target.AdaptFileTargetFunc(
+			target.FileTargetConfigFunction,
+		)
 	case "kinesis":
 		plug = target.AdaptKinesisTargetFunc(
 			target.KinesisTargetConfigFunction,
@@ -308,7 +316,7 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 			target.HTTPTargetConfigFunction,
 		)
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useFailureTarget.Name))
+		return nil, errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, file, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useFailureTarget.Name))
 	}
 
 	component, err := c.CreateComponent(plug, decoderOpts)
