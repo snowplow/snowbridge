@@ -57,7 +57,7 @@ func TestStdoutTarget_WriteFullMessage(t *testing.T) {
 	var output bytes.Buffer
 	assert := assert.New(t)
 
-	wantOutput := "TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,TimeTransformed:0001-01-01 00:00:00 +0000 UTC,Data:Hello World!"
+	wantOutput := "TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,TimeTransformed:0001-01-01 00:00:00 +0000 UTC,Data:Hello World!\n"
 
 	target, err := newStdoutTargetWithInterfaces(&output, false)
 	assert.NotNil(target)
@@ -88,7 +88,7 @@ func TestStdoutTarget_WriteDataOnlyMessage(t *testing.T) {
 	var output bytes.Buffer
 	assert := assert.New(t)
 
-	wantOutput := "Hello World!"
+	wantOutput := "Hello World!\n"
 
 	target, err := newStdoutTargetWithInterfaces(&output, true)
 	assert.NotNil(target)

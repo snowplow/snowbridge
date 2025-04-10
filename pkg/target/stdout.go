@@ -98,9 +98,9 @@ func (st *StdoutTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 	for _, msg := range safeMessages {
 		msg.TimeRequestStarted = time.Now().UTC()
 		if st.dataOnlyOutput {
-			fmt.Fprint(st.output, string(msg.Data))
+			fmt.Fprintf(st.output, "%s\n", string(msg.Data))
 		} else {
-			fmt.Fprint(st.output, msg.String())
+			fmt.Fprintf(st.output, "%s\n", msg.String())
 		}
 		msg.TimeRequestFinished = time.Now().UTC()
 
