@@ -8,6 +8,11 @@ Snowbridge is a flexible, low latency tool which can replicate streams of data o
 
 See the [documention](https://docs.snowplow.io/docs/destinations/forwarding-events/snowbridge/) for details on how to configure and run the application.
 
+## Testing
+1. `make e2e-up`   - sets up docker containers required for End-to-End tests
+2. `make e2e-test` - runs End-to-End tests
+3. `make e2e-down` - brings docker containers down
+
 ### LICENSE
 
 Copyright (c) 2020-present Snowplow Analytics Ltd. All rights reserved.
