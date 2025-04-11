@@ -12,7 +12,6 @@
 package stdinsource
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,7 +36,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 
 	// Setup test input
 	content := []byte("Hello World!")
-	tmpfile, err := ioutil.TempFile("", "example")
+	tmpfile, err := os.CreateTemp("", "example")
 	assert.Nil(err)
 	defer os.Remove(tmpfile.Name())
 
