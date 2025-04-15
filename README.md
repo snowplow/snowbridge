@@ -9,7 +9,27 @@ Snowbridge is a flexible, low latency tool which can replicate streams of data o
 See the [documention](https://docs.snowplow.io/docs/destinations/forwarding-events/snowbridge/) for details on how to configure and run the application.
 
 ## Testing
-1. `make e2e-up`   - sets up docker containers required for End-to-End tests
+
+### Unit tests
+
+Skips all tests that depend on docker resources
+
+`go test ./... -short`
+
+### Integration tests
+
+Sets up local external resources and runs all integration tests against them.
+
+1. `make integration-up`    - sets up docker containers required for integration tests
+2. `make integration-test`  - runs integration tests
+3. `make integration-down`  - brings docker containers down
+
+### End to end tests
+
+Sets up local external resources and runs pre-release tests using a fully built local docker image of the project.
+
+1. `make all`      - build the project locally
+2. `make e2e-up`   - sets up docker containers required for End-to-End tests
 2. `make e2e-test` - runs End-to-End tests
 3. `make e2e-down` - brings docker containers down
 
