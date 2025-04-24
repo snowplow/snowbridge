@@ -14,6 +14,7 @@ package main
 import (
 	"github.com/snowplow/snowbridge/cmd/cli"
 	"github.com/snowplow/snowbridge/config"
+	eventhubsource "github.com/snowplow/snowbridge/pkg/source/eventhub"
 	kafkasource "github.com/snowplow/snowbridge/pkg/source/kafka"
 	pubsubsource "github.com/snowplow/snowbridge/pkg/source/pubsub"
 	sqssource "github.com/snowplow/snowbridge/pkg/source/sqs"
@@ -26,6 +27,7 @@ func main() {
 	sourceConfigPairs := []config.ConfigurationPair{
 		stdinsource.ConfigPair, sqssource.ConfigPair,
 		kafkasource.ConfigPair, pubsubsource.ConfigPair,
+		eventhubsource.ConfigPair,
 	}
 
 	cli.RunCli(sourceConfigPairs, transformconfig.SupportedTransformations)
