@@ -14,8 +14,9 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -47,8 +48,16 @@ func testE2EPubsubTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "pubsub", "config.hcl"))
 	if err != nil {
@@ -69,7 +78,11 @@ func testE2EPubsubTarget(t *testing.T) {
 		}
 
 		// Receive data in goroutine
-		go subscription.Receive(context.TODO(), subReceiver)
+		go func() {
+			if err := subscription.Receive(context.TODO(), subReceiver); err != nil {
+				slog.Error(err.Error())
+			}
+		}()
 
 		var foundData []string
 
@@ -99,8 +112,12 @@ func testE2EHttpTarget(t *testing.T) {
 		srv := &http.Server{Addr: ":8998"}
 
 		http.HandleFunc("/e2e", func(w http.ResponseWriter, r *http.Request) {
-			defer r.Body.Close()
-			body, err := ioutil.ReadAll(r.Body)
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					slog.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				panic(err)
 			}
@@ -232,8 +249,6 @@ func testE2EKinesisTarget(t *testing.T) {
 		// Expected is equal to input.
 		evaluateTestCaseString(t, foundData, inputFilePath, "Kinesis target "+binary)
 
-		// Remove data when done, so next iteration starts afresh
-		foundData = []string{}
 		// Sleep for 1 sec so our timestamp based iterator doesn't overlap tests
 		time.Sleep(1 * time.Second)
 	}
@@ -315,7 +330,11 @@ func testE2EKafkaTarget(t *testing.T) {
 	if err2 != nil {
 		panic(err2)
 	}
-	defer adminClient.DeleteTopic(topicName)
+	defer func() {
+		if err := adminClient.DeleteTopic(topicName); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "kafka", "config.hcl"))
 	if err != nil {
@@ -324,6 +343,9 @@ func testE2EKafkaTarget(t *testing.T) {
 
 	// Set up consumer
 	consumer, err := sarama.NewConsumer([]string{"localhost:9092"}, nil)
+	if err != nil {
+		panic(err)
+	}
 
 	partitions, err := consumer.Partitions(topicName)
 	if err != nil {

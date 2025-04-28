@@ -13,6 +13,7 @@ package releasetest
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,7 +168,11 @@ func testE2EKafkaSource(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer adminClient.Close()
+	defer func() {
+		if err := adminClient.Close(); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -179,7 +184,11 @@ func testE2EKafkaSource(t *testing.T) {
 			if err2 != nil {
 				panic(err2)
 			}
-			defer adminClient.DeleteTopic(testCase.topic)
+			defer func() {
+				if err := adminClient.DeleteTopic(testCase.topic); err != nil {
+					slog.Error(err.Error())
+				}
+			}()
 
 			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kafka", testCase.configFile))
 			if err != nil {

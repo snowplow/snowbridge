@@ -65,14 +65,6 @@ func testFailureTargetConfig(t *testing.T, filepath string, fullExample bool) {
 	testTargetComponent(t, use.Name, use.Body, fullExample)
 }
 
-func testFilterTargetConfig(t *testing.T, filepath string, fullExample bool) {
-
-	c := getConfigFromFilepath(t, filepath)
-
-	use := c.Data.FilterTarget.Use
-	testTargetComponent(t, use.Name, use.Body, fullExample)
-}
-
 func testTargetComponent(t *testing.T, name string, body hcl.Body, fullExample bool) {
 	assert := assert.New(t)
 	var configObject interface{}

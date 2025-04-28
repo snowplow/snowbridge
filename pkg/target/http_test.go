@@ -1213,13 +1213,6 @@ func getNgrokAddress() string {
 	panic("no ngrok https endpoint found")
 }
 
-func defaultResponseRules() *ResponseRules {
-	return &ResponseRules{
-		Invalid:    []Rule{},
-		SetupError: []Rule{},
-	}
-}
-
 func WaitForAcksWithTimeout(timeout time.Duration, wg *sync.WaitGroup) bool {
 	c := make(chan struct{})
 	go func() {

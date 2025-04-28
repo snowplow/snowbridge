@@ -14,6 +14,7 @@ package releasetest
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,7 +55,7 @@ snowplow/snowbridge:%s%s`
 func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, configFilePath string, binaryVersion string, additionalOpts string) ([]byte, error) {
 	// Check for inputErr as it won't throw outside the function
 	if inputErr != nil {
-		errors.Wrap(inputErr, "Error getting input file: ")
+		_ = errors.Wrap(inputErr, "Error getting input file: ")
 		panic(inputErr)
 	}
 
@@ -76,7 +77,9 @@ func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, conf
 
 		// Ensure we print stderr to logs, to make debugging a bit more manageable
 		cmd.Stderr = os.Stderr
-		cmd.Output()
+		if _, err := cmd.Output(); err != nil {
+			slog.Error(err.Error())
+		}
 	}()
 
 	out, err := cmd.Output()
@@ -87,8 +90,9 @@ func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, conf
 
 		// Ensure we print stderr to logs, to make debugging a bit more manageable
 		rmCmd.Stderr = os.Stderr
-		rmCmd.Output()
-
+		if _, err := rmCmd.Output(); err != nil {
+			slog.Error(err.Error())
+		}
 	}()
 
 	err = errors.Wrap(err, containerName+": Error running Docker Command: "+cmdFull)
@@ -161,7 +165,6 @@ func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePa
 		require.True(t, ok)
 		// Make a map entry with Eid Key
 		foundWithEids[eid] = row
-
 	}
 
 	for _, row := range expectedData {

@@ -201,7 +201,5 @@ func testJSScriptCompiles(t *testing.T, scriptPath string) {
 	assert.NotNil(jsTransformationFunc, scriptPath)
 	if err != nil {
 		t.Fatalf("JSConfigFunction failed with error: %s. Script: %s", err.Error(), string(scriptPath))
-
 	}
-
 }
