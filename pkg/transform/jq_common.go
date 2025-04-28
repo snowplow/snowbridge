@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	SALT_BYTE_SIZE    = 24
-	HASH_BYTE_SIZE    = 24
-	PBKDF2_ITERATIONS = 1000
+	saltByteSize     = 24
+	hashByteSize     = 24
+	pbkdf2Iterations = 1000
 )
 
 var (
@@ -145,7 +145,7 @@ func resolveHash(input any, params []any) (string, error) {
 	switch x := len(params); {
 	case x == 0:
 		hashFunctionName = "sha1"
-		salt = make([]byte, SALT_BYTE_SIZE)
+		salt = make([]byte, saltByteSize)
 	case x == 2:
 		hashFunctionName = params[0].(string)
 		hashSalt = params[1].(string)
@@ -165,7 +165,7 @@ func resolveHash(input any, params []any) (string, error) {
 		return "", fmt.Errorf("failed to cast input data to string")
 	}
 
-	hbts, err := pbkdf2.Key(hashFunction, inputString, salt, PBKDF2_ITERATIONS, HASH_BYTE_SIZE)
+	hbts, err := pbkdf2.Key(hashFunction, inputString, salt, pbkdf2Iterations, hashByteSize)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash the data: %w", err)
 	}
