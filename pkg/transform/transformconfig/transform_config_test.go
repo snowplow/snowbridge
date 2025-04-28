@@ -276,7 +276,7 @@ func TestJQHashTransformation(t *testing.T) {
 		CompileErr       string
 	}{
 		{
-			Description: "simple JQ transform with hash - success",
+			Description: "simple JQ transform with hash & without salt - success",
 			File:        "transform-jq-hash-function.hcl",
 			ExpectedMessages: expectedMessages{
 				Before: []*models.Message{{
@@ -284,13 +284,13 @@ func TestJQHashTransformation(t *testing.T) {
 					PartitionKey: "some-key",
 				}},
 				After: []*models.Message{{
-					Data:         []byte(`{"agentName":"d878ebbdc6fa17d8d0f353a104e0588eac755cc3df18d3e3"}`),
+					Data:         []byte(`{"agentName":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"}`),
 					PartitionKey: "some-key",
 				}},
 			},
 		},
 		{
-			Description: "simple JQ transform with hash & salt - success",
+			Description: "simple JQ transform with hash & with salt - success",
 			File:        "transform-jq-hash-salt-function.hcl",
 			ExpectedMessages: expectedMessages{
 				Before: []*models.Message{{

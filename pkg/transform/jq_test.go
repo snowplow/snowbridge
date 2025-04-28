@@ -110,8 +110,8 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Error:         nil,
 		},
 		{
-			Scenario:  "test_hash_context",
-			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash }`,
+			Scenario:  "test_hash_context-sha1-wo-salt",
+			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha1"; "") }`,
 			InputMsg: &models.Message{
 				Data:         SnowplowTsv1,
 				PartitionKey: "some-key",
@@ -119,7 +119,121 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"agentName":"d878ebbdc6fa17d8d0f353a104e0588eac755cc3df18d3e3"}`),
+					Data:         []byte(`{"agentName":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "test_hash_context-sha1-with-salt",
+			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha1"; "09a2d6b3ecd943aa8512df1f") }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"agentName":"5841e55de6c4486fa092f044a5189570dec421cb06652829"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "test_hash_context-sha256-wo-salt",
+			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha256"; "") }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"agentName":"262ca08d9db38199ac487454bd4accb795a33297516b3cec"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "test_hash_context-sha256-with-salt",
+			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha256"; "09a2d6b3ecd943aa8512df1f") }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"agentName":"23e37c9c9aaed4e592b306b291deb43fd197551048704d57"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "test_hash_context-md5-wo-salt",
+			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("md5"; "") }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"agentName":"30368c83ff2751652f501b62d6b965794d3512177f301db1"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "test_hash_context-md5-with-salt",
+			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("md5"; "09a2d6b3ecd943aa8512df1f") }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"agentName":"8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508"}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario:  "test_hash_context",
+			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha1"; "") }`,
+			InputMsg: &models.Message{
+				Data:         SnowplowTsv1,
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"agentName":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,

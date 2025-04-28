@@ -13,8 +13,10 @@ package transform
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/pbkdf2"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,14 +30,15 @@ import (
 )
 
 const (
-	saltByteSize     = 24
 	hashByteSize     = 24
 	pbkdf2Iterations = 1000
 )
 
 var (
 	supportedHashFunctions = map[string]func() hash.Hash{
-		"sha1": sha1.New,
+		"sha1":   sha1.New,
+		"sha256": sha256.New,
+		"md5":    md5.New,
 	}
 )
 
@@ -139,30 +142,22 @@ func parseTimeLayout(params []any) (string, error) {
 }
 
 func resolveHash(input any, params []any) (string, error) {
-	var hashFunctionName, hashSalt string
-	var salt []byte
-
-	switch x := len(params); {
-	case x == 0:
-		hashFunctionName = "sha1"
-		salt = make([]byte, saltByteSize)
-	case x == 2:
-		hashFunctionName = params[0].(string)
-		hashSalt = params[1].(string)
-
-		salt = []byte(hashSalt)
-	default:
-		return "", fmt.Errorf("unsupported number of parameters for hash function: [%d]; expecting either 0 or 2 parameters", x)
+	inputString, ok := input.(string)
+	if !ok {
+		return "", fmt.Errorf("failed to type assert input data to string")
 	}
+
+	if len(params) != 2 {
+		return "", fmt.Errorf("[%d] parameters given, hash function expecting 2: hash function name and salt", len(params))
+	}
+
+	hashFunctionName := params[0].(string)
+	hashSalt := params[1].(string)
+	salt := []byte(hashSalt)
 
 	hashFunction, ok := supportedHashFunctions[hashFunctionName]
 	if !ok {
 		return "", fmt.Errorf("unsupported hash function: [%s]", hashFunctionName)
-	}
-
-	inputString, ok := input.(string)
-	if !ok {
-		return "", fmt.Errorf("failed to cast input data to string")
 	}
 
 	hbts, err := pbkdf2.Key(hashFunction, inputString, salt, pbkdf2Iterations, hashByteSize)
