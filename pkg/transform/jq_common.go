@@ -13,9 +13,12 @@ package transform
 
 import (
 	"context"
+	"crypto/pbkdf2"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"time"
 
 	"github.com/itchyny/gojq"
@@ -24,13 +27,27 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
+const (
+	SALT_BYTE_SIZE    = 24
+	HASH_BYTE_SIZE    = 24
+	PBKDF2_ITERATIONS = 1000
+)
+
+var (
+	supportedHashFunctions = map[string]func() hash.Hash{
+		"sha1": sha1.New,
+	}
+)
+
 // JqCommandOutput is a type representing output after executing JQ command. For filters for example we expect it to be boolean.
 type JqCommandOutput = interface{}
 
-// JqOutputHandler is a function which accepts JqCommandOutput and is response for doing something with it. For filters for example that would be filtering message based on boolean output.
+// JqOutputHandler is a function which accepts JqCommandOutput and is response for doing something with it.
+// For filters for example that would be filtering message based on boolean output.
 type JqOutputHandler func(JqCommandOutput) TransformationFunction
 
-// GojqTransformationFunction is a function returning another transformation function which allows us to do some GOJQ based mapping/filtering. Actual transformation happens in provided JqOutputHandler.
+// GojqTransformationFunction is a function returning another transformation function which allows us to do some GOJQ based mapping/filtering.
+// Actual transformation happens in provided JqOutputHandler.
 func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) (TransformationFunction, error) {
 	query, err := gojq.Parse(command)
 	if err != nil {
@@ -65,7 +82,21 @@ func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOu
 		return validTime.UnixMilli()
 	})
 
-	code, err := gojq.Compile(query, withEpochMillisFunction, withEpochFunction)
+	// epochMillis converts a time.Time to an epoch in milliseconds
+	withHashFunction := gojq.WithFunction("hash", 0, 2, func(a1 any, a2 []any) any {
+		if a1 == nil {
+			return nil
+		}
+
+		hashedValue, err := resolveHash(a1, a2)
+		if err != nil {
+			return err
+		}
+
+		return hashedValue
+	})
+
+	code, err := gojq.Compile(query, withEpochMillisFunction, withEpochFunction, withHashFunction)
 	if err != nil {
 		return nil, fmt.Errorf("error compiling jq query: %s", err)
 	}
@@ -105,6 +136,41 @@ func parseTimeLayout(params []any) (string, error) {
 	} else {
 		return "", fmt.Errorf("Too many function arguments - %d; expected 1", len(params))
 	}
+}
+
+func resolveHash(input any, params []any) (string, error) {
+	var hashFunctionName, hashSalt string
+	var salt []byte
+
+	switch x := len(params); {
+	case x == 0:
+		hashFunctionName = "sha1"
+		salt = make([]byte, SALT_BYTE_SIZE)
+	case x == 2:
+		hashFunctionName = params[0].(string)
+		hashSalt = params[1].(string)
+
+		salt = []byte(hashSalt)
+	default:
+		return "", fmt.Errorf("unsupported number of parameters for hash function: [%d]; expecting either 0 or 2 parameters", x)
+	}
+
+	hashFunction, ok := supportedHashFunctions[hashFunctionName]
+	if !ok {
+		return "", fmt.Errorf("unsupported hash function: [%s]", hashFunctionName)
+	}
+
+	inputString, ok := input.(string)
+	if !ok {
+		return "", fmt.Errorf("failed to cast input data to string")
+	}
+
+	hbts, err := pbkdf2.Key(hashFunction, inputString, salt, PBKDF2_ITERATIONS, HASH_BYTE_SIZE)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash the data: %w", err)
+	}
+
+	return fmt.Sprintf("%x", hbts), nil
 }
 
 func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) TransformationFunction {
