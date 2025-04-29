@@ -825,7 +825,7 @@ func TestHTTP_Write_Setup(t *testing.T) {
 
 	_, isSetup := err.(models.SetupWriteError)
 	assert.True(isSetup)
-	assert.Regexp(".*Got setup error, response status: '401 Unauthorized' with error details: 'Invalid token'", err.Error())
+	assert.Regexp(".*got setup error, response status: '401 Unauthorized' with error details: 'Invalid token'", err.Error())
 }
 
 func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {

@@ -111,7 +111,7 @@ func TestHTTP_OAuth2_CallTargetWithoutToken(t *testing.T) {
 	writeResult, err := runTest(t, "", "", "")
 
 	assert.NotNil(err)
-	assert.Contains(err.Error(), `Got transient error, response status: '403 Forbidden'`)
+	assert.Contains(err.Error(), `got transient error, response status: '403 Forbidden'`)
 	assert.Equal(0, len(writeResult.Sent))
 	assert.Equal(1, len(writeResult.Failed))
 }

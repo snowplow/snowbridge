@@ -601,7 +601,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         errors.New("Could not parse input - 'value' using provided time layout - '2006-01-02T15:04:05.999Z'"),
+			Error:         errors.New("could not parse input - 'value' using provided time layout - '2006-01-02T15:04:05.999Z'"),
 		},
 		{
 			Scenario: "epoch_on_non_time_type",
@@ -624,7 +624,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         errors.New("Could not parse input - 'value' using provided time layout - '2006-01-02T15:04:05.999Z'"),
+			Error:         errors.New("could not parse input - 'value' using provided time layout - '2006-01-02T15:04:05.999Z'"),
 		},
 		{
 			Scenario: "epochMillis_with_not_matching_timelayout",
@@ -647,7 +647,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         errors.New("Could not parse input - '2024-10-28T15:27:47.100' using provided time layout - '2006-01-02 15:04:05'"),
+			Error:         errors.New("could not parse input - '2024-10-28T15:27:47.100' using provided time layout - '2006-01-02 15:04:05'"),
 		},
 	}
 
