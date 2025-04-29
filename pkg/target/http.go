@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -396,8 +397,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			}
 
 			defer func() {
-				io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
+				if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+					slog.Error(err.Error())
+				}
+				if err := resp.Body.Close(); err != nil {
+					slog.Error(err.Error())
+				}
 			}()
 
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -434,12 +439,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			if rule := findMatchingRule(response, ht.responseRules.SetupError); rule != nil {
 				hitSetupError = true
 				if rule.MatchingBodyPart != "" {
-					errorDetails = fmt.Errorf("Got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
+					errorDetails = fmt.Errorf("got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
 				} else {
-					errorDetails = fmt.Errorf("Got setup error, response status: '%s'", resp.Status)
+					errorDetails = fmt.Errorf("got setup error, response status: '%s'", resp.Status)
 				}
 			} else {
-				errorDetails = fmt.Errorf("Got transient error, response status: '%s'", resp.Status)
+				errorDetails = fmt.Errorf("got transient error, response status: '%s'", resp.Status)
 			}
 			errResult = multierror.Append(errResult, errorDetails)
 			failed = append(failed, goodMsgs...)

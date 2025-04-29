@@ -13,6 +13,7 @@ package target
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -34,7 +35,9 @@ const validAccessToken = "super_secret_access_token"
 // This is mock server providing us the bearer access token. If you provide invalid details/something is misconfigured you get 400 HTTP status
 func tokenServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		req.ParseForm()
+		if err := req.ParseForm(); err != nil {
+			slog.Error(err.Error())
+		}
 		clientID, clientSecret, _ := req.BasicAuth()
 		refreshToken := req.Form.Get("refresh_token")
 		grantType := req.Form.Get("grant_type")
@@ -42,10 +45,14 @@ func tokenServer() *httptest.Server {
 		if clientID == validClientID && clientSecret == validClientSecret && refreshToken == validRefreshToken && grantType == validGrantType {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"access_token":"%s", "expires_in":3600}`, validAccessToken)
+			if _, err := fmt.Fprintf(w, `{"access_token":"%s", "expires_in":3600}`, validAccessToken); err != nil {
+				slog.Error(err.Error())
+			}
 		} else {
 			w.WriteHeader(400)
-			fmt.Fprintf(w, `{"error":"invalid_client"}`)
+			if _, err := fmt.Fprintf(w, `{"error":"invalid_client"}`); err != nil {
+				slog.Error(err.Error())
+			}
 		}
 	}))
 }
@@ -57,7 +64,9 @@ func targetServer() *httptest.Server {
 			w.WriteHeader(200)
 		} else {
 			w.WriteHeader(403)
-			fmt.Fprintf(w, "Invalid access token")
+			if _, err := fmt.Fprintf(w, "Invalid access token"); err != nil {
+				slog.Error(err.Error())
+			}
 		}
 	}))
 }

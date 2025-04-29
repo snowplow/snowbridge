@@ -13,6 +13,7 @@ package kafkasource
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -43,7 +44,11 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer adminClient.Close()
+	defer func() {
+		if err := adminClient.Close(); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	err2 := adminClient.CreateTopic(topicName,
 		&sarama.TopicDetail{NumPartitions: 1,
@@ -51,7 +56,11 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	if err2 != nil {
 		panic(err2)
 	}
-	defer adminClient.DeleteTopic(topicName)
+	defer func() {
+		if err := adminClient.DeleteTopic(topicName); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	// Create a producer
 	saramaConfig := sarama.NewConfig()

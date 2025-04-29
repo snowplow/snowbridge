@@ -80,7 +80,9 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 		profile := c.Bool("profile")
 		if profile {
 			go func() {
-				http.ListenAndServe("localhost:8080", nil)
+				if err := http.ListenAndServe("localhost:8080", nil); err != nil {
+					log.WithError(err).Error("failed to start up the server")
+				}
 			}()
 		}
 
@@ -93,7 +95,9 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 		}
 	}
 
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		log.WithError(err).Error("failed to run cli")
+	}
 }
 
 // RunApp runs application (without cli stuff)
@@ -140,6 +144,8 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	// Handle SIGTERM
 	sig := make(chan os.Signal)
+	// TODO: below could be reworked to use signal.NotifyContext, but would require a bit of testing
+	// nolint: govet,staticcheck
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM, os.Kill)
 	go func() {
 		<-sig

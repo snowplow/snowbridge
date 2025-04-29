@@ -13,6 +13,7 @@ package testutil
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -174,12 +175,14 @@ func SetupAWSLocalstackSQSQueueWithMessages(client sqsiface.SQSAPI, queueName st
 		panic(err)
 	}
 
-	for i := 0; i < messageCount; i++ {
-		client.SendMessage(&sqs.SendMessageInput{
+	for range messageCount {
+		if _, err := client.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
 			MessageBody:  aws.String(messageBody),
 			QueueUrl:     res.QueueUrl,
-		})
+		}); err != nil {
+			slog.Error(err.Error())
+		}
 	}
 
 	return res.QueueUrl
@@ -188,11 +191,13 @@ func SetupAWSLocalstackSQSQueueWithMessages(client sqsiface.SQSAPI, queueName st
 // PutProvidedDataIntoSQS puts the provided data into an SQS queue
 func PutProvidedDataIntoSQS(client sqsiface.SQSAPI, queueURL string, data []string) {
 	for _, msg := range data {
-		client.SendMessage(&sqs.SendMessageInput{
+		if _, err := client.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(0),
 			MessageBody:  aws.String(msg),
 			QueueUrl:     aws.String(queueURL),
-		})
+		}); err != nil {
+			slog.Error(err.Error())
+		}
 	}
 }
 
@@ -213,7 +218,7 @@ func DeleteAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueURL *string) (*sqs
 // PutNRecordsIntoKinesis puts n records into a kinesis stream. The records will contain `{dataPrefix} {n}` as their data.
 func PutNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, streamName string, dataPrefix string) error {
 	// Put N records into kinesis stream
-	for i := 0; i < n; i++ {
+	for i := range n {
 		_, err := kinesisClient.PutRecord(&kinesis.PutRecordInput{Data: []byte(fmt.Sprint(dataPrefix, " ", i)), PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
 		if err != nil {
 			return err

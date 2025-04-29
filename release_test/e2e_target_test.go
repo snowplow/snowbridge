@@ -197,8 +197,11 @@ func testE2EKinesisTarget(t *testing.T) {
 	if kinErr != nil {
 		panic(kinErr)
 	}
-
-	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "kinesis", "config.hcl"))
 	if err != nil {
@@ -265,7 +268,11 @@ func testE2ESQSTarget(t *testing.T) {
 		panic(err)
 	}
 
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, out.QueueUrl)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, out.QueueUrl); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "sqs", "config.hcl"))
 	if err != nil {

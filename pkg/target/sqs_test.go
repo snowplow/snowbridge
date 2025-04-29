@@ -12,6 +12,7 @@
 package target
 
 import (
+	"log/slog"
 	"sync/atomic"
 	"testing"
 
@@ -54,7 +55,11 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	queueURL := queueRes.QueueUrl
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	target, err := newSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
@@ -97,7 +102,11 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	queueURL := queueRes.QueueUrl
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	target, err := newSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)

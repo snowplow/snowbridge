@@ -98,9 +98,13 @@ func (st *StdoutTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 	for _, msg := range safeMessages {
 		msg.TimeRequestStarted = time.Now().UTC()
 		if st.dataOnlyOutput {
-			fmt.Fprintln(st.output, string(msg.Data))
+			if _, err := fmt.Fprintln(st.output, string(msg.Data)); err != nil {
+				st.log.WithError(err).Error("failed to write into stdout")
+			}
 		} else {
-			fmt.Fprintln(st.output, msg.String())
+			if _, err := fmt.Fprintln(st.output, msg.String()); err != nil {
+				st.log.WithError(err).Error("failed to write into stdout")
+			}
 		}
 		msg.TimeRequestFinished = time.Now().UTC()
 

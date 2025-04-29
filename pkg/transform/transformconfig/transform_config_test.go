@@ -67,7 +67,9 @@ func TestGetTransformations(t *testing.T) {
 	}
 
 	// Walk iterates the directory & executes the function.
-	filepath.Walk(configPath, testConfig)
+	if err := filepath.Walk(configPath, testConfig); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestEnginesAndTransformations(t *testing.T) {

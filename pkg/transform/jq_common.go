@@ -83,13 +83,13 @@ func parseTime(input any, params []any) (time.Time, error) {
 
 		validTime, err := time.Parse(timeLayout, v)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("Could not parse input - '%s' using provided time layout - '%s'", v, timeLayout)
+			return time.Time{}, fmt.Errorf("could not parse input - '%s' using provided time layout - '%s'", v, timeLayout)
 		}
 		return validTime, nil
 	case time.Time:
 		return v, nil
 	default:
-		return time.Time{}, fmt.Errorf("Not a valid time input to 'epochMillis' function - '%v'; expected string or time.Time", input)
+		return time.Time{}, fmt.Errorf("not a valid time input to 'epochMillis' function - '%v'; expected string or time.Time", input)
 	}
 }
 
@@ -99,11 +99,11 @@ func parseTimeLayout(params []any) (string, error) {
 	} else if len(params) == 1 {
 		str, ok := params[0].(string)
 		if !ok {
-			return "", fmt.Errorf("Function argument is invalid '%v'; expected string", params[0])
+			return "", fmt.Errorf("function argument is invalid '%v'; expected string", params[0])
 		}
 		return str, nil
 	} else {
-		return "", fmt.Errorf("Too many function arguments - %d; expected 1", len(params))
+		return "", fmt.Errorf("too many function arguments - %d; expected 1", len(params))
 	}
 }
 

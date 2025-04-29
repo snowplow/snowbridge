@@ -253,7 +253,6 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
-	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName)
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
 			slog.Error(err.Error())

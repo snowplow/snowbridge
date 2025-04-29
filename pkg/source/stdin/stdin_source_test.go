@@ -12,6 +12,7 @@
 package stdinsource
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,7 +39,11 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	content := []byte("Hello World!")
 	tmpfile, err := os.CreateTemp("", "example")
 	assert.Nil(err)
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		if err := os.Remove(tmpfile.Name()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	_, err = tmpfile.Write(content)
 	assert.Nil(err)

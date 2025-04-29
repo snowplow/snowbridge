@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -27,12 +28,18 @@ func main() {
 		Handler: mux,
 	}
 	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				slog.Error(err.Error())
+			}
+		}()
 	})
 
 	mux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Shutting down server")
-		s.Shutdown(context.Background())
+		if err := s.Shutdown(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
 	})
 
 	fmt.Printf("Starting server at port 8999\n")

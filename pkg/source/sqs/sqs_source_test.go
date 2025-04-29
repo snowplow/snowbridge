@@ -14,6 +14,7 @@ package sqssource
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -51,7 +52,11 @@ func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 
 	queueName := "sqs-queue-source"
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
 
@@ -65,7 +70,6 @@ func TestSQSSource_SetupFailure(t *testing.T) {
 	}
 
 	assert := assert.New(t)
-
 	client := testutil.GetAWSLocalstackSQSClient()
 
 	_, err := newSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
@@ -86,7 +90,11 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 
 	queueName := "sqs-queue-source"
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
@@ -143,7 +151,11 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 		t.Fatal(createErr)
 	}
 
-	defer testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
 	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
@@ -242,10 +254,8 @@ func testSQSSourceAdapter(f func(c *Configuration) (*Configuration, error)) adap
 
 		return f(cfg)
 	}
-
 }
 
 func testSQSSourceFunc(c *Configuration) (*Configuration, error) {
-
 	return c, nil
 }

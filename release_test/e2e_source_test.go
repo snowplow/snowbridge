@@ -52,8 +52,16 @@ func testE2EPubsubSource(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-pubsub-source-topic", "e2e-pubsub-source-subscription")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "pubsub", "config.hcl"))
 	if err != nil {
@@ -117,7 +125,11 @@ func testE2EKinesisSource(t *testing.T) {
 	if ddbErr != nil {
 		panic(ddbErr)
 	}
-	defer testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, appName)
+	defer func() {
+		if err := testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, appName); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 
@@ -125,8 +137,11 @@ func testE2EKinesisSource(t *testing.T) {
 	if kinErr != nil {
 		panic(kinErr)
 	}
-
-	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	putErr := testutil.PutProvidedDataIntoKinesis(kinesisClient, appName, dataToSend)
 	if putErr != nil {

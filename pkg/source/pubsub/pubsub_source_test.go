@@ -14,6 +14,7 @@ package pubsubsource
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -45,8 +46,17 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -130,8 +140,16 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	assert := assert.New(t)
 
 	srv, conn := testutil.InitMockPubsubServer(8008, nil, t)
-	defer srv.Close()
-	defer conn.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	// Publish ten messages
 	numMsgs := 10
@@ -169,8 +187,16 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 	assert := assert.New(t)
 
 	srv, conn := testutil.InitMockPubsubServer(8008, nil, t)
-	defer srv.Close()
-	defer conn.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
 
 	// publish 10 messages
 	numMsgs := 10

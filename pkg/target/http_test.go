@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -35,17 +36,23 @@ import (
 func createTestServerWithResponseCode(results *[][]byte, headers *http.Header, responseCode int, responseBody string) *httptest.Server {
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		defer req.Body.Close()
+		defer func() {
+			if err := req.Body.Close(); err != nil {
+				slog.Error(err.Error())
+			}
+		}()
 		data, err := io.ReadAll(req.Body)
 		*headers = req.Header
 		if err != nil {
 			panic(err)
 		}
 		mutex.Lock()
+		defer mutex.Unlock()
 		*results = append(*results, data)
 		w.WriteHeader(responseCode)
-		w.Write([]byte(responseBody))
-		mutex.Unlock()
+		if _, err := w.Write([]byte(responseBody)); err != nil {
+			slog.Error(err.Error())
+		}
 	}))
 }
 
@@ -844,7 +851,9 @@ func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
 	input := []*models.Message{{Data: []byte(`{ "attribute": "value"}`)}}
 
 	beforeRequest := time.Now().UTC().UnixMilli()
-	target.Write(input)
+	if _, err := target.Write(input); err != nil {
+		slog.Error(err.Error())
+	}
 	afterRequest := time.Now().UTC().UnixMilli()
 
 	rejectionTimestamp, err := strconv.ParseInt(headers.Get("Rejection-Timestamp"), 10, 64)
@@ -1203,7 +1212,9 @@ func getNgrokAddress() string {
 	}
 
 	var ngrokResponse ngrokAPIResponse
-	json.Unmarshal(body, &ngrokResponse)
+	if err := json.Unmarshal(body, &ngrokResponse); err != nil {
+		slog.Error(err.Error())
+	}
 
 	for _, obj := range ngrokResponse.Tunnels {
 		if obj.Proto == "https" {

@@ -38,8 +38,17 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			slog.Error(err.Error())
+		}
+	}()
+
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
