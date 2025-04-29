@@ -83,7 +83,7 @@ func TestInit_NewConfigFailure(t *testing.T) {
 	assert.Nil(cfg)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal(strings.Contains(err.Error(), "Failed to build config"), true)
+		assert.Equal(strings.Contains(err.Error(), "failed to build config"), true)
 	}
 }
 
@@ -113,7 +113,7 @@ func TestInit_Failure_LogLevel(t *testing.T) {
 	assert.Nil(cfg)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Supported log levels are 'debug, info, warning, error, fatal, panic'; provided DEBUG", err.Error())
+		assert.Equal("supported log levels are 'debug, info, warning, error, fatal, panic'; provided DEBUG", err.Error())
 	}
 }
 
@@ -129,7 +129,7 @@ func TestInit_Failure_SentryDSN(t *testing.T) {
 	assert.Nil(cfg)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to build Sentry: [Sentry] DsnParseError: invalid scheme", err.Error())
+		assert.Equal("failed to build Sentry: [Sentry] DsnParseError: invalid scheme", err.Error())
 	}
 }
 
@@ -145,6 +145,6 @@ func TestInit_Failure_SentryTags(t *testing.T) {
 	assert.Nil(cfg)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to unmarshall SENTRY_TAGS to map: invalid character 'a' looking for beginning of value", err.Error())
+		assert.Equal("failed to unmarshall SENTRY_TAGS to map: invalid character 'a' looking for beginning of value", err.Error())
 	}
 }
