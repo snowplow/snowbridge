@@ -275,9 +275,8 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 	case <-time.After(10 * time.Second):
 		// Append errors and crash
 		if err := multierror.Append(kinesisPullErr, errors.Errorf("wg.Wait() took too long, forcing app close.")); err != nil {
-			log.WithField("multierror", err.Errors).Error("failed tp append an error to multierror slice")
+			ks.log.WithFields(log.Fields{"error": *err}).Fatal(*err)
 		}
-		ks.log.WithFields(log.Fields{"error": kinesisPullErr}).Fatal(kinesisPullErr)
 	}
 
 	// Return kinesisPullErr if we have one
