@@ -14,7 +14,6 @@ package kinesissource
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
@@ -55,7 +55,7 @@ func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -66,7 +66,7 @@ func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
 	}
 	defer func() {
 		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -135,7 +135,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -146,7 +146,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	}
 	defer func() {
 		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -188,7 +188,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -200,7 +200,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 
 	defer func() {
 		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -255,7 +255,7 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -266,7 +266,7 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	}
 	defer func() {
 		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 

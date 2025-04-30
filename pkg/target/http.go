@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -398,10 +397,10 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			defer func() {
 				if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-					slog.Error(err.Error())
+					ht.log.Error(err.Error())
 				}
 				if err := resp.Body.Close(); err != nil {
-					slog.Error(err.Error())
+					ht.log.Error(err.Error())
 				}
 			}()
 

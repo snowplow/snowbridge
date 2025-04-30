@@ -13,7 +13,6 @@ package kafkasource
 
 import (
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/assets"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
@@ -46,7 +46,7 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 	defer func() {
 		if err := adminClient.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -58,7 +58,7 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	}
 	defer func() {
 		if err := adminClient.DeleteTopic(topicName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 

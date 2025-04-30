@@ -12,10 +12,10 @@
 package target
 
 import (
-	"log/slog"
 	"sync/atomic"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/testutil"
@@ -57,7 +57,7 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 	queueURL := queueRes.QueueUrl
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -104,7 +104,7 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 	queueURL := queueRes.QueueUrl
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 

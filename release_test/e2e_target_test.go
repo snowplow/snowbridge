@@ -15,8 +15,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
-	"log/slog"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -27,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
@@ -50,12 +49,12 @@ func testE2EPubsubTarget(t *testing.T) {
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
 	defer func() {
 		if err := topic.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err)
 		}
 	}()
 	defer func() {
 		if err := subscription.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -80,7 +79,7 @@ func testE2EPubsubTarget(t *testing.T) {
 		// Receive data in goroutine
 		go func() {
 			if err := subscription.Receive(context.TODO(), subReceiver); err != nil {
-				slog.Error(err.Error())
+				logrus.Error(err.Error())
 			}
 		}()
 
@@ -114,7 +113,7 @@ func testE2EHttpTarget(t *testing.T) {
 		http.HandleFunc("/e2e", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
-					slog.Error(err.Error())
+					logrus.Error(err.Error())
 				}
 			}()
 			body, err := io.ReadAll(r.Body)
@@ -136,7 +135,7 @@ func testE2EHttpTarget(t *testing.T) {
 			defer wg.Done()
 			// always returns error. ErrServerClosed on graceful close
 			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-				log.Fatalf("ListenAndServe(): %v", err)
+				logrus.Fatalf("ListenAndServe(): %v", err)
 			}
 		}()
 
@@ -199,7 +198,7 @@ func testE2EKinesisTarget(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -270,7 +269,7 @@ func testE2ESQSTarget(t *testing.T) {
 
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, out.QueueUrl); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -339,7 +338,7 @@ func testE2EKafkaTarget(t *testing.T) {
 	}
 	defer func() {
 		if err := adminClient.DeleteTopic(topicName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 

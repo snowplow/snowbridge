@@ -13,13 +13,13 @@ package target
 
 import (
 	"context"
-	"log/slog"
 	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"cloud.google.com/go/pubsub/pstest"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	// nolint: staticcheck
@@ -40,12 +40,12 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 	defer func() {
 		if err := topic.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
 		if err := subscription.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -80,12 +80,12 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 	defer func() {
 		if err := topic.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
 		if err := subscription.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -114,12 +114,12 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 	defer func() {
 		if err := topic.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
 		if err := subscription.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -150,12 +150,12 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
 	defer func() {
 		if err := srv.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
 		if err := conn.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -216,12 +216,12 @@ func TestPubSubTarget_WriteFailureWithMocks(t *testing.T) {
 	srv, conn := testutil.InitMockPubsubServer(8563, opts, t)
 	defer func() {
 		if err := srv.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
 		if err := conn.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -275,12 +275,12 @@ func TestPubSubTarget_WriteFailureRetryableWithMocks(t *testing.T) {
 	srv, conn := testutil.InitMockPubsubServer(8563, opts, t)
 	defer func() {
 		if err := srv.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
 		if err := conn.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -325,12 +325,12 @@ func TestNewPubSubTarget_Success(t *testing.T) {
 	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
 	defer func() {
 		if err := srv.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
 		if err := conn.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 

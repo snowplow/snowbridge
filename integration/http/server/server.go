@@ -13,10 +13,9 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
-	"log/slog"
 	"net/http"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Note that on MacOs, firewall rules may prevent a network connection to the server. Must be allowlisted on server startup.
@@ -30,21 +29,21 @@ func main() {
 	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				slog.Error(err.Error())
+				logrus.Error(err.Error())
 			}
 		}()
 	})
 
 	mux.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Shutting down server")
+		logrus.Info("Shutting down server")
 		if err := s.Shutdown(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	})
 
-	fmt.Printf("Starting server at port 8999\n")
+	logrus.Info("Starting server at port 8999\n")
 	if err := s.ListenAndServeTLS("../rootCA.crt", "../rootCA.key"); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 }

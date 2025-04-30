@@ -12,10 +12,10 @@
 package target
 
 import (
-	"log/slog"
 	"sync/atomic"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/testutil"
@@ -68,7 +68,7 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -114,7 +114,7 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -161,7 +161,7 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 

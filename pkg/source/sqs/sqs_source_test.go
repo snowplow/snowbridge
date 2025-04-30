@@ -14,7 +14,6 @@ package sqssource
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
@@ -54,7 +54,7 @@ func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -92,7 +92,7 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -153,7 +153,7 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 

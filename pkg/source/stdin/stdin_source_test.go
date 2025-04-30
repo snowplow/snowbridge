@@ -12,11 +12,11 @@
 package stdinsource
 
 import (
-	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
@@ -41,7 +41,7 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	assert.Nil(err)
 	defer func() {
 		if err := os.Remove(tmpfile.Name()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 

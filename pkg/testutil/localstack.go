@@ -13,7 +13,6 @@ package testutil
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -24,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -181,7 +181,7 @@ func SetupAWSLocalstackSQSQueueWithMessages(client sqsiface.SQSAPI, queueName st
 			MessageBody:  aws.String(messageBody),
 			QueueUrl:     res.QueueUrl,
 		}); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}
 
@@ -196,7 +196,7 @@ func PutProvidedDataIntoSQS(client sqsiface.SQSAPI, queueURL string, data []stri
 			MessageBody:  aws.String(msg),
 			QueueUrl:     aws.String(queueURL),
 		}); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}
 }

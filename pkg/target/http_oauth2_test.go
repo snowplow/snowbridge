@@ -13,11 +13,11 @@ package target
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +36,7 @@ const validAccessToken = "super_secret_access_token"
 func tokenServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if err := req.ParseForm(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 		clientID, clientSecret, _ := req.BasicAuth()
 		refreshToken := req.Form.Get("refresh_token")
@@ -46,12 +46,12 @@ func tokenServer() *httptest.Server {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(200)
 			if _, err := fmt.Fprintf(w, `{"access_token":"%s", "expires_in":3600}`, validAccessToken); err != nil {
-				slog.Error(err.Error())
+				logrus.Error(err.Error())
 			}
 		} else {
 			w.WriteHeader(400)
 			if _, err := fmt.Fprintf(w, `{"error":"invalid_client"}`); err != nil {
-				slog.Error(err.Error())
+				logrus.Error(err.Error())
 			}
 		}
 	}))
@@ -65,7 +65,7 @@ func targetServer() *httptest.Server {
 		} else {
 			w.WriteHeader(403)
 			if _, err := fmt.Fprintf(w, "Invalid access token"); err != nil {
-				slog.Error(err.Error())
+				logrus.Error(err.Error())
 			}
 		}
 	}))

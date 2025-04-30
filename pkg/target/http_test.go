@@ -15,7 +15,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"log/slog"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -27,6 +26,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -38,7 +38,7 @@ func createTestServerWithResponseCode(results *[][]byte, headers *http.Header, r
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer func() {
 			if err := req.Body.Close(); err != nil {
-				slog.Error(err.Error())
+				logrus.Error(err.Error())
 			}
 		}()
 		data, err := io.ReadAll(req.Body)
@@ -51,7 +51,7 @@ func createTestServerWithResponseCode(results *[][]byte, headers *http.Header, r
 		*results = append(*results, data)
 		w.WriteHeader(responseCode)
 		if _, err := w.Write([]byte(responseBody)); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}))
 }
@@ -852,7 +852,7 @@ func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
 
 	beforeRequest := time.Now().UTC().UnixMilli()
 	if _, err := target.Write(input); err != nil {
-		slog.Error(err.Error())
+		logrus.Error(err.Error())
 	}
 	afterRequest := time.Now().UTC().UnixMilli()
 
@@ -1213,7 +1213,7 @@ func getNgrokAddress() string {
 
 	var ngrokResponse ngrokAPIResponse
 	if err := json.Unmarshal(body, &ngrokResponse); err != nil {
-		slog.Error(err.Error())
+		logrus.Error(err.Error())
 	}
 
 	for _, obj := range ngrokResponse.Tunnels {

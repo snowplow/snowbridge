@@ -13,13 +13,13 @@ package releasetest
 
 import (
 	"context"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
 	"github.com/IBM/sarama"
@@ -54,12 +54,12 @@ func testE2EPubsubSource(t *testing.T) {
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-pubsub-source-topic", "e2e-pubsub-source-subscription")
 	defer func() {
 		if err := topic.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
 		if err := subscription.Delete(context.Background()); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -127,7 +127,7 @@ func testE2EKinesisSource(t *testing.T) {
 	}
 	defer func() {
 		if err := testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, appName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -139,7 +139,7 @@ func testE2EKinesisSource(t *testing.T) {
 	}
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -185,7 +185,7 @@ func testE2EKafkaSource(t *testing.T) {
 	}
 	defer func() {
 		if err := adminClient.Close(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -201,7 +201,7 @@ func testE2EKafkaSource(t *testing.T) {
 			}
 			defer func() {
 				if err := adminClient.DeleteTopic(testCase.topic); err != nil {
-					slog.Error(err.Error())
+					logrus.Error(err.Error())
 				}
 			}()
 

@@ -14,7 +14,6 @@ package releasetest
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/cmd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,7 +78,7 @@ func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, conf
 		// Ensure we print stderr to logs, to make debugging a bit more manageable
 		cmd.Stderr = os.Stderr
 		if _, err := cmd.Output(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -91,7 +91,7 @@ func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, conf
 		// Ensure we print stderr to logs, to make debugging a bit more manageable
 		rmCmd.Stderr = os.Stderr
 		if _, err := rmCmd.Output(); err != nil {
-			slog.Error(err.Error())
+			logrus.Error(err.Error())
 		}
 	}()
 
@@ -148,7 +148,6 @@ func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePa
 	}
 
 	expectedData := strings.Split(string(expectedChunk), "\n")
-
 	require.Equal(t, len(expectedData), len(foundData), testCase)
 
 	// Make maps of eid:data, so that we can match like for like events later
@@ -181,8 +180,6 @@ func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePa
 
 	// Iterate and assert against the values. Since we require equal lengths above, we don't need to check for entries existing in one but not the other.
 	for foundEid, foundValue := range foundWithEids {
-
 		assert.JSONEq(foundValue, expectedWithEids[foundEid], testCase)
-
 	}
 }
