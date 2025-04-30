@@ -85,7 +85,7 @@ func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOu
 		return validTime.UnixMilli()
 	})
 
-	// epochMillis converts a time.Time to an epoch in milliseconds
+	// hash takes a string and applies selected hash function to it
 	withHashFunction := gojq.WithFunction("hash", 0, 2, func(a1 any, a2 []any) any {
 		if a1 == nil {
 			return nil
@@ -144,7 +144,7 @@ func parseTimeLayout(params []any) (string, error) {
 func resolveHash(input any, params []any) (string, error) {
 	inputString, ok := input.(string)
 	if !ok {
-		return "", fmt.Errorf("failed to type assert input data to string")
+		return "", fmt.Errorf("hash function input must be a string")
 	}
 
 	if len(params) != 2 {
