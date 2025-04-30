@@ -123,9 +123,12 @@ format:
 	go fmt $(go_dirs)
 	gofmt -s -w .
 
+LINTER := $(shell command -v golangci-lint 2> /dev/null)
 lint:
-	go install golang.org/x/lint/golint@latest
-	LINTRESULT=$$(golint $(go_dirs)); echo "$$LINTRESULT"; [ -z "$$LINTRESULT" ];
+ifndef LINTER
+	brew install golangci-lint
+endif
+	golangci-lint run
 
 tidy:
 	go mod tidy
