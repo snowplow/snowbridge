@@ -81,7 +81,7 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 		if profile {
 			go func() {
 				if err := http.ListenAndServe("localhost:8080", nil); err != nil {
-					log.WithError(err).Error("failed to start up the server")
+					log.WithError(err).Fatal("failed to start up the server")
 				}
 			}()
 		}
