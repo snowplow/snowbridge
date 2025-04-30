@@ -257,3 +257,8 @@ func (ss *sqsSource) Stop() {
 func (ss *sqsSource) GetID() string {
 	return fmt.Sprintf("arn:aws:sqs:%s:%s:%s", ss.region, ss.accountID, ss.queueName)
 }
+
+func (ss *sqsSource) Health() sourceiface.HealthStatus {
+  return sourceiface.HealthStatus{ IsHealthy: true}
+}
+

@@ -13,6 +13,8 @@ package kinesissource
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -56,8 +58,11 @@ type kinesisSource struct {
 	concurrentWrites int
 	region           string
 	accountID        string
-
-	log *log.Entry
+	statsReceiver    *kinsumerActivityRecorder
+	unackedMsgs      map[string]int64
+	maxLatency       time.Duration
+	mutex            sync.Mutex
+	log              *log.Entry
 }
 
 // -- Config
@@ -180,13 +185,15 @@ func newKinesisSourceWithInterfaces(
 	leaderActionFreq int,
 	clientName string) (*kinesisSource, error) {
 
+	statsReceiver := &kinsumerActivityRecorder{}
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(time.Duration(shardCheckFreq) * time.Second).
 		WithLeaderActionFrequency(time.Duration(leaderActionFreq) * time.Second).
 		WithManualCheckpointing(true).
 		WithLogger(&KinsumerLogrus{}).
 		WithIteratorStartTimestamp(startTimestamp).
-		WithThrottleDelay(time.Duration(readThrottleDelay) * time.Millisecond)
+		WithThrottleDelay(time.Duration(readThrottleDelay) * time.Millisecond).
+		WithStats(statsReceiver) // to record kinsumer activity and check it's not stuck, see `EventsFromKinesis` function implementation.
 
 	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, clientName, clientName, config)
 	if err != nil {
@@ -200,6 +207,10 @@ func newKinesisSourceWithInterfaces(
 		region:           region,
 		accountID:        awsAccountID,
 		log:              log.WithFields(log.Fields{"source": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
+		statsReceiver:    statsReceiver,
+		unackedMsgs:      make(map[string]int64, concurrentWrites),
+		maxLatency:       time.Duration(5) * time.Minute, //make configurable
+		mutex:            sync.Mutex{},                   //to protect our map of unacked messages in case of concurrent access
 	}, nil
 }
 
@@ -224,10 +235,12 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 		}
 
 		timePulled := time.Now().UTC()
+		randomUUID := uuid.New().String()
 
 		ackFunc := func() {
 			ks.log.Debugf("Ack'ing record with SequenceNumber: %s", *record.SequenceNumber)
 			checkpointer()
+			ks.removeUnacked(randomUUID)
 		}
 
 		if record != nil {
@@ -236,13 +249,14 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 			messages := []*models.Message{
 				{
 					Data:         record.Data,
-					PartitionKey: uuid.New().String(),
+					PartitionKey: randomUUID,
 					AckFunc:      ackFunc,
 					TimeCreated:  timeCreated,
 					TimePulled:   timePulled,
 				},
 			}
 
+			ks.addUnacked(randomUUID, timePulled)
 			throttle <- struct{}{}
 			wg.Add(1)
 			go func() {
@@ -295,4 +309,57 @@ func (ks *kinesisSource) Stop() {
 // GetID returns the identifier for this source
 func (ks *kinesisSource) GetID() string {
 	return fmt.Sprintf("arn:aws:kinesis:%s:%s:stream/%s", ks.region, ks.accountID, ks.streamName)
+}
+
+type kinsumerActivityRecorder struct {
+	lastLiveness *time.Time
+}
+
+func (ks *kinsumerActivityRecorder) Checkpoint()                                 {}
+func (ks *kinsumerActivityRecorder) EventToClient(inserted, retrieved time.Time) {}
+
+// Called every time after successful fetch executed by kinsumer, even if it a number of records is zero
+func (ks *kinsumerActivityRecorder) EventsFromKinesis(num int, shardID string, lag time.Duration) {
+	now := time.Now().UTC()
+	ks.lastLiveness = &now
+}
+
+func (ks *kinesisSource) Health() sourceiface.HealthStatus {
+	ks.mutex.Lock()
+	defer ks.mutex.Unlock()
+
+	oldestAllowedTimestamp := time.Now().UTC().Add(-ks.maxLatency).UnixMilli()
+
+	// first check if there is anything pending in memory unacked...
+	unackedTimestamps := slices.Collect(maps.Values(ks.unackedMsgs))
+	if len(unackedTimestamps) > 0 {
+		oldestUnacked := slices.Min(unackedTimestamps)
+		if oldestAllowedTimestamp > oldestUnacked {
+			return sourceiface.Unhealthy("There is some stuck message being processed now for a while....")
+		}
+	}
+
+	// if there is nothing left unacked, let's check if kinsumer is healthy and not stuck...
+	if ks.statsReceiver.lastLiveness == nil {
+		return sourceiface.Unhealthy("We never recorded any activity from kinsumer...")
+	}
+
+	// There's been some activity, but it's been quite for a while since now.
+	if oldestAllowedTimestamp > ks.statsReceiver.lastLiveness.UnixMilli() {
+		return sourceiface.Unhealthy("We haven't recorded any activity from kinsumer for a while...")
+	}
+
+	return sourceiface.Healthy()
+}
+
+func (ks *kinesisSource) addUnacked(id string, timestamp time.Time) {
+	ks.mutex.Lock()
+	ks.unackedMsgs[id] = timestamp.UnixMilli()
+	ks.mutex.Unlock()
+}
+
+func (ks *kinesisSource) removeUnacked(id string) {
+	ks.mutex.Lock()
+	delete(ks.unackedMsgs, id)
+	ks.mutex.Unlock()
 }
