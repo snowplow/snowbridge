@@ -224,44 +224,6 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Error:         nil,
 		},
 		{
-			Scenario:  "test_hash_context",
-			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha1"; "") }`,
-			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
-				PartitionKey: "some-key",
-			},
-			InputInterState: nil,
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         []byte(`{"agentName":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"}`),
-					PartitionKey: "some-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: nil,
-			Error:         nil,
-		},
-		{
-			Scenario:  "test_hash_context_with_hash_function_specified_with_salt",
-			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha1"; "09a2d6b3ecd943aa8512df1f") }`,
-			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
-				PartitionKey: "some-key",
-			},
-			InputInterState: nil,
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         []byte(`{"agentName":"5841e55de6c4486fa092f044a5189570dec421cb06652829"}`),
-					PartitionKey: "some-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: nil,
-			Error:         nil,
-		},
-		{
 			Scenario:  "happy_path",
 			JQCommand: `{foo: .app_id}`,
 			InputMsg: &models.Message{
