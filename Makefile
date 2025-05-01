@@ -123,11 +123,8 @@ format:
 	go fmt $(go_dirs)
 	gofmt -s -w .
 
-LINTER := $(shell command -v golangci-lint 2> /dev/null)
+# Installation guide https://golangci-lint.run/welcome/install/#local-installation
 lint:
-ifndef LINTER
-	brew install golangci-lint
-endif
 	golangci-lint run
 
 tidy:
