@@ -13,7 +13,6 @@ package transformconfig
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -224,7 +223,6 @@ func TestEnginesAndTransformations(t *testing.T) {
 			// get transformations, and run the transformations on the expected messages
 			tr, err := GetTransformations(c, SupportedTransformations)
 			if tt.CompileErr != `` {
-				fmt.Println(err.Error())
 				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
 				assert.Nil(tr)
 				return
@@ -235,6 +233,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 			}
 
 			result := tr(tt.ExpectedMessages.Before)
+
 			assert.NotNil(result)
 			assert.Equal(int(result.ResultCount+result.FilteredCount+result.InvalidCount), len(tt.ExpectedMessages.After))
 
@@ -259,6 +258,86 @@ func TestEnginesAndTransformations(t *testing.T) {
 				for idx, resultMessage := range result.Filtered {
 					assert.Equal(resultMessage.Data, tt.ExpectedMessages.After[idx].Data)
 				}
+			}
+		})
+	}
+}
+
+func TestJQHashTransformation(t *testing.T) {
+
+	t.Setenv("SHA1_SALT", "09a2d6b3ecd943aa8512df1f")
+
+	configDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "configs")
+
+	testCases := []struct {
+		Description      string
+		File             string
+		ExpectedMessages expectedMessages
+		CompileErr       string
+	}{
+		{
+			Description: "simple JQ transform with hash & without salt - success",
+			File:        "transform-jq-hash-function.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         []byte(`{"agentName":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"}`),
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+		{
+			Description: "simple JQ transform with hash & with salt - success",
+			File:        "transform-jq-hash-salt-function.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         []byte(`{"agentName":"5841e55de6c4486fa092f044a5189570dec421cb06652829"}`),
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Description, func(t *testing.T) {
+			assert := assert.New(t)
+
+			filename := filepath.Join(configDirPath, tt.File)
+			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+			c, err := config.NewConfig()
+			assert.NotNil(c)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
+
+			// get transformations, and run the transformations on the expected messages
+			tr, err := GetTransformations(c, SupportedTransformations)
+			if tt.CompileErr != `` {
+				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
+				assert.Nil(tr)
+				return
+			}
+
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+
+			result := tr(tt.ExpectedMessages.Before)
+			assert.NotNil(result)
+
+			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
+
+			// check result for successfully transformed messages
+			for idx, resultMessage := range result.Result {
+				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
 			}
 		})
 	}
