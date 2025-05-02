@@ -19,7 +19,10 @@ import (
 	"testing"
 
 	"cloud.google.com/go/pubsub/pstest"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	// nolint: staticcheck
 	pubsubV1 "google.golang.org/genproto/googleapis/pubsub/v1"
 	"google.golang.org/grpc/codes"
 
@@ -35,8 +38,17 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -66,8 +78,17 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -91,8 +112,17 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -118,15 +148,22 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert := assert.New(t)
 	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
-	defer srv.Close()
-	defer conn.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)
 	assert.Nil(err)
 	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
 	pubsubTarget.Open()
-	defer pubsubTarget.Close()
 
 	// Mechanism for counting acks
 	var ackOps int64
@@ -145,6 +182,7 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert.Nil(twres.Invalid)
 	assert.Nil(err)
 
+	// nolint: staticcheck
 	res, pullErr := srv.GServer.Pull(context.TODO(), &pubsubV1.PullRequest{
 		Subscription: "projects/project-test/subscriptions/test-sub",
 		MaxMessages:  15, // 15 max messages to ensure we don't miss dupes
@@ -176,8 +214,16 @@ func TestPubSubTarget_WriteFailureWithMocks(t *testing.T) {
 		pstest.WithErrorInjection("Publish", codes.PermissionDenied, "Some Error"),
 	}
 	srv, conn := testutil.InitMockPubsubServer(8563, opts, t)
-	defer srv.Close()
-	defer conn.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)
@@ -227,8 +273,16 @@ func TestPubSubTarget_WriteFailureRetryableWithMocks(t *testing.T) {
 		pstest.WithErrorInjection("Publish", codes.Unknown, "Some Error"),
 	}
 	srv, conn := testutil.InitMockPubsubServer(8563, opts, t)
-	defer srv.Close()
-	defer conn.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 	assert.NotNil(pubsubTarget)
@@ -269,8 +323,16 @@ func TestNewPubSubTarget_Success(t *testing.T) {
 
 	// This isn't needed at present, but adding it as we'll need it after https://github.com/snowplow/snowbridge/issues/151
 	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
-	defer srv.Close()
-	defer conn.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
 

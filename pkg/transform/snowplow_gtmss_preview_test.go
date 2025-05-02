@@ -242,7 +242,7 @@ func TestGTMSSPreview(t *testing.T) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         errors.New("Message has expired"),
+			Error:         errors.New("message has expired"),
 		},
 	}
 

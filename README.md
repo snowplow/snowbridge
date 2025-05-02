@@ -33,6 +33,13 @@ Sets up local external resources and runs pre-release tests using a fully built 
 2. `make e2e-test` - runs End-to-End tests
 3. `make e2e-down` - brings docker containers down
 
+### Linter
+
+This project uses [golangci-lint](https://golangci-lint.run/) to keep the code up to latest lint standards.
+
+To run the linter use `make lint` command
+(ensure you have [golangci-lint](https://golangci-lint.run/welcome/install/#local-installation) first).
+
 ### LICENSE
 
 Copyright (c) 2020-present Snowplow Analytics Ltd. All rights reserved.

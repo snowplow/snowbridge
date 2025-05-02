@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
@@ -38,7 +39,11 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	content := []byte("Hello World!")
 	tmpfile, err := os.CreateTemp("", "example")
 	assert.Nil(err)
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		if err := os.Remove(tmpfile.Name()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	_, err = tmpfile.Write(content)
 	assert.Nil(err)
