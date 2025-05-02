@@ -14,8 +14,7 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
-	"log"
+	"io"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -27,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
@@ -48,8 +48,16 @@ func testE2EPubsubTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
-	defer topic.Delete(t.Context())
-	defer subscription.Delete(t.Context())
+	defer func() {
+		if err := topic.Delete(t.Context()); err != nil {
+			logrus.Error(err)
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(t.Context()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "pubsub", "config.hcl"))
 	if err != nil {
@@ -70,7 +78,11 @@ func testE2EPubsubTarget(t *testing.T) {
 		}
 
 		// Receive data in goroutine
-		go subscription.Receive(t.Context(), subReceiver)
+		go func() {
+			if err := subscription.Receive(t.Context(), subReceiver); err != nil {
+				logrus.Error(err.Error())
+			}
+		}()
 
 		var foundData []string
 
@@ -100,8 +112,12 @@ func testE2EHttpTarget(t *testing.T) {
 		srv := &http.Server{Addr: ":8998"}
 
 		http.HandleFunc("/e2e", func(w http.ResponseWriter, r *http.Request) {
-			defer r.Body.Close()
-			body, err := ioutil.ReadAll(r.Body)
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				panic(err)
 			}
@@ -120,7 +136,7 @@ func testE2EHttpTarget(t *testing.T) {
 			defer wg.Done()
 			// always returns error. ErrServerClosed on graceful close
 			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-				log.Fatalf("ListenAndServe(): %v", err)
+				logrus.Fatalf("ListenAndServe(): %v", err)
 			}
 		}()
 
@@ -181,8 +197,11 @@ func testE2EKinesisTarget(t *testing.T) {
 	if kinErr != nil {
 		panic(kinErr)
 	}
-
-	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "kinesis", "config.hcl"))
 	if err != nil {
@@ -233,8 +252,6 @@ func testE2EKinesisTarget(t *testing.T) {
 		// Expected is equal to input.
 		evaluateTestCaseString(t, foundData, inputFilePath, "Kinesis target "+binary)
 
-		// Remove data when done, so next iteration starts afresh
-		foundData = []string{}
 		// Sleep for 1 sec so our timestamp based iterator doesn't overlap tests
 		time.Sleep(1 * time.Second)
 	}
@@ -252,7 +269,11 @@ func testE2ESQSTarget(t *testing.T) {
 		panic(err)
 	}
 
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, out.QueueUrl)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, out.QueueUrl); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "sqs", "config.hcl"))
 	if err != nil {
@@ -318,7 +339,11 @@ func testE2EKafkaTarget(t *testing.T) {
 	if err2 != nil {
 		panic(err2)
 	}
-	defer adminClient.DeleteTopic(topicName)
+	defer func() {
+		if err := adminClient.DeleteTopic(topicName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "kafka", "config.hcl"))
 	if err != nil {
@@ -327,6 +352,9 @@ func testE2EKafkaTarget(t *testing.T) {
 
 	// Set up consumer
 	consumer, err := sarama.NewConsumer([]string{"localhost:9092"}, nil)
+	if err != nil {
+		panic(err)
+	}
 
 	partitions, err := consumer.Partitions(topicName)
 	if err != nil {

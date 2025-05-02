@@ -66,7 +66,6 @@ func testFailureTargetConfig(t *testing.T, filepath string, fullExample bool) {
 }
 
 func testFilterTargetConfig(t *testing.T, filepath string, fullExample bool) {
-
 	c := getConfigFromFilepath(t, filepath)
 
 	use := c.Data.FilterTarget.Use

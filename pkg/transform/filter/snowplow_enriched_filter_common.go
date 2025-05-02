@@ -56,7 +56,7 @@ func createFilterFunction(regex string, getFunc valueGetter, filterAction string
 	case "keep":
 		dropIfMatched = false
 	default:
-		return nil, fmt.Errorf("Invalid filter action found: %s - must be 'keep' or 'drop'", filterAction)
+		return nil, fmt.Errorf("invalid filter action found: %s - must be 'keep' or 'drop'", filterAction)
 	}
 
 	// regexToMatch is what we use to evaluate the actual filter, once we have the value.

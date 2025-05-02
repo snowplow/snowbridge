@@ -307,7 +307,7 @@ func run(input []*models.Message, targetMocks targetMocks, transformation transf
 	filterTarget := testTarget{results: targetMocks.filterTarget}
 
 	failure, _ := failure.NewSnowplowFailure(&failureTarget, "test-processor", "test-version")
-	obs := observer.New(testStatsReceiver{}, time.Minute, time.Second)
+	obs := observer.New(&testStatsReceiver{}, time.Minute, time.Second)
 
 	f := sourceWriteFunc(&goodTarget, failure, &filterTarget, transformation, obs, config)
 
@@ -335,7 +335,7 @@ func filteringTransformation() transform.TransformationApplyFunction {
 	}
 }
 
-// Simulating transformation result where all messages have added suffix 
+// Simulating transformation result where all messages have added suffix
 func addingSuffixTransformation(suffix string) transform.TransformationApplyFunction {
 	return func(messages []*models.Message) *models.TransformationResult {
 		for _, m := range messages {
@@ -424,6 +424,6 @@ type testStatsReceiver struct {
 	stats []*models.ObserverBuffer
 }
 
-func (r testStatsReceiver) Send(buffer *models.ObserverBuffer) {
+func (r *testStatsReceiver) Send(buffer *models.ObserverBuffer) {
 	r.stats = append(r.stats, buffer)
 }

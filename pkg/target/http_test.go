@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -35,17 +36,23 @@ import (
 func createTestServerWithResponseCode(results *[][]byte, headers *http.Header, responseCode int, responseBody string) *httptest.Server {
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		defer req.Body.Close()
+		defer func() {
+			if err := req.Body.Close(); err != nil {
+				logrus.Error(err.Error())
+			}
+		}()
 		data, err := io.ReadAll(req.Body)
 		*headers = req.Header
 		if err != nil {
 			panic(err)
 		}
 		mutex.Lock()
+		defer mutex.Unlock()
 		*results = append(*results, data)
 		w.WriteHeader(responseCode)
-		w.Write([]byte(responseBody))
-		mutex.Unlock()
+		if _, err := w.Write([]byte(responseBody)); err != nil {
+			logrus.Error(err.Error())
+		}
 	}))
 }
 
@@ -818,7 +825,7 @@ func TestHTTP_Write_Setup(t *testing.T) {
 
 	_, isSetup := err.(models.SetupWriteError)
 	assert.True(isSetup)
-	assert.Regexp(".*Got setup error, response status: '401 Unauthorized' with error details: 'Invalid token'", err.Error())
+	assert.Regexp(".*got setup error, response status: '401 Unauthorized' with error details: 'Invalid token'", err.Error())
 }
 
 func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
@@ -844,7 +851,9 @@ func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
 	input := []*models.Message{{Data: []byte(`{ "attribute": "value"}`)}}
 
 	beforeRequest := time.Now().UTC().UnixMilli()
-	target.Write(input)
+	if _, err := target.Write(input); err != nil {
+		logrus.Error(err.Error())
+	}
 	afterRequest := time.Now().UTC().UnixMilli()
 
 	rejectionTimestamp, err := strconv.ParseInt(headers.Get("Rejection-Timestamp"), 10, 64)
@@ -1203,7 +1212,9 @@ func getNgrokAddress() string {
 	}
 
 	var ngrokResponse ngrokAPIResponse
-	json.Unmarshal(body, &ngrokResponse)
+	if err := json.Unmarshal(body, &ngrokResponse); err != nil {
+		logrus.Error(err.Error())
+	}
 
 	for _, obj := range ngrokResponse.Tunnels {
 		if obj.Proto == "https" {
@@ -1211,13 +1222,6 @@ func getNgrokAddress() string {
 		}
 	}
 	panic("no ngrok https endpoint found")
-}
-
-func defaultResponseRules() *ResponseRules {
-	return &ResponseRules{
-		Invalid:    []Rule{},
-		SetupError: []Rule{},
-	}
 }
 
 func WaitForAcksWithTimeout(timeout time.Duration, wg *sync.WaitGroup) bool {
