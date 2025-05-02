@@ -483,6 +483,129 @@ function main(x) {
 	}
 }
 
+func TestJSEngineRemoveNulls(t *testing.T) {
+
+	testCases := []JSTestCase{
+		{
+			Scenario: "remove_nulls_struct",
+			Input: &models.Message{
+				Data: []byte(`
+        {
+          "f1": "value1",
+          "f2": 2,
+          "f3": {
+            "f5": null,
+            "f6": "value6",
+            "f7": {
+              "f8": 100,
+              "f9": null
+             }
+           },
+          "f4": null
+        }`),
+				PartitionKey: "some-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"f1":"value1","f2":2,"f3":{"f6":"value6","f7":{"f8":100}}}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario: "remove_nulls_array",
+			Input: &models.Message{
+				Data: []byte(`
+          {
+            "items": [
+              {
+                "f1": "value1",
+                "f2": null,
+                "f3": [
+                  {
+                    "f4": 1,
+                    "f5": null
+                  },
+                  {
+                    "f4": null,
+                    "f5": 20
+                  }
+                ]
+              }
+            ]
+          }`),
+				PartitionKey: "some-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"items":[{"f1":"value1","f3":[{"f4":1},{"f5":20}]}]}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Scenario, func(t *testing.T) {
+			assert := assert.New(t)
+
+			jsConfig := &JSEngineConfig{
+				RunTimeout:  5,
+				SpMode:      false,
+				RemoveNulls: true,
+			}
+
+			script := `
+function main(input) {
+   return {
+   		Data: JSON.parse(input.Data)
+   }
+}
+`
+
+			jsEngine, err := NewJSEngine(jsConfig, script)
+			assert.NotNil(jsEngine)
+			if err != nil {
+				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+			}
+
+			if err := jsEngine.SmokeTest("main"); err != nil {
+				t.Fatalf("smoke-test failed with error: %q", err.Error())
+			}
+
+			transFunction := jsEngine.MakeFunction("main")
+			s, f, e, _ := transFunction(tt.Input, nil)
+
+			if e != nil {
+				gotErr := e.GetError()
+				expErr := tt.Error
+				if expErr == nil {
+					t.Fatalf("got unexpected error: %s", gotErr.Error())
+				}
+
+				if !strings.Contains(gotErr.Error(), expErr.Error()) {
+					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
+						gotErr.Error(),
+						expErr.Error())
+				}
+			}
+
+			assertMessagesCompareJs(t, s, tt.Expected["success"], true)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
+		})
+	}
+
+}
+
 func TestJSEngineMakeFunction_SpModeTrue_IntermediateNil(t *testing.T) {
 	var testInterState any = nil
 	var testSpMode = true
