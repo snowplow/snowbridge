@@ -29,8 +29,10 @@ jobs:
         check-latest: true
         cache: true
 
-    - name: Run linter
-      run: make lint
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v7
+      with:
+        version: v2.0
 
     - name: Extract tag version from ref, and project version from file
       id: version
