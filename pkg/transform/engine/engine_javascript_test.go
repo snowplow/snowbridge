@@ -484,8 +484,8 @@ function main(x) {
 }
 
 func TestJSEngineMakeFunction_SpModeTrue_IntermediateNil(t *testing.T) {
-	var testInterState interface{} = nil
-	var testSpMode bool = true
+	var testInterState any = nil
+	var testSpMode = true
 	testCases := []JSTestCase{
 		{
 			Scenario: "identity",
