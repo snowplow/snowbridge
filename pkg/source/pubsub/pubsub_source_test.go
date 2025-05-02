@@ -13,7 +13,6 @@ package pubsubsource
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -23,6 +22,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
@@ -45,8 +45,17 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -84,7 +93,7 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	assert.NotNil(pubsubSource)
 	assert.Nil(err)
 	if err != nil {
-		fmt.Println(err.Error())
+		logrus.Error(err.Error())
 	}
 	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
 
@@ -130,8 +139,16 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	assert := assert.New(t)
 
 	srv, conn := testutil.InitMockPubsubServer(8008, nil, t)
-	defer srv.Close()
-	defer conn.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	// Publish ten messages
 	numMsgs := 10
@@ -169,8 +186,16 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 	assert := assert.New(t)
 
 	srv, conn := testutil.InitMockPubsubServer(8008, nil, t)
-	defer srv.Close()
-	defer conn.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	// publish 10 messages
 	numMsgs := 10

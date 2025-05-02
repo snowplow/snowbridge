@@ -33,6 +33,9 @@ func TestConfigurationOverview(t *testing.T) {
 	// Test that failure target compiles
 	testFailureTargetConfig(t, hclFilePath, false)
 
+	// Test that filter target compiles
+	testFilterTargetConfig(t, hclFilePath, false)
+
 	// Test that transformations compile
 	testTransformationConfig(t, hclFilePath, false)
 

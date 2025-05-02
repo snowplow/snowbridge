@@ -21,10 +21,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Install Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
         check-latest: true
@@ -59,8 +59,10 @@ jobs:
     - name: Run integration & unit tests
       run: make integration-test
 
-    - name: Run linter
-      run: make lint
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v7
+      with:
+        version: v2.0
 
     - name: Compile all targets
       run: make all

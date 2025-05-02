@@ -1,0 +1,16 @@
+version: "2"
+
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+
+linters:
+  default: standard
+
+formatters:
+  settings:
+    gofmt:
+      simplify: true

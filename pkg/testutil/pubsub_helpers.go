@@ -23,6 +23,8 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/pubsub/pstest"
 	"github.com/pkg/errors"
+
+	// nolint: staticcheck
 	pubsubV1 "google.golang.org/genproto/googleapis/pubsub/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -35,16 +37,19 @@ func InitMockPubsubServer(port int, opts []pstest.ServerReactorOption, t *testin
 	ctx := context.Background()
 	srv := pstest.NewServerWithPort(port, opts...)
 	// Connect to the server without using TLS.
+	// nolint: staticcheck
 	conn, err := grpc.Dial(srv.Addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// nolint: staticcheck
 	_, err = srv.GServer.CreateTopic(ctx, &pubsubV1.Topic{Name: `projects/project-test/topics/test-topic`})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// nolint: staticcheck
 	_, err = srv.GServer.CreateSubscription(ctx, &pubsubV1.Subscription{
 		Name:               "projects/project-test/subscriptions/test-sub",
 		Topic:              "projects/project-test/topics/test-topic",

@@ -278,7 +278,7 @@ func run(input []*models.Message, targetMocks targetMocks, transformation transf
 	filterTarget := testTarget{results: targetMocks.filterTarget}
 
 	failure, _ := failure.NewSnowplowFailure(&failureTarget, "test-processor", "test-version")
-	obs := observer.New(testStatsReceiver{}, time.Minute, time.Second)
+	obs := observer.New(&testStatsReceiver{}, time.Minute, time.Second)
 
 	f := sourceWriteFunc(&goodTarget, failure, &filterTarget, transformation, obs, config)
 
@@ -384,6 +384,6 @@ type testStatsReceiver struct {
 	stats []*models.ObserverBuffer
 }
 
-func (r testStatsReceiver) Send(buffer *models.ObserverBuffer) {
+func (r *testStatsReceiver) Send(buffer *models.ObserverBuffer) {
 	r.stats = append(r.stats, buffer)
 }
