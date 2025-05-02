@@ -29,16 +29,18 @@ import (
 
 // JSEngineConfig configures the JavaScript Engine.
 type JSEngineConfig struct {
-	ScriptPath string `hcl:"script_path,optional"`
-	RunTimeout int    `hcl:"timeout_sec,optional"`
-	SpMode     bool   `hcl:"snowplow_mode,optional"`
+	ScriptPath  string `hcl:"script_path,optional"`
+	RunTimeout  int    `hcl:"timeout_sec,optional"`
+	SpMode      bool   `hcl:"snowplow_mode,optional"`
+	RemoveNulls bool   `hcl:"remove_nulls,optional"`
 }
 
 // JSEngine handles the provision of a JavaScript runtime to run transformations.
 type JSEngine struct {
-	Code       *goja.Program
-	RunTimeout time.Duration
-	SpMode     bool
+	Code        *goja.Program
+	RunTimeout  time.Duration
+	SpMode      bool
+	RemoveNulls bool
 }
 
 // The JSEngineAdapter type is an adapter for functions to be used as
@@ -48,7 +50,8 @@ type JSEngineAdapter func(i interface{}) (interface{}, error)
 // ProvideDefault returns a JSEngineConfig with default configuration values
 func (f JSEngineAdapter) ProvideDefault() (interface{}, error) {
 	return &JSEngineConfig{
-		RunTimeout: 15,
+		RunTimeout:  15,
+		RemoveNulls: false,
 	}, nil
 }
 
@@ -115,9 +118,10 @@ func NewJSEngine(c *JSEngineConfig, script string) (*JSEngine, error) {
 	}
 
 	eng := &JSEngine{
-		Code:       compiledCode,
-		RunTimeout: time.Duration(c.RunTimeout) * time.Second,
-		SpMode:     c.SpMode,
+		Code:        compiledCode,
+		RunTimeout:  time.Duration(c.RunTimeout) * time.Second,
+		SpMode:      c.SpMode,
+		RemoveNulls: c.RemoveNulls,
 	}
 
 	return eng, nil
@@ -178,6 +182,10 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		case string:
 			message.Data = []byte(protoData)
 		case map[string]interface{}:
+
+			if e.RemoveNulls {
+				transform.RemoveNullFields(protoData)
+			}
 			// encode
 			encoded, err := json.Marshal(protoData)
 			if err != nil {
