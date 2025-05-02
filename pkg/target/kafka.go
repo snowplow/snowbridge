@@ -123,7 +123,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 	var asyncResults chan *saramaResult = nil
 	var asyncProducer sarama.AsyncProducer = nil
 	var syncProducer sarama.SyncProducer = nil
-	var producerError error = nil
+	var producerError error
 
 	// If we don't change the flush settings, sarama will try to produce messages
 	// as fast as possible to keep latency low.

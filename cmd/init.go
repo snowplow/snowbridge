@@ -45,7 +45,7 @@ var (
 func Init() (*config.Config, bool, error) {
 	cfg, err := config.NewConfig()
 	if err != nil {
-		return nil, false, errors.Wrap(err, "Failed to build config")
+		return nil, false, errors.Wrap(err, "failed to build config")
 	}
 
 	// If licence not accepted, fail on startup
@@ -62,13 +62,13 @@ func Init() (*config.Config, bool, error) {
 			AttachStacktrace: true,
 		})
 		if err != nil {
-			return nil, false, errors.Wrap(err, "Failed to build Sentry")
+			return nil, false, errors.Wrap(err, "failed to build Sentry")
 		}
 
 		sentryTagsMap := map[string]string{}
 		err = json.Unmarshal([]byte(cfg.Data.Sentry.Tags), &sentryTagsMap)
 		if err != nil {
-			return nil, false, errors.Wrap(err, "Failed to unmarshall SENTRY_TAGS to map")
+			return nil, false, errors.Wrap(err, "failed to unmarshall SENTRY_TAGS to map")
 		}
 		sentry.ConfigureScope(func(scope *sentry.Scope) {
 			for key, value := range sentryTagsMap {
@@ -83,7 +83,7 @@ func Init() (*config.Config, bool, error) {
 	if level, ok := logLevelsMap[cfg.Data.LogLevel]; ok {
 		log.SetLevel(level)
 	} else {
-		return nil, sentryEnabled, fmt.Errorf("Supported log levels are 'debug, info, warning, error, fatal, panic'; provided %s", cfg.Data.LogLevel)
+		return nil, sentryEnabled, fmt.Errorf("supported log levels are 'debug, info, warning, error, fatal, panic'; provided %s", cfg.Data.LogLevel)
 	}
 
 	log.Debugf("Config: %+v", cfg)
