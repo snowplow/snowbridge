@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/testutil"
@@ -65,7 +66,11 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName, 500)
 	assert.Nil(err)
@@ -107,7 +112,11 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName, 500)
 	assert.Nil(err)
@@ -150,7 +159,11 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer testutil.DeleteAWSLocalstackKinesisStream(client, streamName)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, streamName, 500)
 	assert.Nil(err)

@@ -53,5 +53,5 @@ func TestCreateTLSConfiguration(t *testing.T) {
 	conf, err := CreateTLSConfiguration(`../../integration/http/localhost.crt`, `../../integration/http/localhost.key`, `../../integration/http/rootCA.crt`, false)
 
 	assert.Nil(err)
-	assert.IsType(tls.Config{}, *conf)
+	assert.IsType(tls.Config{}, *conf.Clone())
 }
