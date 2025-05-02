@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
 	"github.com/IBM/sarama"
@@ -50,8 +51,16 @@ func testE2EPubsubSource(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-pubsub-source-topic", "e2e-pubsub-source-subscription")
-	defer topic.Delete(t.Context())
-	defer subscription.Delete(t.Context())
+	defer func() {
+		if err := topic.Delete(t.Context()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(t.Context()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "pubsub", "config.hcl"))
 	if err != nil {
@@ -115,7 +124,11 @@ func testE2EKinesisSource(t *testing.T) {
 	if ddbErr != nil {
 		panic(ddbErr)
 	}
-	defer testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, appName)
+	defer func() {
+		if err := testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, appName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 
@@ -123,8 +136,11 @@ func testE2EKinesisSource(t *testing.T) {
 	if kinErr != nil {
 		panic(kinErr)
 	}
-
-	defer testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	putErr := testutil.PutProvidedDataIntoKinesis(kinesisClient, appName, dataToSend)
 	if putErr != nil {
@@ -166,7 +182,11 @@ func testE2EKafkaSource(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer adminClient.Close()
+	defer func() {
+		if err := adminClient.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -178,7 +198,11 @@ func testE2EKafkaSource(t *testing.T) {
 			if err2 != nil {
 				panic(err2)
 			}
-			defer adminClient.DeleteTopic(testCase.topic)
+			defer func() {
+				if err := adminClient.DeleteTopic(testCase.topic); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
 
 			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kafka", testCase.configFile))
 			if err != nil {

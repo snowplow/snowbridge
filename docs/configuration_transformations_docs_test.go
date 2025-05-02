@@ -13,7 +13,7 @@ package docs
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -73,7 +73,7 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 
 	baseDir := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts")
 
-	filesInBaseDir, err := ioutil.ReadDir(baseDir)
+	filesInBaseDir, err := os.ReadDir(baseDir)
 	if err != nil {
 		panic(err)
 	}
@@ -87,7 +87,7 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 
 	examplesDir := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "examples")
 
-	filesInDir, err := ioutil.ReadDir(examplesDir)
+	filesInDir, err := os.ReadDir(examplesDir)
 	if err != nil {
 		panic(err)
 	}
@@ -201,7 +201,5 @@ func testJSScriptCompiles(t *testing.T, scriptPath string) {
 	assert.NotNil(jsTransformationFunc, scriptPath)
 	if err != nil {
 		t.Fatalf("JSConfigFunction failed with error: %s. Script: %s", err.Error(), string(scriptPath))
-
 	}
-
 }
