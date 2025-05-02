@@ -15,5 +15,8 @@ transform {
     # optional, may be used when the input is a Snowplow enriched TSV. 
     # This will transform the data so that the `Data` field contains an object representation of the event - with keys as returned by the Snowplow Analytics SDK.
     snowplow_mode       = true
+
+    # optional, removes nulls from JSON output of transformation. Only applicable when the output is JSON parsed - not a string.
+    remove_nulls = true
   }
 }
