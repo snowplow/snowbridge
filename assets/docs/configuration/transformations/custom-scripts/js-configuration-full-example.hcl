@@ -16,7 +16,7 @@ transform {
     # This will transform the data so that the `Data` field contains an object representation of the event - with keys as returned by the Snowplow Analytics SDK.
     snowplow_mode       = true
 
-    # optional, removes nulls from JSON output of transformation. Only applicable when the output is JSON parsed - not a string.
+    # optional, removes null or empty keys from JSON object output of transformation. Only applicable when the script returns an object. Does not remove null or empty elements of arrays.
     remove_nulls = true
   }
 }
