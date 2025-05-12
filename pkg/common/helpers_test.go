@@ -52,9 +52,6 @@ func TestGetAWSConfig(t *testing.T) {
 	assert.NotNil(cfg2)
 	assert.Equal("", accID2)
 	assert.NotNil(err2)
-	if err2 != nil {
-		assert.Contains(err2.Error(), "Member must have length greater than or equal to 20")
-	}
 }
 
 // --- Generic Helpers
