@@ -30,6 +30,10 @@ import (
 	credsv2 "github.com/aws/aws-sdk-go-v2/credentials"
 	sqsv2 "github.com/aws/aws-sdk-go-v2/service/sqs"
 
+	dynamodbv2 "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	kinesisv2 "github.com/aws/aws-sdk-go-v2/service/kinesis"
+
 	"github.com/snowplow/snowbridge/pkg/common"
 
 	"github.com/sirupsen/logrus"
@@ -133,6 +137,86 @@ func CreateAWSLocalstackDynamoDBTables(client dynamodbiface.DynamoDBAPI, appName
 }
 
 // DeleteAWSLocalstackDynamoDBTables creates all tables that kinsumer requires.
+func DeleteAWSLocalstackDynamoDBTablesV2(client common.DynamoDBAPI, appName string) error {
+	_, clientTableError := deleteAWSLocalstackDynamoDBTableV2(client, appName+"_clients")
+	if clientTableError != nil {
+		return clientTableError
+	}
+	_, checkpointTableError := deleteAWSLocalstackDynamoDBTableV2(client, appName+"_checkpoints")
+	if checkpointTableError != nil {
+		return checkpointTableError
+	}
+	_, metadataTableError := deleteAWSLocalstackDynamoDBTableV2(client, appName+"_metadata")
+	if metadataTableError != nil {
+		return metadataTableError
+	}
+	return nil
+}
+
+// GetAWSLocalstackDynamoDBClient returns a DynamoDB client
+func GetAWSLocalstackDynamoDBClientV2() common.DynamoDBAPI {
+	cfg := GetAWSLocalstackConfig()
+	client := dynamodbv2.NewFromConfig(*cfg, func(o *dynamodbv2.Options) {
+		o.BaseEndpoint = &AWSLocalstackEndpoint
+	})
+	return client
+}
+
+// CreateAWSLocalstackDynamoDBTable creates a new Dynamo DB table and polls until
+// the table is in an ACTIVE state
+func createAWSLocalstackDynamoDBTableV2(client common.DynamoDBAPI, tableName string, distKey string) error {
+	_, err := client.CreateTable(context.Background(), &dynamodbv2.CreateTableInput{
+		AttributeDefinitions: []types.AttributeDefinition{{
+			AttributeName: awsv2.String(distKey),
+			AttributeType: types.ScalarAttributeTypeS,
+		}},
+		KeySchema: []types.KeySchemaElement{{
+			AttributeName: awsv2.String(distKey),
+			KeyType:       types.KeyTypeHash,
+		}},
+		BillingMode: types.BillingModePayPerRequest,
+		TableName:   awsv2.String(tableName),
+	})
+	if err != nil {
+		return err
+	}
+
+	for {
+		res, err1 := client.DescribeTable(context.Background(), &dynamodbv2.DescribeTableInput{TableName: &tableName})
+		if err1 != nil {
+			return err1
+		}
+
+		if res.Table.TableStatus == "ACTIVE" {
+			return nil
+		}
+	}
+}
+
+// DeleteAWSLocalstackDynamoDBTable deletes an existing Dynamo DB table
+func deleteAWSLocalstackDynamoDBTableV2(client common.DynamoDBAPI, tableName string) (*dynamodbv2.DeleteTableOutput, error) {
+	return client.DeleteTable(context.Background(), &dynamodbv2.DeleteTableInput{TableName: &tableName})
+}
+
+// CreateAWSLocalstackDynamoDBTables creates all the DynamoDB tables kinsumer requires and
+// polls them until each table is in ACTIVE state
+func CreateAWSLocalstackDynamoDBTablesV2(client common.DynamoDBAPI, appName string) error {
+	clientTableError := createAWSLocalstackDynamoDBTableV2(client, appName+"_clients", "ID")
+	if clientTableError != nil {
+		return clientTableError
+	}
+	checkpointTableError := createAWSLocalstackDynamoDBTableV2(client, appName+"_checkpoints", "Shard")
+	if checkpointTableError != nil {
+		return checkpointTableError
+	}
+	metadataTableError := createAWSLocalstackDynamoDBTableV2(client, appName+"_metadata", "Key")
+	if metadataTableError != nil {
+		return metadataTableError
+	}
+	return nil
+}
+
+// DeleteAWSLocalstackDynamoDBTables creates all tables that kinsumer requires.
 func DeleteAWSLocalstackDynamoDBTables(client dynamodbiface.DynamoDBAPI, appName string) error {
 	_, clientTableError := deleteAWSLocalstackDynamoDBTable(client, appName+"_clients")
 	if clientTableError != nil {
@@ -185,6 +269,47 @@ func CreateAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName
 func DeleteAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName string) (*kinesis.DeleteStreamOutput, error) {
 	return client.DeleteStream(&kinesis.DeleteStreamInput{
 		StreamName: aws.String(streamName),
+	})
+}
+
+// GetAWSLocalstackKinesisClient returns a Kinesis client
+func GetAWSLocalstackKinesisClientV2() common.KinesisAPI {
+	cfg := GetAWSLocalstackConfig()
+	client := kinesisv2.NewFromConfig(*cfg, func(o *kinesisv2.Options) {
+		o.BaseEndpoint = &AWSLocalstackEndpoint
+	})
+	return client
+}
+
+// CreateAWSLocalstackKinesisStream creates a new Kinesis stream and polls until
+// the stream is in an ACTIVE state
+func CreateAWSLocalstackKinesisStreamV2(client common.KinesisAPI, streamName string, shardCount int32) error {
+	_, err := client.CreateStream(context.Background(), &kinesisv2.CreateStreamInput{
+		StreamName: awsv2.String(streamName),
+		ShardCount: awsv2.Int32(shardCount),
+	})
+	if err != nil {
+		return err
+	}
+
+	for {
+		res, err1 := client.DescribeStream(context.Background(), &kinesisv2.DescribeStreamInput{
+			StreamName: awsv2.String(streamName),
+		})
+		if err1 != nil {
+			return err1
+		}
+
+		if res.StreamDescription.StreamStatus == "ACTIVE" {
+			return nil
+		}
+	}
+}
+
+// DeleteAWSLocalstackKinesisStream deletes an existing Kinesis stream
+func DeleteAWSLocalstackKinesisStreamV2(client common.KinesisAPI, streamName string) (*kinesisv2.DeleteStreamOutput, error) {
+	return client.DeleteStream(context.Background(), &kinesisv2.DeleteStreamInput{
+		StreamName: awsv2.String(streamName),
 	})
 }
 
@@ -331,6 +456,30 @@ func PutProvidedDataIntoKinesis(kinesisClient kinesisiface.KinesisAPI, streamNam
 	// Put N records into kinesis stream
 	for _, msg := range data {
 		_, err := kinesisClient.PutRecord(&kinesis.PutRecordInput{Data: []byte(msg), PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PutNRecordsIntoKinesis puts n records into a kinesis stream. The records will contain `{dataPrefix} {n}` as their data.
+func PutNRecordsIntoKinesisV2(kinesisClient common.KinesisAPI, n int, streamName string, dataPrefix string) error {
+	// Put N records into kinesis stream
+	for i := range n {
+		_, err := kinesisClient.PutRecord(context.Background(), &kinesisv2.PutRecordInput{Data: []byte(fmt.Sprint(dataPrefix, " ", i)), PartitionKey: awsv2.String("abc123"), StreamName: awsv2.String(streamName)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PutProvidedDataIntoKinesis puts the provided data into a kinsis stream
+func PutProvidedDataIntoKinesisV2(kinesisClient common.KinesisAPI, streamName string, data []string) error {
+	// Put N records into kinesis stream
+	for _, msg := range data {
+		_, err := kinesisClient.PutRecord(context.Background(), &kinesisv2.PutRecordInput{Data: []byte(msg), PartitionKey: awsv2.String("abc123"), StreamName: awsv2.String(streamName)})
 		if err != nil {
 			return err
 		}
