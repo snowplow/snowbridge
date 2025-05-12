@@ -18,11 +18,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"hash"
-	"net/http"
-	"os"
-	"time"
-
 	"github.com/IBM/sarama"
 	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -33,6 +28,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/xdg/scram"
+	"hash"
+	"net/http"
+	"os"
+	"time"
 )
 
 // GetAWSSession is a general tool to handle generating an AWS session

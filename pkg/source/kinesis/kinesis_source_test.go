@@ -45,27 +45,27 @@ func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
 	assert := assert.New(t)
 
 	// Set up localstack resources
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+	kinesisClient := testutil.GetAWSLocalstackKinesisClientV2()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClientV2()
 
 	streamName := "kinesis-source-integration-1"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
+	createErr := testutil.CreateAWSLocalstackKinesisStreamV2(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStreamV2(kinesisClient, streamName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 
 	appName := "integration"
-	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTablesV2(dynamodbClient, appName)
 	if ddbErr != nil {
 		t.Fatal(ddbErr)
 	}
 	defer func() {
-		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
+		if err := testutil.DeleteAWSLocalstackDynamoDBTablesV2(dynamodbClient, appName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -102,8 +102,8 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 
 	assert := assert.New(t)
 
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+	kinesisClient := testutil.GetAWSLocalstackKinesisClientV2()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClientV2()
 
 	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil, 250, 10, 10, "test_client_name")
 	assert.Nil(err)
@@ -113,7 +113,8 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	err = source.Read(nil)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to start Kinsumer client: error describing table fake-name_checkpoints: ResourceNotFoundException: Cannot do operations on a non-existent table", err.Error())
+		assert.Contains(err.Error(), "Failed to start Kinsumer client: error describing table fake-name_checkpoints")
+		assert.Contains(err.Error(), "ResourceNotFoundException: Cannot do operations on a non-existent table")
 	}
 }
 
@@ -125,33 +126,33 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	assert := assert.New(t)
 
 	// Set up localstack resources
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+	kinesisClient := testutil.GetAWSLocalstackKinesisClientV2()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClientV2()
 
 	streamName := "kinesis-source-integration-2"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
+	createErr := testutil.CreateAWSLocalstackKinesisStreamV2(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStreamV2(kinesisClient, streamName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 
 	appName := "integration"
-	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTablesV2(dynamodbClient, appName)
 	if ddbErr != nil {
 		t.Fatal(ddbErr)
 	}
 	defer func() {
-		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
+		if err := testutil.DeleteAWSLocalstackDynamoDBTablesV2(dynamodbClient, appName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 
 	// Put ten records into kinesis stream
-	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "Test")
+	putErr := testutil.PutNRecordsIntoKinesisV2(kinesisClient, 10, streamName, "Test")
 	if putErr != nil {
 		t.Fatal(putErr)
 	}
@@ -178,34 +179,34 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	assert := assert.New(t)
 
 	// Set up localstack resources
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+	kinesisClient := testutil.GetAWSLocalstackKinesisClientV2()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClientV2()
 
 	streamName := "kinesis-source-integration-3"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
+	createErr := testutil.CreateAWSLocalstackKinesisStreamV2(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStreamV2(kinesisClient, streamName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 
 	appName := "integration"
-	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTablesV2(dynamodbClient, appName)
 	if ddbErr != nil {
 		t.Fatal(ddbErr)
 	}
 
 	defer func() {
-		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
+		if err := testutil.DeleteAWSLocalstackDynamoDBTablesV2(dynamodbClient, appName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 
 	// Put two batches of 10 records into kinesis stream, grabbing a timestamp in between
-	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "First batch")
+	putErr := testutil.PutNRecordsIntoKinesisV2(kinesisClient, 10, streamName, "First batch")
 	if putErr != nil {
 		t.Fatal(putErr)
 	}
@@ -214,7 +215,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	timeToStart := time.Now().UTC()
 	time.Sleep(1 * time.Second)
 
-	putErr2 := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "Second batch")
+	putErr2 := testutil.PutNRecordsIntoKinesisV2(kinesisClient, 10, streamName, "Second batch")
 	if putErr2 != nil {
 		t.Fatal(putErr2)
 	}
@@ -245,27 +246,27 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 	assert := assert.New(t)
 
 	// Set up localstack resources
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+	kinesisClient := testutil.GetAWSLocalstackKinesisClientV2()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClientV2()
 
 	streamName := "kinesis-source-config-integration-1"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
+	createErr := testutil.CreateAWSLocalstackKinesisStreamV2(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStreamV2(kinesisClient, streamName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 
 	appName := "kinesisSourceIntegration"
-	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTablesV2(dynamodbClient, appName)
 	if ddbErr != nil {
 		t.Fatal(ddbErr)
 	}
 	defer func() {
-		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
+		if err := testutil.DeleteAWSLocalstackDynamoDBTablesV2(dynamodbClient, appName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
