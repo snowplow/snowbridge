@@ -39,6 +39,24 @@ func TestGetAWSSession(t *testing.T) {
 	}
 }
 
+func TestGetAWSConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", "")
+	cfg, accID, err := GetAWSConfig("us-east-1", "")
+	assert.Nil(cfg)
+	assert.Nil(accID)
+	assert.NotNil(err)
+
+	cfg2, accID2, err2 := GetAWSConfig("us-east-1", "some-role-arn")
+	assert.NotNil(cfg2)
+	assert.Nil(accID2)
+	assert.NotNil(err2)
+	if err != nil {
+		assert.Equal("InvalidParameter: 1 validation error(s) found.\n- minimum field size of 20, AssumeRoleInput.RoleArn.\n", err2.Error())
+	}
+}
+
 // --- Generic Helpers
 
 func TestGetAverageFromDuration(t *testing.T) {

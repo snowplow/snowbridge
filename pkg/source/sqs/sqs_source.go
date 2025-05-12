@@ -12,14 +12,15 @@
 package sqssource
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -41,7 +42,7 @@ type Configuration struct {
 
 // sqsSource holds a new client for reading messages from SQS
 type sqsSource struct {
-	client           sqsiface.SQSAPI
+	client           common.SqsV2API
 	queueURL         string
 	queueName        string
 	concurrentWrites int
@@ -60,7 +61,7 @@ type sqsSource struct {
 
 // configFunctionGeneratorWithInterfaces generates the SQS Source Config function, allowing you
 // to provide an SQS client directly to allow for mocking and localstack usage
-func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID string) func(c *Configuration) (sourceiface.Source, error) {
+func configFunctionGeneratorWithInterfaces(client common.SqsV2API, awsAccountID string) func(c *Configuration) (sourceiface.Source, error) {
 	return func(c *Configuration) (sourceiface.Source, error) {
 		return newSQSSourceWithInterfaces(client, awsAccountID, c.ConcurrentWrites, c.Region, c.QueueName)
 	}
@@ -68,14 +69,20 @@ func configFunctionGeneratorWithInterfaces(client sqsiface.SQSAPI, awsAccountID 
 
 // configFunction returns an SQS source from a config.
 func configFunction(c *Configuration) (sourceiface.Source, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN, c.CustomAWSEndpoint)
+	awsConfig, awsAccountID, err := common.GetAWSConfig(c.Region, c.RoleARN)
 	if err != nil {
 		return nil, err
 	}
 
-	sqsClient := sqs.New(awsSession, awsConfig)
-
-	sourceConfigFunc := configFunctionGeneratorWithInterfaces(sqsClient, *awsAccountID)
+	// In AWS SDK v2, all resolvers are bind to a service
+	// instead of being global
+	resol := sqs.NewDefaultEndpointResolverV2()
+	resol.ResolveEndpoint(context.Background(), sqs.EndpointParameters{
+		Region:   &c.Region,
+		Endpoint: &c.CustomAWSEndpoint,
+	})
+	sqsClient := sqs.NewFromConfig(*awsConfig, sqs.WithEndpointResolverV2(resol))
+	sourceConfigFunc := configFunctionGeneratorWithInterfaces(sqsClient, awsAccountID)
 
 	return sourceConfigFunc(c)
 }
@@ -120,11 +127,14 @@ var ConfigPair = config.ConfigurationPair{
 
 // newSQSSourceWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
-func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
+func newSQSSourceWithInterfaces(client common.SqsV2API, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
 
-	urlResult, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{
-		QueueName: aws.String(queueName),
-	})
+	urlResult, err := client.GetQueueUrl(
+		context.Background(),
+		&sqs.GetQueueUrlInput{
+			QueueName: aws.String(queueName),
+		},
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get SQS queue URL")
 	}
@@ -156,18 +166,21 @@ func (ss *sqsSource) Read(sf *sourceiface.SourceFunctions) error {
 
 ProcessLoop:
 	for {
-		msgRes, err := ss.client.ReceiveMessage(&sqs.ReceiveMessageInput{
-			AttributeNames: []*string{
-				aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
+		msgRes, err := ss.client.ReceiveMessage(
+			context.Background(),
+			&sqs.ReceiveMessageInput{
+				AttributeNames: []types.QueueAttributeName{
+					types.QueueAttributeNameAll,
+				},
+				MessageAttributeNames: []string{
+					string(types.MessageSystemAttributeNameSentTimestamp),
+				},
+				QueueUrl:            aws.String(ss.queueURL),
+				MaxNumberOfMessages: 10,
+				VisibilityTimeout:   10,
+				WaitTimeSeconds:     1,
 			},
-			MessageAttributeNames: []*string{
-				aws.String(sqs.QueueAttributeNameAll),
-			},
-			QueueUrl:            aws.String(ss.queueURL),
-			MaxNumberOfMessages: aws.Int64(10),
-			VisibilityTimeout:   aws.Int64(10),
-			WaitTimeSeconds:     aws.Int64(1),
-		})
+		)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get message from SQS queue")
 		}
@@ -204,10 +217,13 @@ func (ss *sqsSource) process(sf *sourceiface.SourceFunctions, msgRes *sqs.Receiv
 
 		ackFunc := func() {
 			ss.log.Debugf("Deleting message with receipt handle: %s", *receiptHandle)
-			_, err := ss.client.DeleteMessage(&sqs.DeleteMessageInput{
-				QueueUrl:      aws.String(ss.queueURL),
-				ReceiptHandle: receiptHandle,
-			})
+			_, err := ss.client.DeleteMessage(
+				context.Background(),
+				&sqs.DeleteMessageInput{
+					QueueUrl:      aws.String(ss.queueURL),
+					ReceiptHandle: receiptHandle,
+				},
+			)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to delete message from SQS queue")
 				ss.log.WithFields(log.Fields{"error": err}).Error(err)
@@ -215,9 +231,9 @@ func (ss *sqsSource) process(sf *sourceiface.SourceFunctions, msgRes *sqs.Receiv
 		}
 
 		var timeCreated time.Time
-		timeCreatedStr, ok := msg.Attributes[sqs.MessageSystemAttributeNameSentTimestamp]
+		timeCreatedStr, ok := msg.Attributes[string(types.MessageSystemAttributeNameSentTimestamp)]
 		if ok {
-			timeCreatedMillis, err := strconv.ParseInt(*timeCreatedStr, 10, 64)
+			timeCreatedMillis, err := strconv.ParseInt(timeCreatedStr, 10, 64)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to parse SentTimestamp from SQS message")
 				ss.log.WithFields(log.Fields{"error": err}).Error(err)

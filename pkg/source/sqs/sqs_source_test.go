@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-// func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
+// func newSQSSourceWithInterfaces(client sqs.SqsAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
 func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -48,12 +48,12 @@ func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	// We'll only run it with the integration tests for the time being.
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackSQSClient()
+	client := testutil.GetAWSLocalstackSQSClientV2()
 
 	queueName := "sqs-queue-source"
-	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
+	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessagesV2(client, queueName, 50, "Hello SQS!!")
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueueV2(client, queueURL); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -70,7 +70,7 @@ func TestSQSSource_SetupFailure(t *testing.T) {
 	}
 
 	assert := assert.New(t)
-	client := testutil.GetAWSLocalstackSQSClient()
+	client := testutil.GetAWSLocalstackSQSClientV2()
 
 	_, err := newSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
 	assert.NotNil(err)
@@ -86,12 +86,12 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackSQSClient()
+	client := testutil.GetAWSLocalstackSQSClientV2()
 
 	queueName := "sqs-queue-source"
-	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
+	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessagesV2(client, queueName, 50, "Hello SQS!!")
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueueV2(client, queueURL); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -143,16 +143,16 @@ func TestGetSource_WithSQSSource(t *testing.T) {
 	assert := assert.New(t)
 
 	// Set up localstack resources
-	sqsClient := testutil.GetAWSLocalstackSQSClient()
+	sqsClient := testutil.GetAWSLocalstackSQSClientV2()
 
 	queueName := "sqs-source-config-integration-1"
-	_, createErr := testutil.CreateAWSLocalstackSQSQueue(sqsClient, queueName)
+	_, createErr := testutil.CreateAWSLocalstackSQSQueueV2(sqsClient, queueName)
 	if createErr != nil {
 		t.Fatal(createErr)
 	}
 
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueueV2(sqsClient, &queueName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
