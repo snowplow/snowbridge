@@ -69,7 +69,7 @@ func configFunctionGeneratorWithInterfaces(client common.SqsV2API, awsAccountID 
 
 // configFunction returns an SQS source from a config.
 func configFunction(c *Configuration) (sourceiface.Source, error) {
-	awsConfig, awsAccountID, err := common.GetAWSConfig(c.Region, c.RoleARN)
+	awsConfig, awsAccountID, err := common.GetAWSConfig(c.Region, c.RoleARN, c.CustomAWSEndpoint)
 	if err != nil {
 		return nil, err
 	}

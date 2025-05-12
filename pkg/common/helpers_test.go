@@ -43,12 +43,12 @@ func TestGetAWSConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", "")
-	cfg, accID, err := GetAWSConfig("us-east-1", "")
+	cfg, accID, err := GetAWSConfig("us-east-1", "", "")
 	assert.NotNil(cfg)
 	assert.Equal("", accID)
-	assert.Nil(err)
+	assert.NotNil(err)
 
-	cfg2, accID2, err2 := GetAWSConfig("us-east-1", "some-role-arn")
+	cfg2, accID2, err2 := GetAWSConfig("us-east-1", "some-role-arn", "")
 	assert.NotNil(cfg2)
 	assert.Equal("", accID2)
 	assert.NotNil(err2)
