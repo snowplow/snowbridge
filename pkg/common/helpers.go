@@ -79,6 +79,8 @@ func GetAWSSession(region string, roleARN string, endpoint string) (sess *sessio
 // We also have the ability to pass a role ARN to allow for roles
 // to be assumed in cross-account access flows.
 func GetAWSConfig(region, roleARN string) (*awsv2.Config, string, error) {
+	ctx := context.Background()
+
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
 	httpClient := &http.Client{
@@ -86,7 +88,7 @@ func GetAWSConfig(region, roleARN string) (*awsv2.Config, string, error) {
 	}
 
 	conf, err := config.LoadDefaultConfig(
-		context.Background(),
+		ctx,
 		config.WithRegion(region),
 		config.WithHTTPClient(httpClient),
 	)
@@ -97,8 +99,9 @@ func GetAWSConfig(region, roleARN string) (*awsv2.Config, string, error) {
 	if roleARN != "" {
 		client := stsv2.NewFromConfig(conf)
 		creds := stscredsv2.NewAssumeRoleProvider(client, roleARN)
+
 		conf, err = config.LoadDefaultConfig(
-			context.Background(),
+			ctx,
 			config.WithCredentialsProvider(creds),
 			config.WithRegion(region),
 			config.WithHTTPClient(httpClient),
@@ -109,7 +112,7 @@ func GetAWSConfig(region, roleARN string) (*awsv2.Config, string, error) {
 	}
 
 	stsClient := stsv2.NewFromConfig(conf)
-	res, err := stsClient.GetCallerIdentity(context.Background(), &stsv2.GetCallerIdentityInput{})
+	res, err := stsClient.GetCallerIdentity(ctx, &stsv2.GetCallerIdentityInput{})
 	if err != nil {
 		return &conf, "", err
 	}
