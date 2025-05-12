@@ -53,9 +53,9 @@ func GetAWSLocalstackSession() *session.Session {
 	}))
 }
 
-// GetAWSLocalstackSession will return an AWS session ready to interact with localstack
+// GetAWSLocalstackConfig will return an AWS session ready to interact with localstack
 // Unlike in SDK v1, S3ForcePathStyle & Endpoint shall be set at service client level
-func GetAWSLocalstackConfig() (*awsv2.Config, sqsv2.EndpointResolverV2) {
+func GetAWSLocalstackConfig() *awsv2.Config {
 
 	staticCreds := awsv2.NewCredentialsCache(credsv2.NewStaticCredentialsProvider("foo", "var", ""))
 	cfg, err := config.LoadDefaultConfig(
@@ -64,17 +64,11 @@ func GetAWSLocalstackConfig() (*awsv2.Config, sqsv2.EndpointResolverV2) {
 		config.WithRegion(AWSLocalstackRegion),
 	)
 
-	resol := sqsv2.NewDefaultEndpointResolverV2()
-	resol.ResolveEndpoint(context.Background(), sqsv2.EndpointParameters{
-		Region:   aws.String(AWSLocalstackRegion),
-		Endpoint: aws.String(AWSLocalstackEndpoint),
-	})
-
 	if err != nil {
 		panic(err)
 	}
 
-	return &cfg, resol
+	return &cfg
 }
 
 // --- DynamoDB Testing
@@ -250,14 +244,16 @@ func DeleteAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueURL *string) (*sqs
 
 // --- SQS v2 Testing
 
-// GetAWSLocalstackSQSClient returns an SQS client
+// GetAWSLocalstackSQSClientV2 returns an SQS client
 func GetAWSLocalstackSQSClientV2() common.SqsV2API {
-	cfg, resol := GetAWSLocalstackConfig()
-	client := sqsv2.NewFromConfig(*cfg, sqsv2.WithEndpointResolverV2(resol))
+	cfg := GetAWSLocalstackConfig()
+	client := sqsv2.NewFromConfig(*cfg, func(o *sqsv2.Options) {
+		o.BaseEndpoint = &AWSLocalstackEndpoint
+	})
 	return client
 }
 
-// SetupAWSLocalstackSQSQueueWithMessages creates a new SQS queue and stubs it with a random set of messages
+// SetupAWSLocalstackSQSQueueWithMessagesV2 creates a new SQS queue and stubs it with a random set of messages
 func SetupAWSLocalstackSQSQueueWithMessagesV2(client common.SqsV2API, queueName string, messageCount int, messageBody string) *string {
 	res, err := CreateAWSLocalstackSQSQueueV2(client, queueName)
 	if err != nil {
@@ -280,7 +276,7 @@ func SetupAWSLocalstackSQSQueueWithMessagesV2(client common.SqsV2API, queueName 
 	return res.QueueUrl
 }
 
-// PutProvidedDataIntoSQS puts the provided data into an SQS queue
+// PutProvidedDataIntoSQSV2 puts the provided data into an SQS queue
 func PutProvidedDataIntoSQSV2(client common.SqsV2API, queueURL string, data []string) {
 	for _, msg := range data {
 		if _, err := client.SendMessage(
@@ -296,7 +292,7 @@ func PutProvidedDataIntoSQSV2(client common.SqsV2API, queueURL string, data []st
 	}
 }
 
-// CreateAWSLocalstackSQSQueue creates a new SQS queue
+// CreateAWSLocalstackSQSQueueV2 creates a new SQS queue
 func CreateAWSLocalstackSQSQueueV2(client common.SqsV2API, queueName string) (*sqsv2.CreateQueueOutput, error) {
 	return client.CreateQueue(
 		context.Background(),
@@ -306,7 +302,7 @@ func CreateAWSLocalstackSQSQueueV2(client common.SqsV2API, queueName string) (*s
 	)
 }
 
-// DeleteAWSLocalstackSQSQueue deletes an existing SQS queue
+// DeleteAWSLocalstackSQSQueueV2 deletes an existing SQS queue
 func DeleteAWSLocalstackSQSQueueV2(client common.SqsV2API, queueURL *string) (*sqsv2.DeleteQueueOutput, error) {
 	return client.DeleteQueue(
 		context.Background(),
