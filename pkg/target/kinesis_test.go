@@ -28,7 +28,7 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackKinesisClientV2()
+	client := testutil.GetAWSLocalstackKinesisClient()
 
 	target, err := newKinesisTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, "not-exists", 500)
 	assert.Nil(err)
@@ -59,15 +59,15 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackKinesisClientV2()
+	client := testutil.GetAWSLocalstackKinesisClient()
 
 	streamName := "kinesis-stream-target-1"
-	err := testutil.CreateAWSLocalstackKinesisStreamV2(client, streamName, 1)
+	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStreamV2(client, streamName); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -105,15 +105,15 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackKinesisClientV2()
+	client := testutil.GetAWSLocalstackKinesisClient()
 
 	streamName := "kinesis-stream-target-2"
-	err := testutil.CreateAWSLocalstackKinesisStreamV2(client, streamName, 1)
+	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStreamV2(client, streamName); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -152,15 +152,15 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackKinesisClientV2()
+	client := testutil.GetAWSLocalstackKinesisClient()
 
 	streamName := "kinesis-stream-target-3"
-	err := testutil.CreateAWSLocalstackKinesisStreamV2(client, streamName, 1)
+	err := testutil.CreateAWSLocalstackKinesisStream(client, streamName, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStreamV2(client, streamName); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(client, streamName); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()

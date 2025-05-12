@@ -12,7 +12,6 @@
 package releasetest
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,12 +52,12 @@ func testE2EPubsubSource(t *testing.T) {
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-pubsub-source-topic", "e2e-pubsub-source-subscription")
 	defer func() {
-		if err := topic.Delete(context.Background()); err != nil {
+		if err := topic.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
-		if err := subscription.Delete(context.Background()); err != nil {
+		if err := subscription.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -88,10 +87,10 @@ func testE2EPubsubSource(t *testing.T) {
 func testE2ESQSSource(t *testing.T) {
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackSQSClientV2()
+	client := testutil.GetAWSLocalstackSQSClient()
 
 	queueName := "sqs-queue-e2e-source"
-	res, err := testutil.CreateAWSLocalstackSQSQueueV2(client, queueName)
+	res, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +101,7 @@ func testE2ESQSSource(t *testing.T) {
 	}
 
 	for _, binary := range []string{"-aws-only", ""} {
-		testutil.PutProvidedDataIntoSQSV2(client, *res.QueueUrl, dataToSend)
+		testutil.PutProvidedDataIntoSQS(client, *res.QueueUrl, dataToSend)
 
 		stdOut, cmdErr := runDockerCommand(3*time.Second, "sqsSource", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 		if cmdErr != nil {

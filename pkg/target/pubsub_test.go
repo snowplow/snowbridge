@@ -12,7 +12,6 @@
 package target
 
 import (
-	"context"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -39,12 +38,12 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 	defer func() {
-		if err := topic.Delete(context.Background()); err != nil {
+		if err := topic.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
-		if err := subscription.Delete(context.Background()); err != nil {
+		if err := subscription.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -79,12 +78,12 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 	defer func() {
-		if err := topic.Delete(context.Background()); err != nil {
+		if err := topic.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
-		if err := subscription.Delete(context.Background()); err != nil {
+		if err := subscription.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -113,12 +112,12 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 	defer func() {
-		if err := topic.Delete(context.Background()); err != nil {
+		if err := topic.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
-		if err := subscription.Delete(context.Background()); err != nil {
+		if err := subscription.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -183,7 +182,7 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert.Nil(err)
 
 	// nolint: staticcheck
-	res, pullErr := srv.GServer.Pull(context.TODO(), &pubsubV1.PullRequest{
+	res, pullErr := srv.GServer.Pull(t.Context(), &pubsubV1.PullRequest{
 		Subscription: "projects/project-test/subscriptions/test-sub",
 		MaxMessages:  15, // 15 max messages to ensure we don't miss dupes
 	})

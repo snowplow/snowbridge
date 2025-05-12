@@ -12,7 +12,6 @@
 package pubsubsource
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"sort"
@@ -46,12 +45,12 @@ func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 	defer func() {
-		if err := topic.Delete(context.Background()); err != nil {
+		if err := topic.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
 	defer func() {
-		if err := subscription.Delete(context.Background()); err != nil {
+		if err := subscription.Delete(t.Context()); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()

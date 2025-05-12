@@ -13,13 +13,11 @@ package kinesissource
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -64,7 +62,7 @@ type kinesisSource struct {
 
 // configFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
 // to provide a Kinesis + DynamoDB client directly to allow for mocking and localstack usage
-func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI, dynamodbClient dynamodbiface.DynamoDBAPI, awsAccountID string) func(c *Configuration) (sourceiface.Source, error) {
+func configFunctionGeneratorWithInterfaces(kinesisClient common.KinesisV2API, dynamodbClient common.DynamoDBV2API, awsAccountID string) func(c *Configuration) (sourceiface.Source, error) {
 	// Return a function which returns the source
 	return func(c *Configuration) (sourceiface.Source, error) {
 		// Handle iteratorTstamp if provided
@@ -95,17 +93,17 @@ func configFunctionGeneratorWithInterfaces(kinesisClient kinesisiface.KinesisAPI
 
 // configFunction returns a kinesis source from a config
 func configFunction(c *Configuration) (sourceiface.Source, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(c.Region, c.RoleARN, c.CustomAWSEndpoint)
+	awsConfig, awsAccountID, err := common.GetAWSConfig(c.Region, c.RoleARN, c.CustomAWSEndpoint)
 	if err != nil {
 		return nil, err
 	}
-	kinesisClient := kinesis.New(awsSession, awsConfig)
-	dynamodbClient := dynamodb.New(awsSession, awsConfig)
+	kinesisClient := kinesis.NewFromConfig(*awsConfig)
+	dynamodbClient := dynamodb.NewFromConfig(*awsConfig)
 
 	sourceConfigFunction := configFunctionGeneratorWithInterfaces(
 		kinesisClient,
 		dynamodbClient,
-		*awsAccountID)
+		awsAccountID)
 
 	return sourceConfigFunction(c)
 }
@@ -167,8 +165,8 @@ func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
 // newKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
 // for mocking and localstack usage
 func newKinesisSourceWithInterfaces(
-	kinesisClient kinesisiface.KinesisAPI,
-	dynamodbClient dynamodbiface.DynamoDBAPI,
+	kinesisClient common.KinesisV2API,
+	dynamodbClient common.DynamoDBV2API,
 	awsAccountID string,
 	concurrentWrites int,
 	region string,
