@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/assets"
-	config "github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 )
@@ -105,7 +105,8 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	err = source.Read(nil)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Failed to start Kinsumer client: error describing table fake-name_checkpoints: ResourceNotFoundException: Cannot do operations on a non-existent table", err.Error())
+		assert.Contains(err.Error(), "Failed to start Kinsumer client: error describing table fake-name_checkpoints")
+		assert.Contains(err.Error(), "ResourceNotFoundException: Cannot do operations on a non-existent table")
 	}
 }
 

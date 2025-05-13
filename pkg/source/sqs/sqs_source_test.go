@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-// func newSQSSourceWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
+// func newSQSSourceWithInterfaces(client sqs.SqsAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
 func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -96,6 +96,7 @@ func TestSQSSource_ReadSuccess(t *testing.T) {
 	writeFunc := func(messages []*models.Message) error {
 		for _, msg := range messages {
 			assert.Equal("Hello SQS!!", string(msg.Data))
+			assert.Greater(msg.TimePulled, msg.TimeCreated)
 			messageCount++
 
 			msg.AckFunc()
