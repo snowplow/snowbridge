@@ -54,7 +54,7 @@ func GetAWSLocalstackSession() *session.Session {
 }
 
 // GetAWSLocalstackConfig will return an AWS session ready to interact with localstack
-// Unlike in SDK v1, S3ForcePathStyle & Endpoint shall be set at service client level
+// Unlike in SDK v1, S3ForcePathStyle shall be set at service client level
 func GetAWSLocalstackConfig() *awsv2.Config {
 
 	staticCreds := awsv2.NewCredentialsCache(credsv2.NewStaticCredentialsProvider("foo", "var", ""))
@@ -63,11 +63,11 @@ func GetAWSLocalstackConfig() *awsv2.Config {
 		config.WithCredentialsProvider(staticCreds),
 		config.WithRegion(AWSLocalstackRegion),
 	)
-
 	if err != nil {
 		panic(err)
 	}
 
+	cfg.BaseEndpoint = &AWSLocalstackEndpoint
 	return &cfg
 }
 
