@@ -23,9 +23,10 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
@@ -47,8 +48,8 @@ func testE2EPubsubTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer topic.Delete(t.Context())
+	defer subscription.Delete(t.Context())
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "pubsub", "config.hcl"))
 	if err != nil {
@@ -69,7 +70,7 @@ func testE2EPubsubTarget(t *testing.T) {
 		}
 
 		// Receive data in goroutine
-		go subscription.Receive(context.TODO(), subReceiver)
+		go subscription.Receive(t.Context(), subReceiver)
 
 		var foundData []string
 
@@ -162,7 +163,7 @@ func testE2EHttpTarget(t *testing.T) {
 
 	}
 
-	if err := srv.Shutdown(context.TODO()); err != nil {
+	if err := srv.Shutdown(t.Context()); err != nil {
 		panic(err) // failure/timeout shutting down the server gracefully
 	}
 
@@ -188,7 +189,7 @@ func testE2EKinesisTarget(t *testing.T) {
 		panic(err)
 	}
 
-	streamDescription, err := kinesisClient.DescribeStream(&kinesis.DescribeStreamInput{StreamName: aws.String(appName)})
+	streamDescription, err := kinesisClient.DescribeStream(t.Context(), &kinesis.DescribeStreamInput{StreamName: aws.String(appName)})
 	if err != nil {
 		panic(err)
 	}
@@ -205,10 +206,10 @@ func testE2EKinesisTarget(t *testing.T) {
 		var foundData []string
 		// Get data from each shard one by one
 		for _, shard := range shardDescriptions {
-			iterator, err := kinesisClient.GetShardIterator(&kinesis.GetShardIteratorInput{
+			iterator, err := kinesisClient.GetShardIterator(t.Context(), &kinesis.GetShardIteratorInput{
 				// Shard Id is provided when making put record(s) request.
 				ShardId:           shard.ShardId,
-				ShardIteratorType: aws.String("AT_TIMESTAMP"),
+				ShardIteratorType: types.ShardIteratorTypeAtTimestamp,
 				Timestamp:         &startTstamp,
 				StreamName:        aws.String(appName),
 			})
@@ -216,7 +217,7 @@ func testE2EKinesisTarget(t *testing.T) {
 				panic(err)
 			}
 
-			records, err := kinesisClient.GetRecords(&kinesis.GetRecordsInput{
+			records, err := kinesisClient.GetRecords(t.Context(), &kinesis.GetRecordsInput{
 				ShardIterator: iterator.ShardIterator,
 			})
 			if err != nil {
@@ -240,6 +241,7 @@ func testE2EKinesisTarget(t *testing.T) {
 }
 
 func testE2ESQSTarget(t *testing.T) {
+	ctx := t.Context()
 	assert := assert.New(t)
 
 	client := testutil.GetAWSLocalstackSQSClient()
@@ -263,9 +265,11 @@ func testE2ESQSTarget(t *testing.T) {
 			assert.Fail(cmdErr.Error())
 		}
 
-		urlResult, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{
-			QueueName: aws.String(queueName),
-		})
+		urlResult, err := client.GetQueueUrl(
+			ctx,
+			&sqs.GetQueueUrlInput{
+				QueueName: aws.String(queueName),
+			})
 		if err != nil {
 			panic(err)
 		}
@@ -274,13 +278,12 @@ func testE2ESQSTarget(t *testing.T) {
 
 		// since we can only fetch 10 at a time, loop until we have no data left.
 		for {
-			msgResult, err := client.ReceiveMessage(&sqs.ReceiveMessageInput{
-				MessageAttributeNames: []*string{
-					aws.String(sqs.QueueAttributeNameAll),
-				},
-				QueueUrl:            urlResult.QueueUrl,
-				MaxNumberOfMessages: aws.Int64(10),
-			})
+			msgResult, err := client.ReceiveMessage(
+				ctx,
+				&sqs.ReceiveMessageInput{
+					QueueUrl:            urlResult.QueueUrl,
+					MaxNumberOfMessages: 10,
+				})
 			if err != nil {
 				panic(err)
 			}
