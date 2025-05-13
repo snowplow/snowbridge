@@ -12,6 +12,7 @@
 package common
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/tls"
@@ -23,6 +24,10 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	stscredsv2 "github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	stsv2 "github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -67,6 +72,53 @@ func GetAWSSession(region string, roleARN string, endpoint string) (sess *sessio
 	accountID = res.Account
 
 	return sess, cfg, accountID, nil
+}
+
+// GetAWSConfig is a general tool to handle generating an AWS config
+// using the standard auth flow.
+// We also have the ability to pass a role ARN to allow for roles
+// to be assumed in cross-account access flows.
+func GetAWSConfig(region, roleARN, endpoint string) (*awsv2.Config, string, error) {
+	ctx := context.Background()
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
+	httpClient := &http.Client{
+		Transport: transport,
+	}
+
+	conf, err := config.LoadDefaultConfig(
+		ctx,
+		config.WithRegion(region),
+		config.WithHTTPClient(httpClient),
+		config.WithBaseEndpoint(endpoint),
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	stsClient := stsv2.NewFromConfig(conf)
+	if roleARN != "" {
+		creds := stscredsv2.NewAssumeRoleProvider(stsClient, roleARN)
+		conf, err = config.LoadDefaultConfig(
+			ctx,
+			config.WithCredentialsProvider(creds),
+			config.WithRegion(region),
+			config.WithHTTPClient(httpClient),
+			config.WithBaseEndpoint(endpoint),
+		)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	res, err := stsClient.GetCallerIdentity(ctx, &stsv2.GetCallerIdentityInput{})
+	if err != nil {
+		return &conf, "", err
+	}
+
+	accountID := *res.Account
+	return &conf, accountID, nil
 }
 
 // --- Generic Helpers

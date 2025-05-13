@@ -12,6 +12,7 @@
 package testutil
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -23,6 +24,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+
+	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	credsv2 "github.com/aws/aws-sdk-go-v2/credentials"
+	sqsv2 "github.com/aws/aws-sdk-go-v2/service/sqs"
+
+	"github.com/snowplow/snowbridge/pkg/common"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -42,6 +51,24 @@ func GetAWSLocalstackSession() *session.Session {
 		Region:           aws.String(AWSLocalstackRegion),
 		Endpoint:         aws.String(AWSLocalstackEndpoint),
 	}))
+}
+
+// GetAWSLocalstackConfig will return an AWS session ready to interact with localstack
+// Unlike in SDK v1, S3ForcePathStyle shall be set at service client level
+func GetAWSLocalstackConfig() *awsv2.Config {
+
+	staticCreds := awsv2.NewCredentialsCache(credsv2.NewStaticCredentialsProvider("foo", "var", ""))
+	cfg, err := config.LoadDefaultConfig(
+		context.Background(),
+		config.WithCredentialsProvider(staticCreds),
+		config.WithRegion(AWSLocalstackRegion),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	cfg.BaseEndpoint = &AWSLocalstackEndpoint
+	return &cfg
 }
 
 // --- DynamoDB Testing
@@ -161,7 +188,7 @@ func DeleteAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName
 	})
 }
 
-// --- SQS Testing
+// --- SQS v1 Testing
 
 // GetAWSLocalstackSQSClient returns an SQS client
 func GetAWSLocalstackSQSClient() sqsiface.SQSAPI {
@@ -214,6 +241,75 @@ func DeleteAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueURL *string) (*sqs
 		QueueUrl: queueURL,
 	})
 }
+
+// --- SQS v2 Testing
+
+// GetAWSLocalstackSQSClientV2 returns an SQS client
+func GetAWSLocalstackSQSClientV2() common.SqsV2API {
+	cfg := GetAWSLocalstackConfig()
+	return sqsv2.NewFromConfig(*cfg)
+}
+
+// SetupAWSLocalstackSQSQueueWithMessagesV2 creates a new SQS queue and stubs it with a random set of messages
+func SetupAWSLocalstackSQSQueueWithMessagesV2(client common.SqsV2API, queueName string, messageCount int, messageBody string) *string {
+	res, err := CreateAWSLocalstackSQSQueueV2(client, queueName)
+	if err != nil {
+		panic(err)
+	}
+
+	for range messageCount {
+		if _, err := client.SendMessage(
+			context.Background(),
+			&sqsv2.SendMessageInput{
+				DelaySeconds: 0,
+				MessageBody:  awsv2.String(messageBody),
+				QueueUrl:     res.QueueUrl,
+			},
+		); err != nil {
+			logrus.Error(err.Error())
+		}
+	}
+
+	return res.QueueUrl
+}
+
+// PutProvidedDataIntoSQSV2 puts the provided data into an SQS queue
+func PutProvidedDataIntoSQSV2(client common.SqsV2API, queueURL string, data []string) {
+	for _, msg := range data {
+		if _, err := client.SendMessage(
+			context.Background(),
+			&sqsv2.SendMessageInput{
+				DelaySeconds: 0,
+				MessageBody:  awsv2.String(msg),
+				QueueUrl:     awsv2.String(queueURL),
+			},
+		); err != nil {
+			logrus.Error(err.Error())
+		}
+	}
+}
+
+// CreateAWSLocalstackSQSQueueV2 creates a new SQS queue
+func CreateAWSLocalstackSQSQueueV2(client common.SqsV2API, queueName string) (*sqsv2.CreateQueueOutput, error) {
+	return client.CreateQueue(
+		context.Background(),
+		&sqsv2.CreateQueueInput{
+			QueueName: awsv2.String(queueName),
+		},
+	)
+}
+
+// DeleteAWSLocalstackSQSQueueV2 deletes an existing SQS queue
+func DeleteAWSLocalstackSQSQueueV2(client common.SqsV2API, queueURL *string) (*sqsv2.DeleteQueueOutput, error) {
+	return client.DeleteQueue(
+		context.Background(),
+		&sqsv2.DeleteQueueInput{
+			QueueUrl: queueURL,
+		},
+	)
+}
+
+// --- Kinesis v1 Testing
 
 // PutNRecordsIntoKinesis puts n records into a kinesis stream. The records will contain `{dataPrefix} {n}` as their data.
 func PutNRecordsIntoKinesis(kinesisClient kinesisiface.KinesisAPI, n int, streamName string, dataPrefix string) error {
