@@ -91,20 +91,13 @@ func GetAWSConfig(region, roleARN, endpoint string) (*awsv2.Config, string, erro
 		ctx,
 		config.WithRegion(region),
 		config.WithHTTPClient(httpClient),
+		config.WithBaseEndpoint(endpoint),
 	)
 	if err != nil {
 		return nil, "", err
 	}
 
-	var stsClient *stsv2.Client
-	if endpoint != "" {
-		stsClient = stsv2.NewFromConfig(conf, func(o *stsv2.Options) {
-			o.BaseEndpoint = &endpoint
-		})
-	} else {
-		stsClient = stsv2.NewFromConfig(conf)
-	}
-
+	stsClient := stsv2.NewFromConfig(conf)
 	if roleARN != "" {
 		creds := stscredsv2.NewAssumeRoleProvider(stsClient, roleARN)
 		conf, err = config.LoadDefaultConfig(
@@ -112,6 +105,7 @@ func GetAWSConfig(region, roleARN, endpoint string) (*awsv2.Config, string, erro
 			config.WithCredentialsProvider(creds),
 			config.WithRegion(region),
 			config.WithHTTPClient(httpClient),
+			config.WithBaseEndpoint(endpoint),
 		)
 		if err != nil {
 			return nil, "", err
@@ -121,10 +115,6 @@ func GetAWSConfig(region, roleARN, endpoint string) (*awsv2.Config, string, erro
 	res, err := stsClient.GetCallerIdentity(ctx, &stsv2.GetCallerIdentityInput{})
 	if err != nil {
 		return &conf, "", err
-	}
-
-	if endpoint != "" {
-		conf.BaseEndpoint = &endpoint
 	}
 
 	accountID := *res.Account
