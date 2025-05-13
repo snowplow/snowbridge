@@ -88,10 +88,10 @@ func testE2EPubsubSource(t *testing.T) {
 func testE2ESQSSource(t *testing.T) {
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackSQSClient()
+	client := testutil.GetAWSLocalstackSQSClientV2()
 
 	queueName := "sqs-queue-e2e-source"
-	res, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
+	res, err := testutil.CreateAWSLocalstackSQSQueueV2(client, queueName)
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +102,7 @@ func testE2ESQSSource(t *testing.T) {
 	}
 
 	for _, binary := range []string{"-aws-only", ""} {
-		testutil.PutProvidedDataIntoSQS(client, *res.QueueUrl, dataToSend)
+		testutil.PutProvidedDataIntoSQSV2(client, *res.QueueUrl, dataToSend)
 
 		stdOut, cmdErr := runDockerCommand(3*time.Second, "sqsSource", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 		if cmdErr != nil {
