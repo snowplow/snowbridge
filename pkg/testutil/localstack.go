@@ -247,10 +247,7 @@ func DeleteAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueURL *string) (*sqs
 // GetAWSLocalstackSQSClientV2 returns an SQS client
 func GetAWSLocalstackSQSClientV2() common.SqsV2API {
 	cfg := GetAWSLocalstackConfig()
-	client := sqsv2.NewFromConfig(*cfg, func(o *sqsv2.Options) {
-		o.BaseEndpoint = &AWSLocalstackEndpoint
-	})
-	return client
+	return sqsv2.NewFromConfig(*cfg)
 }
 
 // SetupAWSLocalstackSQSQueueWithMessagesV2 creates a new SQS queue and stubs it with a random set of messages
@@ -265,7 +262,7 @@ func SetupAWSLocalstackSQSQueueWithMessagesV2(client common.SqsV2API, queueName 
 			context.Background(),
 			&sqsv2.SendMessageInput{
 				DelaySeconds: 0,
-				MessageBody:  aws.String(messageBody),
+				MessageBody:  awsv2.String(messageBody),
 				QueueUrl:     res.QueueUrl,
 			},
 		); err != nil {
@@ -283,8 +280,8 @@ func PutProvidedDataIntoSQSV2(client common.SqsV2API, queueURL string, data []st
 			context.Background(),
 			&sqsv2.SendMessageInput{
 				DelaySeconds: 0,
-				MessageBody:  aws.String(msg),
-				QueueUrl:     aws.String(queueURL),
+				MessageBody:  awsv2.String(msg),
+				QueueUrl:     awsv2.String(queueURL),
 			},
 		); err != nil {
 			logrus.Error(err.Error())
@@ -297,7 +294,7 @@ func CreateAWSLocalstackSQSQueueV2(client common.SqsV2API, queueName string) (*s
 	return client.CreateQueue(
 		context.Background(),
 		&sqsv2.CreateQueueInput{
-			QueueName: aws.String(queueName),
+			QueueName: awsv2.String(queueName),
 		},
 	)
 }

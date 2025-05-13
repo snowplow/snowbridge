@@ -74,11 +74,7 @@ func configFunction(c *Configuration) (sourceiface.Source, error) {
 		return nil, err
 	}
 
-	// In AWS SDK v2, baseEndpoint (and all resolvers) are bind to a service
-	// instead of being global
-	sqsClient := sqs.NewFromConfig(*awsConfig, func(o *sqs.Options) {
-		o.BaseEndpoint = &c.CustomAWSEndpoint
-	})
+	sqsClient := sqs.NewFromConfig(*awsConfig)
 	sourceConfigFunc := configFunctionGeneratorWithInterfaces(sqsClient, awsAccountID)
 
 	return sourceConfigFunc(c)

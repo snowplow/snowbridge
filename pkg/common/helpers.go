@@ -118,6 +118,7 @@ func GetAWSConfig(region, roleARN, endpoint string) (*awsv2.Config, string, erro
 		return &conf, "", err
 	}
 
+	conf.BaseEndpoint = &endpoint
 	accountID := *res.Account
 	return &conf, accountID, nil
 }
