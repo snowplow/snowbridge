@@ -14,9 +14,8 @@ package target
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"time"
-
-	rand "math/rand/v2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
@@ -38,6 +37,10 @@ const (
 	kinesisPutRecordsMessageByteLimit = 1048576
 	// Each request can be a maximum of 5 MiB in size total
 	kinesisPutRecordsRequestByteLimit = kinesisPutRecordsMessageByteLimit * 5
+)
+
+var (
+	provisionedThroughputExceededException = types.ProvisionedThroughputExceededException{}
 )
 
 // KinesisTargetConfig configures the destination for records consumed
@@ -96,15 +99,15 @@ func KinesisTargetConfigFunction(c *KinesisTargetConfig) (*KinesisTarget, error)
 
 // The KinesisTargetAdapter type is an adapter for functions to be used as
 // pluggable components for Kinesis Target. Implements the Pluggable interface.
-type KinesisTargetAdapter func(i interface{}) (interface{}, error)
+type KinesisTargetAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f KinesisTargetAdapter) Create(i interface{}) (interface{}, error) {
+func (f KinesisTargetAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f KinesisTargetAdapter) ProvideDefault() (interface{}, error) {
+func (f KinesisTargetAdapter) ProvideDefault() (any, error) {
 	// Provide defaults if any
 	cfg := &KinesisTargetConfig{
 		RequestMaxMessages: kinesisPutRecordsMaxChunkSize,
@@ -115,7 +118,7 @@ func (f KinesisTargetAdapter) ProvideDefault() (interface{}, error) {
 
 // AdaptKinesisTargetFunc returns a KinesisTargetAdapter.
 func AdaptKinesisTargetFunc(f func(c *KinesisTargetConfig) (*KinesisTarget, error)) KinesisTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*KinesisTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected KinesisTargetConfig")
@@ -174,7 +177,7 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 		// We loop through until we have no throttle errors
 		entries := make([]types.PutRecordsRequestEntry, len(messagesToTry))
 
-		for i := 0; i < len(entries); i++ {
+		for i := range entries {
 			msg := messagesToTry[i]
 			entries[i] = types.PutRecordsRequestEntry{
 				Data:         msg.Data,
@@ -199,19 +202,20 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 		}
 
 		if err != nil {
-			// Where the attempt to make a Put request throws an error, treat the whole thing as failed.
+			// When PutRecords request returns an error, treat all messages as failed.
 			nonThrottleFailures = messagesToTry
-
 			errorsEncountered = append(errorsEncountered, errors.Wrap(err, "Failed to send message batch to Kinesis stream"))
+			break
 		}
 
 		throttled := make([]*models.Message, 0)
 		throttleMsgs := make([]string, 0)
+
 		for i, resultRecord := range res.Records {
 			// If we have an error code, check if it's a throttle error
 			if resultRecord.ErrorCode != nil {
 				switch *resultRecord.ErrorCode {
-				case "ProvisionedThroughputExceededException":
+				case provisionedThroughputExceededException.ErrorCode():
 					// If we got throttled, add the corresponding record to the list for next retry
 					throttled = append(throttled, messagesToTry[i])
 					throttleMsgs = append(throttleMsgs, *resultRecord.ErrorMessage)
