@@ -12,14 +12,15 @@
 package target
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	rand "math/rand/v2"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -50,7 +51,7 @@ type KinesisTargetConfig struct {
 
 // KinesisTarget holds a new client for writing messages to kinesis
 type KinesisTarget struct {
-	client             kinesisiface.KinesisAPI
+	client             common.KinesisV2API
 	streamName         string
 	region             string
 	accountID          string
@@ -61,23 +62,23 @@ type KinesisTarget struct {
 
 // newKinesisTarget creates a new client for writing messages to kinesis
 func newKinesisTarget(region string, streamName string, roleARN string, customAWSEndpoint string, requestMaxMessages int) (*KinesisTarget, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN, customAWSEndpoint)
+	awsConfig, awsAccountID, err := common.GetAWSConfig(region, roleARN, customAWSEndpoint)
 	if err != nil {
 		return nil, err
 	}
-	kinesisClient := kinesis.New(awsSession, awsConfig)
+	kinesisClient := kinesis.NewFromConfig(*awsConfig)
 
 	// Restrict chunk sizes to the maximum for a PutRecords request, if configured higher.
 	if requestMaxMessages > kinesisPutRecordsMaxChunkSize {
 		return nil, errors.New("request_max_messages cannot be higher than the Kinesis PutRecords limit of 500")
 	}
 
-	return newKinesisTargetWithInterfaces(kinesisClient, *awsAccountID, region, streamName, requestMaxMessages)
+	return newKinesisTargetWithInterfaces(kinesisClient, awsAccountID, region, streamName, requestMaxMessages)
 }
 
 // newKinesisTargetWithInterfaces allows you to provide a Kinesis client directly to allow
 // for mocking and localstack usage
-func newKinesisTargetWithInterfaces(client kinesisiface.KinesisAPI, awsAccountID string, region string, streamName string, requestMaxMessages int) (*KinesisTarget, error) {
+func newKinesisTargetWithInterfaces(client common.KinesisV2API, awsAccountID string, region string, streamName string, requestMaxMessages int) (*KinesisTarget, error) {
 	return &KinesisTarget{
 		client:             client,
 		streamName:         streamName,
@@ -171,21 +172,23 @@ func (kt *KinesisTarget) process(messages []*models.Message) (*models.TargetWrit
 
 	for {
 		// We loop through until we have no throttle errors
-		entries := make([]*kinesis.PutRecordsRequestEntry, len(messagesToTry))
+		entries := make([]types.PutRecordsRequestEntry, len(messagesToTry))
 
 		for i := 0; i < len(entries); i++ {
 			msg := messagesToTry[i]
-			entries[i] = &kinesis.PutRecordsRequestEntry{
+			entries[i] = types.PutRecordsRequestEntry{
 				Data:         msg.Data,
 				PartitionKey: aws.String(msg.PartitionKey),
 			}
 		}
 
 		requestStarted := time.Now().UTC()
-		res, err := kt.client.PutRecords(&kinesis.PutRecordsInput{
-			Records:    entries,
-			StreamName: aws.String(kt.streamName),
-		})
+		res, err := kt.client.PutRecords(
+			context.Background(),
+			&kinesis.PutRecordsInput{
+				Records:    entries,
+				StreamName: aws.String(kt.streamName),
+			})
 		requestFinished := time.Now().UTC()
 
 		// Assign timings
