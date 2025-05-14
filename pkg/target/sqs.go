@@ -12,13 +12,14 @@
 package target
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -38,6 +39,10 @@ const (
 	sqsSendMessageBatchByteLimit = 262144
 )
 
+var (
+	invalidMsgContents = types.InvalidMessageContents{}
+)
+
 // SQSTargetConfig configures the destination for records consumed
 type SQSTargetConfig struct {
 	QueueName         string `hcl:"queue_name"`
@@ -48,7 +53,7 @@ type SQSTargetConfig struct {
 
 // SQSTarget holds a new client for writing messages to sqs
 type SQSTarget struct {
-	client    sqsiface.SQSAPI
+	client    common.SqsV2API
 	queueURL  string
 	queueName string
 	region    string
@@ -59,18 +64,18 @@ type SQSTarget struct {
 
 // newSQSTarget creates a new client for writing messages to sqs
 func newSQSTarget(region string, queueName string, roleARN string, customAWSendpoint string) (*SQSTarget, error) {
-	awsSession, awsConfig, awsAccountID, err := common.GetAWSSession(region, roleARN, customAWSendpoint)
+	awsConfig, awsAccountID, err := common.GetAWSConfig(region, roleARN, customAWSendpoint)
 	if err != nil {
 		return nil, err
 	}
-	sqsClient := sqs.New(awsSession, awsConfig)
 
-	return newSQSTargetWithInterfaces(sqsClient, *awsAccountID, region, queueName)
+	sqsClient := sqs.NewFromConfig(*awsConfig)
+	return newSQSTargetWithInterfaces(sqsClient, awsAccountID, region, queueName)
 }
 
 // newSQSTargetWithInterfaces allows you to provide an SQS client directly to allow
 // for mocking and localstack usage
-func newSQSTargetWithInterfaces(client sqsiface.SQSAPI, awsAccountID string, region string, queueName string) (*SQSTarget, error) {
+func newSQSTargetWithInterfaces(client common.SqsV2API, awsAccountID string, region string, queueName string) (*SQSTarget, error) {
 	return &SQSTarget{
 		client:    client,
 		queueName: queueName,
@@ -87,15 +92,15 @@ func SQSTargetConfigFunction(c *SQSTargetConfig) (*SQSTarget, error) {
 
 // The SQSTargetAdapter type is an adapter for functions to be used as
 // pluggable components for SQS Target. It implements the Pluggable interface.
-type SQSTargetAdapter func(i interface{}) (interface{}, error)
+type SQSTargetAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f SQSTargetAdapter) Create(i interface{}) (interface{}, error) {
+func (f SQSTargetAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f SQSTargetAdapter) ProvideDefault() (interface{}, error) {
+func (f SQSTargetAdapter) ProvideDefault() (any, error) {
 	// Provide defaults if any
 	cfg := &SQSTargetConfig{}
 
@@ -104,7 +109,7 @@ func (f SQSTargetAdapter) ProvideDefault() (interface{}, error) {
 
 // AdaptSQSTargetFunc returns a SQSTargetAdapter.
 func AdaptSQSTargetFunc(f func(c *SQSTargetConfig) (*SQSTarget, error)) SQSTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*SQSTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected SQSTargetConfig")
@@ -155,13 +160,13 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 
 	lookup := make(map[string]*models.Message)
 
-	entries := make([]*sqs.SendMessageBatchRequestEntry, messageCount)
+	entries := make([]types.SendMessageBatchRequestEntry, messageCount)
 	for i := 0; i < len(entries); i++ {
 		msg := messages[i]
 		msgID := strconv.Itoa(i)
 
-		entries[i] = &sqs.SendMessageBatchRequestEntry{
-			DelaySeconds: aws.Int64(0),
+		entries[i] = types.SendMessageBatchRequestEntry{
+			DelaySeconds: 0,
 			MessageBody:  aws.String(string(msg.Data)),
 			Id:           aws.String(msgID),
 		}
@@ -169,10 +174,12 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 	}
 
 	requestStarted := time.Now().UTC()
-	res, err := st.client.SendMessageBatch(&sqs.SendMessageBatchInput{
-		Entries:  entries,
-		QueueUrl: aws.String(st.queueURL),
-	})
+	res, err := st.client.SendMessageBatch(
+		context.Background(),
+		&sqs.SendMessageBatchInput{
+			Entries:  entries,
+			QueueUrl: aws.String(st.queueURL),
+		})
 	requestFinished := time.Now().UTC()
 
 	for _, msg := range messages {
@@ -200,7 +207,7 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 		msg := lookup[*f.Id]
 		fErr := errors.New(fmt.Sprintf("%s: %s", *f.Code, *f.Message))
 
-		if *f.Code == sqs.ErrCodeInvalidMessageContents {
+		if *f.Code == invalidMsgContents.ErrorCode() {
 			st.log.Warn(fErr.Error())
 
 			// Append error to message
@@ -242,9 +249,12 @@ func (st *SQSTarget) process(messages []*models.Message) (*models.TargetWriteRes
 
 // Open fetches the queue URL for this target
 func (st *SQSTarget) Open() {
-	urlResult, err := st.client.GetQueueUrl(&sqs.GetQueueUrlInput{
-		QueueName: aws.String(st.queueName),
-	})
+	urlResult, err := st.client.GetQueueUrl(
+		context.Background(),
+		&sqs.GetQueueUrlInput{
+			QueueName: aws.String(st.queueName),
+		},
+	)
 	if err != nil {
 		errWrapped := errors.Wrap(err, "Failed to get SQS queue URL")
 		st.log.WithFields(log.Fields{"error": errWrapped}).Fatal(errWrapped)

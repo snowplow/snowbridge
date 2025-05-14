@@ -22,8 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 
 	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -185,60 +183,6 @@ func CreateAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName
 func DeleteAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName string) (*kinesis.DeleteStreamOutput, error) {
 	return client.DeleteStream(&kinesis.DeleteStreamInput{
 		StreamName: aws.String(streamName),
-	})
-}
-
-// --- SQS v1 Testing
-
-// GetAWSLocalstackSQSClient returns an SQS client
-func GetAWSLocalstackSQSClient() sqsiface.SQSAPI {
-	return sqs.New(GetAWSLocalstackSession())
-}
-
-// SetupAWSLocalstackSQSQueueWithMessages creates a new SQS queue and stubs it with a random set of messages
-func SetupAWSLocalstackSQSQueueWithMessages(client sqsiface.SQSAPI, queueName string, messageCount int, messageBody string) *string {
-	res, err := CreateAWSLocalstackSQSQueue(client, queueName)
-	if err != nil {
-		panic(err)
-	}
-
-	for range messageCount {
-		if _, err := client.SendMessage(&sqs.SendMessageInput{
-			DelaySeconds: aws.Int64(0),
-			MessageBody:  aws.String(messageBody),
-			QueueUrl:     res.QueueUrl,
-		}); err != nil {
-			logrus.Error(err.Error())
-		}
-	}
-
-	return res.QueueUrl
-}
-
-// PutProvidedDataIntoSQS puts the provided data into an SQS queue
-func PutProvidedDataIntoSQS(client sqsiface.SQSAPI, queueURL string, data []string) {
-	for _, msg := range data {
-		if _, err := client.SendMessage(&sqs.SendMessageInput{
-			DelaySeconds: aws.Int64(0),
-			MessageBody:  aws.String(msg),
-			QueueUrl:     aws.String(queueURL),
-		}); err != nil {
-			logrus.Error(err.Error())
-		}
-	}
-}
-
-// CreateAWSLocalstackSQSQueue creates a new SQS queue
-func CreateAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueName string) (*sqs.CreateQueueOutput, error) {
-	return client.CreateQueue(&sqs.CreateQueueInput{
-		QueueName: aws.String(queueName),
-	})
-}
-
-// DeleteAWSLocalstackSQSQueue deletes an existing SQS queue
-func DeleteAWSLocalstackSQSQueue(client sqsiface.SQSAPI, queueURL *string) (*sqs.DeleteQueueOutput, error) {
-	return client.DeleteQueue(&sqs.DeleteQueueInput{
-		QueueUrl: queueURL,
 	})
 }
 

@@ -22,9 +22,10 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
@@ -257,18 +258,19 @@ func testE2EKinesisTarget(t *testing.T) {
 }
 
 func testE2ESQSTarget(t *testing.T) {
+	ctx := t.Context()
 	assert := assert.New(t)
 
-	client := testutil.GetAWSLocalstackSQSClient()
+	client := testutil.GetAWSLocalstackSQSClientV2()
 
 	queueName := "sqs-queue-e2e-target"
-	out, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
+	out, err := testutil.CreateAWSLocalstackSQSQueueV2(client, queueName)
 	if err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, out.QueueUrl); err != nil {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueueV2(client, out.QueueUrl); err != nil {
 			logrus.Error(err.Error())
 		}
 	}()
@@ -284,9 +286,11 @@ func testE2ESQSTarget(t *testing.T) {
 			assert.Fail(cmdErr.Error())
 		}
 
-		urlResult, err := client.GetQueueUrl(&sqs.GetQueueUrlInput{
-			QueueName: aws.String(queueName),
-		})
+		urlResult, err := client.GetQueueUrl(
+			ctx,
+			&sqs.GetQueueUrlInput{
+				QueueName: aws.String(queueName),
+			})
 		if err != nil {
 			panic(err)
 		}
@@ -295,13 +299,18 @@ func testE2ESQSTarget(t *testing.T) {
 
 		// since we can only fetch 10 at a time, loop until we have no data left.
 		for {
-			msgResult, err := client.ReceiveMessage(&sqs.ReceiveMessageInput{
-				MessageAttributeNames: []*string{
-					aws.String(sqs.QueueAttributeNameAll),
-				},
-				QueueUrl:            urlResult.QueueUrl,
-				MaxNumberOfMessages: aws.Int64(10),
-			})
+			msgResult, err := client.ReceiveMessage(
+				ctx,
+				&sqs.ReceiveMessageInput{
+					AttributeNames: []types.QueueAttributeName{
+						types.QueueAttributeNameAll,
+					},
+					MessageAttributeNames: []string{
+						string(types.MessageSystemAttributeNameSentTimestamp),
+					},
+					QueueUrl:            urlResult.QueueUrl,
+					MaxNumberOfMessages: 10,
+				})
 			if err != nil {
 				panic(err)
 			}
