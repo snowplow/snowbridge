@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 
+	kinesisv2 "github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -147,7 +148,7 @@ func DeleteAWSLocalstackDynamoDBTables(client dynamodbiface.DynamoDBAPI, appName
 	return nil
 }
 
-// --- Kinesis Testing
+// --- Kinesis v1 Testing
 
 // GetAWSLocalstackKinesisClient returns a Kinesis client
 func GetAWSLocalstackKinesisClient() kinesisiface.KinesisAPI {
@@ -184,6 +185,54 @@ func DeleteAWSLocalstackKinesisStream(client kinesisiface.KinesisAPI, streamName
 	return client.DeleteStream(&kinesis.DeleteStreamInput{
 		StreamName: aws.String(streamName),
 	})
+}
+
+// --- Kinesis v2 Testing
+
+// GetAWSLocalstackKinesisClient returns a Kinesis client
+func GetAWSLocalstackKinesisClientV2() common.KinesisV2API {
+	cfg := GetAWSLocalstackConfig()
+	return kinesisv2.NewFromConfig(*cfg)
+}
+
+// CreateAWSLocalstackKinesisStream creates a new Kinesis stream and polls until
+// the stream is in an ACTIVE state
+func CreateAWSLocalstackKinesisStreamV2(client common.KinesisV2API, streamName string, shardCount int32) error {
+	_, err := client.CreateStream(
+		context.Background(),
+		&kinesisv2.CreateStreamInput{
+			StreamName: aws.String(streamName),
+			ShardCount: aws.Int32(shardCount),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	for {
+		res, err1 := client.DescribeStream(
+			context.Background(),
+			&kinesisv2.DescribeStreamInput{
+				StreamName: aws.String(streamName),
+			},
+		)
+		if err1 != nil {
+			return err1
+		}
+
+		if res.StreamDescription.StreamStatus == "ACTIVE" {
+			return nil
+		}
+	}
+}
+
+// DeleteAWSLocalstackKinesisStream deletes an existing Kinesis stream
+func DeleteAWSLocalstackKinesisStreamV2(client common.KinesisV2API, streamName string) (*kinesisv2.DeleteStreamOutput, error) {
+	return client.DeleteStream(
+		context.Background(),
+		&kinesisv2.DeleteStreamInput{
+			StreamName: aws.String(streamName),
+		})
 }
 
 // --- SQS v2 Testing
