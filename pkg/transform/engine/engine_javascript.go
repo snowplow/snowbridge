@@ -12,11 +12,7 @@
 package engine
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
 	"fmt"
-	"hash"
 	"os"
 	"time"
 
@@ -29,19 +25,6 @@ import (
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/transform"
-)
-
-const (
-	hashByteSize     = 24
-	pbkdf2Iterations = 1000
-)
-
-var (
-	supportedHashFunctions = map[string]func() hash.Hash{
-		"sha1":   sha1.New,
-		"sha256": sha256.New,
-		"md5":    md5.New,
-	}
 )
 
 // JSEngineConfig configures the JavaScript Engine.
@@ -174,7 +157,12 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		defer timer.Stop()
 
 		// handle custom functions
-		vm.Set("hash", resolveHash(vm))
+		if err := vm.Set("hash", resolveHash(vm)); err != nil {
+			// runtime error counts as failure
+			runErr := fmt.Errorf("error setting JavaScript function [%q]: %q", "hash", err.Error())
+			message.SetError(runErr)
+			return nil, nil, message, nil
+		}
 
 		// running
 		res, err := fun(goja.Undefined(), vm.ToValue(input))
