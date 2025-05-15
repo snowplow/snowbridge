@@ -162,11 +162,8 @@ ProcessLoop:
 		msgRes, err := ss.client.ReceiveMessage(
 			context.Background(),
 			&sqs.ReceiveMessageInput{
-				AttributeNames: []types.QueueAttributeName{
-					types.QueueAttributeNameAll,
-				},
-				MessageAttributeNames: []string{
-					string(types.MessageSystemAttributeNameSentTimestamp),
+				MessageSystemAttributeNames: []types.MessageSystemAttributeName{
+					types.MessageSystemAttributeNameSentTimestamp,
 				},
 				QueueUrl:            aws.String(ss.queueURL),
 				MaxNumberOfMessages: 10,
