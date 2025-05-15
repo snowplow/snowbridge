@@ -13,14 +13,9 @@ package transform
 
 import (
 	"context"
-	"crypto/md5"
-	"crypto/pbkdf2"
-	"crypto/sha1"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash"
 	"time"
 
 	"github.com/itchyny/gojq"
@@ -29,21 +24,21 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-const (
-	hashByteSize     = 24
-	pbkdf2Iterations = 1000
-)
+// const (
+// 	hashByteSize     = 24
+// 	pbkdf2Iterations = 1000
+// )
 
-var (
-	supportedHashFunctions = map[string]func() hash.Hash{
-		"sha1":   sha1.New,
-		"sha256": sha256.New,
-		"md5":    md5.New,
-	}
-)
+// var (
+// 	supportedHashFunctions = map[string]func() hash.Hash{
+// 		"sha1":   sha1.New,
+// 		"sha256": sha256.New,
+// 		"md5":    md5.New,
+// 	}
+// )
 
 // JqCommandOutput is a type representing output after executing JQ command. For filters for example we expect it to be boolean.
-type JqCommandOutput = interface{}
+type JqCommandOutput = any
 
 // JqOutputHandler is a function which accepts JqCommandOutput and is response for doing something with it.
 // For filters for example that would be filtering message based on boolean output.
@@ -153,23 +148,12 @@ func resolveHash(input any, params []any) (string, error) {
 
 	hashFunctionName := params[0].(string)
 	hashSalt := params[1].(string)
-	salt := []byte(hashSalt)
 
-	hashFunction, ok := supportedHashFunctions[hashFunctionName]
-	if !ok {
-		return "", fmt.Errorf("unsupported hash function: [%s]", hashFunctionName)
-	}
-
-	hbts, err := pbkdf2.Key(hashFunction, inputString, salt, pbkdf2Iterations, hashByteSize)
-	if err != nil {
-		return "", fmt.Errorf("failed to hash the data: %w", err)
-	}
-
-	return fmt.Sprintf("%x", hbts), nil
+	return DoHashing(inputString, hashFunctionName, hashSalt)
 }
 
 func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) TransformationFunction {
-	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		input, parsedEvent, err := mkJQInput(message, interState, spMode)
 		if err != nil {
 			message.SetError(err)
@@ -197,11 +181,11 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 }
 
 // mkJQInput ensures the input to JQ query is of expected type
-func mkJQInput(message *models.Message, interState interface{}, spMode bool) (map[string]interface{}, analytics.ParsedEvent, error) {
+func mkJQInput(message *models.Message, interState any, spMode bool) (map[string]any, analytics.ParsedEvent, error) {
 	if !spMode {
 		// gojq input can only be map[string]any or []any
 		// here we only consider the first, but we could also expand
-		var input map[string]interface{}
+		var input map[string]any
 		err := json.Unmarshal(message.Data, &input)
 		if err != nil {
 			return nil, nil, err

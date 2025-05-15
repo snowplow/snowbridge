@@ -12,7 +12,11 @@
 package engine
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
+	"hash"
 	"os"
 	"time"
 
@@ -25,6 +29,19 @@ import (
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/transform"
+)
+
+const (
+	hashByteSize     = 24
+	pbkdf2Iterations = 1000
+)
+
+var (
+	supportedHashFunctions = map[string]func() hash.Hash{
+		"sha1":   sha1.New,
+		"sha256": sha256.New,
+		"md5":    md5.New,
+	}
 )
 
 // JSEngineConfig configures the JavaScript Engine.
@@ -45,10 +62,10 @@ type JSEngine struct {
 
 // The JSEngineAdapter type is an adapter for functions to be used as
 // pluggable components for a JS transformation. It implements the Pluggable interface.
-type JSEngineAdapter func(i interface{}) (interface{}, error)
+type JSEngineAdapter func(i any) (any, error)
 
 // ProvideDefault returns a JSEngineConfig with default configuration values
-func (f JSEngineAdapter) ProvideDefault() (interface{}, error) {
+func (f JSEngineAdapter) ProvideDefault() (any, error) {
 	return &JSEngineConfig{
 		RunTimeout:  15,
 		RemoveNulls: false,
@@ -56,13 +73,13 @@ func (f JSEngineAdapter) ProvideDefault() (interface{}, error) {
 }
 
 // Create implements the ComponentCreator interface.
-func (f JSEngineAdapter) Create(i interface{}) (interface{}, error) {
+func (f JSEngineAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // JSAdapterGenerator returns a js transformation adapter.
 func JSAdapterGenerator(f func(c *JSEngineConfig) (transform.TransformationFunction, error)) JSEngineAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*JSEngineConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
@@ -100,7 +117,7 @@ var JSConfigPair = config.ConfigurationPair{
 
 // AdaptJSEngineFunc returns an JSEngineAdapter.
 func AdaptJSEngineFunc(f func(c *JSEngineConfig) (*JSEngine, error)) JSEngineAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*JSEngineConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected JSEngineConfig")
@@ -136,7 +153,7 @@ func (e *JSEngine) SmokeTest(funcName string) error {
 // MakeFunction implements functionMaker.
 func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunction {
 
-	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		// making input
 		input, err := mkJSEngineInput(e, message, interState)
 		if err != nil {
@@ -155,6 +172,9 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			vm.Interrupt("runtime deadline exceeded")
 		})
 		defer timer.Stop()
+
+		// handle custom functions
+		vm.Set("hash", resolveHash(vm))
 
 		// running
 		res, err := fun(goja.Undefined(), vm.ToValue(input))
@@ -181,7 +201,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		switch protoData := protocol.Data.(type) {
 		case string:
 			message.Data = []byte(protoData)
-		case map[string]interface{}:
+		case map[string]any:
 
 			if e.RemoveNulls {
 				transform.RemoveNullFields(protoData)
@@ -210,6 +230,25 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		}
 
 		return message, nil, nil, protocol
+	}
+}
+
+// we must be capturing the Runtime instance here, so we can handle function returns
+func resolveHash(vm *goja.Runtime) func(call goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 3 {
+			return vm.ToValue("hash() function expects 3 arguments: data, hash_func_name, salt")
+		}
+
+		input := call.Arguments[0].String()
+		hashFunctionName := call.Arguments[1].String()
+		hashSalt := call.Arguments[2].String()
+
+		result, err := transform.DoHashing(input, hashFunctionName, hashSalt)
+		if err != nil {
+			vm.ToValue("")
+		}
+		return vm.ToValue(result)
 	}
 }
 
@@ -261,7 +300,7 @@ func initRuntime(e *JSEngine, funcName string) (*goja.Runtime, goja.Callable, er
 
 // mkJSEngineInput describes the logic for constructing the input to JS engine.
 // No side effects.
-func mkJSEngineInput(e *JSEngine, message *models.Message, interState interface{}) (*engineProtocol, error) {
+func mkJSEngineInput(e *JSEngine, message *models.Message, interState any) (*engineProtocol, error) {
 	if interState != nil {
 		if i, ok := interState.(*engineProtocol); ok {
 			return i, nil
@@ -293,7 +332,7 @@ func mkJSEngineInput(e *JSEngine, message *models.Message, interState interface{
 }
 
 // validateJSEngineOut validates the value returned by the js engine.
-func validateJSEngineOut(output interface{}) (*engineProtocol, error) {
+func validateJSEngineOut(output any) (*engineProtocol, error) {
 	if output == nil {
 		return nil, fmt.Errorf("invalid return type from JavaScript transformation; got null or undefined")
 	}
@@ -302,7 +341,7 @@ func validateJSEngineOut(output interface{}) (*engineProtocol, error) {
 		return out, nil
 	}
 
-	outMap, ok := output.(map[string]interface{})
+	outMap, ok := output.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid return type from JavaScript transformation")
 	}
