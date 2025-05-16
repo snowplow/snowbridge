@@ -23,5 +23,8 @@ transform {
 
     # optional, removes null or empty keys from JSON object output of transformation. Only applicable when the script returns an object. Does not remove null or empty elements of arrays.
     remove_nulls = true
+
+    # optional, allows to pass salt value into `hash` function in scripts
+    hash_salt_secret = env.SHA1_SALT
   }
 }

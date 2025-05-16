@@ -64,6 +64,7 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 
 	// Set env vars with paths to scripts
 	t.Setenv("JS_SCRIPT_PATH", jsScriptPath)
+	t.Setenv("SHA1_SALT", "testsalt")
 
 	jsNonSnowplowScriptPath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "examples", "js-non-snowplow-script-example.js")
 	t.Setenv("JS_NON_SNOWPLOW_SCRIPT_PATH", jsNonSnowplowScriptPath)
@@ -122,6 +123,7 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 func TestTransformationsOverview(t *testing.T) {
 	// Set env var to script path
 	t.Setenv("JS_SCRIPT_PATH", jsScriptPath)
+	t.Setenv("SHA1_SALT", "testsalt")
 
 	// Read file:
 	configFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "transformations-overview-example.hcl")
