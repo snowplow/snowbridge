@@ -1,6 +1,14 @@
 transform {
   use "js" {
-    script_path = env.JS_ALTER_AID_1_PATH
+    script = <<JSEOT
+    function main(x) {
+    var jsonObj = JSON.parse(x.Data);
+    jsonObj["app_id"] = "changed";
+    return {
+        Data: JSON.stringify(jsonObj)
+    };
+}
+JSEOT
   }
 }
 

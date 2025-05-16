@@ -30,6 +30,7 @@ import (
 // JSEngineConfig configures the JavaScript Engine.
 type JSEngineConfig struct {
 	ScriptPath  string `hcl:"script_path,optional"`
+	Script      string `hcl:"script,optional"`
 	RunTimeout  int    `hcl:"timeout_sec,optional"`
 	SpMode      bool   `hcl:"snowplow_mode,optional"`
 	RemoveNulls bool   `hcl:"remove_nulls,optional"`
@@ -74,12 +75,22 @@ func JSAdapterGenerator(f func(c *JSEngineConfig) (transform.TransformationFunct
 
 // JSConfigFunction returns a js transformation function, from a JSEngineConfig.
 func JSConfigFunction(c *JSEngineConfig) (transform.TransformationFunction, error) {
-	script, err := os.ReadFile(c.ScriptPath)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("Error reading script at path %s", c.ScriptPath))
+	var script string
+
+	// If we have a script path, use that
+	if c.ScriptPath != "" {
+		scriptBytes, err := os.ReadFile(c.ScriptPath)
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("Error reading script at path %s", c.ScriptPath))
+		}
+		script = string(scriptBytes)
+	} else if c.Script != "" {
+		script = c.Script
+	} else {
+		return nil, errors.New("JS transformation: Either script_path or script must be configured")
 	}
 
-	engine, err := NewJSEngine(c, string(script))
+	engine, err := NewJSEngine(c, script)
 	if err != nil {
 		return nil, errors.Wrap(err, "error building JS engine")
 	}
