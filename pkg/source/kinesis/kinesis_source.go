@@ -43,6 +43,7 @@ type Configuration struct {
 	LeaderActionFreqSeconds int    `hcl:"leader_action_freq_seconds,optional"`
 	ConcurrentWrites        int    `hcl:"concurrent_writes,optional"`
 	ClientName              string `hcl:"client_name,optional"`
+	BufferSize              int    `hcl:"buffer_size,optional"`
 }
 
 // --- Kinesis source
@@ -87,7 +88,8 @@ func configFunctionGeneratorWithInterfaces(kinesisClient common.KinesisV2API, dy
 			c.ReadThrottleDelayMs,
 			c.ShardCheckFreqSeconds,
 			c.LeaderActionFreqSeconds,
-			c.ClientName)
+			c.ClientName,
+			c.BufferSize)
 	}
 }
 
@@ -129,6 +131,7 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 		ShardCheckFreqSeconds:   10,
 		LeaderActionFreqSeconds: 60,
 		ClientName:              uuid.New().String(),
+		BufferSize:              100,
 	}
 
 	return cfg, nil
@@ -176,7 +179,8 @@ func newKinesisSourceWithInterfaces(
 	readThrottleDelay int,
 	shardCheckFreq int,
 	leaderActionFreq int,
-	clientName string) (*kinesisSource, error) {
+	clientName string,
+	bufferSize int) (*kinesisSource, error) {
 
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(time.Duration(shardCheckFreq) * time.Second).
@@ -184,7 +188,8 @@ func newKinesisSourceWithInterfaces(
 		WithManualCheckpointing(true).
 		WithLogger(&KinsumerLogrus{}).
 		WithIteratorStartTimestamp(startTimestamp).
-		WithThrottleDelay(time.Duration(readThrottleDelay) * time.Millisecond)
+		WithThrottleDelay(time.Duration(readThrottleDelay) * time.Millisecond).
+		WithBufferSize(bufferSize)
 
 	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, clientName, clientName, config)
 	if err != nil {

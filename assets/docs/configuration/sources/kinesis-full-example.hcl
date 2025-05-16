@@ -39,5 +39,7 @@ source {
 
     # The name of the Kinesis client that is used to allocate shards. It must be unique per instance of Snowbridge.
     client_name = env.HOSTNAME
+    
+    buffer_size = 500
   }
 }
