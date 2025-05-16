@@ -171,11 +171,11 @@ func NewConfig() (*Config, error) {
 			return nil, readErr
 		}
 		// Make a config from it
-		return newHclConfig(src, filename)
+		return NewHclConfig(src, filename)
 	}
 }
 
-func newHclConfig(fileContents []byte, filename string) (*Config, error) {
+func NewHclConfig(fileContents []byte, filename string) (*Config, error) {
 
 	// Parsing
 	parser := hclparse.NewParser()
