@@ -29,19 +29,21 @@ import (
 
 // JSEngineConfig configures the JavaScript Engine.
 type JSEngineConfig struct {
-	ScriptPath  string `hcl:"script_path,optional"`
-	Script      string `hcl:"script,optional"`
-	RunTimeout  int    `hcl:"timeout_sec,optional"`
-	SpMode      bool   `hcl:"snowplow_mode,optional"`
-	RemoveNulls bool   `hcl:"remove_nulls,optional"`
+	ScriptPath     string `hcl:"script_path,optional"`
+	Script         string `hcl:"script,optional"`
+	RunTimeout     int    `hcl:"timeout_sec,optional"`
+	SpMode         bool   `hcl:"snowplow_mode,optional"`
+	RemoveNulls    bool   `hcl:"remove_nulls,optional"`
+	HashSaltSecret string `hcl:"hash_salt_secret,optional"`
 }
 
 // JSEngine handles the provision of a JavaScript runtime to run transformations.
 type JSEngine struct {
-	Code        *goja.Program
-	RunTimeout  time.Duration
-	SpMode      bool
-	RemoveNulls bool
+	Code           *goja.Program
+	RunTimeout     time.Duration
+	SpMode         bool
+	RemoveNulls    bool
+	HashSaltSecret string
 }
 
 // The JSEngineAdapter type is an adapter for functions to be used as
@@ -129,10 +131,11 @@ func NewJSEngine(c *JSEngineConfig, script string) (*JSEngine, error) {
 	}
 
 	eng := &JSEngine{
-		Code:        compiledCode,
-		RunTimeout:  time.Duration(c.RunTimeout) * time.Second,
-		SpMode:      c.SpMode,
-		RemoveNulls: c.RemoveNulls,
+		Code:           compiledCode,
+		RunTimeout:     time.Duration(c.RunTimeout) * time.Second,
+		SpMode:         c.SpMode,
+		RemoveNulls:    c.RemoveNulls,
+		HashSaltSecret: c.HashSaltSecret,
 	}
 
 	return eng, nil
@@ -168,7 +171,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		defer timer.Stop()
 
 		// handle custom functions
-		if err := vm.Set("hash", resolveHash(vm)); err != nil {
+		if err := vm.Set("hash", resolveHash(vm, e.HashSaltSecret)); err != nil {
 			// runtime error counts as failure
 			runErr := fmt.Errorf("error setting JavaScript function [%q]: %q", "hash", err.Error())
 			message.SetError(runErr)
@@ -233,7 +236,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 }
 
 // we must be capturing the Runtime instance here, so we can handle function returns
-func resolveHash(vm *goja.Runtime) func(call goja.FunctionCall) goja.Value {
+func resolveHash(vm *goja.Runtime, hashSalt string) func(call goja.FunctionCall) goja.Value {
 	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 3 {
 			return vm.ToValue("hash() function expects 3 arguments: data, hash_func_name, salt")
@@ -241,9 +244,13 @@ func resolveHash(vm *goja.Runtime) func(call goja.FunctionCall) goja.Value {
 
 		input := call.Arguments[0].String()
 		hashFunctionName := call.Arguments[1].String()
-		hashSalt := call.Arguments[2].String()
 
-		result, err := transform.DoHashing(input, hashFunctionName, hashSalt)
+		salt := call.Arguments[2].String()
+		if hashSalt != "" {
+			salt = hashSalt
+		}
+
+		result, err := transform.DoHashing(input, hashFunctionName, salt)
 		if err != nil {
 			vm.ToValue("")
 		}

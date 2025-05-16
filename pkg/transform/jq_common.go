@@ -24,19 +24,6 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 
-// const (
-// 	hashByteSize     = 24
-// 	pbkdf2Iterations = 1000
-// )
-
-// var (
-// 	supportedHashFunctions = map[string]func() hash.Hash{
-// 		"sha1":   sha1.New,
-// 		"sha256": sha256.New,
-// 		"md5":    md5.New,
-// 	}
-// )
-
 // JqCommandOutput is a type representing output after executing JQ command. For filters for example we expect it to be boolean.
 type JqCommandOutput = any
 
