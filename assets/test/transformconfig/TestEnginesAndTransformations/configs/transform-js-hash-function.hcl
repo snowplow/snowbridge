@@ -10,5 +10,6 @@ transform {
     };
 }
 JSEOT
+    hash_salt_secret = env.SHA1_SALT
   }
 }

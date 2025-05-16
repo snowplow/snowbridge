@@ -347,8 +347,6 @@ func TestJQHashTransformation(t *testing.T) {
 
 func TestJSScriptHashTransformation(t *testing.T) {
 
-	t.Setenv("SHA1_SALT", "09a2d6b3ecd943aa8512df1f")
-
 	configDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "configs")
 
 	testCases := []struct {
@@ -356,6 +354,7 @@ func TestJSScriptHashTransformation(t *testing.T) {
 		File             string
 		ExpectedMessages expectedMessages
 		CompileErr       string
+		HashSalt         string
 	}{
 		{
 			Description: "simple JS transform with hash & without salt - success",
@@ -373,7 +372,7 @@ func TestJSScriptHashTransformation(t *testing.T) {
 		},
 		{
 			Description: "simple JS transform with hash & with salt - success",
-			File:        "transform-js-hash-salt-function.hcl",
+			File:        "transform-js-hash-function.hcl",
 			ExpectedMessages: expectedMessages{
 				Before: []*models.Message{{
 					Data:         snowplowJSON1,
@@ -384,6 +383,7 @@ func TestJSScriptHashTransformation(t *testing.T) {
 					PartitionKey: "some-key",
 				}},
 			},
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
 		},
 	}
 
@@ -393,6 +393,7 @@ func TestJSScriptHashTransformation(t *testing.T) {
 
 			filename := filepath.Join(configDirPath, tt.File)
 			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+			t.Setenv("SHA1_SALT", tt.HashSalt)
 
 			c, err := config.NewConfig()
 			assert.NotNil(c)
@@ -414,8 +415,6 @@ func TestJSScriptHashTransformation(t *testing.T) {
 
 			result := tr(tt.ExpectedMessages.Before)
 			assert.NotNil(result)
-
-			// fmt.Printf("%+v\n", result)
 
 			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
 
@@ -503,8 +502,6 @@ func TestJSScriptPathHashTransformation(t *testing.T) {
 
 			result := tr(tt.ExpectedMessages.Before)
 			assert.NotNil(result)
-
-			// fmt.Printf("%+v\n", result)
 
 			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
 
