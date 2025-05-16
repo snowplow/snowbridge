@@ -34,6 +34,7 @@ type JSTestCase struct {
 	ExpInterState any
 	IsJSON        bool
 	Error         error
+	HashSalt      string
 }
 
 func TestJSLayer(t *testing.T) {
@@ -435,7 +436,7 @@ function main(x) {
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "sha1", "");
+   let newVal = hash(x.Data, "sha1");
    x.Data = newVal;
    return x;
 }
@@ -463,7 +464,7 @@ function main(x) {
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "sha1", "09a2d6b3ecd943aa8512df1f");
+   let newVal = hash(x.Data, "sha1");
    x.Data = newVal;
    return x;
 }
@@ -486,12 +487,13 @@ function main(x) {
 				PartitionKey: "",
 				Data:         "5841e55de6c4486fa092f044a5189570dec421cb06652829",
 			},
-			Error: nil,
+			Error:    nil,
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
 		},
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "sha256", "");
+   let newVal = hash(x.Data, "sha256");
    x.Data = newVal;
    return x;
 }
@@ -519,7 +521,7 @@ function main(x) {
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "sha256", "09a2d6b3ecd943aa8512df1f");
+   let newVal = hash(x.Data, "sha256");
    x.Data = newVal;
    return x;
 }
@@ -542,12 +544,13 @@ function main(x) {
 				PartitionKey: "",
 				Data:         "23e37c9c9aaed4e592b306b291deb43fd197551048704d57",
 			},
-			Error: nil,
+			Error:    nil,
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
 		},
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "md5", "");
+   let newVal = hash(x.Data, "md5");
    x.Data = newVal;
    return x;
 }
@@ -575,7 +578,7 @@ function main(x) {
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "md5", "09a2d6b3ecd943aa8512df1f");
+   let newVal = hash(x.Data, "md5");
    x.Data = newVal;
    return x;
 }
@@ -598,7 +601,8 @@ function main(x) {
 				PartitionKey: "",
 				Data:         "8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508",
 			},
-			Error: nil,
+			Error:    nil,
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
 		},
 	}
 
@@ -607,8 +611,9 @@ function main(x) {
 			assert := assert.New(t)
 
 			jsConfig := &JSEngineConfig{
-				RunTimeout: 5,
-				SpMode:     testSpMode,
+				RunTimeout:     5,
+				SpMode:         testSpMode,
+				HashSaltSecret: tt.HashSalt,
 			}
 
 			jsEngine, err := NewJSEngine(jsConfig, tt.Src)

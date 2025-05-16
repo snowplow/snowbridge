@@ -238,19 +238,14 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 // we must be capturing the Runtime instance here, so we can handle function returns
 func resolveHash(vm *goja.Runtime, hashSalt string) func(call goja.FunctionCall) goja.Value {
 	return func(call goja.FunctionCall) goja.Value {
-		if len(call.Arguments) != 3 {
-			return vm.ToValue("hash() function expects 3 arguments: data, hash_func_name, salt")
+		if len(call.Arguments) != 2 {
+			return vm.ToValue("hash() function expects 3 arguments: data and hash_func_name")
 		}
 
 		input := call.Arguments[0].String()
 		hashFunctionName := call.Arguments[1].String()
 
-		salt := call.Arguments[2].String()
-		if hashSalt != "" {
-			salt = hashSalt
-		}
-
-		result, err := transform.DoHashing(input, hashFunctionName, salt)
+		result, err := transform.DoHashing(input, hashFunctionName, hashSalt)
 		if err != nil {
 			vm.ToValue("")
 		}
