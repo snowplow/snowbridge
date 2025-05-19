@@ -29,11 +29,12 @@ type JSTestCase struct {
 	Src           string
 	SpMode        bool
 	Input         *models.Message
-	InterState    interface{}
+	InterState    any
 	Expected      map[string]*models.Message
-	ExpInterState interface{}
+	ExpInterState any
 	IsJSON        bool
 	Error         error
+	HashSalt      string
 }
 
 func TestJSLayer(t *testing.T) {
@@ -53,7 +54,7 @@ func TestJSLayer(t *testing.T) {
 }
 
 func TestJSEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
-	var testInterState interface{} = nil
+	var testInterState any = nil
 	var testSpMode = false
 	testCases := []JSTestCase{
 		{
@@ -432,6 +433,177 @@ function main(x) {
 			ExpInterState: nil,
 			Error:         fmt.Errorf("runtime deadline exceeded"),
 		},
+		{
+			Src: `
+function main(x) {
+   let newVal = hash(x.Data, "sha1");
+   x.Data = newVal;
+   return x;
+}
+`,
+			Scenario: "sha1 hashing, without salt",
+			Input: &models.Message{
+				Data:         []byte("python-requests 2"),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   let newVal = hash(x.Data, "sha1");
+   x.Data = newVal;
+   return x;
+}
+`,
+			Scenario: "sha1 hashing, with salt",
+			Input: &models.Message{
+				Data:         []byte("python-requests 2"),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("5841e55de6c4486fa092f044a5189570dec421cb06652829"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "5841e55de6c4486fa092f044a5189570dec421cb06652829",
+			},
+			Error:    nil,
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
+		},
+		{
+			Src: `
+function main(x) {
+   let newVal = hash(x.Data, "sha256");
+   x.Data = newVal;
+   return x;
+}
+`,
+			Scenario: "sha256 hashing, without salt",
+			Input: &models.Message{
+				Data:         []byte("python-requests 2"),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("262ca08d9db38199ac487454bd4accb795a33297516b3cec"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "262ca08d9db38199ac487454bd4accb795a33297516b3cec",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   let newVal = hash(x.Data, "sha256");
+   x.Data = newVal;
+   return x;
+}
+`,
+			Scenario: "sha256 hashing, with salt",
+			Input: &models.Message{
+				Data:         []byte("python-requests 2"),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("23e37c9c9aaed4e592b306b291deb43fd197551048704d57"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "23e37c9c9aaed4e592b306b291deb43fd197551048704d57",
+			},
+			Error:    nil,
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
+		},
+		{
+			Src: `
+function main(x) {
+   let newVal = hash(x.Data, "md5");
+   x.Data = newVal;
+   return x;
+}
+`,
+			Scenario: "md5 hashing, without salt",
+			Input: &models.Message{
+				Data:         []byte("python-requests 2"),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("30368c83ff2751652f501b62d6b965794d3512177f301db1"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "30368c83ff2751652f501b62d6b965794d3512177f301db1",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   let newVal = hash(x.Data, "md5");
+   x.Data = newVal;
+   return x;
+}
+`,
+			Scenario: "md5 hashing, with salt",
+			Input: &models.Message{
+				Data:         []byte("python-requests 2"),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508",
+			},
+			Error:    nil,
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -439,8 +611,9 @@ function main(x) {
 			assert := assert.New(t)
 
 			jsConfig := &JSEngineConfig{
-				RunTimeout: 5,
-				SpMode:     testSpMode,
+				RunTimeout:     5,
+				SpMode:         testSpMode,
+				HashSaltSecret: tt.HashSalt,
 			}
 
 			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
@@ -1132,7 +1305,7 @@ function main(x) {
 }
 
 func TestJSEngineMakeFunction_SetPK(t *testing.T) {
-	var testInterState interface{} = nil
+	var testInterState any = nil
 	testCases := []JSTestCase{
 		{
 			Scenario: "onlySetPk_spModeTrue",
@@ -1275,10 +1448,10 @@ func TestJSEngineMakeFunction_HTTPHeaders(t *testing.T) {
 		Src             string
 		SpMode          bool
 		InputMsg        *models.Message
-		InputInterState interface{}
+		InputInterState any
 		Expected        map[string]*models.Message
 		IsJSON          bool
-		ExpInterState   interface{}
+		ExpInterState   any
 		Error           error
 	}{
 		{
@@ -2279,7 +2452,7 @@ var testJsEtlTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40
 var testJsDerivedTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35.972")
 var testJsCollectorTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35.972")
 var testJsDvceSentTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35")
-var testJSMap = map[string]interface{}{
+var testJSMap = map[string]any{
 	"event_version":       "1-0-0",
 	"app_id":              "test-data<>",
 	"dvce_created_tstamp": testJsDvceCreatedTstamp,
@@ -2299,14 +2472,14 @@ var testJSMap = map[string]interface{}{
 	"v_tracker":           "py-0.8.2",
 	"v_etl":               "beam-enrich-0.2.0-common-0.36.0",
 	"user_ipaddress":      "1.2.3.4",
-	"unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1": map[string]interface{}{
+	"unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1": map[string]any{
 		"quantity":  float64(2),
 		"unitPrice": 32.4,
 		"currency":  "GBP",
 		"sku":       "item41",
 	},
-	"contexts_nl_basjes_yauaa_context_1": []interface{}{
-		map[string]interface{}{
+	"contexts_nl_basjes_yauaa_context_1": []any{
+		map[string]any{
 			"deviceName":               "Unknown",
 			"layoutEngineVersionMajor": "??",
 			"operatingSystemName":      "Unknown",
