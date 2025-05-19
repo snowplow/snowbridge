@@ -18,7 +18,7 @@ import (
 )
 
 // TransformationFunction takes a message and intermediateState, and returns a transformed message, a filtered message or an errored message, along with an intermediateState
-type TransformationFunction func(*models.Message, interface{}) (*models.Message, *models.Message, *models.Message, interface{})
+type TransformationFunction func(*models.Message, any) (*models.Message, *models.Message, *models.Message, any)
 
 // TransformationApplyFunction dereferences messages before running transformations, and returns a TransformationResult
 type TransformationApplyFunction func([]*models.Message) *models.TransformationResult
@@ -43,7 +43,7 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 			success := &msg // success must be both input and output to a TransformationFunction, so we make this pointer.
 			var failure *models.Message
 			var filtered *models.Message
-			var intermediate interface{}
+			var intermediate any
 			for _, transformFunction := range tranformFunctions {
 				// Overwrite the input for each iteration in sequence of transformations,
 				// since the desired result is a single transformed message with a nil failure, or a nil message with a single failure
