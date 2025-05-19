@@ -11,6 +11,28 @@
 
 package transform
 
+import (
+	"crypto/md5"
+	"crypto/pbkdf2"
+	"crypto/sha1"
+	"crypto/sha256"
+	"fmt"
+	"hash"
+)
+
+const (
+	hashByteSize     = 24
+	pbkdf2Iterations = 1000
+)
+
+var (
+	supportedHashFunctions = map[string]func() hash.Hash{
+		"sha1":   sha1.New,
+		"sha256": sha256.New,
+		"md5":    md5.New,
+	}
+)
+
 // RemoveNullFields removes null fields, empty maps and empty slices from the input object, as long as map keys are strings.
 // At present it doesn't remove null or empty elements from slices.
 func RemoveNullFields(data any) {
@@ -53,4 +75,22 @@ func removeNullFromSlice(input []any) {
 	for _, item := range input {
 		RemoveNullFields(item)
 	}
+}
+
+// DoHashing applies selected hash function (with or without salt provided) on the input string of data
+// and returns hashed string or an error if operation failed
+func DoHashing(input, hashFunctionName, hashSalt string) (string, error) {
+	salt := []byte(hashSalt)
+
+	hashFunction, ok := supportedHashFunctions[hashFunctionName]
+	if !ok {
+		return "", fmt.Errorf("unsupported hash function: [%s]", hashFunctionName)
+	}
+
+	hbts, err := pbkdf2.Key(hashFunction, input, salt, pbkdf2Iterations, hashByteSize)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash the data: %w", err)
+	}
+
+	return fmt.Sprintf("%x", hbts), nil
 }
