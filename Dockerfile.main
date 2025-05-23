@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM alpine:3.21.2
+FROM --platform=$TARGETPLATFORM alpine:3.21.3
 LABEL org.opencontainers.image.authors="Snowplow Analytics <support@snowplow.io>"
 
 ARG TARGETARCH

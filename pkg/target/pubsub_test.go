@@ -12,7 +12,6 @@
 package target
 
 import (
-	"context"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -35,8 +34,8 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer topic.Delete(t.Context())
+	defer subscription.Delete(t.Context())
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -66,8 +65,8 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer topic.Delete(t.Context())
+	defer subscription.Delete(t.Context())
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -91,8 +90,8 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 
 	// Create topic and subscription
 	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer topic.Delete(context.Background())
-	defer subscription.Delete(context.Background())
+	defer topic.Delete(t.Context())
+	defer subscription.Delete(t.Context())
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -145,7 +144,7 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert.Nil(twres.Invalid)
 	assert.Nil(err)
 
-	res, pullErr := srv.GServer.Pull(context.TODO(), &pubsubV1.PullRequest{
+	res, pullErr := srv.GServer.Pull(t.Context(), &pubsubV1.PullRequest{
 		Subscription: "projects/project-test/subscriptions/test-sub",
 		MaxMessages:  15, // 15 max messages to ensure we don't miss dupes
 	})

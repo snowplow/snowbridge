@@ -1,3 +1,8 @@
+Version 3.2.3 (2025-05-23)
+--------------------------
+Bump alpine version in Dockerfile to 3.21.3
+Migrate to AWS SDK v2
+
 Version 3.2.2 (2025-04-08)
 --------------------------
 Upgrade golang-jwt 4.5.2

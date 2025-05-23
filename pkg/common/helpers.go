@@ -12,61 +12,72 @@
 package common
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/IBM/sarama"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/xdg/scram"
 	"hash"
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/IBM/sarama"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/xdg/scram"
 )
 
-// GetAWSSession is a general tool to handle generating an AWS session
-// using the standard auth flow.  We also have the ability to pass a role ARN
-// to allow for roles to be assumed in cross-account access flows.
-func GetAWSSession(region string, roleARN string, endpoint string) (sess *session.Session, cfg *aws.Config, accountID *string, err error) {
+// GetAWSConfig is a general tool to handle generating an AWS config
+// using the standard auth flow.
+// We also have the ability to pass a role ARN to allow for roles
+// to be assumed in cross-account access flows.
+func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error) {
+	ctx := context.Background()
+
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
 	httpClient := &http.Client{
 		Transport: transport,
+		Timeout:   15 * time.Second,
 	}
 
-	sess = session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		Config: aws.Config{
-			Region:     aws.String(region),
-			Endpoint:   aws.String(endpoint),
-			HTTPClient: httpClient,
-		},
-	}))
+	conf, err := config.LoadDefaultConfig(
+		ctx,
+		config.WithRegion(region),
+		config.WithHTTPClient(httpClient),
+		config.WithBaseEndpoint(endpoint),
+		config.WithDefaultsMode(aws.DefaultsModeAuto),
+	)
+	if err != nil {
+		return nil, "", err
+	}
 
+	stsClient := sts.NewFromConfig(conf)
 	if roleARN != "" {
-		creds := stscreds.NewCredentials(sess, roleARN)
-		cfg = &aws.Config{
-			Credentials: creds,
-			Region:      aws.String(region),
-			HTTPClient:  httpClient,
+		creds := stscreds.NewAssumeRoleProvider(stsClient, roleARN)
+		conf, err = config.LoadDefaultConfig(
+			ctx,
+			config.WithCredentialsProvider(creds),
+			config.WithRegion(region),
+			config.WithHTTPClient(httpClient),
+			config.WithBaseEndpoint(endpoint),
+			config.WithDefaultsMode(aws.DefaultsModeAuto),
+		)
+		if err != nil {
+			return nil, "", err
 		}
 	}
 
-	stsClient := sts.New(sess, cfg)
-
-	res, err := stsClient.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	res, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
-		return sess, cfg, nil, err
+		return &conf, "", err
 	}
-	accountID = res.Account
 
-	return sess, cfg, accountID, nil
+	accountID := *res.Account
+	return &conf, accountID, nil
 }
 
 // --- Generic Helpers
