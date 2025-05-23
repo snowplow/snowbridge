@@ -41,6 +41,7 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
 	httpClient := &http.Client{
 		Transport: transport,
+		Timeout:   15 * time.Second,
 	}
 
 	conf, err := config.LoadDefaultConfig(
