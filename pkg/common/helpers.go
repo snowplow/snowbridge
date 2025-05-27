@@ -49,8 +49,15 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 	var apiOptions []func(*middleware.Stack) error
 	apiOptions = append(apiOptions, func(s *middleware.Stack) error {
 		s.Finalize.Remove("Retry")
+		s.Finalize.Remove("RetryMetricsHeader")
+
 		s.Initialize.Remove("Logger")
+
 		s.Deserialize.Remove("ResponseLogger")
+		s.Deserialize.Remove("RequestResponseLogger")
+		s.Deserialize.Remove("RecordResponseTiming")
+		s.Deserialize.Remove("AddTimeOffsetMiddleware")
+
 		return nil
 	})
 
