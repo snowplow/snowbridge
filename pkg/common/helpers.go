@@ -29,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go/middleware"
-	"github.com/sirupsen/logrus"
 	"github.com/xdg/scram"
 )
 
@@ -49,10 +48,10 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 
 	var apiOptions []func(*middleware.Stack) error
 	apiOptions = append(apiOptions, func(s *middleware.Stack) error {
-		logrus.Infof("%+v", s.List())
 		s.Finalize.Remove("Retry")
 		s.Initialize.Remove("Logger")
 		s.Deserialize.Remove("ResponseLogger")
+		s.Deserialize.Remove("OperationDeserializer")
 		return nil
 	})
 
