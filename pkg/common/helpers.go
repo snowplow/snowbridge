@@ -51,7 +51,6 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 		s.Finalize.Remove("Retry")
 		s.Initialize.Remove("Logger")
 		s.Deserialize.Remove("ResponseLogger")
-		s.Deserialize.Remove("OperationDeserializer")
 		return nil
 	})
 
