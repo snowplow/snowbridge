@@ -49,10 +49,9 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 	var apiOptions []func(*middleware.Stack) error
 	apiOptions = append(apiOptions, func(s *middleware.Stack) error {
 		fmt.Println(s.List())
-
-		s.Finalize.Remove("Retry")
-		s.Initialize.Remove("Logger")
-		s.Deserialize.Remove("ResponseLogger")
+		// s.Finalize.Remove("Retry")
+		// s.Initialize.Remove("Logger")
+		// s.Deserialize.Remove("ResponseLogger")
 		return nil
 	})
 
@@ -61,7 +60,7 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 		config.WithRegion(region),
 		config.WithHTTPClient(httpClient),
 		config.WithBaseEndpoint(endpoint),
-		// config.WithAPIOptions(apiOptions),
+		config.WithAPIOptions(apiOptions),
 		config.WithDefaultsMode(aws.DefaultsModeAuto),
 	)
 	if err != nil {
