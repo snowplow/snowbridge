@@ -61,7 +61,7 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 		config.WithRegion(region),
 		config.WithHTTPClient(httpClient),
 		config.WithBaseEndpoint(endpoint),
-		config.WithAPIOptions(apiOptions),
+		// config.WithAPIOptions(apiOptions),
 		config.WithDefaultsMode(aws.DefaultsModeAuto),
 	)
 	if err != nil {
