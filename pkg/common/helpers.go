@@ -18,16 +18,18 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"hash"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/IBM/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/smithy-go/middleware"
 	"github.com/xdg/scram"
-	"hash"
-	"net/http"
-	"os"
-	"time"
 )
 
 // GetAWSConfig is a general tool to handle generating an AWS config
@@ -44,11 +46,27 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 		Timeout:   15 * time.Second,
 	}
 
+	var apiOptions []func(*middleware.Stack) error
+	apiOptions = append(apiOptions, func(s *middleware.Stack) error {
+		s.Finalize.Remove("Retry")
+		s.Finalize.Remove("RetryMetricsHeader")
+
+		s.Initialize.Remove("Logger")
+
+		s.Deserialize.Remove("ResponseLogger")
+		s.Deserialize.Remove("RequestResponseLogger")
+		s.Deserialize.Remove("RecordResponseTiming")
+		s.Deserialize.Remove("AddTimeOffsetMiddleware")
+
+		return nil
+	})
+
 	conf, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithRegion(region),
 		config.WithHTTPClient(httpClient),
 		config.WithBaseEndpoint(endpoint),
+		config.WithAPIOptions(apiOptions),
 		config.WithDefaultsMode(aws.DefaultsModeAuto),
 	)
 	if err != nil {
