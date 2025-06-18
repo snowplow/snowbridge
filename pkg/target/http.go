@@ -65,7 +65,6 @@ type HTTPTargetConfig struct {
 	ResponseRules *ResponseRules `hcl:"response_rules,block"`
 
 	IncludeTimingHeaders       bool `hcl:"include_timing_headers,optional"`
-	DebugMode                  bool `hcl:"debug_mode,optional"`
 	RejectionThresholdInMillis int  `hcl:"rejection_threshold_in_millis,optional"`
 }
 
@@ -85,11 +84,6 @@ type Rule struct {
 type response struct {
 	Status int
 	Body   string
-}
-
-type debugRequest struct {
-	OriginalTsv string          `json:"originalTsv"`
-	RequestBody json.RawMessage `json:"requestBody"`
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -112,7 +106,6 @@ type HTTPTarget struct {
 	responseRules   *ResponseRules
 
 	includeTimingHeaders bool
-	debugMode            bool
 	rejectionThreshold   int
 }
 
@@ -277,7 +270,6 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		approxTmplSize:       approxTmplSize,
 		responseRules:        c.ResponseRules,
 		includeTimingHeaders: c.IncludeTimingHeaders,
-		debugMode:            c.DebugMode,
 		rejectionThreshold:   c.RejectionThresholdInMillis,
 	}, nil
 }
@@ -354,7 +346,11 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			var badMsgs []*models.Message
 			var err error
 
-			reqBody, goodMsgs, badMsgs = ht.prepareRequestBody(group)
+			if ht.requestTemplate != nil {
+				reqBody, goodMsgs, badMsgs = ht.renderBatchUsingTemplate(group)
+			} else {
+				reqBody, goodMsgs, badMsgs = ht.renderJSONArray(group)
+			}
 
 			invalid = append(invalid, badMsgs...)
 
@@ -456,37 +452,6 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
 	return models.NewTargetWriteResult(sent, failed, oversized, invalid), errResult
-}
-
-func (ht *HTTPTarget) prepareRequestBody(group []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
-	if ht.debugMode {
-		if len(group) > 1 {
-			panic("Debug mode is not supported with batching")
-		}
-		firstMsg := group[0]
-
-		request, ok, bad := ht.prepareBodyWithTransformedData(group)
-		wrapped := wrapBodyForDebugging(firstMsg, request)
-		return wrapped, ok, bad
-	}
-
-	return ht.prepareBodyWithTransformedData(group)
-}
-
-func (ht *HTTPTarget) prepareBodyWithTransformedData(group []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
-	if ht.requestTemplate != nil {
-		return ht.renderBatchUsingTemplate(group)
-	}
-	return ht.renderJSONArray(group)
-}
-
-func wrapBodyForDebugging(msg *models.Message, originalBody []byte) []byte {
-	request := debugRequest{
-		OriginalTsv: string(msg.OriginalData),
-		RequestBody: originalBody,
-	}
-	output, _ := json.Marshal(request)
-	return output
 }
 
 func findMatchingRule(res response, rules []Rule) *Rule {

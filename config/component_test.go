@@ -91,7 +91,6 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				SkipVerifyTLS:              false,
 				IncludeTimingHeaders:       false,
 				RejectionThresholdInMillis: 150,
-				DebugMode:                  false,
 				ResponseRules: &target.ResponseRules{
 					Invalid:    []target.Rule{},
 					SetupError: []target.Rule{},
@@ -125,7 +124,6 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				TemplateFile:               "myTemplate.file",
 				IncludeTimingHeaders:       true,
 				RejectionThresholdInMillis: 100,
-				DebugMode:                  true,
 				ResponseRules: &target.ResponseRules{
 					Invalid: []target.Rule{
 						{

@@ -77,9 +77,6 @@ target {
     # Optional. Used in combination with `include_timing_headers` to precalculate rejection timestamp. 
     rejection_threshold_in_millis = 100
 
-    # Optional. When enabled, original messages are sent alongside the transformed one.
-    debug_mode                 = true
-
     # Optional HTTP response rules which are used to match HTTP response code/body and categorize it as either invalid data or target setup error.
     # For example, we can have 2 invalid + 1 setup error rules:
     response_rules {
