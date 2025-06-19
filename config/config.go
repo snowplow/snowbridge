@@ -111,7 +111,7 @@ type metricsConfig struct {
 
 type monitoringConfig struct {
 	Endpoint          string            `hcl:"endpoint"`
-	Tags              map[string]string `hcl:"tags,block"`
+	Tags              map[string]string `hcl:"tags"`
 	HeartbeatInterval time.Duration     `hcl:"heartbeat_interval,optional"`
 }
 
