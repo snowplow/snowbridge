@@ -14,6 +14,8 @@ package target
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -21,21 +23,37 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
+// StdoutTargetConfig configures the destination for records consumed
+type StdoutTargetConfig struct {
+	DataOnlyOutput bool `hcl:"data_only_output,optional"`
+}
+
 // StdoutTarget holds a new client for writing messages to stdout
 type StdoutTarget struct {
+	output         io.Writer
+	dataOnlyOutput bool
+
 	log *log.Entry
 }
 
 // newStdoutTarget creates a new client for writing messages to stdout
-func newStdoutTarget() (*StdoutTarget, error) {
+func newStdoutTarget(dataOnlyOutput bool) (*StdoutTarget, error) {
+	return newStdoutTargetWithInterfaces(os.Stdout, dataOnlyOutput)
+}
+
+// newStdoutTargettWithInterfaces allows you to provide an Stdout directly to allow
+// for mocking and localstack usage
+func newStdoutTargetWithInterfaces(writer io.Writer, dataOnlyOutput bool) (*StdoutTarget, error) {
 	return &StdoutTarget{
-		log: log.WithFields(log.Fields{"target": "stdout"}),
+		output:         writer,
+		dataOnlyOutput: dataOnlyOutput,
+		log:            log.WithFields(log.Fields{"target": "stdout"}),
 	}, nil
 }
 
 // StdoutTargetConfigFunction creates an StdoutTarget
-func StdoutTargetConfigFunction() (*StdoutTarget, error) {
-	return newStdoutTarget()
+func StdoutTargetConfigFunction(c *StdoutTargetConfig) (*StdoutTarget, error) {
+	return newStdoutTarget(c.DataOnlyOutput)
 }
 
 // The StdoutTargetAdapter type is an adapter for functions to be used as
@@ -49,17 +67,20 @@ func (f StdoutTargetAdapter) Create(i interface{}) (interface{}, error) {
 
 // ProvideDefault implements the ComponentConfigurable interface.
 func (f StdoutTargetAdapter) ProvideDefault() (interface{}, error) {
-	return nil, nil
+	cfg := &StdoutTargetConfig{}
+
+	return cfg, nil
 }
 
 // AdaptStdoutTargetFunc returns StdoutTargetAdapter.
-func AdaptStdoutTargetFunc(f func() (*StdoutTarget, error)) StdoutTargetAdapter {
+func AdaptStdoutTargetFunc(f func(c *StdoutTargetConfig) (*StdoutTarget, error)) StdoutTargetAdapter {
 	return func(i interface{}) (interface{}, error) {
-		if i != nil {
-			return nil, errors.New("unexpected configuration input for Stdout target")
+		cfg, ok := i.(*StdoutTargetConfig)
+		if !ok {
+			return nil, errors.New("invalid input, expected StdoutTargetConfig")
 		}
 
-		return f()
+		return f(cfg)
 	}
 }
 
@@ -76,7 +97,15 @@ func (st *StdoutTarget) Write(messages []*models.Message) (*models.TargetWriteRe
 
 	for _, msg := range safeMessages {
 		msg.TimeRequestStarted = time.Now().UTC()
-		fmt.Println(msg.String())
+		if st.dataOnlyOutput {
+			if _, err := fmt.Fprintln(st.output, string(msg.Data)); err != nil {
+				st.log.WithError(err).Error("failed to write into stdout")
+			}
+		} else {
+			if _, err := fmt.Fprintln(st.output, msg.String()); err != nil {
+				st.log.WithError(err).Error("failed to write into stdout")
+			}
+		}
 		msg.TimeRequestFinished = time.Now().UTC()
 
 		if msg.AckFunc != nil {

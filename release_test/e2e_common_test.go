@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,7 +55,7 @@ snowplow/snowbridge:%s%s`
 func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, configFilePath string, binaryVersion string, additionalOpts string) ([]byte, error) {
 	// Check for inputErr as it won't throw outside the function
 	if inputErr != nil {
-		errors.Wrap(inputErr, "Error getting input file: ")
+		_ = errors.Wrap(inputErr, "Error getting input file: ")
 		panic(inputErr)
 	}
 
@@ -76,7 +77,9 @@ func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, conf
 
 		// Ensure we print stderr to logs, to make debugging a bit more manageable
 		cmd.Stderr = os.Stderr
-		cmd.Output()
+		if _, err := cmd.Output(); err != nil {
+			logrus.Error(err.Error())
+		}
 	}()
 
 	out, err := cmd.Output()
@@ -87,8 +90,9 @@ func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, conf
 
 		// Ensure we print stderr to logs, to make debugging a bit more manageable
 		rmCmd.Stderr = os.Stderr
-		rmCmd.Output()
-
+		if _, err := rmCmd.Output(); err != nil {
+			logrus.Error(err.Error())
+		}
 	}()
 
 	err = errors.Wrap(err, containerName+": Error running Docker Command: "+cmdFull)
@@ -144,7 +148,6 @@ func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePa
 	}
 
 	expectedData := strings.Split(string(expectedChunk), "\n")
-
 	require.Equal(t, len(expectedData), len(foundData), testCase)
 
 	// Make maps of eid:data, so that we can match like for like events later
@@ -161,7 +164,6 @@ func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePa
 		require.True(t, ok)
 		// Make a map entry with Eid Key
 		foundWithEids[eid] = row
-
 	}
 
 	for _, row := range expectedData {
@@ -178,8 +180,6 @@ func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePa
 
 	// Iterate and assert against the values. Since we require equal lengths above, we don't need to check for entries existing in one but not the other.
 	for foundEid, foundValue := range foundWithEids {
-
 		assert.JSONEq(foundValue, expectedWithEids[foundEid], testCase)
-
 	}
 }

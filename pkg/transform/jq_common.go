@@ -25,12 +25,14 @@ import (
 )
 
 // JqCommandOutput is a type representing output after executing JQ command. For filters for example we expect it to be boolean.
-type JqCommandOutput = interface{}
+type JqCommandOutput = any
 
-// JqOutputHandler is a function which accepts JqCommandOutput and is response for doing something with it. For filters for example that would be filtering message based on boolean output.
+// JqOutputHandler is a function which accepts JqCommandOutput and is response for doing something with it.
+// For filters for example that would be filtering message based on boolean output.
 type JqOutputHandler func(JqCommandOutput) TransformationFunction
 
-// GojqTransformationFunction is a function returning another transformation function which allows us to do some GOJQ based mapping/filtering. Actual transformation happens in provided JqOutputHandler.
+// GojqTransformationFunction is a function returning another transformation function which allows us to do some GOJQ based mapping/filtering.
+// Actual transformation happens in provided JqOutputHandler.
 func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) (TransformationFunction, error) {
 	query, err := gojq.Parse(command)
 	if err != nil {
@@ -65,7 +67,21 @@ func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOu
 		return validTime.UnixMilli()
 	})
 
-	code, err := gojq.Compile(query, withEpochMillisFunction, withEpochFunction)
+	// hash takes a string and applies selected hash function to it
+	withHashFunction := gojq.WithFunction("hash", 0, 2, func(a1 any, a2 []any) any {
+		if a1 == nil {
+			return nil
+		}
+
+		hashedValue, err := resolveHash(a1, a2)
+		if err != nil {
+			return err
+		}
+
+		return hashedValue
+	})
+
+	code, err := gojq.Compile(query, withEpochMillisFunction, withEpochFunction, withHashFunction)
 	if err != nil {
 		return nil, fmt.Errorf("error compiling jq query: %s", err)
 	}
@@ -83,13 +99,13 @@ func parseTime(input any, params []any) (time.Time, error) {
 
 		validTime, err := time.Parse(timeLayout, v)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("Could not parse input - '%s' using provided time layout - '%s'", v, timeLayout)
+			return time.Time{}, fmt.Errorf("could not parse input - '%s' using provided time layout - '%s'", v, timeLayout)
 		}
 		return validTime, nil
 	case time.Time:
 		return v, nil
 	default:
-		return time.Time{}, fmt.Errorf("Not a valid time input to 'epochMillis' function - '%v'; expected string or time.Time", input)
+		return time.Time{}, fmt.Errorf("not a valid time input to 'epochMillis' function - '%v'; expected string or time.Time", input)
 	}
 }
 
@@ -99,16 +115,32 @@ func parseTimeLayout(params []any) (string, error) {
 	} else if len(params) == 1 {
 		str, ok := params[0].(string)
 		if !ok {
-			return "", fmt.Errorf("Function argument is invalid '%v'; expected string", params[0])
+			return "", fmt.Errorf("function argument is invalid '%v'; expected string", params[0])
 		}
 		return str, nil
 	} else {
-		return "", fmt.Errorf("Too many function arguments - %d; expected 1", len(params))
+		return "", fmt.Errorf("too many function arguments - %d; expected 1", len(params))
 	}
 }
 
+func resolveHash(input any, params []any) (string, error) {
+	inputString, ok := input.(string)
+	if !ok {
+		return "", fmt.Errorf("hash function input must be a string")
+	}
+
+	if len(params) != 2 {
+		return "", fmt.Errorf("[%d] parameters given, hash function expecting 2: hash function name and salt", len(params))
+	}
+
+	hashFunctionName := params[0].(string)
+	hashSalt := params[1].(string)
+
+	return DoHashing(inputString, hashFunctionName, hashSalt)
+}
+
 func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) TransformationFunction {
-	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		input, parsedEvent, err := mkJQInput(message, interState, spMode)
 		if err != nil {
 			message.SetError(err)
@@ -136,11 +168,11 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 }
 
 // mkJQInput ensures the input to JQ query is of expected type
-func mkJQInput(message *models.Message, interState interface{}, spMode bool) (map[string]interface{}, analytics.ParsedEvent, error) {
+func mkJQInput(message *models.Message, interState any, spMode bool) (map[string]any, analytics.ParsedEvent, error) {
 	if !spMode {
 		// gojq input can only be map[string]any or []any
 		// here we only consider the first, but we could also expand
-		var input map[string]interface{}
+		var input map[string]any
 		err := json.Unmarshal(message.Data, &input)
 		if err != nil {
 			return nil, nil, err

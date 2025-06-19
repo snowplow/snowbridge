@@ -50,7 +50,7 @@ func configfunction(c *configuration) (sourceiface.Source, error) {
 
 type adapter func(i interface{}) (interface{}, error)
 
-func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
+func adapterGenerator(_ func(c *configuration) (sourceiface.Source, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
 		return mockSource{}, nil
 	}
@@ -114,12 +114,12 @@ func TestGetSource_InvalidSource(t *testing.T) {
 	assert.Nil(source)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid source found: fake. Supported sources in this build: ", err.Error())
+		assert.Equal("invalid source found: fake. Supported sources in this build: ", err.Error())
 	}
 }
 
 // Mock a broken adapter generator implementation
-func brokenAdapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
+func brokenAdapterGenerator(_ func(c *configuration) (sourceiface.Source, error)) adapter {
 	return func(i interface{}) (interface{}, error) {
 		return nil, nil
 	}

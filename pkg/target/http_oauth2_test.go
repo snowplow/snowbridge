@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,9 @@ const validAccessToken = "super_secret_access_token"
 // This is mock server providing us the bearer access token. If you provide invalid details/something is misconfigured you get 400 HTTP status
 func tokenServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		req.ParseForm()
+		if err := req.ParseForm(); err != nil {
+			logrus.Error(err.Error())
+		}
 		clientID, clientSecret, _ := req.BasicAuth()
 		refreshToken := req.Form.Get("refresh_token")
 		grantType := req.Form.Get("grant_type")
@@ -42,10 +45,14 @@ func tokenServer() *httptest.Server {
 		if clientID == validClientID && clientSecret == validClientSecret && refreshToken == validRefreshToken && grantType == validGrantType {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(200)
-			fmt.Fprintf(w, `{"access_token":"%s", "expires_in":3600}`, validAccessToken)
+			if _, err := fmt.Fprintf(w, `{"access_token":"%s", "expires_in":3600}`, validAccessToken); err != nil {
+				logrus.Error(err.Error())
+			}
 		} else {
 			w.WriteHeader(400)
-			fmt.Fprintf(w, `{"error":"invalid_client"}`)
+			if _, err := fmt.Fprintf(w, `{"error":"invalid_client"}`); err != nil {
+				logrus.Error(err.Error())
+			}
 		}
 	}))
 }
@@ -57,7 +64,9 @@ func targetServer() *httptest.Server {
 			w.WriteHeader(200)
 		} else {
 			w.WriteHeader(403)
-			fmt.Fprintf(w, "Invalid access token")
+			if _, err := fmt.Fprintf(w, "Invalid access token"); err != nil {
+				logrus.Error(err.Error())
+			}
 		}
 	}))
 }
@@ -102,7 +111,7 @@ func TestHTTP_OAuth2_CallTargetWithoutToken(t *testing.T) {
 	writeResult, err := runTest(t, "", "", "")
 
 	assert.NotNil(err)
-	assert.Contains(err.Error(), `Got transient error, response status: '403 Forbidden'`)
+	assert.Contains(err.Error(), `got transient error, response status: '403 Forbidden'`)
 	assert.Equal(0, len(writeResult.Sent))
 	assert.Equal(1, len(writeResult.Failed))
 }
@@ -113,16 +122,18 @@ func runTest(t *testing.T, inputClientID string, inputClientSecret string, input
 	defer tokenServer.Close()
 	defer server.Close()
 
-	target := oauth2Target(t, server.URL, inputClientID, inputClientSecret, inputRefreshToken, tokenServer.URL)
+	config := defaultConfiguration()
+	config.URL = server.URL
+	config.OAuth2ClientID = inputClientID
+	config.OAuth2ClientSecret = inputClientSecret
+	config.OAuth2RefreshToken = inputRefreshToken
+	config.OAuth2TokenURL = tokenServer.URL
+	target, err := HTTPTargetConfigFunction(config)
 
-	message := testutil.GetTestMessages(1, `{"message": "Hello Server!!"}`, func() {})
-	return target.Write(message)
-}
-
-func oauth2Target(t *testing.T, targetURL string, inputClientID string, inputClientSecret string, inputRefreshToken string, tokenServerURL string) *HTTPTarget {
-	target, err := newHTTPTarget(targetURL, 5000, 1, 1048576, 1048576, "application/json", "", "", "", false, "", "", "", true, false, inputClientID, inputClientSecret, inputRefreshToken, tokenServerURL, "", defaultResponseRules(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return target
+
+	message := testutil.GetTestMessages(1, `{"message": "Hello Server!!"}`, func() {})
+	return target.Write(message)
 }

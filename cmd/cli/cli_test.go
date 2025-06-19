@@ -19,6 +19,7 @@ import (
 	"github.com/snowplow/snowbridge/pkg/failure"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/observer"
+	"github.com/snowplow/snowbridge/pkg/transform"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,9 +35,12 @@ func TestWrite_AllOK(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
+	assert.Empty(t, output.filtered)
 	assert.Empty(t, output.err)
 }
 
@@ -53,9 +57,12 @@ func TestWrite_OKAfterFailed(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
+	assert.Empty(t, output.filtered)
 	assert.Empty(t, output.err)
 }
 
@@ -74,9 +81,12 @@ func TestWrite_AllInvalid(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToFailed)
 	assert.Empty(t, output.sentToGood)
+	assert.Empty(t, output.filtered)
 	assert.Empty(t, output.err)
 }
 
@@ -97,9 +107,12 @@ func TestWrite_InvalidRetried(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToFailed)
 	assert.Empty(t, output.sentToGood)
+	assert.Empty(t, output.filtered)
 	assert.Empty(t, output.err)
 }
 
@@ -118,9 +131,12 @@ func TestWrite_SomeOKSomeInvalid(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Equal(t, []string{"m1"}, output.sentToGood) // but good data is in good target
 	assert.Equal(t, []string{"m2"}, output.sentToFailed)
+	assert.Empty(t, output.filtered)
 	assert.Empty(t, output.err)
 }
 
@@ -138,9 +154,12 @@ func TestWrite_OKAfterPartialFailure(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
+	assert.Empty(t, output.filtered)
 	assert.Empty(t, output.err)
 }
 
@@ -159,9 +178,33 @@ func TestWrite_AllOversized(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToFailed)
 	assert.Empty(t, output.sentToGood)
+	assert.Empty(t, output.filtered)
+	assert.Empty(t, output.err)
+}
+
+func TestWrite_AllFiltered(t *testing.T) {
+	inputMessages := []*models.Message{
+		message("m1", "data 1"),
+		message("m2", "data 2"),
+	}
+
+	mocks := targetMocks{
+		filterTarget: []mockResult{
+			{sent: []string{"m1", "m2"}},
+		},
+	}
+
+	transformation := filteringTransformation()
+
+	output := run(inputMessages, mocks, transformation)
+	assert.Equal(t, []string{"m1", "m2"}, output.filtered)
+	assert.Empty(t, output.sentToGood)
+	assert.Empty(t, output.sentToFailed)
 	assert.Empty(t, output.err)
 }
 
@@ -193,9 +236,12 @@ func TestWrite_Combo(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Equal(t, []string{"m3", "m4"}, output.sentToFailed)
+	assert.Empty(t, output.filtered)
 	assert.Empty(t, output.err)
 }
 
@@ -216,30 +262,47 @@ func TestWrite_RunOutOfAttempts(t *testing.T) {
 		},
 	}
 
-	output := run(inputMessages, mocks)
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
 	assert.Empty(t, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
+	assert.Empty(t, output.filtered)
 	assert.Equal(t, "Error 6", output.err.Error())
 }
 
-func run(input []*models.Message, targetMocks targetMocks) testOutput {
+func run(input []*models.Message, targetMocks targetMocks, transformation transform.TransformationApplyFunction) testOutput {
 	config, _ := config.NewConfig()
 	goodTarget := testTarget{results: targetMocks.goodTarget}
 	failureTarget := testTarget{results: targetMocks.failureTarget}
-	failure, _ := failure.NewSnowplowFailure(&failureTarget, "test-processor", "test-version")
-	obs := observer.New(testStatsReceiver{}, time.Minute, time.Second)
-	trans := func(m []*models.Message) *models.TransformationResult {
-		return models.NewTransformationResult(m, nil, nil)
-	}
+	filterTarget := testTarget{results: targetMocks.filterTarget}
 
-	f := sourceWriteFunc(&goodTarget, failure, trans, obs, config)
+	failure, _ := failure.NewSnowplowFailure(&failureTarget, "test-processor", "test-version")
+	obs := observer.New(&testStatsReceiver{}, time.Minute, time.Second)
+
+	f := sourceWriteFunc(&goodTarget, failure, &filterTarget, transformation, obs, config)
 
 	err := f(input)
 
 	return testOutput{
 		sentToGood:   goodTarget.sent,
 		sentToFailed: failureTarget.sent,
+		filtered:     filterTarget.sent,
 		err:          err,
+	}
+}
+
+// Simulating transformation result when all data has been successfully transformed (passed through without any modification)
+func noopTransformation() transform.TransformationApplyFunction {
+	return func(m []*models.Message) *models.TransformationResult {
+		return models.NewTransformationResult(m, nil, nil)
+	}
+}
+
+// Simulating transformation result when all data has been filtered out
+func filteringTransformation() transform.TransformationApplyFunction {
+	return func(m []*models.Message) *models.TransformationResult {
+		return models.NewTransformationResult(nil, m, nil)
 	}
 }
 
@@ -284,6 +347,7 @@ func findByKey(keys []string, messages []*models.Message) []*models.Message {
 type testOutput struct {
 	sentToGood   []string
 	sentToFailed []string
+	filtered     []string
 	err          error
 }
 
@@ -296,6 +360,7 @@ type testTarget struct {
 type targetMocks struct {
 	goodTarget    []mockResult
 	failureTarget []mockResult
+	filterTarget  []mockResult
 }
 
 type mockResult struct {
@@ -319,6 +384,6 @@ type testStatsReceiver struct {
 	stats []*models.ObserverBuffer
 }
 
-func (r testStatsReceiver) Send(buffer *models.ObserverBuffer) {
+func (r *testStatsReceiver) Send(buffer *models.ObserverBuffer) {
 	r.stats = append(r.stats, buffer)
 }

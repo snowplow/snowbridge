@@ -13,7 +13,6 @@ package transformconfig
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,7 +66,9 @@ func TestGetTransformations(t *testing.T) {
 	}
 
 	// Walk iterates the directory & executes the function.
-	filepath.Walk(configPath, testConfig)
+	if err := filepath.Walk(configPath, testConfig); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestEnginesAndTransformations(t *testing.T) {
@@ -224,7 +225,6 @@ func TestEnginesAndTransformations(t *testing.T) {
 			// get transformations, and run the transformations on the expected messages
 			tr, err := GetTransformations(c, SupportedTransformations)
 			if tt.CompileErr != `` {
-				fmt.Println(err.Error())
 				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
 				assert.Nil(tr)
 				return
@@ -235,6 +235,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 			}
 
 			result := tr(tt.ExpectedMessages.Before)
+
 			assert.NotNil(result)
 			assert.Equal(int(result.ResultCount+result.FilteredCount+result.InvalidCount), len(tt.ExpectedMessages.After))
 
@@ -264,39 +265,272 @@ func TestEnginesAndTransformations(t *testing.T) {
 	}
 }
 
+func TestJQHashTransformation(t *testing.T) {
+
+	t.Setenv("SHA1_SALT", "09a2d6b3ecd943aa8512df1f")
+
+	configDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "configs")
+
+	testCases := []struct {
+		Description      string
+		File             string
+		ExpectedMessages expectedMessages
+		CompileErr       string
+	}{
+		{
+			Description: "simple JQ transform with hash & without salt - success",
+			File:        "transform-jq-hash-function.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         []byte(`{"agentName":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"}`),
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+		{
+			Description: "simple JQ transform with hash & with salt - success",
+			File:        "transform-jq-hash-salt-function.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowTsv1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         []byte(`{"agentName":"5841e55de6c4486fa092f044a5189570dec421cb06652829"}`),
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Description, func(t *testing.T) {
+			assert := assert.New(t)
+
+			filename := filepath.Join(configDirPath, tt.File)
+			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+			c, err := config.NewConfig()
+			assert.NotNil(c)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
+
+			// get transformations, and run the transformations on the expected messages
+			tr, err := GetTransformations(c, SupportedTransformations)
+			if tt.CompileErr != `` {
+				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
+				assert.Nil(tr)
+				return
+			}
+
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+
+			result := tr(tt.ExpectedMessages.Before)
+			assert.NotNil(result)
+
+			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
+
+			// check result for successfully transformed messages
+			for idx, resultMessage := range result.Result {
+				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
+			}
+		})
+	}
+}
+
+func TestJSScriptHashTransformation(t *testing.T) {
+
+	configDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "configs")
+
+	testCases := []struct {
+		Description      string
+		File             string
+		ExpectedMessages expectedMessages
+		CompileErr       string
+		HashSalt         string
+	}{
+		{
+			Description: "simple JS transform with hash & without salt - success",
+			File:        "transform-js-hash-function.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowJSON1Sha1NoSaltHashed,
+					PartitionKey: "some-key",
+				}},
+			},
+		},
+		{
+			Description: "simple JS transform with hash & with salt - success",
+			File:        "transform-js-hash-function.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowJSON1Sha1SaltHashed,
+					PartitionKey: "some-key",
+				}},
+			},
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Description, func(t *testing.T) {
+			assert := assert.New(t)
+
+			filename := filepath.Join(configDirPath, tt.File)
+			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+			t.Setenv("SHA1_SALT", tt.HashSalt)
+
+			c, err := config.NewConfig()
+			assert.NotNil(c)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
+
+			// get transformations, and run the transformations on the expected messages
+			tr, err := GetTransformations(c, SupportedTransformations)
+			if tt.CompileErr != `` {
+				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
+				assert.Nil(tr)
+				return
+			}
+
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+
+			result := tr(tt.ExpectedMessages.Before)
+			assert.NotNil(result)
+
+			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
+
+			// check result for successfully transformed messages
+			for idx, resultMessage := range result.Result {
+				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
+			}
+		})
+	}
+}
+
+func TestJSScriptPathHashTransformation(t *testing.T) {
+
+	scriptDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "scripts")
+	JSHashAidPath := filepath.Join(scriptDirPath, "js-hash-aid.js")
+
+	t.Setenv("JS_HASH_AID_PATH", JSHashAidPath)
+
+	configDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "configs")
+
+	testCases := []struct {
+		Description      string
+		File             string
+		ExpectedMessages expectedMessages
+		CompileErr       string
+		HashSalt         string
+	}{
+		{
+			Description: "simple JS transform with hash & without salt - success",
+			File:        "transform-js-path-hash-function.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowJSON1Sha1NoSaltHashed,
+					PartitionKey: "some-key",
+				}},
+			},
+			HashSalt: "",
+		},
+		{
+			Description: "simple JS transform with hash & with salt - success",
+			File:        "transform-js-path-hash-salt-function.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{{
+					Data:         snowplowJSON1Sha1SaltHashed,
+					PartitionKey: "some-key",
+				}},
+			},
+			HashSalt: "09a2d6b3ecd943aa8512df1f",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Description, func(t *testing.T) {
+			assert := assert.New(t)
+
+			filename := filepath.Join(configDirPath, tt.File)
+			t.Setenv("SHA1_SALT", tt.HashSalt)
+			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+			c, err := config.NewConfig()
+			assert.NotNil(c)
+			if err != nil {
+				t.Fatalf("function NewConfig failed with error: %q", err.Error())
+			}
+
+			// get transformations, and run the transformations on the expected messages
+			tr, err := GetTransformations(c, SupportedTransformations)
+			if tt.CompileErr != `` {
+				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
+				assert.Nil(tr)
+				return
+			}
+
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+
+			result := tr(tt.ExpectedMessages.Before)
+			assert.NotNil(result)
+
+			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
+
+			// check result for successfully transformed messages
+			for idx, resultMessage := range result.Result {
+				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
+			}
+		})
+	}
+}
+
 type expectedMessages struct {
 	Before []*models.Message
 	After  []*models.Message
 }
 
-var snowplowTsv1 = []byte(`test-data1	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`)
-var snowplowJSON1 = []byte(`{"app_id":"test-data1","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
-var snowplowTsv2 = []byte(`test-data2	pc	2019-05-10 14:40:32.392	2019-05-10 14:40:31.105	2019-05-10 14:40:30.218	transaction_item	5071169f-3050-473f-b03f-9748319b1ef2			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				68220ade-307b-4898-8e25-c4c8ac92f1d7																																																		transaction<built-in function input>	item58			35.87	1					python-requests/2.21.0																																										2019-05-10 14:40:30.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:31.105	com.snowplowanalytics.snowplow	transaction_item	jsonschema	1-0-0		`)
-var snowplowTsv3 = []byte(`test-data3	pc	2019-05-10 14:40:30.836	2019-05-10 14:40:29.576	2019-05-10 14:40:29.204	page_view	e8aef68d-8533-45c6-a672-26a0f01be9bd			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				b66c4a12-8584-4c7a-9a5d-7c96f59e2556												www.demo-site.com/campaign-landing-page	landing-page				80	www.demo-site.com/campaign-landing-page																																										python-requests/2.21.0																																										2019-05-10 14:40:29.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??","test1":{"test2":[{"test3":"testValue"}]}}}]}		2019-05-10 14:40:29.576	com.snowplowanalytics.snowplow	page_view	jsonschema	1-0-0		`)
+var (
+	snowplowTsv1  = []byte(`test-data1	pc	2019-05-10 14:40:37.436	2019-05-10 14:40:35.972	2019-05-10 14:40:35.551	unstruct	e9234345-f042-46ad-b1aa-424464066a33			py-0.8.2	ssc-0.15.0-googlepubsub	beam-enrich-0.2.0-common-0.36.0	user<built-in function input>	18.194.133.57				d26822f5-52cc-4292-8f77-14ef6b7a27e2																																									{"schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0","data":{"schema":"iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0","data":{"sku":"item41","quantity":2,"unitPrice":32.4,"currency":"GBP"}}}																			python-requests/2.21.0																																										2019-05-10 14:40:35.000			{"schema":"iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-1","data":[{"schema":"iglu:nl.basjes/yauaa_context/jsonschema/1-0-0","data":{"deviceBrand":"Unknown","deviceName":"Unknown","operatingSystemName":"Unknown","agentVersionMajor":"2","layoutEngineVersionMajor":"??","deviceClass":"Unknown","agentNameVersionMajor":"python-requests 2","operatingSystemClass":"Unknown","layoutEngineName":"Unknown","agentName":"python-requests","agentVersion":"2.21.0","layoutEngineClass":"Unknown","agentNameVersion":"python-requests 2.21.0","operatingSystemVersion":"??","agentClass":"Special","layoutEngineVersion":"??"}}]}		2019-05-10 14:40:35.972	com.snowplowanalytics.snowplow	add_to_cart	jsonschema	1-0-0		`)
+	snowplowJSON1 = []byte(`{"app_id":"test-data1","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user\u003cbuilt-in function input\u003e","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
-var nonSnowplowString = []byte(`not	a	snowplow	event`)
+	// snowplowJSON1 with 3 transformations applied
+	snowplowJSON1Mixed = []byte(`{"app_id":"again","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
-var messages = []*models.Message{
-	{
-		Data:         snowplowTsv1,
-		PartitionKey: "some-key",
-	},
-	{
-		Data:         snowplowTsv2,
-		PartitionKey: "some-key1",
-	},
-	{
-		Data:         snowplowTsv3,
-		PartitionKey: "some-key2",
-	},
-	{
-		Data:         nonSnowplowString,
-		PartitionKey: "some-key4",
-	},
-}
+	// snowplowJSON1 with 3 transformations applied, for order test
+	snowplowJSON1Order = []byte(`{"app_id":"3","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
-// snowplowJSON1 with 3 transformations applied
-var snowplowJSON1Mixed = []byte(`{"app_id":"again","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
+	// snowplowJSON1 with sha1 no salt hash transformations applied
+	snowplowJSON1Sha1NoSaltHashed = []byte(`{"app_id":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
-// snowplowJSON1 with 3 transformations applied, for order test
-var snowplowJSON1Order = []byte(`{"app_id":"3","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
+	// snowplowJSON1 with sha1 salt hash transformations applied
+	snowplowJSON1Sha1SaltHashed = []byte(`{"app_id":"5841e55de6c4486fa092f044a5189570dec421cb06652829","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"18.194.133.57","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
+)

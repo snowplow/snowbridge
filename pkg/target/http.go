@@ -37,7 +37,7 @@ import (
 
 // HTTPTargetConfig configures the destination for records consumed
 type HTTPTargetConfig struct {
-	HTTPURL                 string `hcl:"url"`
+	URL                     string `hcl:"url"`
 	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional"`
 	RequestTimeoutInMillis  int    `hcl:"request_timeout_in_millis,optional"`
 	ContentType             string `hcl:"content_type,optional"`
@@ -64,7 +64,8 @@ type HTTPTargetConfig struct {
 	TemplateFile  string         `hcl:"template_file,optional"`
 	ResponseRules *ResponseRules `hcl:"response_rules,block"`
 
-	IncludeTimingHeaders bool `hcl:"include_timing_headers,optional"`
+	IncludeTimingHeaders       bool `hcl:"include_timing_headers,optional"`
+	RejectionThresholdInMillis int  `hcl:"rejection_threshold_in_millis,optional"`
 }
 
 // ResponseRules is part of HTTP target configuration. It provides rules how HTTP respones should be handled. Response can be categerized as 'invalid' (bad data), as setup error or (if none of the rules matches) as a transient error.
@@ -105,6 +106,7 @@ type HTTPTarget struct {
 	responseRules   *ResponseRules
 
 	includeTimingHeaders bool
+	rejectionThreshold   int
 }
 
 func checkURL(str string) error {
@@ -141,83 +143,6 @@ func addHeadersToRequest(request *http.Request, headers map[string]string, dynam
 	for key, value := range dynamicHeaders {
 		request.Header.Add(key, value)
 	}
-}
-
-// newHTTPTarget creates a client for writing events to HTTP
-func newHTTPTarget(
-	httpURL string,
-	requestTimeoutMillis int,
-	requestMaxMessages int,
-	requestByteLimit int,
-	messageByteLimit int,
-	contentType string,
-	headers string,
-	basicAuthUsername string,
-	basicAuthPassword string,
-	enableTLS bool,
-	certFile string,
-	keyFile string,
-	caFile string,
-	skipVerifyTLS bool,
-	dynamicHeaders bool,
-	oAuth2ClientID string,
-	oAuth2ClientSecret string,
-	oAuth2RefreshToken string,
-	oAuth2TokenURL string,
-	templateFile string,
-	responseRules *ResponseRules,
-	includeTimingHeaders bool) (*HTTPTarget, error) {
-	err := checkURL(httpURL)
-	if err != nil {
-		return nil, err
-	}
-	parsedHeaders, err1 := getHeaders(headers)
-	if err1 != nil {
-		return nil, err1
-	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
-
-	tlsConfig, err2 := common.CreateTLSConfiguration(certFile, keyFile, caFile, skipVerifyTLS)
-	if err2 != nil {
-		return nil, err2
-	}
-
-	if enableTLS && tlsConfig != nil {
-		transport.TLSClientConfig = tlsConfig
-	}
-
-	client := createHTTPClient(oAuth2ClientID, oAuth2ClientSecret, oAuth2TokenURL, oAuth2RefreshToken, transport)
-	client.Timeout = time.Duration(requestTimeoutMillis) * time.Millisecond
-
-	approxTmplSize, requestTemplate, err := loadRequestTemplate(templateFile)
-	if err != nil {
-		return nil, err
-	}
-	if approxTmplSize >= requestByteLimit || approxTmplSize >= messageByteLimit {
-		return nil, errors.New("target error: Byte limit must be larger than template size")
-	}
-
-	return &HTTPTarget{
-		client:            client,
-		httpURL:           httpURL,
-		contentType:       contentType,
-		headers:           parsedHeaders,
-		basicAuthUsername: basicAuthUsername,
-		basicAuthPassword: basicAuthPassword,
-		log:               log.WithFields(log.Fields{"target": "http", "url": httpURL}),
-		dynamicHeaders:    dynamicHeaders,
-
-		requestMaxMessages: requestMaxMessages,
-		requestByteLimit:   requestByteLimit,
-		messageByteLimit:   messageByteLimit,
-
-		requestTemplate: requestTemplate,
-		approxTmplSize:  approxTmplSize,
-		responseRules:   responseRules,
-
-		includeTimingHeaders: includeTimingHeaders,
-	}, nil
 }
 
 func loadRequestTemplate(templateFile string) (int, *template.Template, error) {
@@ -298,30 +223,55 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		log.Warn("Neither 'request_timeout_in_millis' nor 'request_timeout_in_seconds' are set. The previous default is preserved, but strongly advise manual configuration of 'request_timeout_in_millis'")
 	}
 
-	return newHTTPTarget(
-		c.HTTPURL,
-		requestTimeoutInMillis,
-		c.RequestMaxMessages,
-		c.RequestByteLimit,
-		c.MessageByteLimit,
-		c.ContentType,
-		c.Headers,
-		c.BasicAuthUsername,
-		c.BasicAuthPassword,
-		c.EnableTLS,
-		c.CertFile,
-		c.KeyFile,
-		c.CaFile,
-		c.SkipVerifyTLS,
-		c.DynamicHeaders,
-		c.OAuth2ClientID,
-		c.OAuth2ClientSecret,
-		c.OAuth2RefreshToken,
-		c.OAuth2TokenURL,
-		c.TemplateFile,
-		c.ResponseRules,
-		c.IncludeTimingHeaders,
-	)
+	err := checkURL(c.URL)
+	if err != nil {
+		return nil, err
+	}
+	parsedHeaders, err1 := getHeaders(c.Headers)
+	if err1 != nil {
+		return nil, err1
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
+
+	tlsConfig, err2 := common.CreateTLSConfiguration(c.CertFile, c.KeyFile, c.CaFile, c.SkipVerifyTLS)
+	if err2 != nil {
+		return nil, err2
+	}
+
+	if c.EnableTLS && tlsConfig != nil {
+		transport.TLSClientConfig = tlsConfig
+	}
+
+	client := createHTTPClient(c.OAuth2ClientID, c.OAuth2ClientSecret, c.OAuth2TokenURL, c.OAuth2RefreshToken, transport)
+	client.Timeout = time.Duration(requestTimeoutInMillis) * time.Millisecond
+
+	approxTmplSize, requestTemplate, err := loadRequestTemplate(c.TemplateFile)
+	if err != nil {
+		return nil, err
+	}
+	if approxTmplSize >= c.RequestByteLimit || approxTmplSize >= c.MessageByteLimit {
+		return nil, errors.New("target error: Byte limit must be larger than template size")
+	}
+
+	return &HTTPTarget{
+		client:               client,
+		httpURL:              c.URL,
+		contentType:          c.ContentType,
+		headers:              parsedHeaders,
+		basicAuthUsername:    c.BasicAuthUsername,
+		basicAuthPassword:    c.BasicAuthPassword,
+		log:                  log.WithFields(log.Fields{"target": "http", "url": c.URL}),
+		dynamicHeaders:       c.DynamicHeaders,
+		requestMaxMessages:   c.RequestMaxMessages,
+		requestByteLimit:     c.RequestByteLimit,
+		messageByteLimit:     c.MessageByteLimit,
+		requestTemplate:      requestTemplate,
+		approxTmplSize:       approxTmplSize,
+		responseRules:        c.ResponseRules,
+		includeTimingHeaders: c.IncludeTimingHeaders,
+		rejectionThreshold:   c.RejectionThresholdInMillis,
+	}, nil
 }
 
 // The HTTPTargetAdapter type is an adapter for functions to be used as
@@ -335,6 +285,10 @@ func (f HTTPTargetAdapter) Create(i interface{}) (interface{}, error) {
 
 // ProvideDefault implements the ComponentConfigurable interface.
 func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
+	return defaultConfiguration(), nil
+}
+
+func defaultConfiguration() *HTTPTargetConfig {
 	// Provide defaults for the optional parameters
 	// whose default is not their zero value.
 	cfg := &HTTPTargetConfig{
@@ -348,10 +302,11 @@ func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
 			Invalid:    []Rule{},
 			SetupError: []Rule{},
 		},
-		IncludeTimingHeaders: false,
+		IncludeTimingHeaders:       false,
+		RejectionThresholdInMillis: 150,
 	}
 
-	return cfg, nil
+	return cfg
 }
 
 // AdaptHTTPTargetFunc returns an HTTPTargetAdapter.
@@ -394,7 +349,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			if ht.requestTemplate != nil {
 				reqBody, goodMsgs, badMsgs = ht.renderBatchUsingTemplate(group)
 			} else {
-				reqBody, goodMsgs, badMsgs = ht.provideRequestBody(group)
+				reqBody, goodMsgs, badMsgs = ht.renderJSONArray(group)
 			}
 
 			invalid = append(invalid, badMsgs...)
@@ -417,8 +372,8 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			requestStarted := time.Now().UTC()
 			if ht.includeTimingHeaders {
-				request.Header.Add("Request-Timeout", strconv.FormatInt(ht.client.Timeout.Milliseconds(), 10))
-				request.Header.Add("Request-Timestamp", strconv.FormatInt(requestStarted.UnixMilli(), 10))
+				rejectionTimestamp := requestStarted.UnixMilli() + (ht.client.Timeout.Milliseconds() - int64(ht.rejectionThreshold))
+				request.Header.Add("Rejection-Timestamp", strconv.FormatInt(rejectionTimestamp, 10))
 			}
 
 			resp, err := ht.client.Do(request) // Make request
@@ -437,8 +392,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			}
 
 			defer func() {
-				io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
+				if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+					ht.log.Error(err.Error())
+				}
+				if err := resp.Body.Close(); err != nil {
+					ht.log.Error(err.Error())
+				}
 			}()
 
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -475,12 +434,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			if rule := findMatchingRule(response, ht.responseRules.SetupError); rule != nil {
 				hitSetupError = true
 				if rule.MatchingBodyPart != "" {
-					errorDetails = fmt.Errorf("Got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
+					errorDetails = fmt.Errorf("got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
 				} else {
-					errorDetails = fmt.Errorf("Got setup error, response status: '%s'", resp.Status)
+					errorDetails = fmt.Errorf("got setup error, response status: '%s'", resp.Status)
 				}
 			} else {
-				errorDetails = fmt.Errorf("Got transient error, response status: '%s'", resp.Status)
+				errorDetails = fmt.Errorf("got transient error, response status: '%s'", resp.Status)
 			}
 			errResult = multierror.Append(errResult, errorDetails)
 			failed = append(failed, goodMsgs...)
@@ -582,7 +541,7 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 
 // Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
 // This is a http specific function so we define it here to avoid scope for misconfiguration
-func (ht *HTTPTarget) provideRequestBody(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
 
 	// This assumes the data is a valid JSON. Plain strings are no longer supported, but can be handled via a combination of transformation and templater
 	requestData := make([]json.RawMessage, 0)
