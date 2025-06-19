@@ -271,6 +271,35 @@ func TestWrite_RunOutOfAttempts(t *testing.T) {
 	assert.Equal(t, "Error 6", output.err.Error())
 }
 
+func TestWrite_OriginalDataCheck(t *testing.T) {
+	inputMessages := []*models.Message{
+		message("m1", "data 1"),
+		message("m2", "data 2"),
+	}
+
+	mocks := targetMocks{
+		goodTarget: []mockResult{
+			{sent: []string{"m1", "m2"}},
+		},
+	}
+
+	transformation := addingSuffixTransformation("lol")
+
+	output := run(inputMessages, mocks, transformation)
+	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
+	assert.Empty(t, output.sentToFailed)
+	assert.Empty(t, output.filtered)
+	assert.Empty(t, output.err)
+
+	// This shouldn't change...
+	assert.Equal(t, "data 1", string(inputMessages[0].OriginalData))
+	assert.Equal(t, "data 2", string(inputMessages[1].OriginalData))
+
+	// And this should be transformed.
+	assert.Equal(t, "data 1-lol", string(inputMessages[0].Data))
+	assert.Equal(t, "data 2-lol", string(inputMessages[1].Data))
+}
+
 func run(input []*models.Message, targetMocks targetMocks, transformation transform.TransformationApplyFunction) testOutput {
 	config, _ := config.NewConfig()
 	goodTarget := testTarget{results: targetMocks.goodTarget}
@@ -303,6 +332,17 @@ func noopTransformation() transform.TransformationApplyFunction {
 func filteringTransformation() transform.TransformationApplyFunction {
 	return func(m []*models.Message) *models.TransformationResult {
 		return models.NewTransformationResult(nil, m, nil)
+	}
+}
+
+// Simulating transformation result where all messages have added suffix
+func addingSuffixTransformation(suffix string) transform.TransformationApplyFunction {
+	return func(messages []*models.Message) *models.TransformationResult {
+		for _, m := range messages {
+			newData := string(m.Data) + "-" + suffix
+			m.Data = []byte(newData)
+		}
+		return models.NewTransformationResult(messages, nil, nil)
 	}
 }
 
