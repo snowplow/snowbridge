@@ -9,7 +9,7 @@
  * OF THE SOFTWARE, YOU AGREE TO THE TERMS OF SUCH LICENSE AGREEMENT.
  */
 
-package cmd
+package pkg
 
 const (
 	// AppVersion is the current version of the app

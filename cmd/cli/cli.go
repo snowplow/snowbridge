@@ -28,6 +28,7 @@ import (
 	retry "github.com/avast/retry-go/v4"
 	"github.com/snowplow/snowbridge/cmd"
 	"github.com/snowplow/snowbridge/config"
+	"github.com/snowplow/snowbridge/pkg"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/observer"
@@ -40,8 +41,8 @@ import (
 )
 
 const (
-	appVersion   = cmd.AppVersion
-	appName      = cmd.AppName
+	appVersion   = pkg.AppVersion
+	appName      = pkg.AppName
 	appUsage     = "Replicates data streams to supported targets"
 	appCopyright = "(c) 2020-present Snowplow Analytics Ltd. All rights reserved."
 )
@@ -125,7 +126,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	}
 	t.Open()
 
-	ft, err := cfg.GetFailureTarget(cmd.AppName, cmd.AppVersion)
+	ft, err := cfg.GetFailureTarget(pkg.AppName, pkg.AppVersion)
 	if err != nil {
 		alertChan <- err
 		return err

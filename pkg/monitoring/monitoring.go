@@ -12,12 +12,32 @@
 package monitoring
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/snowplow/snowbridge/pkg"
 )
+
+const (
+	igluPath = "com.snowplowanalytics.iglu/v1"
+)
+
+type MonitoringEvent struct {
+	Schema string         `json:"schema"`
+	Data   MonitoringData `json:"data"`
+}
+
+type MonitoringData struct {
+	AppName    string            `json:"appName"`
+	AppVersion string            `json:"appVersion"`
+	Tags       map[string]string `json:"tags"`
+
+	Message string `json:"message,omitempty"`
+}
 
 // MonitoringSender describes the interface for how to send heartbeat & alert events
 type MonitoringSender interface {
@@ -57,8 +77,13 @@ func (m *Monitoring) Start() {
 			if time.Now().UTC().After(reportTime) {
 				m.log.Info("Sending heartbeat")
 				if m.client != nil {
-					req := m.prepareHeartbeatEventRequest()
-					_, err := m.client.Do(req)
+					req, err := m.prepareHeartbeatEventRequest()
+					if err != nil {
+						m.log.Warnf("failed to prepare heartbeat event request: %s", err)
+						continue
+					}
+
+					_, err = m.client.Do(req)
 					if err != nil {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
 					}
@@ -73,8 +98,13 @@ func (m *Monitoring) Start() {
 			case err := <-m.alertChan:
 				m.log.Info("Sending alert")
 				if m.client != nil {
-					req := m.prepareAlertEventRequest(err)
-					_, err := m.client.Do(req)
+					req, err := m.prepareAlertEventRequest(err)
+					if err != nil {
+						m.log.Warnf("failed to prepare heartbeat event request: %s", err)
+						continue
+					}
+
+					_, err = m.client.Do(req)
 					if err != nil {
 						m.log.Warnf("failed to send alert event: %s", err)
 					}
@@ -89,22 +119,69 @@ func (m *Monitoring) Stop() {
 	m.exitSignal <- struct{}{}
 }
 
-func (m *Monitoring) prepareHeartbeatEventRequest() *http.Request {
-	return &http.Request{
-		Method: "POST",
-		URL: &url.URL{
-			Scheme: "https",
-			Host:   m.endpoint,
+func (m *Monitoring) prepareHeartbeatEventRequest() (*http.Request, error) {
+	header := http.Header{}
+	header.Add("Content-Type", "application/json")
+
+	event := MonitoringEvent{
+		Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
+		Data: MonitoringData{
+			AppName:    pkg.AppName,
+			AppVersion: pkg.AppVersion,
+			Tags:       m.tags,
 		},
 	}
+
+	var body bytes.Buffer
+	err := json.NewEncoder(&body).Encode(event)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s://%s/%s", "https", m.endpoint, igluPath)
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		url,
+		&body,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
-func (m *Monitoring) prepareAlertEventRequest(_ error) *http.Request {
-	return &http.Request{
-		Method: "POST",
-		URL: &url.URL{
-			Scheme: "https",
-			Host:   m.endpoint,
+func (m *Monitoring) prepareAlertEventRequest(errMsg error) (*http.Request, error) {
+	header := http.Header{}
+	header.Add("Content-Type", "application/json")
+
+	event := MonitoringEvent{
+		Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
+		Data: MonitoringData{
+			AppName:    pkg.AppName,
+			AppVersion: pkg.AppVersion,
+			Tags:       m.tags,
+			Message:    errMsg.Error(),
 		},
 	}
+
+	var body bytes.Buffer
+	err := json.NewEncoder(&body).Encode(event)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s://%s/%s", "https", m.endpoint, igluPath)
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		url,
+		&body,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
