@@ -13,6 +13,7 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/snowplow/snowbridge/pkg/failure"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
+	"github.com/snowplow/snowbridge/pkg/monitoring"
 	"github.com/snowplow/snowbridge/pkg/observer"
 	"github.com/snowplow/snowbridge/pkg/statsreceiver"
 	"github.com/snowplow/snowbridge/pkg/statsreceiver/statsreceiveriface"
@@ -45,18 +47,19 @@ type Config struct {
 
 // configurationData for holding all configuration options
 type configurationData struct {
-	Source           *component     `hcl:"source,block"`
-	Target           *component     `hcl:"target,block"`
-	FailureTarget    *failureConfig `hcl:"failure_target,block"`
-	Sentry           *sentryConfig  `hcl:"sentry,block"`
-	StatsReceiver    *statsConfig   `hcl:"stats_receiver,block"`
-	Transformations  []*component   `hcl:"transform,block"`
-	LogLevel         string         `hcl:"log_level,optional"`
-	UserProvidedID   string         `hcl:"user_provided_id,optional"`
-	DisableTelemetry bool           `hcl:"disable_telemetry,optional"`
-	License          *licenseConfig `hcl:"license,block"`
-	Retry            *retryConfig   `hcl:"retry,block"`
-	Metrics          *metricsConfig `hcl:"metrics,block"`
+	Source           *component        `hcl:"source,block"`
+	Target           *component        `hcl:"target,block"`
+	FailureTarget    *failureConfig    `hcl:"failure_target,block"`
+	Sentry           *sentryConfig     `hcl:"sentry,block"`
+	StatsReceiver    *statsConfig      `hcl:"stats_receiver,block"`
+	Transformations  []*component      `hcl:"transform,block"`
+	LogLevel         string            `hcl:"log_level,optional"`
+	UserProvidedID   string            `hcl:"user_provided_id,optional"`
+	DisableTelemetry bool              `hcl:"disable_telemetry,optional"`
+	License          *licenseConfig    `hcl:"license,block"`
+	Retry            *retryConfig      `hcl:"retry,block"`
+	Metrics          *metricsConfig    `hcl:"metrics,block"`
+	Monitoring       *monitoringConfig `hcl:"monitoring,block"`
 }
 
 // component is a type to abstract over configuration blocks.
@@ -105,6 +108,12 @@ type metricsConfig struct {
 	E2ELatencyEnabled bool `hcl:"enable_e2e_latency,optional"`
 }
 
+type monitoringConfig struct {
+	Endpoint          string            `hcl:"endpoint"`
+	Tags              map[string]string `hcl:"tags,block,optional"`
+	HeartbeatInterval time.Duration     `hcl:"heartbeat_interval,optional"`
+}
+
 type transientRetryConfig struct {
 	Delay       int `hcl:"delay_ms,optional"`
 	MaxAttempts int `hcl:"max_attempts,optional"`
@@ -149,6 +158,10 @@ func defaultConfigData() *configurationData {
 		},
 		Metrics: &metricsConfig{
 			E2ELatencyEnabled: false,
+		},
+		Monitoring: &monitoringConfig{
+			Tags:              map[string]string{},
+			HeartbeatInterval: time.Duration(time.Minute * 60),
 		},
 	}
 }
@@ -355,6 +368,15 @@ func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error)
 		return nil, err
 	}
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
+}
+
+func (c *Config) GetMonitoring(alertChan chan error) (*monitoring.Monitoring, error) {
+	client := http.DefaultClient
+	endpoint := c.Data.Monitoring.Endpoint
+	tags := c.Data.Monitoring.Tags
+	heartbeatInterval := c.Data.Monitoring.HeartbeatInterval
+
+	return monitoring.NewMonitoring(client, endpoint, tags, heartbeatInterval, alertChan), nil
 }
 
 // getStatsReceiver builds and returns the stats receiver

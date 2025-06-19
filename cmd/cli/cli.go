@@ -98,24 +98,36 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 
 // RunApp runs application (without cli stuff)
 func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) error {
+	// First thing is to spin up monitoring, so we can start alerting as soon as possible
+	alertChan := make(chan error, 1)
+	monitoring, err := cfg.GetMonitoring(alertChan)
+	if err != nil {
+		return err
+	}
+	monitoring.Start()
+
 	s, err := sourceconfig.GetSource(cfg, supportedSources)
 	if err != nil {
+		alertChan <- err
 		return err
 	}
 
 	tr, err := transformconfig.GetTransformations(cfg, supportedTransformations)
 	if err != nil {
+		alertChan <- err
 		return err
 	}
 
 	t, err := cfg.GetTarget()
 	if err != nil {
+		alertChan <- err
 		return err
 	}
 	t.Open()
 
 	ft, err := cfg.GetFailureTarget(cmd.AppName, cmd.AppVersion)
 	if err != nil {
+		alertChan <- err
 		return err
 	}
 	ft.Open()
@@ -184,6 +196,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	t.Close()
 	ft.Close()
 	o.Stop()
+	monitoring.Stop()
 	return nil
 }
 
