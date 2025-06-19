@@ -55,7 +55,7 @@ func TestObserverTargetWrite(t *testing.T) {
 
 	sr := TestMonitoringSender{onDo: onDo}
 
-	observer := NewMonitoring(&sr, "test.webhook.com", nil, time.Second, nil)
+	observer := NewMonitoring(&sr, "https://test.webhook.com", nil, time.Second, nil)
 	assert.NotNil(observer)
 	observer.Start()
 

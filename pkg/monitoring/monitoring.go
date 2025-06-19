@@ -14,16 +14,11 @@ package monitoring
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg"
-)
-
-const (
-	igluPath = "com.snowplowanalytics.iglu/v1"
 )
 
 type MonitoringEvent struct {
@@ -138,11 +133,9 @@ func (m *Monitoring) prepareHeartbeatEventRequest() (*http.Request, error) {
 		return nil, err
 	}
 
-	url := fmt.Sprintf("%s://%s/%s", "https", m.endpoint, igluPath)
-
 	req, err := http.NewRequest(
 		http.MethodPost,
-		url,
+		m.endpoint,
 		&body,
 	)
 	if err != nil {
@@ -172,11 +165,9 @@ func (m *Monitoring) prepareAlertEventRequest(errMsg error) (*http.Request, erro
 		return nil, err
 	}
 
-	url := fmt.Sprintf("%s://%s/%s", "https", m.endpoint, igluPath)
-
 	req, err := http.NewRequest(
 		http.MethodPost,
-		url,
+		m.endpoint,
 		&body,
 	)
 	if err != nil {
