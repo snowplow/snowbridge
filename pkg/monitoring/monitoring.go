@@ -67,12 +67,14 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 }
 
 func (m *Monitoring) Start() {
+	ticker := time.NewTicker(m.heartbeatInterval)
+
 	go func() {
-		reportTime := time.Now().UTC().Add(m.heartbeatInterval)
 
 	OutterLoop:
 		for {
-			if time.Now().UTC().After(reportTime) {
+			select {
+			case <-ticker.C:
 				m.log.Info("Sending heartbeat")
 				if m.client != nil {
 					req, err := m.prepareHeartbeatEventRequest()
@@ -86,10 +88,6 @@ func (m *Monitoring) Start() {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
 					}
 				}
-				reportTime = time.Now().UTC().Add(m.heartbeatInterval)
-			}
-
-			select {
 			case <-m.exitSignal:
 				m.log.Info("Monitoring is shutting down")
 				break OutterLoop
@@ -107,7 +105,6 @@ func (m *Monitoring) Start() {
 						m.log.Warnf("failed to send alert event: %s", err)
 					}
 				}
-			default:
 			}
 		}
 	}()
