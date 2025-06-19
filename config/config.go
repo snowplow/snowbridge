@@ -112,7 +112,7 @@ type metricsConfig struct {
 type monitoringConfig struct {
 	Endpoint          string            `hcl:"endpoint"`
 	Tags              map[string]string `hcl:"tags"`
-	HeartbeatInterval time.Duration     `hcl:"heartbeat_interval,optional"`
+	HeartbeatInterval int               `hcl:"heartbeat_interval,optional"`
 }
 
 type transientRetryConfig struct {
@@ -163,7 +163,7 @@ func defaultConfigData() *configurationData {
 		},
 		Monitoring: &monitoringConfig{
 			Tags:              map[string]string{},
-			HeartbeatInterval: time.Duration(time.Minute * 60),
+			HeartbeatInterval: 3600,
 		},
 	}
 }
@@ -434,7 +434,7 @@ func (c *Config) GetMonitoring(alertChan chan error) (*monitoring.Monitoring, er
 	client := http.DefaultClient
 	endpoint := c.Data.Monitoring.Endpoint
 	tags := c.Data.Monitoring.Tags
-	heartbeatInterval := c.Data.Monitoring.HeartbeatInterval
+	heartbeatInterval := time.Duration(c.Data.Monitoring.HeartbeatInterval) * time.Second
 
 	return monitoring.NewMonitoring(client, endpoint, tags, heartbeatInterval, alertChan), nil
 }

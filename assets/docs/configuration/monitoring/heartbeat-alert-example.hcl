@@ -7,6 +7,6 @@ monitoring {
     pipeline = "production"
   }
 
-  # How often to send the heartbeat event
-  heartbeat_interval = "60m"
+  # How often to send the heartbeat event (in seconds)
+  heartbeat_interval = 3600
 }
