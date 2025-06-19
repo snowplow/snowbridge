@@ -67,6 +67,9 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 }
 
 func (m *Monitoring) Start() {
+	header := http.Header{}
+	header.Add("Content-Type", "application/json")
+
 	ticker := time.NewTicker(m.heartbeatInterval)
 
 	go func() {
@@ -83,6 +86,7 @@ func (m *Monitoring) Start() {
 						continue
 					}
 
+					req.Header = header
 					_, err = m.client.Do(req)
 					if err != nil {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
@@ -100,6 +104,7 @@ func (m *Monitoring) Start() {
 						continue
 					}
 
+					req.Header = header
 					_, err = m.client.Do(req)
 					if err != nil {
 						m.log.Warnf("failed to send alert event: %s", err)
@@ -115,9 +120,6 @@ func (m *Monitoring) Stop() {
 }
 
 func (m *Monitoring) prepareHeartbeatEventRequest() (*http.Request, error) {
-	header := http.Header{}
-	header.Add("Content-Type", "application/json")
-
 	event := MonitoringEvent{
 		Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
 		Data: MonitoringData{
@@ -146,9 +148,6 @@ func (m *Monitoring) prepareHeartbeatEventRequest() (*http.Request, error) {
 }
 
 func (m *Monitoring) prepareAlertEventRequest(errMsg error) (*http.Request, error) {
-	header := http.Header{}
-	header.Add("Content-Type", "application/json")
-
 	event := MonitoringEvent{
 		Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
 		Data: MonitoringData{
