@@ -12,6 +12,7 @@
 package monitoring
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -37,9 +38,13 @@ func TestObserverTargetWrite(t *testing.T) {
 	expectedRequest := struct {
 		Method string
 		URL    string
+		Body   MonitoringEvent
 	}{
 		Method: "POST",
 		URL:    "https://test.webhook.com",
+		Body: MonitoringEvent{
+			Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
+		},
 	}
 
 	counter := 0
@@ -48,6 +53,11 @@ func TestObserverTargetWrite(t *testing.T) {
 		assert.NotNil(b)
 		assert.Equal(expectedRequest.Method, b.Method)
 		assert.Equal(expectedRequest.URL, b.URL.String())
+
+		var actualBody MonitoringEvent
+		json.NewDecoder(b.Body).Decode(&actualBody)
+
+		assert.Equal(expectedRequest.Body.Schema, actualBody.Schema)
 
 		counter++
 		return nil, nil

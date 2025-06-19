@@ -80,7 +80,15 @@ func (m *Monitoring) Start() {
 			case <-ticker.C:
 				m.log.Info("Sending heartbeat")
 				if m.client != nil {
-					req, err := m.prepareHeartbeatEventRequest()
+					event := MonitoringEvent{
+						Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
+						Data: MonitoringData{
+							AppName:    m.appName,
+							AppVersion: m.appVersion,
+							Tags:       m.tags,
+						},
+					}
+					req, err := m.prepareRequest(event)
 					if err != nil {
 						m.log.Warnf("failed to prepare heartbeat event request: %s", err)
 						continue
@@ -98,7 +106,16 @@ func (m *Monitoring) Start() {
 			case err := <-m.alertChan:
 				m.log.Info("Sending alert")
 				if m.client != nil {
-					req, err := m.prepareAlertEventRequest(err)
+					event := MonitoringEvent{
+						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
+						Data: MonitoringData{
+							AppName:    m.appName,
+							AppVersion: m.appVersion,
+							Tags:       m.tags,
+							Message:    err.Error(),
+						},
+					}
+					req, err := m.prepareRequest(event)
 					if err != nil {
 						m.log.Warnf("failed to prepare heartbeat event request: %s", err)
 						continue
@@ -119,45 +136,7 @@ func (m *Monitoring) Stop() {
 	m.exitSignal <- struct{}{}
 }
 
-func (m *Monitoring) prepareHeartbeatEventRequest() (*http.Request, error) {
-	event := MonitoringEvent{
-		Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
-		Data: MonitoringData{
-			AppName:    m.appName,
-			AppVersion: m.appVersion,
-			Tags:       m.tags,
-		},
-	}
-
-	var body bytes.Buffer
-	err := json.NewEncoder(&body).Encode(event)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(
-		http.MethodPost,
-		m.endpoint,
-		&body,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-func (m *Monitoring) prepareAlertEventRequest(errMsg error) (*http.Request, error) {
-	event := MonitoringEvent{
-		Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
-		Data: MonitoringData{
-			AppName:    m.appName,
-			AppVersion: m.appVersion,
-			Tags:       m.tags,
-			Message:    errMsg.Error(),
-		},
-	}
-
+func (m *Monitoring) prepareRequest(event MonitoringEvent) (*http.Request, error) {
 	var body bytes.Buffer
 	err := json.NewEncoder(&body).Encode(event)
 	if err != nil {
