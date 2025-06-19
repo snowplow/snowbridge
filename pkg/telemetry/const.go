@@ -14,7 +14,7 @@ package telemetry
 import (
 	"time"
 
-	"github.com/snowplow/snowbridge/pkg"
+	"github.com/snowplow/snowbridge/cmd"
 )
 
 var (
@@ -23,6 +23,6 @@ var (
 	protocol           = "https"
 	url                = "telemetry-g.snowplowanalytics.com"
 	port               = "443"
-	applicationName    = pkg.AppName
-	applicationVersion = pkg.AppVersion
+	applicationName    = cmd.AppName
+	applicationVersion = cmd.AppVersion
 )

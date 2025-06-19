@@ -24,7 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/pkg"
+	"github.com/snowplow/snowbridge/cmd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,7 +60,7 @@ func runDockerCommand(secondsBeforeShutdown time.Duration, testName string, conf
 	}
 
 	containerName := testName + "-" + binaryVersion
-	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts, pkg.AppVersion, binaryVersion)
+	cmdFull := fmt.Sprintf(cmdTemplate, inputFilePath, containerName, configFilePath, additionalOpts, cmd.AppVersion, binaryVersion)
 
 	cmd := exec.Command("bash", "-c", cmdFull)
 

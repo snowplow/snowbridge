@@ -28,7 +28,6 @@ import (
 	retry "github.com/avast/retry-go/v4"
 	"github.com/snowplow/snowbridge/cmd"
 	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/snowplow/snowbridge/pkg/observer"
@@ -41,8 +40,8 @@ import (
 )
 
 const (
-	appVersion   = pkg.AppVersion
-	appName      = pkg.AppName
+	appVersion   = cmd.AppVersion
+	appName      = cmd.AppName
 	appUsage     = "Replicates data streams to supported targets"
 	appCopyright = "(c) 2020-present Snowplow Analytics Ltd. All rights reserved."
 )
@@ -105,7 +104,7 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) error {
 	// First thing is to spin up monitoring, so we can start alerting as soon as possible
 	alertChan := make(chan error, 1)
-	monitoring, err := cfg.GetMonitoring(alertChan)
+	monitoring, err := cfg.GetMonitoring(cmd.AppName, cmd.AppVersion, alertChan)
 	if err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	}
 	t.Open()
 
-	ft, err := cfg.GetFailureTarget(pkg.AppName, pkg.AppVersion)
+	ft, err := cfg.GetFailureTarget(cmd.AppName, cmd.AppVersion)
 	if err != nil {
 		alertChan <- err
 		return err

@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/pkg"
 )
 
 type MonitoringEvent struct {
@@ -41,6 +40,8 @@ type MonitoringSender interface {
 
 // Monitoring holds a new client and supporting data for sending heartbeat & alert events
 type Monitoring struct {
+	appName           string
+	appVersion        string
 	client            MonitoringSender
 	endpoint          string
 	tags              map[string]string
@@ -51,8 +52,10 @@ type Monitoring struct {
 	exitSignal chan struct{}
 }
 
-func NewMonitoring(client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
+func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
 	return &Monitoring{
+		appName:           appName,
+		appVersion:        appVersion,
 		client:            client,
 		endpoint:          endpoint,
 		tags:              tags,
@@ -121,8 +124,8 @@ func (m *Monitoring) prepareHeartbeatEventRequest() (*http.Request, error) {
 	event := MonitoringEvent{
 		Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
 		Data: MonitoringData{
-			AppName:    pkg.AppName,
-			AppVersion: pkg.AppVersion,
+			AppName:    m.appName,
+			AppVersion: m.appVersion,
 			Tags:       m.tags,
 		},
 	}
@@ -152,8 +155,8 @@ func (m *Monitoring) prepareAlertEventRequest(errMsg error) (*http.Request, erro
 	event := MonitoringEvent{
 		Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
 		Data: MonitoringData{
-			AppName:    pkg.AppName,
-			AppVersion: pkg.AppVersion,
+			AppName:    m.appName,
+			AppVersion: m.appVersion,
 			Tags:       m.tags,
 			Message:    errMsg.Error(),
 		},

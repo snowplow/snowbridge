@@ -430,13 +430,13 @@ func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error)
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
 }
 
-func (c *Config) GetMonitoring(alertChan chan error) (*monitoring.Monitoring, error) {
+func (c *Config) GetMonitoring(appName, appVersion string, alertChan chan error) (*monitoring.Monitoring, error) {
 	client := http.DefaultClient
 	endpoint := c.Data.Monitoring.Endpoint
 	tags := c.Data.Monitoring.Tags
 	heartbeatInterval := time.Duration(c.Data.Monitoring.HeartbeatInterval) * time.Second
 
-	return monitoring.NewMonitoring(client, endpoint, tags, heartbeatInterval, alertChan), nil
+	return monitoring.NewMonitoring(appName, appVersion, client, endpoint, tags, heartbeatInterval, alertChan), nil
 }
 
 // getStatsReceiver builds and returns the stats receiver
