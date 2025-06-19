@@ -55,7 +55,9 @@ func TestObserverTargetWrite(t *testing.T) {
 		assert.Equal(expectedRequest.URL, b.URL.String())
 
 		var actualBody MonitoringEvent
-		json.NewDecoder(b.Body).Decode(&actualBody)
+		if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
+			t.Fatalf("not expecting error: %s", err)
+		}
 
 		assert.Equal(expectedRequest.Body.Schema, actualBody.Schema)
 
