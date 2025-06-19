@@ -225,6 +225,8 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targetiface.Target, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
 
+		copyOriginalData(messages)
+
 		// Apply transformations
 		transformed := tr(messages)
 		// no error as errors should be returned in the failures array of TransformationResult
@@ -378,4 +380,13 @@ func exitWithError(err error, flushSentry bool) {
 		sentry.Flush(2 * time.Second)
 	}
 	os.Exit(1)
+}
+
+func copyOriginalData(messages []*models.Message) {
+	// To preserve original data (which may be needed downstream) we copy data provided by source before we run any transformations
+	for _, msg := range messages {
+		buffer := make([]byte, len(msg.Data))
+		copy(buffer, msg.Data)
+		msg.OriginalData = buffer
+	}
 }
