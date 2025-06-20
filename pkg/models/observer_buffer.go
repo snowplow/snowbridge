@@ -55,6 +55,34 @@ type ObserverBuffer struct {
 	MaxE2ELatency       time.Duration
 	MinE2ELatency       time.Duration
 	SumE2ELatency       time.Duration
+
+	// Using observer buffer to collect metadata
+	ErrorsMetadata ErrorsMetadata
+}
+
+type ErrorsMetadata struct {
+
+	//TODO: Instead of storing a lists here we could have a map with already aggregated/categorized errors and counts per each.
+
+	// This field contains accumulated errors for messages which will be retried.
+	// TODO: do we need that in metadata reporting?
+	Retryable []error
+
+	// This field contains accumulated errors for invalid messages. Will not be retried.
+	Invalid []error
+}
+
+func (b *ObserverBuffer) appendRetryableMetadata(res *TargetWriteResult) {
+	for _, msg := range res.Failed {
+		b.ErrorsMetadata.Retryable = append(b.ErrorsMetadata.Retryable, msg.GetError())
+	}
+}
+
+func (b *ObserverBuffer) appendInvalidMetadata(res *TargetWriteResult) {
+	// 'Sent' field because here we have a write result to the invalid target.
+	for _, msg := range res.Sent {
+		b.ErrorsMetadata.Invalid = append(b.ErrorsMetadata.Invalid, msg.GetError())
+	}
 }
 
 // AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
@@ -69,6 +97,7 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	b.MsgTotal += res.Total()
 
 	b.appendWriteResult(res)
+	b.appendRetryableMetadata(res)
 }
 
 // AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
@@ -97,6 +126,7 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	b.InvalidMsgTotal += res.Total()
 
 	b.appendWriteResult(res)
+	b.appendInvalidMetadata(res)
 }
 
 func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
