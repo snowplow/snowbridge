@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -67,6 +68,8 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 }
 
 func (m *Monitoring) Start() {
+	var once sync.Once
+
 	header := http.Header{}
 	header.Add("Content-Type", "application/json")
 
@@ -74,6 +77,7 @@ func (m *Monitoring) Start() {
 
 	go func() {
 
+		alertCooldown := time.NewTicker(time.Millisecond * 100)
 	OuterLoop:
 		for {
 			select {
@@ -100,33 +104,40 @@ func (m *Monitoring) Start() {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
 					}
 				}
+			case <-alertCooldown.C:
+				select {
+				case err := <-m.alertChan:
+					once.Do(func() {
+						alertCooldown.Reset(time.Second * 60)
+					})
+					m.log.Info("Sending alert")
+					if m.client != nil {
+						event := MonitoringEvent{
+							Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
+							Data: MonitoringData{
+								AppName:    m.appName,
+								AppVersion: m.appVersion,
+								Tags:       m.tags,
+								Message:    err.Error(),
+							},
+						}
+						req, err := m.prepareRequest(event)
+						if err != nil {
+							m.log.Warnf("failed to prepare heartbeat event request: %s", err)
+							continue
+						}
+
+						req.Header = header
+						_, err = m.client.Do(req)
+						if err != nil {
+							m.log.Warnf("failed to send alert event: %s", err)
+						}
+					}
+				default:
+				}
 			case <-m.exitSignal:
 				m.log.Info("Monitoring is shutting down")
 				break OuterLoop
-			case err := <-m.alertChan:
-				m.log.Info("Sending alert")
-				if m.client != nil {
-					event := MonitoringEvent{
-						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
-						Data: MonitoringData{
-							AppName:    m.appName,
-							AppVersion: m.appVersion,
-							Tags:       m.tags,
-							Message:    err.Error(),
-						},
-					}
-					req, err := m.prepareRequest(event)
-					if err != nil {
-						m.log.Warnf("failed to prepare heartbeat event request: %s", err)
-						continue
-					}
-
-					req.Header = header
-					_, err = m.client.Do(req)
-					if err != nil {
-						m.log.Warnf("failed to send alert event: %s", err)
-					}
-				}
 			}
 		}
 	}()

@@ -264,7 +264,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeFiltered, alertChan)
+			err := handleWrite(cfg, writeFiltered, nil)
 
 			if err != nil {
 				return err
@@ -285,7 +285,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeOversized, alertChan)
+			err := handleWrite(cfg, writeOversized, nil)
 
 			if err != nil {
 				return err
@@ -306,7 +306,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeInvalid, alertChan)
+			err := handleWrite(cfg, writeInvalid, nil)
 
 			if err != nil {
 				return err
@@ -329,7 +329,9 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 	onSetupError := retry.OnRetry(func(attempt uint, err error) {
 		log.Warnf("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
 		// Here we can set unhealthy status + send monitoring alerts in the future. Nothing happens here now.
-		alertChan <- err
+		if alertChan != nil {
+			alertChan <- err
+		}
 	})
 
 	//First try to handle error as setup...
