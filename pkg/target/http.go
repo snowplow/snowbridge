@@ -409,11 +409,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			response := response{Body: string(responseBody), Status: resp.StatusCode}
 
-			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
-				for _, msg := range goodMsgs {
-					msg.SetError(errors.New(response.Body))
-				}
+			// Set errors with code and body for metadata reporting
+			for _, msg := range goodMsgs {
+				msg.SetError(apiError{httpStatus: resp.Status, responseBody: response.Body})
+			}
 
+			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
 				invalid = append(invalid, goodMsgs...)
 				continue
 			}
@@ -505,7 +506,7 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 		var asJSON interface{}
 
 		if err := json.Unmarshal(msg.Data, &asJSON); err != nil {
-			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))
+			msg.SetError(templatingError{err: err, safeMessage: "Message can't be parsed as valid JSON"})
 			invalid = append(invalid, msg)
 			continue
 		}
@@ -518,7 +519,7 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 	tmplErr := ht.requestTemplate.Execute(&buf, validJsons)
 	if tmplErr != nil {
 		for _, msg := range success {
-			msg.SetError(errors.Wrap(tmplErr, "Could not create request JSON"))
+			msg.SetError(templatingError{err: tmplErr, safeMessage: "Could not create request JSON"})
 			invalid = append(invalid, msg)
 		}
 		return nil, nil, invalid
@@ -585,4 +586,40 @@ func (ht *HTTPTarget) groupByDynamicHeaders(messages []*models.Message) [][]*mod
 	}
 
 	return outBatches
+}
+
+type apiError struct {
+	httpStatus   string
+	responseBody string
+}
+
+func (e apiError) Error() string {
+	return fmt.Sprintf("HTTP Status Code: %s Body: %s", e.httpStatus, e.responseBody)
+}
+
+func (e apiError) ReportableCode() string {
+	return e.httpStatus
+}
+
+func (e apiError) ReportableDescription() string {
+	//TODO sanitize response body
+	return ""
+}
+
+type templatingError struct {
+	safeMessage string
+	err         error
+}
+
+func (e templatingError) Error() string {
+	return errors.Wrap(e.err, e.safeMessage).Error()
+}
+
+func (e templatingError) ReportableCode() string {
+	return "TemplateError"
+}
+
+func (e templatingError) ReportableDescription() string {
+	//TODO use error somehow?
+	return e.safeMessage
 }

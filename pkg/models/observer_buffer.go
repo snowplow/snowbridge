@@ -13,6 +13,7 @@ package models
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"time"
 
 	"github.com/snowplow/snowbridge/pkg/common"
@@ -55,6 +56,27 @@ type ObserverBuffer struct {
 	MaxE2ELatency       time.Duration
 	MinE2ELatency       time.Duration
 	SumE2ELatency       time.Duration
+
+	InvalidErrors []ErrorMetadata
+	FailedErrors  []ErrorMetadata
+}
+
+func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
+	for _, msg := range msgs {
+		var em ErrorMetadata
+		if errors.As(msg.GetError(), &em) {
+			b.InvalidErrors = append(b.InvalidErrors, em)
+		}
+	}
+}
+
+func (b *ObserverBuffer) appendFailedError(msgs []*Message) {
+	for _, msg := range msgs {
+		var em ErrorMetadata
+		if errors.As(msg.GetError(), &em) {
+			b.FailedErrors = append(b.FailedErrors, em)
+		}
+	}
 }
 
 // AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
@@ -69,6 +91,7 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	b.MsgTotal += res.Total()
 
 	b.appendWriteResult(res)
+	b.appendFailedError(res.Failed)
 }
 
 // AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
@@ -97,6 +120,7 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	b.InvalidMsgTotal += res.Total()
 
 	b.appendWriteResult(res)
+	b.appendInvalidError(res.Sent)
 }
 
 func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
