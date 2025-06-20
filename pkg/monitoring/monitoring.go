@@ -74,7 +74,7 @@ func (m *Monitoring) Start() {
 
 	go func() {
 
-	OutterLoop:
+	OuterLoop:
 		for {
 			select {
 			case <-ticker.C:
@@ -102,7 +102,7 @@ func (m *Monitoring) Start() {
 				}
 			case <-m.exitSignal:
 				m.log.Info("Monitoring is shutting down")
-				break OutterLoop
+				break OuterLoop
 			case err := <-m.alertChan:
 				m.log.Info("Sending alert")
 				if m.client != nil {
