@@ -24,6 +24,7 @@ import (
 // and emitting them to downstream destinations
 type Observer struct {
 	statsClient              statsreceiveriface.StatsReceiver
+	errorsMetadataClient     statsreceiveriface.StatsReceiver // for now reusing stats receiver interface for metadata reporting, but it could be a new one
 	exitSignal               chan struct{}
 	stopDone                 chan struct{}
 	filteredChan             chan *models.FilterResult
@@ -93,10 +94,15 @@ func (o *Observer) Start() {
 				o.log.Debugf("Observer timed out after (%v) waiting for result", o.timeout)
 			}
 
+			// We can make separate report time/buffers for errors metadata
 			if time.Now().UTC().After(reportTime) {
 				o.log.Info(buffer.String())
 				if o.statsClient != nil {
 					o.statsClient.Send(&buffer)
+				}
+
+				if o.errorsMetadataClient != nil {
+					o.errorsMetadataClient.Send(&buffer)
 				}
 
 				reportTime = time.Now().UTC().Add(o.reportInterval)
