@@ -421,11 +421,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			response := response{Body: string(responseBody), Status: resp.StatusCode}
 
-			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
-				for _, msg := range goodMsgs {
-					msg.SetError(errors.New(response.Body))
-				}
+			// Set errors with code and body for metadata reporting
+			for _, msg := range goodMsgs {
+				msg.SetError(models.TargetApiError{Code: resp.Status, Err: errors.New(response.Body)})
+			}
 
+			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
 				invalid = append(invalid, goodMsgs...)
 				continue
 			}
@@ -517,7 +518,9 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 		var asJSON interface{}
 
 		if err := json.Unmarshal(msg.Data, &asJSON); err != nil {
-			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))
+
+			// TODO is this something we want in metadata reporting?
+			msg.SetError(models.TargetTemplatingError{Err: errors.Wrap(err, "Message can't be parsed as valid JSON")})
 			invalid = append(invalid, msg)
 			continue
 		}
@@ -530,7 +533,9 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 	tmplErr := ht.requestTemplate.Execute(&buf, validJsons)
 	if tmplErr != nil {
 		for _, msg := range success {
-			msg.SetError(errors.Wrap(tmplErr, "Could not create request JSON"))
+
+			// TODO is this something we want in metadata reporting?
+			msg.SetError(models.TargetTemplatingError{Err: errors.Wrap(tmplErr, "Could not create request JSON")})
 			invalid = append(invalid, msg)
 		}
 		return nil, nil, invalid

@@ -183,7 +183,9 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		if err != nil {
 			// runtime error counts as failure
 			runErr := fmt.Errorf("error running JavaScript function %q: %q", funcName, err.Error())
-			message.SetError(runErr)
+
+			// TODO cover the rest of possible places where we can fail
+			message.SetError(models.JSRuntimeError{Err: runErr})
 			return nil, nil, message, nil
 		}
 
