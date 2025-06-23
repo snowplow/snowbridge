@@ -14,7 +14,6 @@ package monitoring
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -54,7 +53,7 @@ type Monitoring struct {
 }
 
 func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
-	fmt.Printf("[NewMonitoring] with interval: %s\n", heartbeatInterval)
+	logrus.Infof("[NewMonitoring] with interval: %s\n", heartbeatInterval)
 
 	return &Monitoring{
 		appName:           appName,

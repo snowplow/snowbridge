@@ -39,7 +39,7 @@ func TestE2ETargets(t *testing.T) {
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
 	t.Run("http", testE2EHttpTarget)
-	// t.Run("http with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
+	t.Run("http with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
 	// t.Run("http with monitoring heartbeat", testE2EHttpWithMonitoringHeartbeatTarget)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
@@ -483,98 +483,98 @@ func testE2EKafkaTarget(t *testing.T) {
 // 	srvExitWg.Wait()
 // }
 
-// func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
-// 	assert := assert.New(t)
+func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
+	assert := assert.New(t)
 
-// 	// we expect exactly 1 alert, because once alert is being sent, nothing else should be coming out of monitoring
-// 	receiverChannel := make(chan string, 1)
+	// we expect exactly 1 alert, because once alert is being sent, nothing else should be coming out of monitoring
+	receiverChannel := make(chan string, 1)
 
-// 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
-// 		srv := &http.Server{Addr: ":7997"}
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":7997"}
 
-// 		http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
-// 			defer func() {
-// 				if err := r.Body.Close(); err != nil {
-// 					logrus.Error(err.Error())
-// 				}
-// 			}()
-// 			_, err := io.ReadAll(r.Body)
-// 			if err != nil {
-// 				panic(err)
-// 			}
+		http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
 
-// 			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
-// 		})
+			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
+		})
 
-// 		http.HandleFunc("/data-monitoring", func(w http.ResponseWriter, r *http.Request) {
-// 			defer func() {
-// 				if err := r.Body.Close(); err != nil {
-// 					logrus.Error(err.Error())
-// 				}
-// 			}()
-// 			body, err := io.ReadAll(r.Body)
-// 			if err != nil {
-// 				panic(err)
-// 			}
+		http.HandleFunc("/data-monitoring", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
 
-// 			var unmarshalledBody json.RawMessage
-// 			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
-// 				panic(err)
-// 			}
-// 			receiverChannel <- string(unmarshalledBody)
-// 		})
+			var unmarshalledBody json.RawMessage
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			receiverChannel <- string(unmarshalledBody)
+		})
 
-// 		go func() {
-// 			defer wg.Done()
-// 			// always returns error. ErrServerClosed on graceful close
-// 			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-// 				logrus.Fatalf("ListenAndServe(): %v", err)
-// 			}
-// 		}()
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
 
-// 		// returning reference so caller can call Shutdown()
-// 		return srv
-// 	}
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
 
-// 	srvExitWg := &sync.WaitGroup{}
+	srvExitWg := &sync.WaitGroup{}
 
-// 	srvExitWg.Add(1)
-// 	srv := startTestServer(srvExitWg)
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
 
-// 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_config.hcl"))
-// 	if err != nil {
-// 		panic(err)
-// 	}
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_config.hcl"))
+	if err != nil {
+		panic(err)
+	}
 
-// 	for _, binary := range []string{"-aws-only", ""} {
+	for _, binary := range []string{"-aws-only", ""} {
 
-// 		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
-// 		if cmdErr == nil {
-// 			assert.Fail("Expected docker run to return an error for HTTP target")
-// 		}
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
+		if cmdErr == nil {
+			assert.Fail("Expected docker run to return an error for HTTP target")
+		}
 
-// 		var foundData []string
+		var foundData []string
 
-// 	receiveLoop:
-// 		for {
-// 			select {
-// 			case res := <-receiverChannel:
-// 				foundData = append(foundData, res)
-// 				break receiveLoop
-// 			// this is just a precaution to avoid waiting for broken test
-// 			case <-time.After(1020 * time.Millisecond):
-// 				break receiveLoop
-// 			}
-// 		}
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+				break receiveLoop
+			// this is just a precaution to avoid waiting for broken test
+			case <-time.After(1020 * time.Millisecond):
+				break receiveLoop
+			}
+		}
 
-// 		assert.Equal(1, len(foundData))
-// 		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, foundData[0])
-// 	}
+		assert.Equal(1, len(foundData))
+		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, foundData[0])
+	}
 
-// 	close(receiverChannel)
-// 	if err := srv.Shutdown(t.Context()); err != nil {
-// 		panic(err) // failure/timeout shutting down the server gracefully
-// 	}
+	close(receiverChannel)
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
 
-// 	srvExitWg.Wait()
-// }
+	srvExitWg.Wait()
+}
