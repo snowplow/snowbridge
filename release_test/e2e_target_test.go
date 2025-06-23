@@ -468,8 +468,9 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 			select {
 			case res := <-receiverChannel:
 				foundData = append(foundData, res)
-			case <-time.After(2220 * time.Millisecond):
-				break receiveLoop // after 2s with no data, break the loop
+				break receiveLoop
+			default:
+				continue
 			}
 		}
 
