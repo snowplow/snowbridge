@@ -128,6 +128,8 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 				panic(err)
 			}
 
+			fmt.Println("[e2e]")
+
 			// Extract from array so we don't have to refactor existing JSON evaluate function
 			var unmarshalledBody []json.RawMessage
 
@@ -135,7 +137,6 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 				panic(err)
 			}
 			receiverChannel <- string(unmarshalledBody[0])
-
 		})
 
 		http.HandleFunc("/e2e-monitoring", func(w http.ResponseWriter, r *http.Request) {
