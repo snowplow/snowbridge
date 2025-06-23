@@ -128,8 +128,6 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 				panic(err)
 			}
 
-			fmt.Println("[e2e]")
-
 			// Extract from array so we don't have to refactor existing JSON evaluate function
 			var unmarshalledBody []json.RawMessage
 
@@ -209,16 +207,17 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 			}
 		}
 
+		expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
+		evaluateTestCaseJSONString(t, foundData, expectedFilePath, "HTTP target "+binary)
+
 		assert.Equal(2, len(foundHeartbeats))
 		for _, event := range foundHeartbeats {
 			assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, event)
 		}
-
-		expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
-
-		evaluateTestCaseJSONString(t, foundData, expectedFilePath, "HTTP target "+binary)
-
 	}
+
+	close(receiverChannel)
+	close(monitoringChannel)
 
 	if err := srv.Shutdown(t.Context()); err != nil {
 		panic(err) // failure/timeout shutting down the server gracefully

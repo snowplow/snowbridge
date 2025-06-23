@@ -126,8 +126,6 @@ func (m *Monitoring) Start() {
 			case <-m.exitSignal:
 				m.log.Info("Monitoring is shutting down")
 				break OuterLoop
-			default:
-				continue
 			}
 		}
 	}()
