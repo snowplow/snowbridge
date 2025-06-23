@@ -38,8 +38,8 @@ func TestE2ETargets(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
-	t.Run("http", testE2EHttpTarget)
-	t.Run("http", testE2EHttpWithMonitoringTarget)
+	t.Run("http", testE2EHttpMonitoringTarget)
+	t.Run("http", testE2EHttpWithMonitoringAlertTarget)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
 	t.Run("kafka", testE2EKafkaTarget)
@@ -102,7 +102,7 @@ func testE2EPubsubTarget(t *testing.T) {
 
 }
 
-func testE2EHttpTarget(t *testing.T) {
+func testE2EHttpMonitoringTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	// size of 200 to prevent blocking which causes a lot of retrys
@@ -424,7 +424,7 @@ func testE2EKafkaTarget(t *testing.T) {
 	partitionConsumer.AsyncClose()
 }
 
-func testE2EHttpWithMonitoringTarget(t *testing.T) {
+func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	// we expect exactly 1 alert, because once alert is being sent, nothing else should be coming out of monitoring
