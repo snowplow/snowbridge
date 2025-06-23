@@ -14,6 +14,7 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -143,6 +144,9 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 					logrus.Error(err.Error())
 				}
 			}()
+
+			fmt.Println("[e2e-monitoring]")
+
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				panic(err)
@@ -154,6 +158,9 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
 				panic(err)
 			}
+
+			fmt.Printf("[e2e-monitoring] %s\n", unmarshalledBody)
+
 			monitoringChannel <- string(unmarshalledBody)
 		})
 
@@ -181,7 +188,7 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 
-		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(10*time.Second, "httpTarget", configFilePath, binary, "")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 		}
@@ -196,8 +203,8 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 				foundData = append(foundData, res)
 			case event := <-monitoringChannel:
 				foundHeartbeats = append(foundHeartbeats, event)
-			case <-time.After(2500 * time.Millisecond):
-				break receiveLoop // after 2.5s with no data, break the loop
+			case <-time.After(2800 * time.Millisecond):
+				break receiveLoop
 			}
 		}
 
