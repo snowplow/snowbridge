@@ -75,8 +75,8 @@ func (m *Monitoring) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				m.log.Info("Sending heartbeat")
 				if m.client != nil {
+					m.log.Info("Sending heartbeat")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
 						Data: MonitoringData{
@@ -97,8 +97,8 @@ func (m *Monitoring) Start() {
 					}
 				}
 			case err := <-m.alertChan:
-				m.log.Info("Sending alert")
 				if m.client != nil {
+					m.log.Info("Sending alert")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
 						Data: MonitoringData{
