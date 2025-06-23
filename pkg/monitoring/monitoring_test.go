@@ -72,7 +72,7 @@ func TestMonitoringHeartbeatTargetWrite(t *testing.T) {
 
 	sr := TestMonitoringSender{onDo: onDo}
 
-	monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, time.Second, nil)
+	monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, nil)
 	assert.NotNil(monitoring)
 	monitoring.Start()
 
@@ -123,30 +123,24 @@ func TestMonitoringAlertTargetWrite(t *testing.T) {
 	sr := TestMonitoringSender{onDo: onDo}
 	alertChan := make(chan error, 1)
 
-	monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Minute, time.Second, alertChan)
+	monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, (time.Second * 2), alertChan)
 	assert.NotNil(monitoring)
 
 	monitoring.Start()
 
-	// Sent an error in and wait just enough for the initial cooldown to pass
-	alertChan <- fmt.Errorf("failed to connect to target API")
-	time.Sleep(200 * time.Millisecond)
-
-	// Then we should be expecting counter to bump (along side with expected alert event)
-	assert.Equal(counter, 1)
-
-	// Then we sent another alert in, but we do not expect it to be processed for the next second
-	// (new cooldown period we have set)
+	// Sent an error in
 	alertChan <- fmt.Errorf("failed to connect to target API")
 
-	// Here we confirm that new alert hasn't been processed yet
-	time.Sleep(800 * time.Millisecond)
+	// And expect counter to increase by 1 (along side with expected alert event)
+	time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for monitoring to process event
 	assert.Equal(counter, 1)
 
-	// And now finally we expect the alert to be processed as cooldown just got reset
-	// and such alert should've been sent
-	time.Sleep(300 * time.Millisecond)
-	assert.Equal(counter, 2)
+	// Then, we another alert gets sent in, but it is not being sent
+	alertChan <- fmt.Errorf("failed to connect to target API")
+
+	// Here we confirm that nor new alert nor heartbeat were sent
+	time.Sleep(2500 * time.Millisecond)
+	assert.Equal(counter, 1)
 
 	monitoring.Stop()
 }

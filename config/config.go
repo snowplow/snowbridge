@@ -434,11 +434,9 @@ func (c *Config) GetMonitoring(appName, appVersion string, alertChan chan error)
 	client := http.DefaultClient
 	endpoint := c.Data.Monitoring.Endpoint
 	tags := c.Data.Monitoring.Tags
-
 	heartbeatInterval := time.Duration(c.Data.Monitoring.HeartbeatInterval) * time.Second
-	alertInterval := 60 * time.Second
 
-	return monitoring.NewMonitoring(appName, appVersion, client, endpoint, tags, heartbeatInterval, alertInterval, alertChan), nil
+	return monitoring.NewMonitoring(appName, appVersion, client, endpoint, tags, heartbeatInterval, alertChan), nil
 }
 
 // getStatsReceiver builds and returns the stats receiver

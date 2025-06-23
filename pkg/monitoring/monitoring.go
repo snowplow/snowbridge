@@ -15,7 +15,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -49,12 +48,11 @@ type Monitoring struct {
 	heartbeatInterval time.Duration
 	alertChan         chan error
 	log               *logrus.Entry
-	alertInterval     time.Duration
 
 	exitSignal chan struct{}
 }
 
-func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval, alertInterval time.Duration, alertChan chan error) *Monitoring {
+func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
 	return &Monitoring{
 		appName:           appName,
 		appVersion:        appVersion,
@@ -64,19 +62,15 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 		heartbeatInterval: heartbeatInterval,
 		log:               logrus.WithFields(logrus.Fields{"name": "Monitoring"}),
 		alertChan:         alertChan,
-		alertInterval:     alertInterval,
 		exitSignal:        make(chan struct{}),
 	}
 }
 
 func (m *Monitoring) Start() {
-	var once sync.Once
-
 	ticker := time.NewTicker(m.heartbeatInterval)
 
 	go func() {
 
-		alertCooldown := time.NewTicker(time.Millisecond * 100)
 	OuterLoop:
 		for {
 			select {
@@ -102,35 +96,32 @@ func (m *Monitoring) Start() {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
 					}
 				}
-			case <-alertCooldown.C:
-				select {
-				case err := <-m.alertChan:
-					once.Do(func() {
-						alertCooldown.Reset(m.alertInterval)
-					})
-					m.log.Info("Sending alert")
-					if m.client != nil {
-						event := MonitoringEvent{
-							Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
-							Data: MonitoringData{
-								AppName:    m.appName,
-								AppVersion: m.appVersion,
-								Tags:       m.tags,
-								Message:    err.Error(),
-							},
-						}
-						req, err := m.prepareRequest(event)
-						if err != nil {
-							m.log.Warnf("failed to prepare heartbeat event request: %s", err)
-							continue
-						}
-
-						_, err = m.client.Do(req)
-						if err != nil {
-							m.log.Warnf("failed to send alert event: %s", err)
-						}
+			case err := <-m.alertChan:
+				m.log.Info("Sending alert")
+				if m.client != nil {
+					event := MonitoringEvent{
+						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
+						Data: MonitoringData{
+							AppName:    m.appName,
+							AppVersion: m.appVersion,
+							Tags:       m.tags,
+							Message:    err.Error(),
+						},
 					}
-				default:
+					req, err := m.prepareRequest(event)
+					if err != nil {
+						m.log.Warnf("failed to prepare heartbeat event request: %s", err)
+						continue
+					}
+
+					_, err = m.client.Do(req)
+					if err != nil {
+						m.log.Warnf("failed to send alert event: %s", err)
+					}
+
+					// Once alert has been successfully sent,
+					// we shouldn't attempt to send anything else (nor alert, nor heartbeat)
+					m.client = nil
 				}
 			case <-m.exitSignal:
 				m.log.Info("Monitoring is shutting down")
