@@ -14,7 +14,6 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -478,7 +477,7 @@ func testE2EHttpWithMonitoringTarget(t *testing.T) {
 		}
 
 		assert.Equal(1, len(foundData))
-		fmt.Println(foundData)
+		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, foundData[0])
 	}
 
 	close(receiverChannel)
