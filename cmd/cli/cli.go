@@ -108,6 +108,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	if err != nil {
 		log.Warnf("monitoring cannot be run: %s", err)
 	} else {
+		defer monitoring.Stop()
 		monitoring.Start()
 	}
 
@@ -207,7 +208,6 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	ft.Close()
 	filter.Close()
 	o.Stop()
-	monitoring.Stop()
 	return nil
 }
 
