@@ -49,11 +49,12 @@ type Monitoring struct {
 	heartbeatInterval time.Duration
 	alertChan         chan error
 	log               *logrus.Entry
+	alertInterval     time.Duration
 
 	exitSignal chan struct{}
 }
 
-func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
+func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval, alertInterval time.Duration, alertChan chan error) *Monitoring {
 	return &Monitoring{
 		appName:           appName,
 		appVersion:        appVersion,
@@ -63,6 +64,7 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 		heartbeatInterval: heartbeatInterval,
 		log:               logrus.WithFields(logrus.Fields{"name": "Monitoring"}),
 		alertChan:         alertChan,
+		alertInterval:     alertInterval,
 		exitSignal:        make(chan struct{}),
 	}
 }
@@ -108,7 +110,7 @@ func (m *Monitoring) Start() {
 				select {
 				case err := <-m.alertChan:
 					once.Do(func() {
-						alertCooldown.Reset(time.Second * 60)
+						alertCooldown.Reset(m.alertInterval)
 					})
 					m.log.Info("Sending alert")
 					if m.client != nil {
