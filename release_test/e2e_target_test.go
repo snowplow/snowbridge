@@ -428,12 +428,12 @@ func testE2EHttpWithMonitoringTarget(t *testing.T) {
 			}
 
 			// Extract from array so we don't have to refactor existing JSON evaluate function
-			var unmarshalledBody []json.RawMessage
+			var unmarshalledBody json.RawMessage
 
 			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
 				panic(err)
 			}
-			receiverChannel <- string(unmarshalledBody[0])
+			receiverChannel <- string(unmarshalledBody)
 		})
 
 		go func() {
@@ -479,8 +479,6 @@ func testE2EHttpWithMonitoringTarget(t *testing.T) {
 
 		assert.Equal(1, len(foundData))
 		fmt.Println(foundData)
-		// expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
-		// evaluateTestCaseJSONString(t, foundData, expectedFilePath, "HTTP target "+binary)
 	}
 
 	close(receiverChannel)
