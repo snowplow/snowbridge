@@ -14,6 +14,7 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -39,6 +40,7 @@ func TestE2ETargets(t *testing.T) {
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
 	t.Run("http", testE2EHttpTarget)
+	t.Run("http", testE2EHttpWithMonitoringTarget)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
 	t.Run("kafka", testE2EKafkaTarget)
@@ -389,4 +391,102 @@ func testE2EKafkaTarget(t *testing.T) {
 		evaluateTestCaseString(t, foundData, inputFilePath, "Kafka target "+binary)
 	}
 	partitionConsumer.AsyncClose()
+}
+
+func testE2EHttpWithMonitoringTarget(t *testing.T) {
+	assert := assert.New(t)
+
+	// we expect exactly 1 alert, because once alert is being sent, nothing else should be coming out of monitoring
+	receiverChannel := make(chan string, 1)
+
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":8998"}
+
+		http.HandleFunc("/e2e", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
+		})
+
+		http.HandleFunc("/monitoring", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			// Extract from array so we don't have to refactor existing JSON evaluate function
+			var unmarshalledBody []json.RawMessage
+
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			receiverChannel <- string(unmarshalledBody[0])
+		})
+
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	for _, binary := range []string{"-aws-only", ""} {
+
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		}
+
+		var foundData []string
+
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+			case <-time.After(2020 * time.Millisecond):
+				break receiveLoop // after 2s with no data, break the loop
+			}
+		}
+
+		assert.Equal(1, len(foundData))
+		fmt.Println(foundData)
+		// expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
+		// evaluateTestCaseJSONString(t, foundData, expectedFilePath, "HTTP target "+binary)
+	}
+
+	close(receiverChannel)
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+
+	srvExitWg.Wait()
 }
