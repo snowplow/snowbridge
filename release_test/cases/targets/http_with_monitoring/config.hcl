@@ -4,11 +4,10 @@ transform {
   }
 }
 
-
 target {
   use "http" {
 
-    url = "http://host.docker.internal:8999/e2e"
+    url = "http://host.docker.internal:8999/data"
 
     response_rules {
       setup {

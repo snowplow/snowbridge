@@ -402,7 +402,7 @@ func testE2EHttpWithMonitoringTarget(t *testing.T) {
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
 		srv := &http.Server{Addr: ":8999"}
 
-		http.HandleFunc("/e2e", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
