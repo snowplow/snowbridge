@@ -400,7 +400,7 @@ func testE2EHttpWithMonitoringTarget(t *testing.T) {
 	receiverChannel := make(chan string, 1)
 
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
-		srv := &http.Server{Addr: ":8999"}
+		srv := &http.Server{Addr: ":7997"}
 
 		http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
