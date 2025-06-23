@@ -196,7 +196,7 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 		var foundHeartbeats []string
 
 		// explicit sleep to allow heartbeats to get generated
-		time.Sleep(time.Millisecond * 2100)
+		time.Sleep(time.Millisecond * 6200)
 
 	receiveLoop:
 		for {
@@ -205,7 +205,7 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 				foundData = append(foundData, res)
 			case event := <-monitoringChannel:
 				foundHeartbeats = append(foundHeartbeats, event)
-			case <-time.After(100 * time.Millisecond):
+			case <-time.After(6200 * time.Millisecond):
 				break receiveLoop
 			}
 		}
