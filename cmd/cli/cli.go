@@ -106,9 +106,10 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	alertChan := make(chan error, 1)
 	monitoring, err := cfg.GetMonitoring(cmd.AppName, cmd.AppVersion, alertChan)
 	if err != nil {
-		return err
+		log.Warnf("monitoring cannot be run: %s", err)
+	} else {
+		monitoring.Start()
 	}
-	monitoring.Start()
 
 	s, err := sourceconfig.GetSource(cfg, supportedSources)
 	if err != nil {

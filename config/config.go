@@ -431,6 +431,10 @@ func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error)
 }
 
 func (c *Config) GetMonitoring(appName, appVersion string, alertChan chan error) (*monitoring.Monitoring, error) {
+	if c.Data.Monitoring.Endpoint == "" {
+		return nil, fmt.Errorf("endpoint is not set")
+	}
+
 	client := http.DefaultClient
 	endpoint := c.Data.Monitoring.Endpoint
 	tags := c.Data.Monitoring.Tags
