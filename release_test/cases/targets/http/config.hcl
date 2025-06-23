@@ -8,6 +8,19 @@ target {
   use "http" {
 
     url = "http://host.docker.internal:8998/e2e"
+
+    response_rules {
+      setup {
+          http_codes =  [401, 403]
+        }
+    }
+  }
+}
+
+retry {
+  setup {
+    # Initial delay (before first retry) for setup errors
+    delay_ms = 200
   }
 }
 

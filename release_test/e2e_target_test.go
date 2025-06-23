@@ -39,8 +39,8 @@ func TestE2ETargets(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
-	t.Run("http", testE2EHttpMonitoringTarget)
-	t.Run("http", testE2EHttpWithMonitoringAlertTarget)
+	t.Run("http with monitoring heartbeat", testE2EHttpMonitoringTarget)
+	t.Run("http with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
 	t.Run("kafka", testE2EKafkaTarget)
