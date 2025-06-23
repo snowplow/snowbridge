@@ -109,6 +109,10 @@ func testE2EHttpTarget(t *testing.T) {
 	// pattern might be improvable - for now we can adjust to measure if we add more data
 	receiverChannel := make(chan string, 200)
 
+	// We only expect 2 heartbeat events here
+	// (1 would also work, but want to confirm there are nothing blocking follow-up heartbeats)
+	monitoringChannel := make(chan string, 2)
+
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
 		srv := &http.Server{Addr: ":8998"}
 
@@ -131,6 +135,26 @@ func testE2EHttpTarget(t *testing.T) {
 			}
 			receiverChannel <- string(unmarshalledBody[0])
 
+		})
+
+		http.HandleFunc("/e2e-monitoring", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			// Extract from array so we don't have to refactor existing JSON evaluate function
+			var unmarshalledBody json.RawMessage
+
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			monitoringChannel <- string(unmarshalledBody)
 		})
 
 		go func() {
@@ -163,15 +187,23 @@ func testE2EHttpTarget(t *testing.T) {
 		}
 
 		var foundData []string
+		var foundHeartbeats []string
 
 	receiveLoop:
 		for {
 			select {
 			case res := <-receiverChannel:
 				foundData = append(foundData, res)
-			case <-time.After(1 * time.Second):
-				break receiveLoop // after 1s with no data, break the loop
+			case event := <-monitoringChannel:
+				foundHeartbeats = append(foundHeartbeats, event)
+			case <-time.After(2500 * time.Millisecond):
+				break receiveLoop // after 2.5s with no data, break the loop
 			}
+		}
+
+		assert.Equal(2, len(foundHeartbeats))
+		for _, event := range foundHeartbeats {
+			assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, event)
 		}
 
 		expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
@@ -415,7 +447,7 @@ func testE2EHttpWithMonitoringTarget(t *testing.T) {
 			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
 		})
 
-		http.HandleFunc("/monitoring", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/data-monitoring", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -452,7 +484,7 @@ func testE2EHttpWithMonitoringTarget(t *testing.T) {
 	srvExitWg.Add(1)
 	srv := startTestServer(srvExitWg)
 
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "config.hcl"))
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_alert", "config.hcl"))
 	if err != nil {
 		panic(err)
 	}
@@ -460,8 +492,8 @@ func testE2EHttpWithMonitoringTarget(t *testing.T) {
 	for _, binary := range []string{"-aws-only", ""} {
 
 		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		if cmdErr == nil {
+			assert.Fail("Expected docker run to return an error for HTTP target")
 		}
 
 		var foundData []string
