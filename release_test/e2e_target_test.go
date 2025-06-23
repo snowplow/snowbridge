@@ -492,7 +492,7 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
 		srv := &http.Server{Addr: ":7997"}
 
-		http.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/alert", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -506,7 +506,7 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
 		})
 
-		http.HandleFunc("/data-monitoring", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/alert-monitoring", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
