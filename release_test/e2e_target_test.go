@@ -39,8 +39,8 @@ func TestE2ETargets(t *testing.T) {
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
 	t.Run("http", testE2EHttpTarget)
-	t.Run("http with monitoring heartbeat", testE2EHttpWithMonitoringHeartbeatTarget)
 	t.Run("http with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
+	t.Run("http with monitoring heartbeat", testE2EHttpWithMonitoringHeartbeatTarget)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
 	t.Run("kafka", testE2EKafkaTarget)
@@ -406,10 +406,8 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 					logrus.Error(err.Error())
 				}
 			}()
-			_, err := io.ReadAll(r.Body)
-			if err != nil {
-				panic(err)
-			}
+
+			w.WriteHeader(http.StatusOK)
 		})
 
 		http.HandleFunc("/heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
@@ -423,9 +421,7 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 				panic(err)
 			}
 
-			// Extract from array so we don't have to refactor existing JSON evaluate function
 			var unmarshalledBody json.RawMessage
-
 			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
 				panic(err)
 			}
@@ -469,8 +465,9 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 			case res := <-receiverChannel:
 				foundData = append(foundData, res)
 				break receiveLoop
-			default:
-				continue
+			// this is just a precaution to avoid waiting for broken test
+			case <-time.After(5020 * time.Millisecond):
+				break receiveLoop
 			}
 		}
 
@@ -520,9 +517,7 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 				panic(err)
 			}
 
-			// Extract from array so we don't have to refactor existing JSON evaluate function
 			var unmarshalledBody json.RawMessage
-
 			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
 				panic(err)
 			}
@@ -565,8 +560,10 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 			select {
 			case res := <-receiverChannel:
 				foundData = append(foundData, res)
-			case <-time.After(2020 * time.Millisecond):
-				break receiveLoop // after 2s with no data, break the loop
+				break receiveLoop
+			// this is just a precaution to avoid waiting for broken test
+			case <-time.After(1020 * time.Millisecond):
+				break receiveLoop
 			}
 		}
 
