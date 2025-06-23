@@ -14,7 +14,6 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -39,7 +38,8 @@ func TestE2ETargets(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
-	t.Run("http with monitoring heartbeat", testE2EHttpMonitoringTarget)
+	t.Run("http", testE2EHttpTarget)
+	t.Run("http with monitoring heartbeat", testE2EHttpWithMonitoringHeartbeatTarget)
 	t.Run("http with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
@@ -103,16 +103,12 @@ func testE2EPubsubTarget(t *testing.T) {
 
 }
 
-func testE2EHttpMonitoringTarget(t *testing.T) {
+func testE2EHttpTarget(t *testing.T) {
 	assert := assert.New(t)
 
 	// size of 200 to prevent blocking which causes a lot of retrys
 	// pattern might be improvable - for now we can adjust to measure if we add more data
 	receiverChannel := make(chan string, 200)
-
-	// We only expect 2 heartbeat events here
-	// (1 would also work, but want to confirm there are nothing blocking follow-up heartbeats)
-	monitoringChannel := make(chan string, 2)
 
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
 		srv := &http.Server{Addr: ":8998"}
@@ -135,32 +131,6 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 				panic(err)
 			}
 			receiverChannel <- string(unmarshalledBody[0])
-		})
-
-		http.HandleFunc("/e2e-monitoring", func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if err := r.Body.Close(); err != nil {
-					logrus.Error(err.Error())
-				}
-			}()
-
-			fmt.Println("[e2e-monitoring]")
-
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				panic(err)
-			}
-
-			// Extract from array so we don't have to refactor existing JSON evaluate function
-			var unmarshalledBody json.RawMessage
-
-			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
-				panic(err)
-			}
-
-			fmt.Printf("[e2e-monitoring] %s\n", unmarshalledBody)
-
-			monitoringChannel <- string(unmarshalledBody)
 		})
 
 		go func() {
@@ -193,34 +163,22 @@ func testE2EHttpMonitoringTarget(t *testing.T) {
 		}
 
 		var foundData []string
-		var foundHeartbeats []string
-
-		// explicit sleep to allow heartbeats to get generated
-		time.Sleep(time.Millisecond * 6200)
 
 	receiveLoop:
 		for {
 			select {
 			case res := <-receiverChannel:
 				foundData = append(foundData, res)
-			case event := <-monitoringChannel:
-				foundHeartbeats = append(foundHeartbeats, event)
-			case <-time.After(6200 * time.Millisecond):
+			case <-time.After(2 * time.Second):
 				break receiveLoop
 			}
 		}
 
 		expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
 		evaluateTestCaseJSONString(t, foundData, expectedFilePath, "HTTP target "+binary)
-
-		assert.Equal(2, len(foundHeartbeats))
-		for _, event := range foundHeartbeats {
-			assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, event)
-		}
 	}
 
 	close(receiverChannel)
-	close(monitoringChannel)
 
 	if err := srv.Shutdown(t.Context()); err != nil {
 		panic(err) // failure/timeout shutting down the server gracefully
@@ -434,6 +392,99 @@ func testE2EKafkaTarget(t *testing.T) {
 	partitionConsumer.AsyncClose()
 }
 
+func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
+	assert := assert.New(t)
+
+	receiverChannel := make(chan string, 2)
+
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":6996"}
+
+		http.HandleFunc("/heartbeat", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+		})
+
+		http.HandleFunc("/heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			// Extract from array so we don't have to refactor existing JSON evaluate function
+			var unmarshalledBody json.RawMessage
+
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			receiverChannel <- string(unmarshalledBody)
+		})
+
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "heartbeat_config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	for _, binary := range []string{"-aws-only", ""} {
+
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		}
+
+		var foundData []string
+
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+			case <-time.After(2220 * time.Millisecond):
+				break receiveLoop // after 2s with no data, break the loop
+			}
+		}
+
+		assert.Equal(1, len(foundData))
+		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, foundData[0])
+	}
+
+	close(receiverChannel)
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+
+	srvExitWg.Wait()
+}
+
 func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 	assert := assert.New(t)
 
@@ -494,7 +545,7 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 	srvExitWg.Add(1)
 	srv := startTestServer(srvExitWg)
 
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_alert", "config.hcl"))
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_config.hcl"))
 	if err != nil {
 		panic(err)
 	}

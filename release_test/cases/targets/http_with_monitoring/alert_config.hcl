@@ -7,7 +7,7 @@ transform {
 target {
   use "http" {
 
-    url = "http://host.docker.internal:7997/data"
+    url = "http://host.docker.internal:7997/alert"
 
     response_rules {
       setup {
@@ -26,7 +26,7 @@ retry {
 
 monitoring {
   # An actual HTTP endpoint where monitoring events would be sent
-  endpoint = "http://host.docker.internal:7997/data-monitoring"
+  endpoint = "http://host.docker.internal:7997/alert-monitoring"
 
   # Set of arbitrary key-value pairs attached to the payload
   tags = {

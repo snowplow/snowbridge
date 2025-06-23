@@ -8,33 +8,7 @@ target {
   use "http" {
 
     url = "http://host.docker.internal:8998/e2e"
-
-    response_rules {
-      setup {
-          http_codes =  [401, 403]
-        }
-    }
   }
-}
-
-retry {
-  setup {
-    # Initial delay (before first retry) for setup errors
-    delay_ms = 200
-  }
-}
-
-monitoring {
-  # An actual HTTP endpoint where monitoring events would be sent
-  endpoint = "http://host.docker.internal:8998/e2e-monitoring"
-
-  # Set of arbitrary key-value pairs attached to the payload
-  tags = {
-    pipeline = "release_tests"
-  }
-
-  # How often to send the heartbeat event (in seconds)
-  heartbeat_interval = 1
 }
 
 disable_telemetry = true
