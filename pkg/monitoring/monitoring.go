@@ -72,9 +72,6 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 func (m *Monitoring) Start() {
 	var once sync.Once
 
-	header := http.Header{}
-	header.Add("Content-Type", "application/json")
-
 	ticker := time.NewTicker(m.heartbeatInterval)
 
 	go func() {
@@ -100,7 +97,6 @@ func (m *Monitoring) Start() {
 						continue
 					}
 
-					req.Header = header
 					_, err = m.client.Do(req)
 					if err != nil {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
@@ -129,7 +125,6 @@ func (m *Monitoring) Start() {
 							continue
 						}
 
-						req.Header = header
 						_, err = m.client.Do(req)
 						if err != nil {
 							m.log.Warnf("failed to send alert event: %s", err)
@@ -150,6 +145,9 @@ func (m *Monitoring) Stop() {
 }
 
 func (m *Monitoring) prepareRequest(event MonitoringEvent) (*http.Request, error) {
+	header := http.Header{}
+	header.Add("Content-Type", "application/json")
+
 	var body bytes.Buffer
 	err := json.NewEncoder(&body).Encode(event)
 	if err != nil {
@@ -165,5 +163,6 @@ func (m *Monitoring) prepareRequest(event MonitoringEvent) (*http.Request, error
 		return nil, err
 	}
 
+	req.Header = header
 	return req, nil
 }
