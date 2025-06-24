@@ -1,6 +1,7 @@
 package statsreceiver
 
 import (
+	"github.com/pkg/errors"
 	"github.com/snowplow/snowbridge/pkg/models"
 	"net/http"
 )
@@ -17,27 +18,31 @@ func NewMetadataReporter(config MetadataReporterConfig) *metadataReporter {
 }
 
 func (s *metadataReporter) Send(b *models.ObserverBuffer) {
-	metadata := b.ErrorsMetadata
-	doSomeMagic(metadata.Invalid)   // it's a list now, so aggregate/group with counts here (or do it early when appending write results in a buffer)
-	doSomeMagic(metadata.Retryable) // same here
 
-	/* TODO how should event we send here look like?
-		Unstruct event with a bunch of contexts/entities, each representing counts for each error type/category? We already have all details in the 'metadata' above.
-		So something like this for context:
-		{
-			"type": "Retryable/Invalid", // if we need this type of info at all
-			"source": "Transformation/API",
-		    "code": "JSRuntimeError"/"400 Bad request",
-		    "count": 100
+	// Schema design: https://www.notion.so/keep-in-the-snow/Snowbridge-metadata-metrics-reporting-21b07af295a28010af25dff43b628093
+
+	// Number of successful messages...
+	b.MsgSent
+	// Number of filtered messages...
+	b.MsgFiltered
+
+	// Retryable errors details, group by source/code and then count for each group
+	for _, err := range b.RetryableErrors {
+		var em models.ErrorMetadata
+		if errors.As(err, &em) {
+			//include source and code
+			em.MetadataSource()
+			em.ReportableCode()
 		}
+	}
 
-		If we want to also include success/filtered, we could do that by reusing the above structure (making 'source' and 'code' optional):
-		{
-			"type": "Success",
-		    "count": 100
+	// Same for invalid errors....
+	for _, err := range b.InvalidErrors {
+		var em models.ErrorMetadata
+		if errors.As(err, &em) {
+			//include source and code
+			em.MetadataSource()
+			em.ReportableCode()
 		}
-
-		See existing schemas for metadata reporting used by enrich:
-	      -
-	*/
+	}
 }

@@ -68,13 +68,13 @@ func SpEnrichedToJSON(message *models.Message, intermediateState interface{}) (*
 	// Evalute intermediateState to parsedEvent
 	parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 	if parseErr != nil {
-		message.SetError(models.SpEnrichedToJsonError{Err: parseErr})
+		message.SetError(parseErr)
 		return nil, nil, message, nil
 	}
 
 	jsonMessage, err := parsedEvent.ToJson()
 	if err != nil {
-		message.SetError(models.SpEnrichedToJsonError{Err: parseErr})
+		message.SetError(err)
 		return nil, nil, message, nil
 	}
 	message.Data = jsonMessage

@@ -56,32 +56,21 @@ type ObserverBuffer struct {
 	MinE2ELatency       time.Duration
 	SumE2ELatency       time.Duration
 
-	// Using observer buffer to collect metadata
-	ErrorsMetadata ErrorsMetadata
-}
-
-type ErrorsMetadata struct {
-
 	//TODO: Instead of storing a lists here we could have a map with already aggregated/categorized errors and counts per each.
-
-	// This field contains accumulated errors for messages which will be retried.
-	// TODO: do we need that in metadata reporting?
-	Retryable []error
-
-	// This field contains accumulated errors for invalid messages. Will not be retried.
-	Invalid []error
+	RetryableErrors []error
+	InvalidErrors   []error
 }
 
 func (b *ObserverBuffer) appendRetryableMetadata(res *TargetWriteResult) {
 	for _, msg := range res.Failed {
-		b.ErrorsMetadata.Retryable = append(b.ErrorsMetadata.Retryable, msg.GetError())
+		b.RetryableErrors = append(b.RetryableErrors, msg.GetError())
 	}
 }
 
 func (b *ObserverBuffer) appendInvalidMetadata(res *TargetWriteResult) {
 	// 'Sent' field because here we have a write result to the invalid target.
 	for _, msg := range res.Sent {
-		b.ErrorsMetadata.Invalid = append(b.ErrorsMetadata.Invalid, msg.GetError())
+		b.InvalidErrors = append(b.InvalidErrors, msg.GetError())
 	}
 }
 
