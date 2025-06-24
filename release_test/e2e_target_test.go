@@ -407,7 +407,8 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 				}
 			}()
 
-			time.Sleep(time.Millisecond * 12)
+			time.Sleep(time.Second * 1)
+			logrus.Info("[heartbeat] response")
 
 			w.WriteHeader(http.StatusOK)
 		})
