@@ -37,5 +37,4 @@ monitoring {
   heartbeat_interval = 60
 }
 
-
 disable_telemetry = true

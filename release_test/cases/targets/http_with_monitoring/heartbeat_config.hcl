@@ -24,5 +24,4 @@ monitoring {
   heartbeat_interval = 1
 }
 
-
 disable_telemetry = true
