@@ -53,8 +53,6 @@ type Monitoring struct {
 }
 
 func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
-	logrus.Infof("[NewMonitoring] with interval: %s\n", heartbeatInterval)
-
 	return &Monitoring{
 		appName:           appName,
 		appVersion:        appVersion,
@@ -77,7 +75,6 @@ func (m *Monitoring) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				m.log.Info("heartbeat ticked")
 				if m.client != nil {
 					m.log.Info("Sending heartbeat")
 					event := MonitoringEvent{
