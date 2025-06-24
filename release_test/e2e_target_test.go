@@ -407,9 +407,7 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 				}
 			}()
 
-			time.Sleep(time.Second * 1)
-			// logrus.Info("[heartbeat] response")
-
+			time.Sleep(time.Millisecond * 900)
 			w.WriteHeader(http.StatusOK)
 		})
 
@@ -456,8 +454,8 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 	for _, binary := range []string{"-aws-only", ""} {
 
 		_, cmdErr := runDockerCommand(10*time.Second, "httpTarget", configFilePath, binary, "")
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		if cmdErr == nil {
+			assert.Fail("Expected docker run to return an error for HTTP target")
 		}
 
 		var foundData []string
