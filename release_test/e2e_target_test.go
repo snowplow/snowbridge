@@ -407,6 +407,8 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 				}
 			}()
 
+			time.Sleep(time.Millisecond * 12)
+
 			w.WriteHeader(http.StatusOK)
 		})
 
