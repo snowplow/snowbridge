@@ -183,7 +183,9 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		if err != nil {
 			// runtime error counts as failure
 			runErr := fmt.Errorf("error running JavaScript function %q: %q", funcName, err.Error())
-			message.SetError(runErr)
+
+			// TODO cover the rest of possible places where we can fail
+			message.SetError(unsafeJSError{err: runErr})
 			return nil, nil, message, nil
 		}
 
@@ -211,7 +213,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			// encode
 			encoded, err := json.Marshal(protoData)
 			if err != nil {
-				message.SetError(fmt.Errorf("error encoding message data"))
+				message.SetError(safeJSError{safeMessage: "error encoding message data"})
 				return nil, nil, message, nil
 			}
 			message.Data = encoded
@@ -354,4 +356,39 @@ func validateJSEngineOut(output any) (*engineProtocol, error) {
 	}
 
 	return result, nil
+}
+
+const errorSource = "JavaScript"
+
+type unsafeJSError struct {
+	err error
+}
+
+type safeJSError struct {
+	safeMessage string
+}
+
+func (e unsafeJSError) Error() string {
+	return e.err.Error()
+}
+
+func (e unsafeJSError) MetadataSource() string {
+	return errorSource
+}
+
+func (e unsafeJSError) ReportableCode() string {
+	// sanitaze `err` field, try to categorize as type/reference/syntax etc. errors.
+	return ""
+}
+
+func (e safeJSError) Error() string {
+	return e.safeMessage
+}
+
+func (e safeJSError) MetadataSource() string {
+	return errorSource
+}
+
+func (e safeJSError) ReportableCode() string {
+	return e.safeMessage
 }
