@@ -135,7 +135,11 @@ func (ks *kafkaSource) Read(sf *sourceiface.SourceFunctions) error {
 	cctx, cancel := context.WithCancel(context.Background())
 	// store reference to context cancel
 	ks.cancel = cancel
-	defer ks.client.Close()
+	defer func() {
+		if err := ks.client.Close(); err != nil {
+			ks.log.WithError(err).Error("error closing kafka source")
+		}
+	}()
 
 	for {
 		if err := ks.client.Consume(cctx, strings.Split(ks.topic, ","), &consumer); err != nil {
@@ -235,15 +239,20 @@ func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
 
 	// Kafka rebalance strategy, defaulted to "range"
 	switch cfg.Assignor {
+	// TODO: we need to review below nolint's as deprecation notes mention
+	// that there are data races in the currently used options
 	case "sticky":
+		// nolint: staticcheck
 		saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
 			sarama.BalanceStrategySticky,
 		}
 	case "roundrobin":
+		// nolint: staticcheck
 		saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
 			sarama.BalanceStrategyRoundRobin,
 		}
 	default:
+		// nolint: staticcheck
 		saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
 			sarama.BalanceStrategyRange,
 		}

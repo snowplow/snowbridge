@@ -123,9 +123,9 @@ format:
 	go fmt $(go_dirs)
 	gofmt -s -w .
 
+# Installation guide https://golangci-lint.run/welcome/install/#local-installation
 lint:
-	go install golang.org/x/lint/golint@latest
-	LINTRESULT=$$(golint $(go_dirs)); echo "$$LINTRESULT"; [ -z "$$LINTRESULT" ];
+	golangci-lint run
 
 tidy:
 	go mod tidy

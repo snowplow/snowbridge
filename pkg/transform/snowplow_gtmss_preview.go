@@ -92,7 +92,7 @@ func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Dur
 
 			if collectorTstamp, ok := tstamp.(time.Time); ok {
 				if time.Now().UTC().After(collectorTstamp.Add(expiry)) {
-					message.SetError(errors.New("Message has expired"))
+					message.SetError(errors.New("message has expired"))
 					return nil, nil, message, nil
 				}
 			}

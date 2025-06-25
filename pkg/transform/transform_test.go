@@ -44,8 +44,9 @@ func TestNewTransformation_Passthrough(t *testing.T) {
 		},
 	}
 
-	expectedNoTransformRes := models.NewTransformationResult(expected, make([]*models.Message, 0, 0), make([]*models.Message, 0, 0))
-	noTransform := NewTransformation(make([]TransformationFunction, 0, 0)...)
+	expectedNoTransformRes := models.NewTransformationResult(expected, make([]*models.Message, 0), make([]*models.Message, 0))
+
+	noTransform := NewTransformation(make([]TransformationFunction, 0)...)
 	noTransformResult := noTransform(Messages)
 
 	assert.Equal(expectedNoTransformRes, noTransformResult)

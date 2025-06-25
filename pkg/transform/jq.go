@@ -38,8 +38,8 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 }
 
 func transformOutput(jqOutput JqCommandOutput) TransformationFunction {
-	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
-		removeNullFields(jqOutput)
+	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
+		RemoveNullFields(jqOutput)
 
 		// here v is any, so we Marshal. alternative: gojq.Marshal
 		data, err := json.Marshal(jqOutput)
@@ -53,37 +53,9 @@ func transformOutput(jqOutput JqCommandOutput) TransformationFunction {
 	}
 }
 
-func removeNullFields(data any) {
-	switch input := data.(type) {
-	case map[string]any:
-		removeNullFromMap(input)
-	case []any:
-		removeNullFromSlice(input)
-	default:
-		return
-	}
-}
-
-func removeNullFromMap(input map[string]any) {
-	for key := range input {
-		field := input[key]
-		if field == nil {
-			delete(input, key)
-			continue
-		}
-		removeNullFields(field)
-	}
-}
-
-func removeNullFromSlice(input []any) {
-	for _, item := range input {
-		removeNullFields(item)
-	}
-}
-
 // jqMapperAdapterGenerator returns a jqAdapter
 func jqMapperAdapterGenerator(f func(c *JQMapperConfig) (TransformationFunction, error)) jqMapperAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*JQMapperConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected JQMapperConfig")
@@ -94,16 +66,16 @@ func jqMapperAdapterGenerator(f func(c *JQMapperConfig) (TransformationFunction,
 }
 
 // jqMapperAdapter implements the Pluggable interface
-type jqMapperAdapter func(i interface{}) (interface{}, error)
+type jqMapperAdapter func(i any) (any, error)
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f jqMapperAdapter) ProvideDefault() (interface{}, error) {
+func (f jqMapperAdapter) ProvideDefault() (any, error) {
 	return &JQMapperConfig{
 		RunTimeoutMs: 100,
 	}, nil
 }
 
 // Create implements the ComponentCreator interface
-func (f jqMapperAdapter) Create(i interface{}) (interface{}, error) {
+func (f jqMapperAdapter) Create(i any) (any, error) {
 	return f(i)
 }

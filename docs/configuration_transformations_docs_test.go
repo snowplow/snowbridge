@@ -13,7 +13,7 @@ package docs
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -64,6 +64,7 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 
 	// Set env vars with paths to scripts
 	t.Setenv("JS_SCRIPT_PATH", jsScriptPath)
+	t.Setenv("SHA1_SALT", "testsalt")
 
 	jsNonSnowplowScriptPath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "examples", "js-non-snowplow-script-example.js")
 	t.Setenv("JS_NON_SNOWPLOW_SCRIPT_PATH", jsNonSnowplowScriptPath)
@@ -73,7 +74,7 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 
 	baseDir := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts")
 
-	filesInBaseDir, err := ioutil.ReadDir(baseDir)
+	filesInBaseDir, err := os.ReadDir(baseDir)
 	if err != nil {
 		panic(err)
 	}
@@ -87,7 +88,7 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 
 	examplesDir := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "examples")
 
-	filesInDir, err := ioutil.ReadDir(examplesDir)
+	filesInDir, err := os.ReadDir(examplesDir)
 	if err != nil {
 		panic(err)
 	}
@@ -122,6 +123,7 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 func TestTransformationsOverview(t *testing.T) {
 	// Set env var to script path
 	t.Setenv("JS_SCRIPT_PATH", jsScriptPath)
+	t.Setenv("SHA1_SALT", "testsalt")
 
 	// Read file:
 	configFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "transformations-overview-example.hcl")
@@ -201,7 +203,5 @@ func testJSScriptCompiles(t *testing.T, scriptPath string) {
 	assert.NotNil(jsTransformationFunc, scriptPath)
 	if err != nil {
 		t.Fatalf("JSConfigFunction failed with error: %s. Script: %s", err.Error(), string(scriptPath))
-
 	}
-
 }

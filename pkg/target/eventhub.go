@@ -92,7 +92,9 @@ func newEventHubTarget(cfg *EventHubConfig) (*EventHubTarget, error) {
 	_, azCertPathPresent := os.LookupEnv("AZURE_CERTIFICATE_PATH")
 	_, azCertPwrdPresent := os.LookupEnv("AZURE_CERTIFICATE_PASSWORD")
 
-	if !(connStringPresent || (keyNamePresent && keyValuePresent) || (tenantIDPresent && clientIDPresent && ((azCertPathPresent && azCertPwrdPresent) || clientSecretPresent))) {
+	if !connStringPresent &&
+		(!keyNamePresent || !keyValuePresent) ||
+		(tenantIDPresent && clientIDPresent && ((azCertPathPresent && azCertPwrdPresent) || clientSecretPresent)) {
 		return nil, errors.Errorf("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment")
 	}
 
@@ -240,7 +242,9 @@ func (eht *EventHubTarget) Open() {}
 func (eht *EventHubTarget) Close() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
 	defer cancel()
-	eht.client.Close(ctx)
+	if err := eht.client.Close(ctx); err != nil {
+		log.WithError(err).Error("failed to close eventHubTarget")
+	}
 }
 
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent

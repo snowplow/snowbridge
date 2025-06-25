@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/testutil"
@@ -54,7 +55,11 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	queueURL := queueRes.QueueUrl
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	target, err := newSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
@@ -97,7 +102,11 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	queueURL := queueRes.QueueUrl
-	defer testutil.DeleteAWSLocalstackSQSQueue(client, queueURL)
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	target, err := newSQSTargetWithInterfaces(client, "00000000000", testutil.AWSLocalstackRegion, queueName)
 	assert.Nil(err)
