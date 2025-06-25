@@ -453,7 +453,7 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 
-		_, cmdErr := runDockerCommand(4*time.Second, "httpTarget", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
 		if cmdErr == nil {
 			assert.Fail("Expected docker run to return an error for HTTP target")
 		}
