@@ -312,7 +312,6 @@ func run(input []*models.Message, targetMocks targetMocks, transformation transf
 	obs := observer.New(&testStatsReceiver{}, time.Minute, time.Second)
 
 	f := sourceWriteFunc(&goodTarget, failure, &filterTarget, transformation, obs, config, alertChan)
-
 	err := f(input)
 
 	return testOutput{

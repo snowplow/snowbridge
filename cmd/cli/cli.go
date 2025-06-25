@@ -246,7 +246,6 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 			}
 
 			err := handleWrite(cfg, writeTransformed, alertChan)
-
 			if err != nil {
 				return err
 			}
@@ -266,7 +265,6 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 			}
 
 			err := handleWrite(cfg, writeFiltered, nil)
-
 			if err != nil {
 				return err
 			}
