@@ -86,15 +86,18 @@ func testSentryConfig(t *testing.T, configpath string, fullExample bool) {
 
 }
 
-func testMonitoringConfig(t *testing.T, configpath string, _ bool) {
+func testMonitoringConfig(t *testing.T, configpath string, fullExample bool) {
 	assert := assert.New(t)
 
-	// Since sentry lives in cmd, we call Init to test it.
 	c := getConfigFromFilepath(t, configpath)
 
 	cfgMonitoring := c.Data.Monitoring
 
 	assert.NotNil(cfgMonitoring)
-	assert.NotZero(cfgMonitoring.Tags)
-	assert.NotZero(cfgMonitoring.HeartbeatInterval)
+	assert.NotZero(cfgMonitoring.Endpoint)
+
+	if fullExample {
+		assert.NotZero(cfgMonitoring.Tags)
+		assert.NotZero(cfgMonitoring.HeartbeatInterval)
+	}
 }

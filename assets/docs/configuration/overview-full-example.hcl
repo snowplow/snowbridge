@@ -128,8 +128,8 @@ monitoring {
     pipeline = "production"
   }
 
-  # How often to send the heartbeat event (in seconds)
-  heartbeat_interval = 3600
+  # How often to send the heartbeat event
+  heartbeat_interval_seconds = 3600
 }
 
 license {

@@ -20,8 +20,8 @@ monitoring {
     pipeline = "release_tests"
   }
 
-  # How often to send the heartbeat event (in seconds)
-  heartbeat_interval = 1
+  # How often to send the heartbeat event
+  heartbeat_interval_seconds = 1
 }
 
 disable_telemetry = true
