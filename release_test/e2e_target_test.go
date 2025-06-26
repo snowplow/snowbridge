@@ -455,7 +455,7 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 
-		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetHeartbeat", configFilePath, binary, "")
 		if cmdErr == nil {
 			assert.Fail("Expected docker run to return an error for HTTP target")
 		}
@@ -551,7 +551,7 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 
-		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlert", configFilePath, binary, "")
 		if cmdErr == nil {
 			assert.Fail("Expected docker run to return an error for HTTP target")
 		}
@@ -656,7 +656,7 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 
-		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlertHeartbeat", configFilePath, binary, "")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 		}
