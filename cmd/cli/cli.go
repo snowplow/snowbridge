@@ -12,6 +12,8 @@
 package cli
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -104,12 +106,13 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) error {
 	// First thing is to spin up monitoring, so we can start alerting as soon as possible
 	alertChan := make(chan error, 1)
+
 	monitoring, err := cfg.GetMonitoring(cmd.AppName, cmd.AppVersion, alertChan)
-	if err != nil {
-		log.Warnf("monitoring cannot be run: %s", err)
-	} else {
+	if err == nil {
 		defer monitoring.Stop()
 		monitoring.Start()
+	} else if !errors.Is(err, config.ErrMonitoringEndpointUnset) {
+		return fmt.Errorf("meterpoint endpoint is invalid: %w", err)
 	}
 
 	s, err := sourceconfig.GetSource(cfg, supportedSources)

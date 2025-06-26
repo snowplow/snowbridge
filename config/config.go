@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
+	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/failure"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
 	"github.com/snowplow/snowbridge/pkg/monitoring"
@@ -430,9 +431,15 @@ func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error)
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
 }
 
+var ErrMonitoringEndpointUnset = errors.New("monitoring endpoint is not set")
+
 func (c *Config) GetMonitoring(appName, appVersion string, alertChan chan error) (*monitoring.Monitoring, error) {
 	if c.Data.Monitoring.Endpoint == "" {
-		return nil, fmt.Errorf("endpoint is not set")
+		return nil, ErrMonitoringEndpointUnset
+	}
+
+	if err := common.CheckURL(c.Data.Monitoring.Endpoint); err != nil {
+		return nil, err
 	}
 
 	client := http.DefaultClient

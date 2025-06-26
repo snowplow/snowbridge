@@ -219,3 +219,33 @@ func TestNewConfig_HclTransformationOrder(t *testing.T) {
 	assert.Equal("four", c.Data.Transformations[3].Use.Name)
 	assert.Equal("five", c.Data.Transformations[4].Use.Name)
 }
+
+func TestNewConfig_GetMonitoring(t *testing.T) {
+	assert := assert.New(t)
+
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
+
+	monitoring, err := c.GetMonitoring("", "", nil)
+	assert.Nil(monitoring)
+	assert.NotNil(err)
+	assert.Equal(ErrMonitoringEndpointUnset, err)
+
+	// Should not error with valid endpoint
+	c.Data.Monitoring.Endpoint = "http://example.com"
+	monitoring, err = c.GetMonitoring("", "", nil)
+	assert.NotNil(monitoring)
+	assert.Nil(err)
+
+	// Should error with invalid endpoint
+	c.Data.Monitoring.Endpoint = "http:/example.com"
+	monitoring, err = c.GetMonitoring("", "", nil)
+	assert.Nil(monitoring)
+	assert.NotNil(err)
+}
