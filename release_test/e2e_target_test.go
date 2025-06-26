@@ -606,7 +606,11 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 			if counter.Load() < 5 {
 				counter.Add(1)
 				http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
+				return
 			}
+
+			time.Sleep(time.Millisecond * 300)
+			w.WriteHeader(http.StatusOK)
 		})
 
 		http.HandleFunc("/alert-heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
