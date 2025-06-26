@@ -696,9 +696,9 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
 	defer close(receiverChannel)
 
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
-		srv := &http.Server{Addr: ":9999"}
+		srv := &http.Server{Addr: ":10999"}
 
-		http.HandleFunc("/alert-heartbeat", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/alert-heartbeat-aws", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -719,7 +719,7 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		http.HandleFunc("/alert-heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/alert-heartbeat-aws-monitoring", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -761,7 +761,7 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only"} {
 
-		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlertHeartbeat", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlertHeartbeatAws", configFilePath, binary, "")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 		}
