@@ -588,6 +588,7 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 
 	// we expect exactly 1 alert and 1 heartbeat
 	receiverChannel := make(chan string, 2)
+	defer close(receiverChannel)
 
 	startTestServer := func(wg *sync.WaitGroup) *http.Server {
 		srv := &http.Server{Addr: ":9999"}
@@ -656,8 +657,8 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 	for _, binary := range []string{"-aws-only", ""} {
 
 		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
-		if cmdErr == nil {
-			assert.Fail("Expected docker run to return an error for HTTP target")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 		}
 
 		var foundData []string
@@ -678,7 +679,6 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, foundData[1])
 	}
 
-	close(receiverChannel)
 	if err := srv.Shutdown(t.Context()); err != nil {
 		panic(err) // failure/timeout shutting down the server gracefully
 	}
