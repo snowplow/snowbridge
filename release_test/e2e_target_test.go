@@ -453,7 +453,7 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 		panic(err)
 	}
 
-	for _, binary := range []string{""} {
+	for _, binary := range []string{"-aws-only", ""} {
 
 		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetHeartbeat", configFilePath, binary, "")
 		if cmdErr == nil {
@@ -654,7 +654,7 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 		panic(err)
 	}
 
-	for _, binary := range []string{"-aws-only", ""} {
+	for _, binary := range []string{""} {
 
 		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlertHeartbeat", configFilePath, binary, "")
 		if cmdErr != nil {
