@@ -163,7 +163,7 @@ func defaultConfigData() *configurationData {
 		},
 		Monitoring: &monitoringConfig{
 			Tags:              map[string]string{},
-			HeartbeatInterval: 3600,
+			HeartbeatInterval: 300,
 		},
 	}
 }
