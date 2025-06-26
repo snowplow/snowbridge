@@ -350,6 +350,8 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 	)
 
 	if err == nil {
+		// This would reset monitoring to send heartbeat & alert events
+		alertChan <- nil
 		return err
 	}
 

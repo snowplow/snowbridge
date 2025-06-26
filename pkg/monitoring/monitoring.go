@@ -50,6 +50,8 @@ type Monitoring struct {
 	log               *logrus.Entry
 
 	exitSignal chan struct{}
+
+	pauseMonitoring bool
 }
 
 func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
@@ -57,6 +59,7 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 		appName:           appName,
 		appVersion:        appVersion,
 		client:            client,
+		pauseMonitoring:   false,
 		endpoint:          endpoint,
 		tags:              tags,
 		heartbeatInterval: heartbeatInterval,
@@ -75,7 +78,7 @@ func (m *Monitoring) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				if m.client != nil {
+				if !m.pauseMonitoring {
 					m.log.Info("Sending heartbeat")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
@@ -97,7 +100,7 @@ func (m *Monitoring) Start() {
 					}
 				}
 			case err := <-m.alertChan:
-				if m.client != nil {
+				if !m.pauseMonitoring {
 					m.log.Info("Sending alert")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
@@ -121,7 +124,14 @@ func (m *Monitoring) Start() {
 
 					// Once alert has been successfully sent,
 					// we shouldn't attempt to send anything else (nor alert, nor heartbeat)
-					m.client = nil
+					// until setup error is resolved
+					m.pauseMonitoring = true
+				}
+
+				// If error is nil, it means setup error got resolved
+				// and we should resume monitoring
+				if err == nil {
+					m.pauseMonitoring = false
 				}
 			case <-m.exitSignal:
 				m.log.Info("Monitoring is shutting down")

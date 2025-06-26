@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,10 +34,10 @@ func (s *TestMonitoringSender) Do(b *http.Request) (*http.Response, error) {
 
 // --- Tests
 
-func TestMonitoringHeartbeatTargetWrite(t *testing.T) {
+func TestMonitoringTargetWrite(t *testing.T) {
 	assert := assert.New(t)
 
-	expectedRequest := struct {
+	expectedHeartbeatRequest := struct {
 		Method string
 		URL    string
 		Body   MonitoringEvent
@@ -52,40 +53,7 @@ func TestMonitoringHeartbeatTargetWrite(t *testing.T) {
 		},
 	}
 
-	counter := 0
-
-	onDo := func(b *http.Request) (*http.Response, error) {
-		assert.NotNil(b)
-		assert.Equal(expectedRequest.Method, b.Method)
-		assert.Equal(expectedRequest.URL, b.URL.String())
-
-		var actualBody MonitoringEvent
-		if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
-			t.Fatalf("not expecting error: %s", err)
-		}
-
-		assert.Equal(expectedRequest.Body, actualBody)
-
-		counter++
-		return nil, nil
-	}
-
-	sr := TestMonitoringSender{onDo: onDo}
-
-	monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, nil)
-	assert.NotNil(monitoring)
-	monitoring.Start()
-
-	time.Sleep(2200 * time.Millisecond)
-	assert.Equal(counter, 2)
-
-	monitoring.Stop()
-}
-
-func TestMonitoringAlertTargetWrite(t *testing.T) {
-	assert := assert.New(t)
-
-	expectedRequest := struct {
+	expectedAlertRequest := struct {
 		Method string
 		URL    string
 		Body   MonitoringEvent
@@ -102,45 +70,130 @@ func TestMonitoringAlertTargetWrite(t *testing.T) {
 		},
 	}
 
-	counter := 0
+	t.Run("simple heartbeats", func(t *testing.T) {
+		counter := 0
 
-	onDo := func(b *http.Request) (*http.Response, error) {
-		assert.NotNil(b)
-		assert.Equal(expectedRequest.Method, b.Method)
-		assert.Equal(expectedRequest.URL, b.URL.String())
+		onDo := func(b *http.Request) (*http.Response, error) {
+			assert.NotNil(b)
 
-		var actualBody MonitoringEvent
-		if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
-			t.Fatalf("not expecting error: %s", err)
+			var actualBody MonitoringEvent
+			if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
+				t.Fatalf("not expecting error: %s", err)
+			}
+
+			assert.Equal(expectedHeartbeatRequest.Body, actualBody)
+			assert.Equal(expectedHeartbeatRequest.Method, b.Method)
+			assert.Equal(expectedHeartbeatRequest.URL, b.URL.String())
+
+			counter++
+			return nil, nil
 		}
 
-		assert.Equal(expectedRequest.Body, actualBody)
+		sr := TestMonitoringSender{onDo: onDo}
 
-		counter++
-		return nil, nil
-	}
+		monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, nil)
+		assert.NotNil(monitoring)
+		monitoring.Start()
 
-	sr := TestMonitoringSender{onDo: onDo}
-	alertChan := make(chan error, 1)
+		time.Sleep(2200 * time.Millisecond)
+		assert.Equal(counter, 2)
 
-	monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, (time.Second * 2), alertChan)
-	assert.NotNil(monitoring)
+		monitoring.Stop()
+	})
 
-	monitoring.Start()
+	t.Run("simple alerts", func(t *testing.T) {
+		counter := 0
 
-	// Sent an error in
-	alertChan <- fmt.Errorf("failed to connect to target API")
+		onDo := func(b *http.Request) (*http.Response, error) {
+			assert.NotNil(b)
 
-	// And expect counter to increase by 1 (along side with expected alert event)
-	time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for monitoring to process event
-	assert.Equal(counter, 1)
+			var actualBody MonitoringEvent
+			if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
+				t.Fatalf("not expecting error: %s", err)
+			}
 
-	// Then, we another alert gets sent in, but it is not being sent
-	alertChan <- fmt.Errorf("failed to connect to target API")
+			assert.Equal(expectedAlertRequest.Body, actualBody)
+			assert.Equal(expectedAlertRequest.Method, b.Method)
+			assert.Equal(expectedAlertRequest.URL, b.URL.String())
 
-	// Here we confirm that nor new alert nor heartbeat were sent
-	time.Sleep(2500 * time.Millisecond)
-	assert.Equal(counter, 1)
+			counter++
+			return nil, nil
+		}
 
-	monitoring.Stop()
+		sr := TestMonitoringSender{onDo: onDo}
+		alertChan := make(chan error, 1)
+
+		monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
+		assert.NotNil(monitoring)
+
+		monitoring.Start()
+
+		// Sent an error in
+		alertChan <- fmt.Errorf("failed to connect to target API")
+
+		// And expect counter to increase by 1 (along side with expected alert event)
+		time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for monitoring to process event
+		assert.Equal(counter, 1)
+
+		// Then, we another alert gets sent in, but it is not being sent
+		alertChan <- fmt.Errorf("failed to connect to target API")
+
+		// Here we confirm that nor new alert nor heartbeat were sent
+		time.Sleep(1100 * time.Millisecond)
+		assert.Equal(counter, 1)
+
+		monitoring.Stop()
+	})
+
+	t.Run("alert, then reset, then heartbeat", func(t *testing.T) {
+		counter := 0
+
+		onDo := func(b *http.Request) (*http.Response, error) {
+			assert.NotNil(b)
+			var actualBody MonitoringEvent
+			if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
+				t.Fatalf("not expecting error: %s", err)
+			}
+
+			if strings.Contains(actualBody.Schema, "heartbeat") {
+				assert.Equal(expectedHeartbeatRequest.Body, actualBody)
+				assert.Equal(expectedHeartbeatRequest.Method, b.Method)
+				assert.Equal(expectedHeartbeatRequest.URL, b.URL.String())
+
+				counter++
+			} else if strings.Contains(actualBody.Schema, "alert") {
+				assert.Equal(expectedAlertRequest.Body, actualBody)
+				assert.Equal(expectedAlertRequest.Method, b.Method)
+				assert.Equal(expectedAlertRequest.URL, b.URL.String())
+
+				counter++
+			}
+
+			return nil, nil
+		}
+
+		sr := TestMonitoringSender{onDo: onDo}
+		alertChan := make(chan error, 1)
+
+		monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
+		assert.NotNil(monitoring)
+
+		monitoring.Start()
+
+		// Sent an error in
+		alertChan <- fmt.Errorf("failed to connect to target API")
+
+		// And expect counter to increase by 1 (along side with expected alert event)
+		time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for monitoring to process event
+		assert.Equal(counter, 1)
+
+		// Then, setup error gets resolved
+		alertChan <- nil
+
+		// Here we confirm that once setup error gets resolved, we can continue with sending heartbeats as before
+		time.Sleep(1100 * time.Millisecond)
+		assert.Equal(counter, 2)
+
+		monitoring.Stop()
+	})
 }
