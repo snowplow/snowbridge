@@ -650,7 +650,7 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 	srvExitWg.Add(1)
 	srv := startTestServer(srvExitWg)
 
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_heartbeat_config_aws.hcl"))
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_heartbeat_config.hcl"))
 	if err != nil {
 		panic(err)
 	}
@@ -754,7 +754,7 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
 	srvExitWg.Add(1)
 	srv := startTestServer(srvExitWg)
 
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_heartbeat_config.hcl"))
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_heartbeat_config_aws.hcl"))
 	if err != nil {
 		panic(err)
 	}
