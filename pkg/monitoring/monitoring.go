@@ -100,7 +100,7 @@ func (m *Monitoring) Start() {
 					}
 				}
 			case err := <-m.alertChan:
-				if !m.pauseMonitoring {
+				if !m.pauseMonitoring && err != nil {
 					m.log.Info("Sending alert")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",

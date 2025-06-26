@@ -323,6 +323,8 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 // - transient errors: short delay, limited attempts
 // If it's setup/transient error is decided based on a response returned by the target.
 func handleWrite(cfg *config.Config, write func() error, alertChan chan error) error {
+	setupErrored := false
+
 	retryOnlySetupErrors := retry.RetryIf(func(err error) bool {
 		_, isSetup := err.(models.SetupWriteError)
 		return isSetup
@@ -331,6 +333,7 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 	onSetupError := retry.OnRetry(func(attempt uint, err error) {
 		log.Warnf("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
 		// Here we can set unhealthy status + send monitoring alerts in the future. Nothing happens here now.
+		setupErrored = true
 		if alertChan != nil {
 			alertChan <- err
 		}
@@ -350,8 +353,8 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 	)
 
 	if err == nil {
-		if alertChan != nil {
-			// This would reset monitoring to send heartbeat & alert events
+		// Reset monitoring only if previously there was a setup error
+		if alertChan != nil && setupErrored {
 			alertChan <- nil
 		}
 		return err
