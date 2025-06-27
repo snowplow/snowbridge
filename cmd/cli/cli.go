@@ -329,8 +329,8 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 
 	onSetupError := retry.OnRetry(func(attempt uint, err error) {
 		log.Warnf("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
-		setupErrored = true
 		if alertChan != nil {
+			setupErrored = true
 			alertChan <- err
 		}
 	})
@@ -348,11 +348,13 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 		// retry.Attempts(0), //unlimited
 	)
 
+	// Reset monitoring only if previously there was a setup error.
+	// Whether setup error got resolved (err == nil) or not is irrelevant
+	if alertChan != nil && setupErrored {
+		alertChan <- nil
+	}
+
 	if err == nil {
-		// Reset monitoring only if previously there was a setup error
-		if alertChan != nil && setupErrored {
-			alertChan <- nil
-		}
 		return err
 	}
 
