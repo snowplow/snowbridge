@@ -431,21 +431,23 @@ func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error)
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
 }
 
-func (c *Config) GetMonitoring(appName, appVersion string, alertChan chan error) (*monitoring.Monitoring, error) {
+func (c *Config) GetMonitoring(appName, appVersion string) (*monitoring.Monitoring, chan error, error) {
 	if c.Data.Monitoring.Endpoint == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if err := common.CheckURL(c.Data.Monitoring.Endpoint); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	alertChan := make(chan error)
 
 	client := http.DefaultClient
 	endpoint := c.Data.Monitoring.Endpoint
 	tags := c.Data.Monitoring.Tags
 	heartbeatInterval := time.Duration(c.Data.Monitoring.HeartbeatInterval) * time.Second
 
-	return monitoring.NewMonitoring(appName, appVersion, client, endpoint, tags, heartbeatInterval, alertChan), nil
+	return monitoring.NewMonitoring(appName, appVersion, client, endpoint, tags, heartbeatInterval, alertChan), alertChan, nil
 }
 
 // getStatsReceiver builds and returns the stats receiver

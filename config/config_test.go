@@ -232,19 +232,22 @@ func TestNewConfig_GetMonitoring(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	monitoring, err := c.GetMonitoring("", "", nil)
+	monitoring, alertChan, err := c.GetMonitoring("", "")
 	assert.Nil(monitoring)
-	assert.Nil(err)
-
-	// Should not error with valid endpoint
-	c.Data.Monitoring.Endpoint = "http://example.com"
-	monitoring, err = c.GetMonitoring("", "", nil)
-	assert.NotNil(monitoring)
+	assert.Nil(alertChan)
 	assert.Nil(err)
 
 	// Should error with invalid endpoint
 	c.Data.Monitoring.Endpoint = "http:/example.com"
-	monitoring, err = c.GetMonitoring("", "", nil)
+	monitoring, alertChan, err = c.GetMonitoring("", "")
 	assert.Nil(monitoring)
+	assert.Nil(alertChan)
 	assert.NotNil(err)
+
+	// Should not error with valid endpoint
+	c.Data.Monitoring.Endpoint = "http://example.com"
+	monitoring, alertChan, err = c.GetMonitoring("", "")
+	assert.NotNil(monitoring)
+	assert.NotNil(alertChan)
+	assert.Nil(err)
 }
