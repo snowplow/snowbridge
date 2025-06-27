@@ -28,11 +28,6 @@ monitoring {
   # An actual HTTP endpoint where monitoring events would be sent
   endpoint = "http://host.docker.internal:7997/alert-monitoring"
 
-  # Set of arbitrary key-value pairs attached to the payload
-  tags = {
-    pipeline = "release_tests"
-  }
-
   # How often to send the heartbeat event
   heartbeat_interval_seconds = 60
 }
