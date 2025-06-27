@@ -836,14 +836,13 @@ func testE2EHttpTargetSetupErrorWithoutMonitor(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 		_, cmdErr := runDockerCommand(10*time.Second, "httpTargetSetupError", configFilePath, binary, "")
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		if cmdErr == nil {
+			assert.Fail("Expected docker run to return an error for HTTP target")
 		}
 	}
 
 	if err := srv.Shutdown(t.Context()); err != nil {
 		panic(err) // failure/timeout shutting down the server gracefully
 	}
-
 	srvExitWg.Wait()
 }

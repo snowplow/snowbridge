@@ -329,7 +329,6 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 
 	onSetupError := retry.OnRetry(func(attempt uint, err error) {
 		log.Warnf("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
-		// Here we can set unhealthy status + send monitoring alerts in the future. Nothing happens here now.
 		setupErrored = true
 		if alertChan != nil {
 			alertChan <- err
@@ -342,10 +341,10 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 		retryOnlySetupErrors,
 		onSetupError,
 		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay)*time.Millisecond),
-		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally. Unlimited attempts don't make sense right now.
+		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally
 		retry.Attempts(5),
 		retry.LastErrorOnly(true),
-		//enable when health check + monitoring implemented
+		// enable when health probe is implemented
 		// retry.Attempts(0), //unlimited
 	)
 
