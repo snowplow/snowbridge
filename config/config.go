@@ -431,11 +431,9 @@ func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error)
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
 }
 
-var ErrMonitoringEndpointUnset = errors.New("monitoring endpoint is not set")
-
 func (c *Config) GetMonitoring(appName, appVersion string, alertChan chan error) (*monitoring.Monitoring, error) {
 	if c.Data.Monitoring.Endpoint == "" {
-		return nil, ErrMonitoringEndpointUnset
+		return nil, nil
 	}
 
 	if err := common.CheckURL(c.Data.Monitoring.Endpoint); err != nil {

@@ -12,8 +12,6 @@
 package cli
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -108,11 +106,12 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	alertChan := make(chan error, 1)
 
 	monitoring, err := cfg.GetMonitoring(cmd.AppName, cmd.AppVersion, alertChan)
-	if err == nil {
+	if err != nil {
+		return err
+	}
+	if monitoring != nil {
 		defer monitoring.Stop()
 		monitoring.Start()
-	} else if !errors.Is(err, config.ErrMonitoringEndpointUnset) {
-		return fmt.Errorf("meterpoint endpoint is invalid: %w", err)
 	}
 
 	s, err := sourceconfig.GetSource(cfg, supportedSources)

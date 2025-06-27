@@ -51,7 +51,7 @@ type Monitoring struct {
 
 	exitSignal chan struct{}
 
-	pauseMonitoring bool
+	isHealthy bool
 }
 
 func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
@@ -59,7 +59,7 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 		appName:           appName,
 		appVersion:        appVersion,
 		client:            client,
-		pauseMonitoring:   false,
+		isHealthy:         false,
 		endpoint:          endpoint,
 		tags:              tags,
 		heartbeatInterval: heartbeatInterval,
@@ -78,7 +78,7 @@ func (m *Monitoring) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				if !m.pauseMonitoring {
+				if !m.isHealthy {
 					m.log.Info("Sending heartbeat")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
@@ -100,7 +100,7 @@ func (m *Monitoring) Start() {
 					}
 				}
 			case err := <-m.alertChan:
-				if !m.pauseMonitoring && err != nil {
+				if !m.isHealthy && err != nil {
 					m.log.Info("Sending alert")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
@@ -113,7 +113,7 @@ func (m *Monitoring) Start() {
 					}
 					req, err := m.prepareRequest(event)
 					if err != nil {
-						m.log.Warnf("failed to prepare heartbeat event request: %s", err)
+						m.log.Warnf("failed to prepare alert event request: %s", err)
 						continue
 					}
 
@@ -125,13 +125,13 @@ func (m *Monitoring) Start() {
 					// Once alert has been successfully sent,
 					// we shouldn't attempt to send anything else (nor alert, nor heartbeat)
 					// until setup error is resolved
-					m.pauseMonitoring = true
+					m.isHealthy = true
 				}
 
 				// If error is nil, it means setup error got resolved
 				// and we should resume monitoring
 				if err == nil {
-					m.pauseMonitoring = false
+					m.isHealthy = false
 				}
 			case <-m.exitSignal:
 				m.log.Info("Monitoring is shutting down")

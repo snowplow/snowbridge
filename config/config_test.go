@@ -234,8 +234,7 @@ func TestNewConfig_GetMonitoring(t *testing.T) {
 
 	monitoring, err := c.GetMonitoring("", "", nil)
 	assert.Nil(monitoring)
-	assert.NotNil(err)
-	assert.Equal(ErrMonitoringEndpointUnset, err)
+	assert.Nil(err)
 
 	// Should not error with valid endpoint
 	c.Data.Monitoring.Endpoint = "http://example.com"
