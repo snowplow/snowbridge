@@ -829,7 +829,7 @@ func testE2EHttpTargetSetupErrorWithoutMonitor(t *testing.T) {
 	srvExitWg.Add(1)
 	srv := startTestServer(srvExitWg)
 
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http", "config.hcl"))
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http", "config_setup_error.hcl"))
 	if err != nil {
 		panic(err)
 	}
