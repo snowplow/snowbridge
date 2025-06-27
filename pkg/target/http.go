@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -107,17 +106,6 @@ type HTTPTarget struct {
 
 	includeTimingHeaders bool
 	rejectionThreshold   int
-}
-
-func checkURL(str string) error {
-	u, err := url.Parse(str)
-	if err != nil {
-		return err
-	}
-	if u.Scheme == "" || u.Host == "" {
-		return errors.New(fmt.Sprintf("Invalid url for HTTP target: '%s'", str))
-	}
-	return nil
 }
 
 // getHeaders expects a JSON object with key-value pairs, eg: `{"Max Forwards": "10", "Accept-Language": "en-US", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}`
@@ -223,7 +211,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		log.Warn("Neither 'request_timeout_in_millis' nor 'request_timeout_in_seconds' are set. The previous default is preserved, but strongly advise manual configuration of 'request_timeout_in_millis'")
 	}
 
-	err := checkURL(c.URL)
+	err := common.CheckURL(c.URL)
 	if err != nil {
 		return nil, err
 	}

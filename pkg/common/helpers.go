@@ -18,16 +18,18 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"hash"
+	"net/http"
+	"net/url"
+	"os"
+	"time"
+
 	"github.com/IBM/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/xdg/scram"
-	"hash"
-	"net/http"
-	"os"
-	"time"
 )
 
 // GetAWSConfig is a general tool to handle generating an AWS config
@@ -203,6 +205,17 @@ func (x *xdgSCRAMClient) Step(challenge string) (response string, err error) {
 
 func (x *xdgSCRAMClient) Done() bool {
 	return x.ClientConversation.Done()
+}
+
+func CheckURL(str string) error {
+	u, err := url.Parse(str)
+	if err != nil {
+		return err
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("invalid url for HTTP target: '%s'", str)
+	}
+	return nil
 }
 
 // SASL based authentication with broker. While there are multiple SASL authentication methods

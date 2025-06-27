@@ -85,3 +85,19 @@ func testSentryConfig(t *testing.T, configpath string, fullExample bool) {
 	}
 
 }
+
+func testMonitoringConfig(t *testing.T, configpath string, fullExample bool) {
+	assert := assert.New(t)
+
+	c := getConfigFromFilepath(t, configpath)
+
+	cfgMonitoring := c.Data.Monitoring
+
+	assert.NotNil(cfgMonitoring)
+	assert.NotZero(cfgMonitoring.Endpoint)
+
+	if fullExample {
+		assert.NotZero(cfgMonitoring.Tags)
+		assert.NotZero(cfgMonitoring.HeartbeatInterval)
+	}
+}

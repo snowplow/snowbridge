@@ -102,6 +102,16 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 
 // RunApp runs application (without cli stuff)
 func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) error {
+	// First thing is to spin up monitoring, so we can start alerting as soon as possible
+	monitoring, alertChan, err := cfg.GetMonitoring(cmd.AppName, cmd.AppVersion)
+	if err != nil {
+		return err
+	}
+	if monitoring != nil {
+		defer monitoring.Stop()
+		monitoring.Start()
+	}
+
 	s, err := sourceconfig.GetSource(cfg, supportedSources)
 	if err != nil {
 		return err
@@ -184,7 +194,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	// Callback functions for the source to leverage when writing data
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: sourceWriteFunc(t, ft, filter, tr, o, cfg),
+		WriteToTarget: sourceWriteFunc(t, ft, filter, tr, o, cfg, alertChan),
 	}
 
 	// Read is a long running process and will only return when the source
@@ -209,7 +219,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 // 4. Observing these results
 //
 // All with retry logic baked in to remove any of this handling from the implementations
-func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targetiface.Target, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config) func(messages []*models.Message) error {
+func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targetiface.Target, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config, alertChan chan error) func(messages []*models.Message) error {
 	return func(messages []*models.Message) error {
 
 		copyOriginalData(messages)
@@ -235,8 +245,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeTransformed)
-
+			err := handleWrite(cfg, writeTransformed, alertChan)
 			if err != nil {
 				return err
 			}
@@ -255,8 +264,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeFiltered)
-
+			err := handleWrite(cfg, writeFiltered, nil)
 			if err != nil {
 				return err
 			}
@@ -276,7 +284,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeOversized)
+			err := handleWrite(cfg, writeOversized, nil)
 
 			if err != nil {
 				return err
@@ -297,7 +305,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeInvalid)
+			err := handleWrite(cfg, writeInvalid, nil)
 
 			if err != nil {
 				return err
@@ -311,7 +319,9 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 // - setup errors: long delay, unlimited attempts, unhealthy state + alerts
 // - transient errors: short delay, limited attempts
 // If it's setup/transient error is decided based on a response returned by the target.
-func handleWrite(cfg *config.Config, write func() error) error {
+func handleWrite(cfg *config.Config, write func() error, alertChan chan error) error {
+	setupErrored := false
+
 	retryOnlySetupErrors := retry.RetryIf(func(err error) bool {
 		_, isSetup := err.(models.SetupWriteError)
 		return isSetup
@@ -319,7 +329,10 @@ func handleWrite(cfg *config.Config, write func() error) error {
 
 	onSetupError := retry.OnRetry(func(attempt uint, err error) {
 		log.Warnf("Setup target write error. Attempt: %d, error: %s\n", attempt+1, err)
-		// Here we can set unhealthy status + send monitoring alerts in the future. Nothing happens here now.
+		if alertChan != nil {
+			setupErrored = true
+			alertChan <- err
+		}
 	})
 
 	//First try to handle error as setup...
@@ -328,12 +341,24 @@ func handleWrite(cfg *config.Config, write func() error) error {
 		retryOnlySetupErrors,
 		onSetupError,
 		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay)*time.Millisecond),
-		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally. Unlimited attempts don't make sense right now.
+		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally
 		retry.Attempts(5),
 		retry.LastErrorOnly(true),
-		//enable when health check + monitoring implemented
+		// enable when health probe is implemented
 		// retry.Attempts(0), //unlimited
 	)
+
+	// If after retries we still have setup error, there is no reason to retry it further as transient
+	// So error early
+	if _, isSetup := err.(models.SetupWriteError); isSetup {
+		return err
+	}
+
+	// Now, `err` is either nil or no longer setup-related
+	// Thus we should reset monitoring to re-enable heartbeats
+	if alertChan != nil && setupErrored {
+		alertChan <- nil
+	}
 
 	if err == nil {
 		return err
