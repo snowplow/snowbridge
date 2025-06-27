@@ -348,8 +348,14 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 		// retry.Attempts(0), //unlimited
 	)
 
-	// Reset monitoring only if previously there was a setup error.
-	// Whether setup error got resolved (err == nil) or not is irrelevant
+	// If after retries we still have setup error, there is no reason to retry it further as transient
+	// So error early
+	if _, isSetup := err.(models.SetupWriteError); isSetup {
+		return err
+	}
+
+	// Now, `err` is either nil or no longer setup-related
+	// Thus we should reset monitoring to re-enable heartbeats
 	if alertChan != nil && setupErrored {
 		alertChan <- nil
 	}
