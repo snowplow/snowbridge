@@ -59,7 +59,7 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 		appName:           appName,
 		appVersion:        appVersion,
 		client:            client,
-		isHealthy:         false,
+		isHealthy:         true,
 		endpoint:          endpoint,
 		tags:              tags,
 		heartbeatInterval: heartbeatInterval,
@@ -78,7 +78,7 @@ func (m *Monitoring) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				if !m.isHealthy {
+				if m.isHealthy {
 					m.log.Info("Sending heartbeat")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
@@ -100,7 +100,7 @@ func (m *Monitoring) Start() {
 					}
 				}
 			case err := <-m.alertChan:
-				if !m.isHealthy && err != nil {
+				if m.isHealthy && err != nil {
 					m.log.Info("Sending alert")
 					event := MonitoringEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
@@ -125,13 +125,13 @@ func (m *Monitoring) Start() {
 					// Once alert has been successfully sent,
 					// we shouldn't attempt to send anything else (nor alert, nor heartbeat)
 					// until setup error is resolved
-					m.isHealthy = true
+					m.isHealthy = false
 				}
 
 				// If error is nil, it means setup error got resolved
 				// and we should resume monitoring
 				if err == nil {
-					m.isHealthy = false
+					m.isHealthy = true
 				}
 			case <-m.exitSignal:
 				m.log.Info("Monitoring is shutting down")

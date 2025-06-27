@@ -40,10 +40,11 @@ func TestE2ETargets(t *testing.T) {
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
 	t.Run("http", testE2EHttpTarget)
-	t.Run("http with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
-	t.Run("http with monitoring heartbeat", testE2EHttpWithMonitoringHeartbeatTarget)
-	t.Run("http with monitoring alert & heartbeat", testE2EHttpWithMonitoringAlertAndHeartbeatTarget)
-	t.Run("http with monitoring alert & heartbeat, AWS only", testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget)
+	t.Run("http: setup error without monitor", testE2EHttpTargetSetupErrorWithoutMonitor)
+	t.Run("http: with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
+	t.Run("http: with monitoring heartbeat", testE2EHttpWithMonitoringHeartbeatTarget)
+	t.Run("http: with monitoring alert & heartbeat", testE2EHttpWithMonitoringAlertAndHeartbeatTarget)
+	t.Run("http: with monitoring alert & heartbeat, AWS only", testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
 	t.Run("kafka", testE2EKafkaTarget)
@@ -782,6 +783,62 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
 		assert.Equal(2, len(foundData))
 		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, foundData[0])
 		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, foundData[1])
+	}
+
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+
+	srvExitWg.Wait()
+}
+
+func testE2EHttpTargetSetupErrorWithoutMonitor(t *testing.T) {
+	assert := assert.New(t)
+
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":11998"}
+
+		http.HandleFunc("/setup-error", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
+		})
+
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http", "config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	for _, binary := range []string{"-aws-only", ""} {
+		_, cmdErr := runDockerCommand(10*time.Second, "httpTargetSetupError", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		}
 	}
 
 	if err := srv.Shutdown(t.Context()); err != nil {

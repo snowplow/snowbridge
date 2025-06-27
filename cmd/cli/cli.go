@@ -103,7 +103,7 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 // RunApp runs application (without cli stuff)
 func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) error {
 	// First thing is to spin up monitoring, so we can start alerting as soon as possible
-	alertChan := make(chan error, 1)
+	alertChan := make(chan error)
 
 	monitoring, err := cfg.GetMonitoring(cmd.AppName, cmd.AppVersion, alertChan)
 	if err != nil {
