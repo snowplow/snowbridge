@@ -362,7 +362,7 @@ func TestHTTP_NewHTTPTarget(t *testing.T) {
 	httpTarget, err = HTTPTargetConfigFunction(config)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid url for HTTP target: 'something'", err.Error())
+		assert.Equal("invalid url for HTTP target: 'something'", err.Error())
 	}
 	assert.Nil(httpTarget)
 
@@ -370,7 +370,7 @@ func TestHTTP_NewHTTPTarget(t *testing.T) {
 	httpTarget, err = HTTPTargetConfigFunction(config)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid url for HTTP target: ''", err.Error())
+		assert.Equal("invalid url for HTTP target: ''", err.Error())
 	}
 	assert.Nil(httpTarget)
 }
