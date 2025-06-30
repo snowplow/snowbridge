@@ -23,6 +23,6 @@ var (
 	protocol           = "https"
 	url                = "telemetry-g.snowplowanalytics.com"
 	port               = "443"
-	applicationName    = "snowbridge"
+	applicationName    = cmd.AppName
 	applicationVersion = cmd.AppVersion
 )

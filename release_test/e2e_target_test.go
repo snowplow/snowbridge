@@ -14,10 +14,13 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/snowplow/snowbridge/cmd"
 	"io"
 	"net/http"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,6 +42,11 @@ func TestE2ETargets(t *testing.T) {
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
 	t.Run("http", testE2EHttpTarget)
+	t.Run("http: setup error without monitor", testE2EHttpTargetSetupErrorWithoutMonitor)
+	t.Run("http: with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
+	t.Run("http: with monitoring heartbeat", testE2EHttpWithMonitoringHeartbeatTarget)
+	t.Run("http: with monitoring alert & heartbeat", testE2EHttpWithMonitoringAlertAndHeartbeatTarget)
+	t.Run("http: with monitoring alert & heartbeat, AWS only", testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
 	t.Run("kafka", testE2EKafkaTarget)
@@ -129,7 +137,6 @@ func testE2EHttpTarget(t *testing.T) {
 				panic(err)
 			}
 			receiverChannel <- string(unmarshalledBody[0])
-
 		})
 
 		go func() {
@@ -156,7 +163,7 @@ func testE2EHttpTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 
-		_, cmdErr := runDockerCommand(3*time.Second, "httpTarget", configFilePath, binary, "")
+		_, cmdErr := runDockerCommand(10*time.Second, "httpTarget", configFilePath, binary, "")
 		if cmdErr != nil {
 			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 		}
@@ -168,16 +175,16 @@ func testE2EHttpTarget(t *testing.T) {
 			select {
 			case res := <-receiverChannel:
 				foundData = append(foundData, res)
-			case <-time.After(1 * time.Second):
-				break receiveLoop // after 1s with no data, break the loop
+			case <-time.After(2 * time.Second):
+				break receiveLoop
 			}
 		}
 
 		expectedFilePath := filepath.Join("cases", "targets", "http", "expected_data.txt")
-
 		evaluateTestCaseJSONString(t, foundData, expectedFilePath, "HTTP target "+binary)
-
 	}
+
+	close(receiverChannel)
 
 	if err := srv.Shutdown(t.Context()); err != nil {
 		panic(err) // failure/timeout shutting down the server gracefully
@@ -389,4 +396,455 @@ func testE2EKafkaTarget(t *testing.T) {
 		evaluateTestCaseString(t, foundData, inputFilePath, "Kafka target "+binary)
 	}
 	partitionConsumer.AsyncClose()
+}
+
+func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
+	assert := assert.New(t)
+
+	receiverChannel := make(chan string, 2)
+
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":6996"}
+
+		http.HandleFunc("/heartbeat", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+
+			time.Sleep(time.Millisecond * 900)
+			w.WriteHeader(http.StatusOK)
+		})
+
+		http.HandleFunc("/heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			var unmarshalledBody json.RawMessage
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			receiverChannel <- string(unmarshalledBody)
+		})
+
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "heartbeat_config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	for _, binary := range []string{"-aws-only", ""} {
+
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetHeartbeat", configFilePath, binary, "")
+		if cmdErr == nil {
+			assert.Fail("Expected docker run to return an error for HTTP target")
+		}
+
+		var foundData []string
+
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+				break receiveLoop
+			// this is just a precaution to avoid waiting for broken test
+			case <-time.After(5020 * time.Millisecond):
+				break receiveLoop
+			}
+		}
+
+		assert.Equal(1, len(foundData))
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+	}
+
+	close(receiverChannel)
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+
+	srvExitWg.Wait()
+}
+
+func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
+	assert := assert.New(t)
+
+	// we expect exactly 1 alert, because once alert is being sent, nothing else should be coming out of monitoring
+	receiverChannel := make(chan string, 1)
+
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":7997"}
+
+		http.HandleFunc("/alert", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
+		})
+
+		http.HandleFunc("/alert-monitoring", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			var unmarshalledBody json.RawMessage
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			receiverChannel <- string(unmarshalledBody)
+		})
+
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	for _, binary := range []string{"-aws-only", ""} {
+
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlert", configFilePath, binary, "")
+		if cmdErr == nil {
+			assert.Fail("Expected docker run to return an error for HTTP target")
+		}
+
+		var foundData []string
+
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+				break receiveLoop
+			// this is just a precaution to avoid waiting for broken test
+			case <-time.After(1020 * time.Millisecond):
+				break receiveLoop
+			}
+		}
+
+		assert.Equal(1, len(foundData))
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+	}
+
+	close(receiverChannel)
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+
+	srvExitWg.Wait()
+}
+
+func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
+	assert := assert.New(t)
+	var counter atomic.Uint64
+
+	// we expect exactly 1 alert and 1 heartbeat
+	receiverChannel := make(chan string, 2)
+	defer close(receiverChannel)
+
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":9999"}
+
+		http.HandleFunc("/alert-heartbeat", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			if counter.Load() < 5 {
+				counter.Add(1)
+				http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
+				return
+			}
+
+			time.Sleep(time.Millisecond * 300)
+			w.WriteHeader(http.StatusOK)
+		})
+
+		http.HandleFunc("/alert-heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			var unmarshalledBody json.RawMessage
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			receiverChannel <- string(unmarshalledBody)
+		})
+
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_heartbeat_config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	for _, binary := range []string{""} {
+
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlertHeartbeat", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		}
+
+		var foundData []string
+
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+			// this is just a precaution to avoid waiting for broken test
+			case <-time.After(1020 * time.Millisecond):
+				break receiveLoop
+			}
+		}
+
+		assert.Equal(2, len(foundData))
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[1])
+	}
+
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+
+	srvExitWg.Wait()
+}
+
+func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
+	assert := assert.New(t)
+	var counter atomic.Uint64
+
+	// we expect exactly 1 alert and 1 heartbeat
+	receiverChannel := make(chan string, 2)
+	defer close(receiverChannel)
+
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":10999"}
+
+		http.HandleFunc("/alert-heartbeat-aws", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			if counter.Load() < 5 {
+				counter.Add(1)
+				http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
+				return
+			}
+
+			time.Sleep(time.Millisecond * 300)
+			w.WriteHeader(http.StatusOK)
+		})
+
+		http.HandleFunc("/alert-heartbeat-aws-monitoring", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			var unmarshalledBody json.RawMessage
+			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
+				panic(err)
+			}
+			receiverChannel <- string(unmarshalledBody)
+		})
+
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_heartbeat_config_aws.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	for _, binary := range []string{"-aws-only"} {
+
+		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlertHeartbeatAws", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		}
+
+		var foundData []string
+
+	receiveLoop:
+		for {
+			select {
+			case res := <-receiverChannel:
+				foundData = append(foundData, res)
+			// this is just a precaution to avoid waiting for broken test
+			case <-time.After(1020 * time.Millisecond):
+				break receiveLoop
+			}
+		}
+
+		assert.Equal(2, len(foundData))
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[1])
+	}
+
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+
+	srvExitWg.Wait()
+}
+
+func testE2EHttpTargetSetupErrorWithoutMonitor(t *testing.T) {
+	assert := assert.New(t)
+
+	startTestServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":11998"}
+
+		http.HandleFunc("/setup-error", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			_, err := io.ReadAll(r.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
+		})
+
+		go func() {
+			defer wg.Done()
+			// always returns error. ErrServerClosed on graceful close
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				logrus.Fatalf("ListenAndServe(): %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+
+	srvExitWg.Add(1)
+	srv := startTestServer(srvExitWg)
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http", "config_setup_error.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	for _, binary := range []string{"-aws-only", ""} {
+		_, cmdErr := runDockerCommand(10*time.Second, "httpTargetSetupError", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		}
+	}
+
+	if err := srv.Shutdown(t.Context()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+	srvExitWg.Wait()
 }
