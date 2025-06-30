@@ -13,6 +13,7 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -20,8 +21,10 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
+	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/failure"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
+	"github.com/snowplow/snowbridge/pkg/monitoring"
 	"github.com/snowplow/snowbridge/pkg/observer"
 	"github.com/snowplow/snowbridge/pkg/statsreceiver"
 	"github.com/snowplow/snowbridge/pkg/statsreceiver/statsreceiveriface"
@@ -45,19 +48,20 @@ type Config struct {
 
 // configurationData for holding all configuration options
 type configurationData struct {
-	Source           *component     `hcl:"source,block"`
-	Target           *component     `hcl:"target,block"`
-	FailureTarget    *failureConfig `hcl:"failure_target,block"`
-	FilterTarget     *component     `hcl:"filter_target,block"`
-	Sentry           *sentryConfig  `hcl:"sentry,block"`
-	StatsReceiver    *statsConfig   `hcl:"stats_receiver,block"`
-	Transformations  []*component   `hcl:"transform,block"`
-	LogLevel         string         `hcl:"log_level,optional"`
-	UserProvidedID   string         `hcl:"user_provided_id,optional"`
-	DisableTelemetry bool           `hcl:"disable_telemetry,optional"`
-	License          *licenseConfig `hcl:"license,block"`
-	Retry            *retryConfig   `hcl:"retry,block"`
-	Metrics          *metricsConfig `hcl:"metrics,block"`
+	Source           *component        `hcl:"source,block"`
+	Target           *component        `hcl:"target,block"`
+	FailureTarget    *failureConfig    `hcl:"failure_target,block"`
+	FilterTarget     *component        `hcl:"filter_target,block"`
+	Sentry           *sentryConfig     `hcl:"sentry,block"`
+	StatsReceiver    *statsConfig      `hcl:"stats_receiver,block"`
+	Transformations  []*component      `hcl:"transform,block"`
+	LogLevel         string            `hcl:"log_level,optional"`
+	UserProvidedID   string            `hcl:"user_provided_id,optional"`
+	DisableTelemetry bool              `hcl:"disable_telemetry,optional"`
+	License          *licenseConfig    `hcl:"license,block"`
+	Retry            *retryConfig      `hcl:"retry,block"`
+	Metrics          *metricsConfig    `hcl:"metrics,block"`
+	Monitoring       *monitoringConfig `hcl:"monitoring,block"`
 }
 
 // component is a type to abstract over configuration blocks.
@@ -106,6 +110,16 @@ type metricsConfig struct {
 	E2ELatencyEnabled bool `hcl:"enable_e2e_latency,optional"`
 }
 
+type monitoringConfig struct {
+	Webhook *webhookConfig `hcl:"webhook,block"`
+}
+
+type webhookConfig struct {
+	Endpoint          string            `hcl:"endpoint"`
+	Tags              map[string]string `hcl:"tags,optional"`
+	HeartbeatInterval int               `hcl:"heartbeat_interval_seconds,optional"`
+}
+
 type transientRetryConfig struct {
 	Delay       int `hcl:"delay_ms,optional"`
 	MaxAttempts int `hcl:"max_attempts,optional"`
@@ -151,6 +165,12 @@ func defaultConfigData() *configurationData {
 		},
 		Metrics: &metricsConfig{
 			E2ELatencyEnabled: false,
+		},
+		Monitoring: &monitoringConfig{
+			Webhook: &webhookConfig{
+				Tags:              map[string]string{},
+				HeartbeatInterval: 300,
+			},
 		},
 	}
 }
@@ -415,6 +435,25 @@ func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error)
 		return nil, err
 	}
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
+}
+
+func (c *Config) GetWebhookMonitoring(appName, appVersion string) (*monitoring.WebhookMonitoring, chan error, error) {
+	if c.Data.Monitoring.Webhook.Endpoint == "" {
+		return nil, nil, nil
+	}
+
+	if err := common.CheckURL(c.Data.Monitoring.Webhook.Endpoint); err != nil {
+		return nil, nil, err
+	}
+
+	alertChan := make(chan error)
+
+	client := http.DefaultClient
+	endpoint := c.Data.Monitoring.Webhook.Endpoint
+	tags := c.Data.Monitoring.Webhook.Tags
+	heartbeatInterval := time.Duration(c.Data.Monitoring.Webhook.HeartbeatInterval) * time.Second
+
+	return monitoring.NewWebhookMonitoring(appName, appVersion, client, endpoint, tags, heartbeatInterval, alertChan), alertChan, nil
 }
 
 // getStatsReceiver builds and returns the stats receiver
