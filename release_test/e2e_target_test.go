@@ -15,7 +15,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/snowplow/snowbridge/cmd"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -23,6 +22,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/snowplow/snowbridge/cmd"
 
 	"github.com/IBM/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
