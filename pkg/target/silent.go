@@ -13,6 +13,7 @@ package target
 
 import (
 	"errors"
+
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
@@ -75,10 +76,9 @@ func (st *SilentTarget) Close() {}
 // MaximumAllowedMessageSizeBytes returns the max number of bytes that can be sent
 // per message for this target
 //
-// Note: Technically no limit but we are putting in a limit of 10 MiB here
-// to avoid trying to print out huge payloads
+// There is no limit but the interface for target require one. Setting this to a ludicrously large value (100GB) to get around that for now
 func (st *SilentTarget) MaximumAllowedMessageSizeBytes() int {
-	return 10485760
+	return 100000000000
 }
 
 // GetID returns the identifier for this target
