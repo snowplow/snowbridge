@@ -239,7 +239,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 func resolveHash(vm *goja.Runtime, hashSalt string) func(call goja.FunctionCall) goja.Value {
 	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 2 {
-			return vm.ToValue("hash() function expects 3 arguments: data and hash_func_name")
+			return vm.ToValue("hash() function expects 2 arguments: data and hash_func_name")
 		}
 
 		input := call.Arguments[0].String()
