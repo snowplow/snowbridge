@@ -55,7 +55,7 @@ func TestRemoveNullFields(t *testing.T) {
 					"emptyField":    nil,
 				},
 			},
-
+			// nil and empty slice elements
 			nil,
 			map[string]any{},
 			[]any{},
