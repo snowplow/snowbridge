@@ -40,6 +40,8 @@ func RemoveNullFields(data any) {
 	case map[string]any:
 		removeNullFromMap(input)
 	case []any:
+		// For slices not in maps, we need to process them and potentially replace them
+		// This is handled by the caller, so we just process in-place
 		removeNullFromSlice(input)
 	default:
 		return
@@ -79,33 +81,55 @@ func removeNullFromMap(input map[string]any) {
 }
 
 func removeNullFromSlice(input []any) {
-	// First recurse into all elements
-	for _, item := range input {
-		RemoveNullFields(item)
-	}
-
-	// Then remove nil/empty elements by iterating backwards
-	for i := len(input) - 1; i >= 0; i-- {
-		if shouldRemoveElement(input[i]) {
-			input = append(input[:i], input[i+1:]...)
+	// First recurse into all elements to process nested structures
+	for i := range input {
+		if asSlice, ok := input[i].([]any); ok {
+			cleaned := removeNullFromSliceAndReturn(asSlice)
+			input[i] = cleaned
+		} else {
+			RemoveNullFields(input[i])
 		}
 	}
+
+	// Build a new slice with only non-empty elements, using the cleaned value
+	filtered := input[:0]
+	for i := range input {
+		if !shouldRemoveElement(input[i]) {
+			filtered = append(filtered, input[i])
+		}
+	}
+
+	// Resize the original slice to match the filtered result
+	for i := range filtered {
+		input[i] = filtered[i]
+	}
+	if len(filtered) < len(input) {
+		for i := len(filtered); i < len(input); i++ {
+			input[i] = nil
+		}
+	}
+	input = input[:len(filtered)]
 }
 
 func removeNullFromSliceAndReturn(input []any) []any {
-	// First recurse into all elements
-	for _, item := range input {
-		RemoveNullFields(item)
-	}
-
-	// Then remove nil/empty elements by iterating backwards
-	for i := len(input) - 1; i >= 0; i-- {
-		if shouldRemoveElement(input[i]) {
-			input = append(input[:i], input[i+1:]...)
+	// First recurse into all elements to process nested structures
+	for i := range input {
+		if asSlice, ok := input[i].([]any); ok {
+			cleaned := removeNullFromSliceAndReturn(asSlice)
+			input[i] = cleaned
+		} else {
+			RemoveNullFields(input[i])
 		}
 	}
 
-	return input
+	// Build a new slice with only non-empty elements, using the cleaned value
+	filtered := make([]any, 0, len(input))
+	for i := range input {
+		if !shouldRemoveElement(input[i]) {
+			filtered = append(filtered, input[i])
+		}
+	}
+	return filtered
 }
 
 // shouldRemoveElement checks if an element should be removed from a slice
@@ -119,9 +143,11 @@ func shouldRemoveElement(item any) bool {
 		return true
 	}
 
-	// Check for empty slices
-	if asSlice, ok := item.([]any); ok && len(asSlice) == 0 {
-		return true
+	// Check for empty slices - process them first to see if they become empty
+	if asSlice, ok := item.([]any); ok {
+		// Process the slice to remove nil/empty elements
+		RemoveNullFields(asSlice)
+		return len(asSlice) == 0
 	}
 
 	return false
