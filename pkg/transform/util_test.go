@@ -71,6 +71,14 @@ func TestRemoveNullFields(t *testing.T) {
 		},
 		"allNilSlice":   []any{nil, nil, nil},
 		"allEmptySlice": []any{map[string]any{}, []any{}},
+		"nestedEmptySlice": []any{
+			[]any{nil, nil},
+			map[string]any{"empty": nil},
+		},
+		"onlyEmptyMaps": []any{
+			map[string]any{},
+			map[string]any{},
+		},
 	}
 
 	expected := map[string]any{
