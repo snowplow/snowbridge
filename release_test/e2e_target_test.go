@@ -14,6 +14,8 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/snowplow/snowbridge/cmd"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -477,7 +479,7 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 		}
 
 		assert.Equal(1, len(foundData))
-		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, foundData[0])
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[0])
 	}
 
 	close(receiverChannel)
@@ -573,7 +575,7 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 		}
 
 		assert.Equal(1, len(foundData))
-		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, foundData[0])
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
 	}
 
 	close(receiverChannel)
@@ -677,8 +679,8 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 		}
 
 		assert.Equal(2, len(foundData))
-		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, foundData[0])
-		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, foundData[1])
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[1])
 	}
 
 	if err := srv.Shutdown(t.Context()); err != nil {
@@ -781,8 +783,8 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
 		}
 
 		assert.Equal(2, len(foundData))
-		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, foundData[0])
-		assert.Equal(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"snowbridge","appVersion":"3.2.3","tags":{"pipeline":"release_tests"}}}`, foundData[1])
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[1])
 	}
 
 	if err := srv.Shutdown(t.Context()); err != nil {
