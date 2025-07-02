@@ -102,43 +102,43 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 
 // RunApp runs application (without cli stuff)
 func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) error {
-	s, err := sourceconfig.GetSource(cfg, supportedSources)
+	source, err := sourceconfig.GetSource(cfg, supportedSources)
 	if err != nil {
 		return err
 	}
 
-	tr, err := transformconfig.GetTransformations(cfg, supportedTransformations)
+	transformations, err := transformconfig.GetTransformations(cfg, supportedTransformations)
 	if err != nil {
 		return err
 	}
 
-	t, err := cfg.GetTarget()
+	target, err := cfg.GetTarget()
 	if err != nil {
 		return err
 	}
-	t.Open()
+	target.Open()
 
-	ft, err := cfg.GetFailureTarget(cmd.AppName, cmd.AppVersion)
+	failureTarget, err := cfg.GetFailureTarget(cmd.AppName, cmd.AppVersion)
 	if err != nil {
 		return err
 	}
-	ft.Open()
+	failureTarget.Open()
 
-	filter, err := cfg.GetFilterTarget()
+	filterTarget, err := cfg.GetFilterTarget()
 	if err != nil {
 		return err
 	}
-	filter.Open()
+	filterTarget.Open()
 
 	tags, err := cfg.GetTags()
 	if err != nil {
 		return err
 	}
-	o, err := cfg.GetObserver(tags)
+	observer, err := cfg.GetObserver(tags)
 	if err != nil {
 		return err
 	}
-	o.Start()
+	observer.Start()
 
 	stopTelemetry := telemetry.InitTelemetryWithCollector(cfg)
 
@@ -153,7 +153,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 		stop := make(chan struct{}, 1)
 		go func() {
-			s.Stop()
+			source.Stop()
 			stop <- struct{}{}
 		}()
 
@@ -168,10 +168,10 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 		case <-time.After(5 * time.Second):
 			log.Error("source.Stop() took more than 5 seconds, forcing shutdown ...")
 
-			t.Close()
-			ft.Close()
-			filter.Close()
-			o.Stop()
+			target.Close()
+			failureTarget.Close()
+			filterTarget.Close()
+			observer.Stop()
 			stopTelemetry()
 
 			if err != nil {
@@ -184,20 +184,20 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	// Callback functions for the source to leverage when writing data
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: sourceWriteFunc(t, ft, filter, tr, o, cfg),
+		WriteToTarget: sourceWriteFunc(target, failureTarget, filterTarget, transformations, observer, cfg),
 	}
 
 	// Read is a long running process and will only return when the source
 	// is exhausted or if an error occurs
-	err = s.Read(&sf)
+	err = source.Read(&sf)
 	if err != nil {
 		return err
 	}
 
-	t.Close()
-	ft.Close()
-	filter.Close()
-	o.Stop()
+	target.Close()
+	failureTarget.Close()
+	filterTarget.Close()
+	observer.Stop()
 	return nil
 }
 
