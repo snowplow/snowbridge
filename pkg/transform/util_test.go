@@ -56,12 +56,6 @@ func TestRemoveNullFields(t *testing.T) {
 				},
 			},
 
-			// For maps, we use the delete() builtin.
-			// For slices, to remove nil or empty _elements_ requires a wider change, which is outside the scope of current requirements.
-			// should we encounter this requirement, I think the simplest approaches are to either have RemoveNulls return an output, or
-			// have it take a pointer to a typecast variable as an input. (perhaps splitting it into two functions in the process)
-			// the former seems more sensible
-
 			nil,
 			map[string]any{},
 			[]any{},
