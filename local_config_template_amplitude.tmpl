@@ -1,0 +1,6 @@
+{
+  "api_key": "7fb2eeb6f2ff4a276b0b5c8cfe99e66f",
+  "events": [
+        {{ range $i, $data := . }} {{if $i}},{{end}} {{ prettyPrint . }} {{ end }}
+  ]
+}
