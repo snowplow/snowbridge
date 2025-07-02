@@ -38,119 +38,82 @@ var (
 func RemoveNullFields(data any) {
 	switch input := data.(type) {
 	case map[string]any:
-		removeNullFromMap(input)
+		cleaned := removeNullFromMap(input)
+		// Copy cleaned data back to original map
+		for k := range input {
+			delete(input, k)
+		}
+		for k, v := range cleaned {
+			input[k] = v
+		}
 	case []any:
-		// For slices not in maps, we need to process them and potentially replace them
-		// This is handled by the caller, so we just process in-place
-		removeNullFromSlice(input)
+		cleaned := removeNullFromSlice(input)
+		// Copy cleaned data back to original slice
+		copy(input, cleaned)
+		input = input[:len(cleaned)]
 	default:
 		return
 	}
 }
 
-func removeNullFromMap(input map[string]any) {
-	for key := range input {
-		field := input[key]
-		if field == nil {
-			delete(input, key)
-			continue
+func removeNullFromMap(input map[string]any) map[string]any {
+	result := make(map[string]any)
+
+	for key, value := range input {
+		if value == nil {
+			continue // Skip nil values
 		}
 
-		// Handle slices stored in maps specially
-		if asSlice, ok := field.([]any); ok {
-			// Process the slice to remove nil/empty elements
-			filteredSlice := removeNullFromSliceAndReturn(asSlice)
-			if len(filteredSlice) == 0 {
-				delete(input, key)
-			} else {
-				input[key] = filteredSlice
-			}
-			continue
+		cleaned := cleanValue(value)
+		if !isEmpty(cleaned) {
+			result[key] = cleaned
+		}
+	}
+
+	return result
+}
+
+func removeNullFromSlice(input []any) []any {
+	var result []any
+
+	for _, item := range input {
+		if item == nil {
+			continue // Skip nil values
 		}
 
-		// Recurse first, because the outcome might be an empty field.
-		RemoveNullFields(field)
-
-		// Now cast types and check for empties
-		asMap, ok := field.(map[string]any)
-		if ok && len(asMap) == 0 {
-			delete(input, key)
-			continue
+		cleaned := cleanValue(item)
+		if !isEmpty(cleaned) {
+			result = append(result, cleaned)
 		}
+	}
+
+	return result
+}
+
+func cleanValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		return removeNullFromMap(v)
+	case []any:
+		return removeNullFromSlice(v)
+	default:
+		return v
 	}
 }
 
-func removeNullFromSlice(input []any) {
-	// First recurse into all elements to process nested structures
-	for i := range input {
-		if asSlice, ok := input[i].([]any); ok {
-			cleaned := removeNullFromSliceAndReturn(asSlice)
-			input[i] = cleaned
-		} else {
-			RemoveNullFields(input[i])
-		}
-	}
-
-	// Build a new slice with only non-empty elements, using the cleaned value
-	filtered := input[:0]
-	for i := range input {
-		if !shouldRemoveElement(input[i]) {
-			filtered = append(filtered, input[i])
-		}
-	}
-
-	// Resize the original slice to match the filtered result
-	for i := range filtered {
-		input[i] = filtered[i]
-	}
-	if len(filtered) < len(input) {
-		for i := len(filtered); i < len(input); i++ {
-			input[i] = nil
-		}
-	}
-	input = input[:len(filtered)]
-}
-
-func removeNullFromSliceAndReturn(input []any) []any {
-	// First recurse into all elements to process nested structures
-	for i := range input {
-		if asSlice, ok := input[i].([]any); ok {
-			cleaned := removeNullFromSliceAndReturn(asSlice)
-			input[i] = cleaned
-		} else {
-			RemoveNullFields(input[i])
-		}
-	}
-
-	// Build a new slice with only non-empty elements, using the cleaned value
-	filtered := make([]any, 0, len(input))
-	for i := range input {
-		if !shouldRemoveElement(input[i]) {
-			filtered = append(filtered, input[i])
-		}
-	}
-	return filtered
-}
-
-// shouldRemoveElement checks if an element should be removed from a slice
-func shouldRemoveElement(item any) bool {
-	if item == nil {
+func isEmpty(value any) bool {
+	if value == nil {
 		return true
 	}
 
-	// Check for empty maps
-	if asMap, ok := item.(map[string]any); ok && len(asMap) == 0 {
-		return true
+	switch v := value.(type) {
+	case map[string]any:
+		return len(v) == 0
+	case []any:
+		return len(v) == 0
+	default:
+		return false
 	}
-
-	// Check for empty slices - process them first to see if they become empty
-	if asSlice, ok := item.([]any); ok {
-		// Process the slice to remove nil/empty elements
-		RemoveNullFields(asSlice)
-		return len(asSlice) == 0
-	}
-
-	return false
 }
 
 // DoHashing applies selected hash function (with or without salt provided) on the input string of data
