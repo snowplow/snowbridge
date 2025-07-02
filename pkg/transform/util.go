@@ -47,10 +47,25 @@ func RemoveNullFields(data any) {
 			input[k] = v
 		}
 	case []any:
-		cleaned := removeNullFromSlice(input)
-		// Copy cleaned data back to original slice
-		copy(input, cleaned)
-		input = input[:len(cleaned)]
+		// For slices not in maps, we can only process in-place
+		// We can't resize the slice, so we'll just clean the elements
+		for i := range input {
+			if input[i] != nil {
+				RemoveNullFields(input[i])
+			}
+		}
+		// Remove nil/empty elements by shifting
+		j := 0
+		for i := range input {
+			if !isEmpty(input[i]) {
+				input[j] = input[i]
+				j++
+			}
+		}
+		// Zero out the rest
+		for i := j; i < len(input); i++ {
+			input[i] = nil
+		}
 	default:
 		return
 	}
