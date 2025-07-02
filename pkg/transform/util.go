@@ -34,7 +34,7 @@ var (
 )
 
 // RemoveNullFields removes null fields, empty maps and empty slices from the input object, as long as map keys are strings.
-// At present it doesn't remove null or empty elements from slices.
+// It also removes null and empty elements from slices.
 func RemoveNullFields(data any) {
 	switch input := data.(type) {
 	case map[string]any:
@@ -53,6 +53,19 @@ func removeNullFromMap(input map[string]any) {
 			delete(input, key)
 			continue
 		}
+
+		// Handle slices stored in maps specially
+		if asSlice, ok := field.([]any); ok {
+			// Process the slice to remove nil/empty elements
+			filteredSlice := removeNullFromSliceAndReturn(asSlice)
+			if len(filteredSlice) == 0 {
+				delete(input, key)
+			} else {
+				input[key] = filteredSlice
+			}
+			continue
+		}
+
 		// Recurse first, because the outcome might be an empty field.
 		RemoveNullFields(field)
 
@@ -62,19 +75,56 @@ func removeNullFromMap(input map[string]any) {
 			delete(input, key)
 			continue
 		}
-		asSlice, ok := field.([]any)
-		if ok && len(asSlice) == 0 {
-			delete(input, key)
-			continue
-		}
-
 	}
 }
 
 func removeNullFromSlice(input []any) {
+	// First recurse into all elements
 	for _, item := range input {
 		RemoveNullFields(item)
 	}
+
+	// Then remove nil/empty elements by iterating backwards
+	for i := len(input) - 1; i >= 0; i-- {
+		if shouldRemoveElement(input[i]) {
+			input = append(input[:i], input[i+1:]...)
+		}
+	}
+}
+
+func removeNullFromSliceAndReturn(input []any) []any {
+	// First recurse into all elements
+	for _, item := range input {
+		RemoveNullFields(item)
+	}
+
+	// Then remove nil/empty elements by iterating backwards
+	for i := len(input) - 1; i >= 0; i-- {
+		if shouldRemoveElement(input[i]) {
+			input = append(input[:i], input[i+1:]...)
+		}
+	}
+
+	return input
+}
+
+// shouldRemoveElement checks if an element should be removed from a slice
+func shouldRemoveElement(item any) bool {
+	if item == nil {
+		return true
+	}
+
+	// Check for empty maps
+	if asMap, ok := item.(map[string]any); ok && len(asMap) == 0 {
+		return true
+	}
+
+	// Check for empty slices
+	if asSlice, ok := item.([]any); ok && len(asSlice) == 0 {
+		return true
+	}
+
+	return false
 }
 
 // DoHashing applies selected hash function (with or without salt provided) on the input string of data

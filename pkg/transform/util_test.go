@@ -62,12 +62,12 @@ func TestRemoveNullFields(t *testing.T) {
 			// have it take a pointer to a typecast variable as an input. (perhaps splitting it into two functions in the process)
 			// the former seems more sensible
 
-			// nil,
-			// map[string]any{},
-			// []any{},
-			// map[string]any{
-			// 	"onlyNil": nil,
-			// },
+			nil,
+			map[string]any{},
+			[]any{},
+			map[string]any{
+				"onlyNil": nil,
+			},
 		},
 		// empty map and empty slice - these should be removed too
 		"emptyMap":   map[string]any{},
@@ -75,6 +75,8 @@ func TestRemoveNullFields(t *testing.T) {
 		"onlyNil": map[string]any{
 			"empty": nil,
 		},
+		"allNilSlice":   []any{nil, nil, nil},
+		"allEmptySlice": []any{map[string]any{}, []any{}},
 	}
 
 	expected := map[string]any{
@@ -100,6 +102,7 @@ func TestRemoveNullFields(t *testing.T) {
 					"nonEmptyField": "stringvalue",
 				},
 			},
+			// nil, empty map, empty slice, and map with only nil should be removed
 		},
 	}
 
