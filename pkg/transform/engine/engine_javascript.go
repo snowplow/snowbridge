@@ -177,7 +177,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		defer timer.Stop()
 
 		// handle custom functions
-		if err := vm.Set("hash", resolveHash(vm, e.HashSaltSecret)); err != nil {
+		if err := vm.Set("hash", buildHashFunction(vm, e.HashSaltSecret)); err != nil {
 			// runtime error counts as failure
 			message.SetError(&models.TransformationError{
 				SafeMessage: "error setting JavaScript function [hash]",
@@ -254,7 +254,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 }
 
 // we must be capturing the Runtime instance here, so we can handle function returns
-func resolveHash(vm *goja.Runtime, hashSalt string) func(call goja.FunctionCall) goja.Value {
+func buildHashFunction(vm *goja.Runtime, hashSalt string) func(call goja.FunctionCall) goja.Value {
 	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 2 {
 			return vm.ToValue("hash() function expects 2 arguments: data and hash_func_name")
