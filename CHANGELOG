@@ -1,3 +1,22 @@
+Version 3.3.0 (2025-07-03)
+--------------------------
+Use more declarative name for hash function builder
+Use declarative names for components in cli.go
+Patch error message
+Tweak byte limit for silent target
+Preserve original data in messages
+Export `NewHclConfig` for use in config service
+Add hash function to JS transformation (#422)
+Add option to pass literal JS script string
+Extend remove_nulls and add to JS configuration
+Bump dependencies, use go 1.24 in CI/CD
+Add golang linter to the project (#412)
+Add hash function to JQ transformation (#411)
+Add context and complete the list of test commands
+Enable data only output for `stdout` target (#410)
+Precalculate rejection timestamp in HTTP target
+Add separate target for filtered data
+
 Version 3.2.3 (2025-05-28)
 --------------------------
 Bump alpine version in Dockerfile to 3.21.3
