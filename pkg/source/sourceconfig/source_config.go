@@ -43,5 +43,5 @@ func GetSource(c *config.Config, supportedSources []config.ConfigurationPair) (s
 		}
 		sourceList = append(sourceList, pair.Name)
 	}
-	return nil, fmt.Errorf("Invalid source found: %s. Supported sources in this build: %s", useSource.Name, strings.Join(sourceList, ", "))
+	return nil, fmt.Errorf("invalid source found: %s. Supported sources in this build: %s", useSource.Name, strings.Join(sourceList, ", "))
 }

@@ -35,6 +35,8 @@ func TestNewConfig_NoConfig(t *testing.T) {
 	assert.Equal(c.Data.FailureTarget.Target.Name, "stdout")
 	assert.Nil(c.Data.FailureTarget.Target.Body)
 	assert.Equal(c.Data.FailureTarget.Format, "snowplow")
+	assert.Equal(c.Data.FilterTarget.Use.Name, "silent")
+	assert.Nil(c.Data.FilterTarget.Use.Body)
 	assert.Equal(c.Data.Sentry.Tags, "{}")
 	assert.Equal(c.Data.StatsReceiver.Receiver.Name, "")
 	assert.Nil(c.Data.StatsReceiver.Receiver.Body)

@@ -60,6 +60,12 @@ failure_target {
   }
 }
 
+filter_target {
+    use "http" {
+      url = "https://test-server"
+  }
+}
+
 sentry {
   # The DSN to send Sentry alerts to
   dsn   = "https://1234d@sentry.acme.net/28"

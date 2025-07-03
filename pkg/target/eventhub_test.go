@@ -273,7 +273,7 @@ func TestProcessBatchingByPartitionKey(t *testing.T) {
 	// The data iteslf isn't public from the EH client, but at least we can check that the partition keys are as expected.
 	pksFound := make([]string, 0)
 	for _, r := range res {
-		pksFound = append(pksFound, *r.Event.PartitionKey)
+		pksFound = append(pksFound, *r.PartitionKey)
 	}
 	sort.Strings(pksFound)
 	assert.Equal([]string{"PK0", "PK1", "PK2"}, pksFound)

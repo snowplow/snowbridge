@@ -22,6 +22,7 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/assets"
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
@@ -43,7 +44,11 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer adminClient.Close()
+	defer func() {
+		if err := adminClient.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	err2 := adminClient.CreateTopic(topicName,
 		&sarama.TopicDetail{NumPartitions: 1,
@@ -51,7 +56,11 @@ func TestKafkaSource_ReadAndReturnSuccessIntegration(t *testing.T) {
 	if err2 != nil {
 		panic(err2)
 	}
-	defer adminClient.DeleteTopic(topicName)
+	defer func() {
+		if err := adminClient.DeleteTopic(topicName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
 
 	// Create a producer
 	saramaConfig := sarama.NewConfig()

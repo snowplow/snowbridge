@@ -15,8 +15,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	caCert, err := ioutil.ReadFile("../rootCA.crt")
+	caCert, err := os.ReadFile("../rootCA.crt")
 	if err != nil {
 		fmt.Println(err)
 	}
