@@ -25,11 +25,13 @@ retry {
 }
 
 monitoring {
-  # An actual HTTP endpoint where monitoring events would be sent
-  endpoint = "http://host.docker.internal:7997/alert-monitoring"
+  webhook {
+    # An actual HTTP endpoint where monitoring events would be sent
+    endpoint = "http://host.docker.internal:7997/alert-monitoring"
 
-  # How often to send the heartbeat event
-  heartbeat_interval_seconds = 60
+    # How often to send the heartbeat event
+    heartbeat_interval_seconds = 60
+  }
 }
 
 disable_telemetry = true

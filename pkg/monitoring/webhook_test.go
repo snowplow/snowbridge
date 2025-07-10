@@ -22,31 +22,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// --- Test MonitoringSender
+// --- Test WebhookSender
 
-type TestMonitoringSender struct {
+type TestWebhookSender struct {
 	onDo func(b *http.Request) (*http.Response, error)
 }
 
-func (s *TestMonitoringSender) Do(b *http.Request) (*http.Response, error) {
+func (s *TestWebhookSender) Do(b *http.Request) (*http.Response, error) {
 	return s.onDo(b)
 }
 
 // --- Tests
 
-func TestMonitoringTargetWrite(t *testing.T) {
+func TestWebhookMonitoringTargetWrite(t *testing.T) {
 	assert := assert.New(t)
 
 	expectedHeartbeatRequest := struct {
 		Method string
 		URL    string
-		Body   MonitoringEvent
+		Body   WebhookEvent
 	}{
 		Method: "POST",
 		URL:    "https://test.webhook.com",
-		Body: MonitoringEvent{
+		Body: WebhookEvent{
 			Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
-			Data: MonitoringData{
+			Data: WebhookData{
 				AppName:    "snowbridge",
 				AppVersion: "3.2.3",
 			},
@@ -56,13 +56,13 @@ func TestMonitoringTargetWrite(t *testing.T) {
 	expectedAlertRequest := struct {
 		Method string
 		URL    string
-		Body   MonitoringEvent
+		Body   WebhookEvent
 	}{
 		Method: "POST",
 		URL:    "https://test.webhook.com",
-		Body: MonitoringEvent{
+		Body: WebhookEvent{
 			Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
-			Data: MonitoringData{
+			Data: WebhookData{
 				AppName:    "snowbridge",
 				AppVersion: "3.2.3",
 				Message:    "failed to connect to target API",
@@ -76,7 +76,7 @@ func TestMonitoringTargetWrite(t *testing.T) {
 		onDo := func(b *http.Request) (*http.Response, error) {
 			assert.NotNil(b)
 
-			var actualBody MonitoringEvent
+			var actualBody WebhookEvent
 			if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
 				t.Fatalf("not expecting error: %s", err)
 			}
@@ -89,16 +89,16 @@ func TestMonitoringTargetWrite(t *testing.T) {
 			return nil, nil
 		}
 
-		sr := TestMonitoringSender{onDo: onDo}
+		sr := TestWebhookSender{onDo: onDo}
 
-		monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, nil)
-		assert.NotNil(monitoring)
-		monitoring.Start()
+		webhook := NewWebhookMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, nil)
+		assert.NotNil(webhook)
+		webhook.Start()
 
 		time.Sleep(2200 * time.Millisecond)
 		assert.Equal(counter, 2)
 
-		monitoring.Stop()
+		webhook.Stop()
 	})
 
 	t.Run("simple alerts", func(t *testing.T) {
@@ -107,7 +107,7 @@ func TestMonitoringTargetWrite(t *testing.T) {
 		onDo := func(b *http.Request) (*http.Response, error) {
 			assert.NotNil(b)
 
-			var actualBody MonitoringEvent
+			var actualBody WebhookEvent
 			if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
 				t.Fatalf("not expecting error: %s", err)
 			}
@@ -120,19 +120,19 @@ func TestMonitoringTargetWrite(t *testing.T) {
 			return nil, nil
 		}
 
-		sr := TestMonitoringSender{onDo: onDo}
+		sr := TestWebhookSender{onDo: onDo}
 		alertChan := make(chan error, 1)
 
-		monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
-		assert.NotNil(monitoring)
+		webhook := NewWebhookMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
+		assert.NotNil(webhook)
 
-		monitoring.Start()
+		webhook.Start()
 
 		// Sent an error in
 		alertChan <- fmt.Errorf("failed to connect to target API")
 
 		// And expect counter to increase by 1 (along side with expected alert event)
-		time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for monitoring to process event
+		time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for webhook to process event
 		assert.Equal(counter, 1)
 
 		// Then, we another alert gets sent in, but it is not being sent
@@ -142,7 +142,7 @@ func TestMonitoringTargetWrite(t *testing.T) {
 		time.Sleep(1100 * time.Millisecond)
 		assert.Equal(counter, 1)
 
-		monitoring.Stop()
+		webhook.Stop()
 	})
 
 	t.Run("alert, then reset, then heartbeat", func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestMonitoringTargetWrite(t *testing.T) {
 
 		onDo := func(b *http.Request) (*http.Response, error) {
 			assert.NotNil(b)
-			var actualBody MonitoringEvent
+			var actualBody WebhookEvent
 			if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
 				t.Fatalf("not expecting error: %s", err)
 			}
@@ -172,19 +172,19 @@ func TestMonitoringTargetWrite(t *testing.T) {
 			return nil, nil
 		}
 
-		sr := TestMonitoringSender{onDo: onDo}
+		sr := TestWebhookSender{onDo: onDo}
 		alertChan := make(chan error, 1)
 
-		monitoring := NewMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
-		assert.NotNil(monitoring)
+		webhook := NewWebhookMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
+		assert.NotNil(webhook)
 
-		monitoring.Start()
+		webhook.Start()
 
 		// Sent an error in
 		alertChan <- fmt.Errorf("failed to connect to target API")
 
 		// And expect counter to increase by 1 (along side with expected alert event)
-		time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for monitoring to process event
+		time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for webhook to process event
 		assert.Equal(counter, 1)
 
 		// Then, setup error gets resolved
@@ -194,6 +194,6 @@ func TestMonitoringTargetWrite(t *testing.T) {
 		time.Sleep(1100 * time.Millisecond)
 		assert.Equal(counter, 2)
 
-		monitoring.Stop()
+		webhook.Stop()
 	})
 }

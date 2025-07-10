@@ -20,12 +20,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type MonitoringEvent struct {
-	Schema string         `json:"schema"`
-	Data   MonitoringData `json:"data"`
+type WebhookEvent struct {
+	Schema string      `json:"schema"`
+	Data   WebhookData `json:"data"`
 }
 
-type MonitoringData struct {
+type WebhookData struct {
 	AppName    string            `json:"appName"`
 	AppVersion string            `json:"appVersion"`
 	Tags       map[string]string `json:"tags"`
@@ -33,16 +33,16 @@ type MonitoringData struct {
 	Message string `json:"message,omitempty"`
 }
 
-// MonitoringSender describes the interface for how to send heartbeat & alert events
-type MonitoringSender interface {
+// WebhookSender describes the interface for how to send heartbeat & alert events
+type WebhookSender interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// Monitoring holds a new client and supporting data for sending heartbeat & alert events
-type Monitoring struct {
+// WebhookMonitoring holds a new client and supporting data for sending heartbeat & alert events
+type WebhookMonitoring struct {
 	appName           string
 	appVersion        string
-	client            MonitoringSender
+	client            WebhookSender
 	endpoint          string
 	tags              map[string]string
 	heartbeatInterval time.Duration
@@ -54,8 +54,8 @@ type Monitoring struct {
 	isHealthy bool
 }
 
-func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *Monitoring {
-	return &Monitoring{
+func NewWebhookMonitoring(appName, appVersion string, client WebhookSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *WebhookMonitoring {
+	return &WebhookMonitoring{
 		appName:           appName,
 		appVersion:        appVersion,
 		client:            client,
@@ -63,13 +63,13 @@ func NewMonitoring(appName, appVersion string, client MonitoringSender, endpoint
 		endpoint:          endpoint,
 		tags:              tags,
 		heartbeatInterval: heartbeatInterval,
-		log:               logrus.WithFields(logrus.Fields{"name": "Monitoring"}),
+		log:               logrus.WithFields(logrus.Fields{"name": "WebhookMonitoring"}),
 		alertChan:         alertChan,
 		exitSignal:        make(chan struct{}),
 	}
 }
 
-func (m *Monitoring) Start() {
+func (m *WebhookMonitoring) Start() {
 	ticker := time.NewTicker(m.heartbeatInterval)
 
 	go func() {
@@ -80,9 +80,9 @@ func (m *Monitoring) Start() {
 			case <-ticker.C:
 				if m.isHealthy {
 					m.log.Info("Sending heartbeat")
-					event := MonitoringEvent{
+					event := WebhookEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
-						Data: MonitoringData{
+						Data: WebhookData{
 							AppName:    m.appName,
 							AppVersion: m.appVersion,
 							Tags:       m.tags,
@@ -102,9 +102,9 @@ func (m *Monitoring) Start() {
 			case err := <-m.alertChan:
 				if m.isHealthy && err != nil {
 					m.log.Info("Sending alert")
-					event := MonitoringEvent{
+					event := WebhookEvent{
 						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
-						Data: MonitoringData{
+						Data: WebhookData{
 							AppName:    m.appName,
 							AppVersion: m.appVersion,
 							Tags:       m.tags,
@@ -134,18 +134,18 @@ func (m *Monitoring) Start() {
 					m.isHealthy = true
 				}
 			case <-m.exitSignal:
-				m.log.Info("Monitoring is shutting down")
+				m.log.Info("WebhookMonitoring is shutting down")
 				break OuterLoop
 			}
 		}
 	}()
 }
 
-func (m *Monitoring) Stop() {
+func (m *WebhookMonitoring) Stop() {
 	m.exitSignal <- struct{}{}
 }
 
-func (m *Monitoring) prepareRequest(event MonitoringEvent) (*http.Request, error) {
+func (m *WebhookMonitoring) prepareRequest(event WebhookEvent) (*http.Request, error) {
 	header := http.Header{}
 	header.Add("Content-Type", "application/json")
 

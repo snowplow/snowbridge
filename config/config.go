@@ -111,6 +111,10 @@ type metricsConfig struct {
 }
 
 type monitoringConfig struct {
+	Webhook *webhookConfig `hcl:"webhook,block"`
+}
+
+type webhookConfig struct {
 	Endpoint          string            `hcl:"endpoint"`
 	Tags              map[string]string `hcl:"tags,optional"`
 	HeartbeatInterval int               `hcl:"heartbeat_interval_seconds,optional"`
@@ -163,8 +167,10 @@ func defaultConfigData() *configurationData {
 			E2ELatencyEnabled: false,
 		},
 		Monitoring: &monitoringConfig{
-			Tags:              map[string]string{},
-			HeartbeatInterval: 300,
+			Webhook: &webhookConfig{
+				Tags:              map[string]string{},
+				HeartbeatInterval: 300,
+			},
 		},
 	}
 }
@@ -431,23 +437,23 @@ func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error)
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
 }
 
-func (c *Config) GetMonitoring(appName, appVersion string) (*monitoring.Monitoring, chan error, error) {
-	if c.Data.Monitoring.Endpoint == "" {
+func (c *Config) GetWebhookMonitoring(appName, appVersion string) (*monitoring.WebhookMonitoring, chan error, error) {
+	if c.Data.Monitoring.Webhook.Endpoint == "" {
 		return nil, nil, nil
 	}
 
-	if err := common.CheckURL(c.Data.Monitoring.Endpoint); err != nil {
+	if err := common.CheckURL(c.Data.Monitoring.Webhook.Endpoint); err != nil {
 		return nil, nil, err
 	}
 
 	alertChan := make(chan error)
 
 	client := http.DefaultClient
-	endpoint := c.Data.Monitoring.Endpoint
-	tags := c.Data.Monitoring.Tags
-	heartbeatInterval := time.Duration(c.Data.Monitoring.HeartbeatInterval) * time.Second
+	endpoint := c.Data.Monitoring.Webhook.Endpoint
+	tags := c.Data.Monitoring.Webhook.Tags
+	heartbeatInterval := time.Duration(c.Data.Monitoring.Webhook.HeartbeatInterval) * time.Second
 
-	return monitoring.NewMonitoring(appName, appVersion, client, endpoint, tags, heartbeatInterval, alertChan), alertChan, nil
+	return monitoring.NewWebhookMonitoring(appName, appVersion, client, endpoint, tags, heartbeatInterval, alertChan), alertChan, nil
 }
 
 // getStatsReceiver builds and returns the stats receiver

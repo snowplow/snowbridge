@@ -25,16 +25,18 @@ retry {
 }
 
 monitoring {
-  # An actual HTTP endpoint where monitoring events would be sent
-  endpoint = "http://host.docker.internal:9999/alert-heartbeat-monitoring"
+  webhook {
+    # An actual HTTP endpoint where monitoring events would be sent
+    endpoint = "http://host.docker.internal:9999/alert-heartbeat-monitoring"
 
-  # Set of arbitrary key-value pairs attached to the payload
-  tags = {
-    pipeline = "release_tests"
+    # Set of arbitrary key-value pairs attached to the payload
+    tags = {
+      pipeline = "release_tests"
+    }
+
+    # How often to send the heartbeat event
+    heartbeat_interval_seconds = 1
   }
-
-  # How often to send the heartbeat event
-  heartbeat_interval_seconds = 1
 }
 
 disable_telemetry = true

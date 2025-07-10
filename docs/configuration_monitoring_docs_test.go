@@ -44,6 +44,15 @@ func TestMonitoringDocumentation(t *testing.T) {
 
 	testSentryConfig(t, sentryFilePath, true)
 
+	// Webhook full example
+	webhookFullFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "monitoring", "webhook-full-example.hcl")
+
+	testWebhookConfig(t, webhookFullFilePath, true)
+
+	// Webhook minimal example
+	webhookMinimalFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "monitoring", "webhook-minimal-example.hcl")
+
+	testWebhookConfig(t, webhookMinimalFilePath, false)
 }
 
 func testStatsDConfig(t *testing.T, configpath string, fullExample bool) {
@@ -86,7 +95,7 @@ func testSentryConfig(t *testing.T, configpath string, fullExample bool) {
 
 }
 
-func testMonitoringConfig(t *testing.T, configpath string, fullExample bool) {
+func testWebhookConfig(t *testing.T, configpath string, fullExample bool) {
 	assert := assert.New(t)
 
 	c := getConfigFromFilepath(t, configpath)
@@ -94,10 +103,10 @@ func testMonitoringConfig(t *testing.T, configpath string, fullExample bool) {
 	cfgMonitoring := c.Data.Monitoring
 
 	assert.NotNil(cfgMonitoring)
-	assert.NotZero(cfgMonitoring.Endpoint)
+	assert.NotZero(cfgMonitoring.Webhook.Endpoint)
 
 	if fullExample {
-		assert.NotZero(cfgMonitoring.Tags)
-		assert.NotZero(cfgMonitoring.HeartbeatInterval)
+		assert.NotZero(cfgMonitoring.Webhook.Tags)
+		assert.NotZero(cfgMonitoring.Webhook.HeartbeatInterval)
 	}
 }

@@ -120,16 +120,18 @@ metrics {
 }
 
 monitoring {
-  # An actual HTTP endpoint where monitoring events would be sent
-  endpoint = "https://webhook.acme.com"
+  webhook {
+    # An actual HTTP endpoint where monitoring events would be sent
+    endpoint = "https://webhook.acme.com"
 
-  # Set of arbitrary key-value pairs attached to the payload
-  tags = {
-    pipeline = "production"
+    # Set of arbitrary key-value pairs attached to the payload
+    tags = {
+      pipeline = "production"
+    }
+
+    # How often to send the heartbeat event
+    heartbeat_interval_seconds = 3600
   }
-
-  # How often to send the heartbeat event
-  heartbeat_interval_seconds = 3600
 }
 
 license {

@@ -220,7 +220,7 @@ func TestNewConfig_HclTransformationOrder(t *testing.T) {
 	assert.Equal("five", c.Data.Transformations[4].Use.Name)
 }
 
-func TestNewConfig_GetMonitoring(t *testing.T) {
+func TestNewConfig_GetWebhookMonitoring(t *testing.T) {
 	assert := assert.New(t)
 
 	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
@@ -232,21 +232,21 @@ func TestNewConfig_GetMonitoring(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	monitoring, alertChan, err := c.GetMonitoring("", "")
+	monitoring, alertChan, err := c.GetWebhookMonitoring("", "")
 	assert.Nil(monitoring)
 	assert.Nil(alertChan)
 	assert.Nil(err)
 
 	// Should error with invalid endpoint
-	c.Data.Monitoring.Endpoint = "http:/example.com"
-	monitoring, alertChan, err = c.GetMonitoring("", "")
+	c.Data.Monitoring.Webhook.Endpoint = "http:/example.com"
+	monitoring, alertChan, err = c.GetWebhookMonitoring("", "")
 	assert.Nil(monitoring)
 	assert.Nil(alertChan)
 	assert.NotNil(err)
 
 	// Should not error with valid endpoint
-	c.Data.Monitoring.Endpoint = "http://example.com"
-	monitoring, alertChan, err = c.GetMonitoring("", "")
+	c.Data.Monitoring.Webhook.Endpoint = "http://example.com"
+	monitoring, alertChan, err = c.GetWebhookMonitoring("", "")
 	assert.NotNil(monitoring)
 	assert.NotNil(alertChan)
 	assert.Nil(err)

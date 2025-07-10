@@ -102,14 +102,14 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 
 // RunApp runs application (without cli stuff)
 func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, supportedTransformations []config.ConfigurationPair) error {
-	// First thing is to spin up monitoring, so we can start alerting as soon as possible
-	monitoring, alertChan, err := cfg.GetMonitoring(cmd.AppName, cmd.AppVersion)
+	// First thing is to spin up webhookMonitoring, so we can start alerting as soon as possible
+	webhookMonitoring, alertChan, err := cfg.GetWebhookMonitoring(cmd.AppName, cmd.AppVersion)
 	if err != nil {
 		return err
 	}
-	if monitoring != nil {
-		defer monitoring.Stop()
-		monitoring.Start()
+	if webhookMonitoring != nil {
+		defer webhookMonitoring.Stop()
+		webhookMonitoring.Start()
 	}
 
 	s, err := sourceconfig.GetSource(cfg, supportedSources)
