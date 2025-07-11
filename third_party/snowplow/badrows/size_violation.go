@@ -32,12 +32,12 @@ type SizeViolationInput struct {
 
 // NewSizeViolation will build a new size-violation JSON that can be emitted to a Snowplow badrows stream
 func NewSizeViolation(input *SizeViolationInput, targetByteLimit int) (*BadRow, error) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		dataKeyProcessor: map[string]string{
 			"artifact": input.ProcessorArtifact,
 			"version":  input.ProcessorVersion,
 		},
-		dataKeyFailure: map[string]interface{}{
+		dataKeyFailure: map[string]any{
 			"timestamp":               formatTimeISO8601(input.FailureTimestamp),
 			"maximumAllowedSizeBytes": input.FailureMaximumAllowedSizeBytes,
 			"actualSizeBytes":         len(input.Payload),

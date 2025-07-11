@@ -29,7 +29,7 @@ func TestMakeBaseValueGetter(t *testing.T) {
 
 	res, err := appIDGetter(transform.SpTsv3Parsed)
 
-	assert.Equal([]interface{}{"test-data3"}, res)
+	assert.Equal([]any{"test-data3"}, res)
 	assert.Nil(err)
 
 	// Leaving the test here as it accurately describes the getter's behaviour,

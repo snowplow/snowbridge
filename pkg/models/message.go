@@ -16,6 +16,14 @@ import (
 	"time"
 )
 
+type ErrorType string
+
+const (
+	ErrorTypeAPI            ErrorType = "api"
+	ErrorTypeTransformation ErrorType = "transformation"
+	ErrorTypeTemplate       ErrorType = "template"
+)
+
 // Message holds the structure of a generic message to be sent to a target
 type Message struct {
 	PartitionKey string
@@ -48,6 +56,14 @@ type Message struct {
 	// If the message is invalid it can be decorated with an error
 	// message for logging and reporting
 	err error
+
+	// If the message is invalid it can be decorated with an errorType
+	// for reporting purposes
+	errorType ErrorType
+
+	// If the message is invalid it can be decorated with an errorCode
+	// for reporting purposes
+	errorCode string
 }
 
 // SetError sets the value of the message error in case of invalidation
@@ -58,6 +74,26 @@ func (m *Message) SetError(err error) {
 // GetError returns the error that has been set
 func (m *Message) GetError() error {
 	return m.err
+}
+
+// SetErrorType sets the value of the message error type in case of invalidation
+func (m *Message) SetErrorType(eType ErrorType) {
+	m.errorType = eType
+}
+
+// GetErrorType returns the error type that has been set
+func (m *Message) GetErrorType() string {
+	return string(m.errorType)
+}
+
+// SetErrorCode sets the value of the message error code in case of invalidation
+func (m *Message) SetErrorCode(eCode string) {
+	m.errorCode = eCode
+}
+
+// GetErrorCode returns the error code that has been set
+func (m *Message) GetErrorCode() string {
+	return m.errorCode
 }
 
 func (m *Message) String() string {
@@ -81,8 +117,7 @@ func GetChunkedMessages(messages []*Message, chunkSize int, maxMessageByteSize i
 	var chunkBuffer []*Message
 	var chunkBufferByteLen int
 
-	for i := 0; i < len(messages); i++ {
-		msg := messages[i]
+	for _, msg := range messages {
 		msgByteLen := len(msg.Data)
 
 		if msgByteLen > maxMessageByteSize {
@@ -106,8 +141,7 @@ func GetChunkedMessages(messages []*Message, chunkSize int, maxMessageByteSize i
 
 // FilterOversizedMessages will filter out all messages that exceed the byte size limit
 func FilterOversizedMessages(messages []*Message, maxMessageByteSize int) (safe []*Message, oversized []*Message) {
-	for i := 0; i < len(messages); i++ {
-		msg := messages[i]
+	for _, msg := range messages {
 		msgByteLen := len(msg.Data)
 
 		if msgByteLen > maxMessageByteSize {

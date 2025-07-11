@@ -37,6 +37,8 @@ const (
 	kinesisPutRecordsMessageByteLimit = 1048576
 	// Each request can be a maximum of 5 MiB in size total
 	kinesisPutRecordsRequestByteLimit = kinesisPutRecordsMessageByteLimit * 5
+
+	SupportedTargetKinesis = "kinesis"
 )
 
 var (
@@ -88,7 +90,7 @@ func newKinesisTargetWithInterfaces(client common.KinesisV2API, awsAccountID str
 		region:             region,
 		accountID:          awsAccountID,
 		requestMaxMessages: requestMaxMessages,
-		log:                log.WithFields(log.Fields{"target": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
+		log:                log.WithFields(log.Fields{"target": SupportedTargetKinesis, "cloud": "AWS", "region": region, "stream": streamName}),
 	}, nil
 }
 

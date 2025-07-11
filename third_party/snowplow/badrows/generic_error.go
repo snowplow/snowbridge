@@ -36,12 +36,12 @@ func NewGenericError(input *GenericErrorInput, targetByteLimit int) (*BadRow, er
 		fe = input.FailureErrors
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		dataKeyProcessor: map[string]string{
 			"artifact": input.ProcessorArtifact,
 			"version":  input.ProcessorVersion,
 		},
-		dataKeyFailure: map[string]interface{}{
+		dataKeyFailure: map[string]any{
 			"timestamp": formatTimeISO8601(input.FailureTimestamp),
 			"errors":    fe,
 		},

@@ -68,7 +68,7 @@ func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 	assert.Nil(ft)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid failure format found; expected one of 'snowplow' and got 'fakeHCL'", err.Error())
+		assert.Equal("Invalid failure format found; expected one of 'snowplow', 'event_forwarding' and got 'fakeHCL'", err.Error())
 	}
 }
 

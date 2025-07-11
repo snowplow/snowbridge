@@ -25,6 +25,8 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
+const SupportedTargetEventHub = "eventhub"
+
 // EventHubConfig holds a config object for Azure EventHub
 type EventHubConfig struct {
 	EventHubNamespace       string `hcl:"namespace"`
@@ -72,7 +74,7 @@ func newEventHubTargetWithInterfaces(client clientIface, cfg *EventHubConfig) *E
 		batchByteLimit:          cfg.BatchByteLimit,
 		setEHPartitionKey:       cfg.SetEHPartitionKey,
 
-		log: log.WithFields(log.Fields{"target": "eventhub", "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
+		log: log.WithFields(log.Fields{"target": SupportedTargetEventHub, "cloud": "Azure", "namespace": cfg.EventHubNamespace, "eventhub": cfg.EventHubName}),
 	}
 }
 

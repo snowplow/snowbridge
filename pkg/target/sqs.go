@@ -37,6 +37,8 @@ const (
 	sqsSendMessageByteLimit = 262144
 	// Each request can be a maximum of 256 KB in size total
 	sqsSendMessageBatchByteLimit = 262144
+
+	SupportedTargetSQS = "sqs"
 )
 
 var (
@@ -81,7 +83,7 @@ func newSQSTargetWithInterfaces(client common.SqsV2API, awsAccountID string, reg
 		queueName: queueName,
 		region:    region,
 		accountID: awsAccountID,
-		log:       log.WithFields(log.Fields{"target": "sqs", "cloud": "AWS", "region": region, "queue": queueName}),
+		log:       log.WithFields(log.Fields{"target": SupportedTargetSQS, "cloud": "AWS", "region": region, "queue": queueName}),
 	}, nil
 }
 

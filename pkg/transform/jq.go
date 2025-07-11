@@ -45,6 +45,7 @@ func transformOutput(jqOutput JqCommandOutput) TransformationFunction {
 		data, err := json.Marshal(jqOutput)
 		if err != nil {
 			message.SetError(errors.New("error encoding jq query output data"))
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 

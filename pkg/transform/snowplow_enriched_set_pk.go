@@ -26,15 +26,15 @@ type SetPkConfig struct {
 
 // The adapter type is an adapter for functions to be used as
 // pluggable components for spEnrichedSetPk transformation. It implements the Pluggable interface.
-type setPkAdapter func(i interface{}) (interface{}, error)
+type setPkAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f setPkAdapter) Create(i interface{}) (interface{}, error) {
+func (f setPkAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f setPkAdapter) ProvideDefault() (interface{}, error) {
+func (f setPkAdapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &SetPkConfig{}
 
@@ -43,7 +43,7 @@ func (f setPkAdapter) ProvideDefault() (interface{}, error) {
 
 // adapterGenerator returns a spEnrichedSetPk transformation adapter.
 func setPkAdapterGenerator(f func(c *SetPkConfig) (TransformationFunction, error)) setPkAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*SetPkConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
@@ -75,17 +75,19 @@ func NewSpEnrichedSetPkFunction(pkField string) (TransformationFunction, error) 
 		return nil, err
 	}
 
-	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 		// Evalute intermediateState to parsedEvent
 		parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(parseErr)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
 		pk, err := parsedEvent.GetValue(pkField)
 		if err != nil {
 			message.SetError(err)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 		message.PartitionKey = fmt.Sprintf("%v", pk)
