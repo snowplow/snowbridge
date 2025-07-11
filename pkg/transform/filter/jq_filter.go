@@ -38,7 +38,7 @@ func jqFilterConfigFunction(cfg *JQFilterConfig) (transform.TransformationFuncti
 }
 
 func jqFilterAdapterGenerator(f func(*JQFilterConfig) (transform.TransformationFunction, error)) jqFilterAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*JQFilterConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected JQFilterConfig")
@@ -50,11 +50,12 @@ func jqFilterAdapterGenerator(f func(*JQFilterConfig) (transform.TransformationF
 
 // This is where actual filtering is implemented, based on a JQ command output.
 func filterOutput(jqOutput transform.JqCommandOutput) transform.TransformationFunction {
-	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		shouldKeepMessage, isBoolean := jqOutput.(bool)
 
 		if !isBoolean {
 			message.SetError(fmt.Errorf("jq filter returned '%v'; expected boolean", jqOutput))
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
@@ -66,14 +67,14 @@ func filterOutput(jqOutput transform.JqCommandOutput) transform.TransformationFu
 	}
 }
 
-type jqFilterAdapter func(i interface{}) (interface{}, error)
+type jqFilterAdapter func(i any) (any, error)
 
-func (f jqFilterAdapter) ProvideDefault() (interface{}, error) {
+func (f jqFilterAdapter) ProvideDefault() (any, error) {
 	return &JQFilterConfig{
 		RunTimeoutMs: 100,
 	}, nil
 }
 
-func (f jqFilterAdapter) Create(i interface{}) (interface{}, error) {
+func (f jqFilterAdapter) Create(i any) (any, error) {
 	return f(i)
 }

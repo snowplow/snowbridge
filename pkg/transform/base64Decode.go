@@ -26,15 +26,15 @@ import (
 type Base64DecodeConfig struct {
 }
 
-type base64DecodeAdapter func(i interface{}) (interface{}, error)
+type base64DecodeAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f base64DecodeAdapter) Create(i interface{}) (interface{}, error) {
+func (f base64DecodeAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f base64DecodeAdapter) ProvideDefault() (interface{}, error) {
+func (f base64DecodeAdapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &Base64DecodeConfig{}
 
@@ -43,7 +43,7 @@ func (f base64DecodeAdapter) ProvideDefault() (interface{}, error) {
 
 // base64DecodeAdapterGenerator returns a base64Decode transformation adapter.
 func base64DecodeAdapterGenerator(f func(c *Base64DecodeConfig) (TransformationFunction, error)) base64DecodeAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*Base64DecodeConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected Base64DecodeConfig")
@@ -65,12 +65,13 @@ var Base64DecodeConfigPair = config.ConfigurationPair{
 }
 
 // Base64Decode is a specific transformation implementation to transform good enriched data within a message to Json
-func Base64Decode(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+func Base64Decode(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 
 	b64DecodedData := make([]byte, base64.StdEncoding.DecodedLen(len(message.Data)))
 	_, err := base64.StdEncoding.Decode(b64DecodedData, message.Data)
 	if err != nil {
 		message.SetError(err)
+		message.SetErrorType(models.ErrorTypeTransformation)
 		return nil, nil, message, nil
 	}
 

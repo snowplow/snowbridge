@@ -13,8 +13,11 @@ package target
 
 import (
 	"errors"
+
 	"github.com/snowplow/snowbridge/pkg/models"
 )
+
+const SupportedTargetSilent = "silent"
 
 // SilentTarget holds a new client for silently acking data
 type SilentTarget struct{}
@@ -83,5 +86,5 @@ func (st *SilentTarget) MaximumAllowedMessageSizeBytes() int {
 
 // GetID returns the identifier for this target
 func (st *SilentTarget) GetID() string {
-	return "silent"
+	return SupportedTargetSilent
 }

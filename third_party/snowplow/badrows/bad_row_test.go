@@ -22,7 +22,7 @@ func TestNewBadRow_InvalidData(t *testing.T) {
 
 	schema := "iglu:com.acme/event/jsonschema/1-0-0"
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"hello": map[bool]string{
 			true: "pv",
 		},

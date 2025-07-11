@@ -144,6 +144,7 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 		input, parsedEvent, err := mkJQInput(message, interState, spMode)
 		if err != nil {
 			message.SetError(err)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
@@ -155,11 +156,13 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 		jqOutput, ok := iter.Next()
 		if !ok {
 			message.SetError(errors.New("jq query got no output"))
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
 		if err, ok := jqOutput.(error); ok {
 			message.SetError(err)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 

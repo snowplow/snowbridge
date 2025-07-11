@@ -12,6 +12,8 @@
 package failure
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
@@ -20,32 +22,32 @@ import (
 	"github.com/snowplow/snowbridge/third_party/snowplow/badrows"
 )
 
-const SnowplowFailureTarget = "snowplow"
+const EventForwardingFailureTarget = "event_forwarding"
 
-// SnowplowFailure holds a new client for transforming failed messages and emitting
+// EventForwardingFailure holds a new client for transforming failed messages and emitting
 // them to a target
-type SnowplowFailure struct {
+type EventForwardingFailure struct {
 	processorArtifact string
 	processorVersion  string
 	target            targetiface.Target
 	log               *log.Entry
 }
 
-// NewSnowplowFailure will create a new client for handling failed events
-// by converting them into Snowplow compatible bad events and pushing them to
+// NewEventForwardingFailure will create a new client for handling failed events
+// by converting them into EventForwarding compatible bad events and pushing them to
 // a stream
-func NewSnowplowFailure(target targetiface.Target, processorArtifact string, processorVersion string) (*SnowplowFailure, error) {
-	return &SnowplowFailure{
+func NewEventForwardingFailure(target targetiface.Target, processorArtifact string, processorVersion string) (*EventForwardingFailure, error) {
+	return &EventForwardingFailure{
 		processorArtifact: processorArtifact,
 		processorVersion:  processorVersion,
 		target:            target,
-		log:               log.WithFields(log.Fields{"failed": SnowplowFailureTarget}),
+		log:               log.WithFields(log.Fields{"failed": EventForwardingFailureTarget}),
 	}, nil
 }
 
 // WriteInvalid will handle the conversion of invalid messages into failure
 // messages that will then pushed to the specified target
-func (d *SnowplowFailure) WriteInvalid(invalid []*models.Message) (*models.TargetWriteResult, error) {
+func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*models.TargetWriteResult, error) {
 	var transformed []*models.Message
 
 	for _, msg := range invalid {
@@ -56,23 +58,26 @@ func (d *SnowplowFailure) WriteInvalid(invalid []*models.Message) (*models.Targe
 			failureErrors = append(failureErrors, err.Error())
 		}
 
-		sv, err := badrows.NewGenericError(
-			&badrows.GenericErrorInput{
-				ProcessorArtifact: d.processorArtifact,
-				ProcessorVersion:  d.processorVersion,
-				Payload:           msg.Data,
+		sv, err := badrows.NewEventForwardingError(
+			&badrows.EventForwardingErrorInput{
+				ProcessorArtifact: ef.processorArtifact,
+				ProcessorVersion:  ef.processorVersion,
+				OriginalTSV:       msg.OriginalData,
+				ErrorType:         msg.GetErrorType(),
+				LatestState:       msg.Data,
+				ErrorMessage:      strings.Join(failureErrors, ": "),
+				ErrorCode:         msg.GetErrorCode(),
 				FailureTimestamp:  msg.TimePulled,
-				FailureErrors:     failureErrors,
 			},
-			d.target.MaximumAllowedMessageSizeBytes(),
+			ef.target.MaximumAllowedMessageSizeBytes(),
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to transform invalid message to snowplow.generic_error bad-row JSON")
+			return nil, errors.Wrap(err, "Failed to transform invalid message to event_forwarding.event_forwarding_error bad-row JSON")
 		}
 
 		svCompact, err := sv.Compact()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get compacted snowplow.generic_error bad-row JSON")
+			return nil, errors.Wrap(err, "Failed to get compacted event_forwarding.event_forwarding_error bad-row JSON")
 		}
 
 		tMsg := msg
@@ -81,33 +86,33 @@ func (d *SnowplowFailure) WriteInvalid(invalid []*models.Message) (*models.Targe
 		transformed = append(transformed, tMsg)
 	}
 
-	return d.target.Write(transformed)
+	return ef.target.Write(transformed)
 }
 
 // WriteOversized will handle the conversion of oversized messages into failure
 // messages that will then pushed to the specified target
-func (d *SnowplowFailure) WriteOversized(maximumAllowedSizeBytes int, oversized []*models.Message) (*models.TargetWriteResult, error) {
+func (ef *EventForwardingFailure) WriteOversized(maximumAllowedSizeBytes int, oversized []*models.Message) (*models.TargetWriteResult, error) {
 	var transformed []*models.Message
 
 	for _, msg := range oversized {
 		sv, err := badrows.NewSizeViolation(
 			&badrows.SizeViolationInput{
-				ProcessorArtifact:              d.processorArtifact,
-				ProcessorVersion:               d.processorVersion,
+				ProcessorArtifact:              ef.processorArtifact,
+				ProcessorVersion:               ef.processorVersion,
 				Payload:                        msg.Data,
 				FailureTimestamp:               msg.TimePulled,
 				FailureMaximumAllowedSizeBytes: maximumAllowedSizeBytes,
 				FailureExpectation:             "Expected payload to fit into requested target",
 			},
-			d.target.MaximumAllowedMessageSizeBytes(),
+			ef.target.MaximumAllowedMessageSizeBytes(),
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to transform oversized message to snowplow.size_violation bad-row JSON")
+			return nil, errors.Wrap(err, "Failed to transform oversized message to event_forwarding.size_violation bad-row JSON")
 		}
 
 		svCompact, err := sv.Compact()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get compacted snowplow.size_violation bad-row JSON")
+			return nil, errors.Wrap(err, "Failed to get compacted event_forwarding.size_violation bad-row JSON")
 		}
 
 		tMsg := msg
@@ -116,20 +121,20 @@ func (d *SnowplowFailure) WriteOversized(maximumAllowedSizeBytes int, oversized 
 		transformed = append(transformed, tMsg)
 	}
 
-	return d.target.Write(transformed)
+	return ef.target.Write(transformed)
 }
 
 // Open manages opening the underlying target
-func (d *SnowplowFailure) Open() {
-	d.target.Open()
+func (ef *EventForwardingFailure) Open() {
+	ef.target.Open()
 }
 
 // Close manages closing the underlying target
-func (d *SnowplowFailure) Close() {
-	d.target.Close()
+func (ef *EventForwardingFailure) Close() {
+	ef.target.Close()
 }
 
 // GetID returns the identifier for this target
-func (d *SnowplowFailure) GetID() string {
-	return d.target.GetID()
+func (ef *EventForwardingFailure) GetID() string {
+	return ef.target.GetID()
 }

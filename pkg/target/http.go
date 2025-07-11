@@ -34,6 +34,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const SupportedTargetHTTP = "http"
+
 // HTTPTargetConfig configures the destination for records consumed
 type HTTPTargetConfig struct {
 	URL                     string `hcl:"url"`
@@ -249,7 +251,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		headers:              parsedHeaders,
 		basicAuthUsername:    c.BasicAuthUsername,
 		basicAuthPassword:    c.BasicAuthPassword,
-		log:                  log.WithFields(log.Fields{"target": "http", "url": c.URL}),
+		log:                  log.WithFields(log.Fields{"target": SupportedTargetHTTP, "url": c.URL}),
 		dynamicHeaders:       c.DynamicHeaders,
 		requestMaxMessages:   c.RequestMaxMessages,
 		requestByteLimit:     c.RequestByteLimit,

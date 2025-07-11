@@ -28,22 +28,22 @@ type GTMSSPreviewConfig struct {
 }
 
 // The gtmssPreviewAdapter implements the Pluggable interface
-type gtmssPreviewAdapter func(i interface{}) (interface{}, error)
+type gtmssPreviewAdapter func(i any) (any, error)
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f gtmssPreviewAdapter) ProvideDefault() (interface{}, error) {
+func (f gtmssPreviewAdapter) ProvideDefault() (any, error) {
 	cfg := &GTMSSPreviewConfig{Expiry: 300} // seconds -> 5 minutes
 	return cfg, nil
 }
 
 // Create implements the ComponentCreator interface.
-func (f gtmssPreviewAdapter) Create(i interface{}) (interface{}, error) {
+func (f gtmssPreviewAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // gtmssPreviewAdapterGenerator returns a gtmssPreviewAdapter
 func gtmssPreviewAdapterGenerator(f func(cfg *GTMSSPreviewConfig) (TransformationFunction, error)) gtmssPreviewAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*GTMSSPreviewConfig)
 		if !ok {
 			return nil, errors.New("unexpected configuration input for gtmssPreview transformation")
@@ -70,16 +70,18 @@ var GTMSSPreviewConfigPair = config.ConfigurationPair{
 
 // gtmssPreviewTransformation returns a transformation function
 func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Duration) TransformationFunction {
-	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		parsedEvent, err := IntermediateAsSpEnrichedParsed(interState, message)
 		if err != nil {
 			message.SetError(err)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
 		headerVal, err := extractHeaderValue(parsedEvent, ctx, property)
 		if err != nil {
 			message.SetError(err)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
@@ -87,12 +89,14 @@ func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Dur
 			tstamp, err := parsedEvent.GetValue("collector_tstamp")
 			if err != nil {
 				message.SetError(err)
+				message.SetErrorType(models.ErrorTypeTransformation)
 				return nil, nil, message, nil
 			}
 
 			if collectorTstamp, ok := tstamp.(time.Time); ok {
 				if time.Now().UTC().After(collectorTstamp.Add(expiry)) {
 					message.SetError(errors.New("message has expired"))
+					message.SetErrorType(models.ErrorTypeTransformation)
 					return nil, nil, message, nil
 				}
 			}
@@ -114,7 +118,7 @@ func extractHeaderValue(parsedEvent analytics.ParsedEvent, ctx, prop string) (*s
 		return nil, err
 	}
 
-	headerVals, ok := values.([]interface{})
+	headerVals, ok := values.([]any)
 	if !ok {
 		// this is generally not expected to happen
 		return nil, errors.New("invalid return type encountered")

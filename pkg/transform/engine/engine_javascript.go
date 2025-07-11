@@ -155,6 +155,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		input, err := mkJSEngineInput(e, message, interState)
 		if err != nil {
 			message.SetError(fmt.Errorf("failed making input for the JavaScript runtime: %q", err.Error()))
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
@@ -162,6 +163,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		vm, fun, err := initRuntime(e, funcName)
 		if err != nil {
 			message.SetError(fmt.Errorf("failed initializing JavaScript runtime: %q", err.Error()))
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
@@ -175,6 +177,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			// runtime error counts as failure
 			runErr := fmt.Errorf("error setting JavaScript function [%q]: %q", "hash", err.Error())
 			message.SetError(runErr)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
@@ -184,6 +187,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			// runtime error counts as failure
 			runErr := fmt.Errorf("error running JavaScript function %q: %q", funcName, err.Error())
 			message.SetError(runErr)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
@@ -191,6 +195,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		protocol, err := validateJSEngineOut(res.Export())
 		if err != nil {
 			message.SetError(err)
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
@@ -212,11 +217,13 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			encoded, err := json.Marshal(protoData)
 			if err != nil {
 				message.SetError(fmt.Errorf("error encoding message data"))
+				message.SetErrorType(models.ErrorTypeTransformation)
 				return nil, nil, message, nil
 			}
 			message.Data = encoded
 		default:
 			message.SetError(fmt.Errorf("invalid return type from JavaScript transformation; expected string or object"))
+			message.SetErrorType(models.ErrorTypeTransformation)
 			return nil, nil, message, nil
 		}
 
