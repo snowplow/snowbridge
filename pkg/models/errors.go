@@ -13,8 +13,6 @@ package models
 
 import (
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // ErrorMetadata is an interface which could be implemented by errors produced by various Snowbridge components.
@@ -37,7 +35,7 @@ type TransformationError struct {
 }
 
 func (e *TransformationError) Error() string {
-	return errors.Wrap(e.Err, e.SafeMessage).Error()
+	return e.Err.Error()
 }
 
 func (e *TransformationError) ReportableCode() string {
@@ -79,7 +77,7 @@ type TemplatingError struct {
 }
 
 func (e *TemplatingError) Error() string {
-	return errors.Wrap(e.Err, e.SafeMessage).Error()
+	return e.Err.Error()
 }
 
 func (e *TemplatingError) ReportableCode() string {
