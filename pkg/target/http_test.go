@@ -788,7 +788,7 @@ func TestHTTP_Write_Invalid(t *testing.T) {
 	assert.Nil(err1)
 	assert.Equal(0, len(writeResult.Sent))
 	assert.Equal(1, len(writeResult.Invalid))
-	assert.Equal("Request is invalid. Invalid value for field 'attribute'", writeResult.Invalid[0].GetError().Error())
+	assert.Equal("HTTP Status Code: 400 Bad Request Body: Request is invalid. Invalid value for field 'attribute'", writeResult.Invalid[0].GetError().Error())
 }
 
 func TestHTTP_Write_Setup(t *testing.T) {
