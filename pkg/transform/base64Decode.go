@@ -70,8 +70,10 @@ func Base64Decode(message *models.Message, intermediateState any) (*models.Messa
 	b64DecodedData := make([]byte, base64.StdEncoding.DecodedLen(len(message.Data)))
 	_, err := base64.StdEncoding.Decode(b64DecodedData, message.Data)
 	if err != nil {
-		message.SetError(err)
-		message.SetErrorType(models.ErrorTypeTransformation)
+		message.SetError(&models.TransformationError{
+			SafeMessage: err.Error(),
+			Err:         err,
+		})
 		return nil, nil, message, nil
 	}
 

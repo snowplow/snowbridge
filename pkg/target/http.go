@@ -413,7 +413,10 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
 				for _, msg := range goodMsgs {
-					msg.SetError(errors.New(response.Body))
+					msg.SetError(&models.ApiError{
+						HttpStatus:   resp.Status,
+						ResponseBody: response.Body,
+					})
 				}
 
 				invalid = append(invalid, goodMsgs...)
@@ -507,7 +510,10 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 		var asJSON interface{}
 
 		if err := json.Unmarshal(msg.Data, &asJSON); err != nil {
-			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))
+			msg.SetError(&models.TemplatingError{
+				SafeMessage: "Message can't be parsed as valid JSON",
+				Err:         errors.Wrap(err, "Message can't be parsed as valid JSON"),
+			})
 			invalid = append(invalid, msg)
 			continue
 		}
@@ -520,7 +526,10 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 	tmplErr := ht.requestTemplate.Execute(&buf, validJsons)
 	if tmplErr != nil {
 		for _, msg := range success {
-			msg.SetError(errors.Wrap(tmplErr, "Could not create request JSON"))
+			msg.SetError(&models.TemplatingError{
+				SafeMessage: "Could not create request JSON",
+				Err:         errors.Wrap(tmplErr, "Could not create request JSON"),
+			})
 			invalid = append(invalid, msg)
 		}
 		return nil, nil, invalid
@@ -539,7 +548,10 @@ func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []b
 		var asRaw json.RawMessage
 		// If any data is not json compatible, we must treat as invalid
 		if err := json.Unmarshal(msg.Data, &asRaw); err != nil {
-			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))
+			msg.SetError(&models.TemplatingError{
+				SafeMessage: "Message can't be parsed as valid JSON",
+				Err:         errors.Wrap(err, "Message can't be parsed as valid JSON"),
+			})
 			invalid = append(invalid, msg)
 			continue
 		}
@@ -551,7 +563,10 @@ func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []b
 	requestBody, err := json.Marshal(requestData)
 	if err != nil {
 		for _, msg := range success {
-			msg.SetError(errors.Wrap(err, "Could not create request JSON"))
+			msg.SetError(&models.TemplatingError{
+				SafeMessage: "Could not create request JSON",
+				Err:         errors.Wrap(err, "Could not create request JSON"),
+			})
 			invalid = append(invalid, msg)
 		}
 		return nil, nil, invalid

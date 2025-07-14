@@ -58,19 +58,36 @@ func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*mode
 			failureErrors = append(failureErrors, err.Error())
 		}
 
-		sv, err := badrows.NewEventForwardingError(
-			&badrows.EventForwardingErrorInput{
-				ProcessorArtifact: ef.processorArtifact,
-				ProcessorVersion:  ef.processorVersion,
-				OriginalTSV:       msg.OriginalData,
-				ErrorType:         msg.GetErrorType(),
-				LatestState:       msg.Data,
-				ErrorMessage:      strings.Join(failureErrors, ": "),
-				ErrorCode:         msg.GetErrorCode(),
-				FailureTimestamp:  msg.TimePulled,
-			},
-			ef.target.MaximumAllowedMessageSizeBytes(),
-		)
+		var sv *badrows.BadRow
+		reportableError, ok := err.(models.ErrorMetadata)
+		if ok {
+			sv, err = badrows.NewEventForwardingError(
+				&badrows.EventForwardingErrorInput{
+					ProcessorArtifact: ef.processorArtifact,
+					ProcessorVersion:  ef.processorVersion,
+					OriginalTSV:       msg.OriginalData,
+					ErrorType:         reportableError.ReportableType(),
+					LatestState:       msg.Data,
+					ErrorMessage:      reportableError.ReportableDescription(),
+					ErrorCode:         reportableError.ReportableCode(),
+					FailureTimestamp:  msg.TimePulled,
+				},
+				ef.target.MaximumAllowedMessageSizeBytes(),
+			)
+		} else {
+			sv, err = badrows.NewEventForwardingError(
+				&badrows.EventForwardingErrorInput{
+					ProcessorArtifact: ef.processorArtifact,
+					ProcessorVersion:  ef.processorVersion,
+					OriginalTSV:       msg.OriginalData,
+					LatestState:       msg.Data,
+					ErrorMessage:      strings.Join(failureErrors, ": "),
+					FailureTimestamp:  msg.TimePulled,
+				},
+				ef.target.MaximumAllowedMessageSizeBytes(),
+			)
+		}
+
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to transform invalid message to event_forwarding.event_forwarding_error bad-row JSON")
 		}

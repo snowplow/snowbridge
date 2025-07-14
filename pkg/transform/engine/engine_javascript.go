@@ -154,16 +154,20 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		// making input
 		input, err := mkJSEngineInput(e, message, interState)
 		if err != nil {
-			message.SetError(fmt.Errorf("failed making input for the JavaScript runtime: %q", err.Error()))
-			message.SetErrorType(models.ErrorTypeTransformation)
+			message.SetError(&models.TransformationError{
+				SafeMessage: "failed making input for the JavaScript runtime",
+				Err:         fmt.Errorf("failed making input for the JavaScript runtime: %q", err.Error()),
+			})
 			return nil, nil, message, nil
 		}
 
 		// initializing
 		vm, fun, err := initRuntime(e, funcName)
 		if err != nil {
-			message.SetError(fmt.Errorf("failed initializing JavaScript runtime: %q", err.Error()))
-			message.SetErrorType(models.ErrorTypeTransformation)
+			message.SetError(&models.TransformationError{
+				SafeMessage: "failed initializing JavaScript runtime",
+				Err:         fmt.Errorf("failed initializing JavaScript runtime: %q", err.Error()),
+			})
 			return nil, nil, message, nil
 		}
 
@@ -175,9 +179,12 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		// handle custom functions
 		if err := vm.Set("hash", resolveHash(vm, e.HashSaltSecret)); err != nil {
 			// runtime error counts as failure
-			runErr := fmt.Errorf("error setting JavaScript function [%q]: %q", "hash", err.Error())
+			runErr := fmt.Errorf("error setting JavaScript function [%s]: %q", "hash", err.Error())
 			message.SetError(runErr)
-			message.SetErrorType(models.ErrorTypeTransformation)
+			message.SetError(&models.TransformationError{
+				SafeMessage: "error setting JavaScript function [hash]",
+				Err:         runErr,
+			})
 			return nil, nil, message, nil
 		}
 
@@ -185,9 +192,10 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		res, err := fun(goja.Undefined(), vm.ToValue(input))
 		if err != nil {
 			// runtime error counts as failure
-			runErr := fmt.Errorf("error running JavaScript function %q: %q", funcName, err.Error())
-			message.SetError(runErr)
-			message.SetErrorType(models.ErrorTypeTransformation)
+			message.SetError(&models.TransformationError{
+				SafeMessage: fmt.Sprintf("error running JavaScript function [%s]", funcName),
+				Err:         fmt.Errorf("error running JavaScript function [%s]: %q", funcName, err.Error()),
+			})
 			return nil, nil, message, nil
 		}
 
@@ -195,7 +203,10 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		protocol, err := validateJSEngineOut(res.Export())
 		if err != nil {
 			message.SetError(err)
-			message.SetErrorType(models.ErrorTypeTransformation)
+			message.SetError(&models.TransformationError{
+				SafeMessage: err.Error(),
+				Err:         err,
+			})
 			return nil, nil, message, nil
 		}
 
@@ -216,14 +227,19 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			// encode
 			encoded, err := json.Marshal(protoData)
 			if err != nil {
-				message.SetError(fmt.Errorf("error encoding message data"))
-				message.SetErrorType(models.ErrorTypeTransformation)
+				message.SetError(&models.TransformationError{
+					SafeMessage: "error encoding message data",
+					Err:         err,
+				})
 				return nil, nil, message, nil
 			}
 			message.Data = encoded
 		default:
-			message.SetError(fmt.Errorf("invalid return type from JavaScript transformation; expected string or object"))
-			message.SetErrorType(models.ErrorTypeTransformation)
+			err := fmt.Errorf("invalid return type from JavaScript transformation; expected string or object")
+			message.SetError(&models.TransformationError{
+				SafeMessage: err.Error(),
+				Err:         err,
+			})
 			return nil, nil, message, nil
 		}
 

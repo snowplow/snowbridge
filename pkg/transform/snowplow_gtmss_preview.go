@@ -73,30 +73,38 @@ func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Dur
 	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		parsedEvent, err := IntermediateAsSpEnrichedParsed(interState, message)
 		if err != nil {
-			message.SetError(err)
-			message.SetErrorType(models.ErrorTypeTransformation)
+			message.SetError(&models.TransformationError{
+				SafeMessage: err.Error(),
+				Err:         err,
+			})
 			return nil, nil, message, nil
 		}
 
 		headerVal, err := extractHeaderValue(parsedEvent, ctx, property)
 		if err != nil {
-			message.SetError(err)
-			message.SetErrorType(models.ErrorTypeTransformation)
+			message.SetError(&models.TransformationError{
+				SafeMessage: err.Error(),
+				Err:         err,
+			})
 			return nil, nil, message, nil
 		}
 
 		if headerVal != nil {
 			tstamp, err := parsedEvent.GetValue("collector_tstamp")
 			if err != nil {
-				message.SetError(err)
-				message.SetErrorType(models.ErrorTypeTransformation)
+				message.SetError(&models.TransformationError{
+					SafeMessage: err.Error(),
+					Err:         err,
+				})
 				return nil, nil, message, nil
 			}
 
 			if collectorTstamp, ok := tstamp.(time.Time); ok {
 				if time.Now().UTC().After(collectorTstamp.Add(expiry)) {
-					message.SetError(errors.New("message has expired"))
-					message.SetErrorType(models.ErrorTypeTransformation)
+					message.SetError(&models.TransformationError{
+						SafeMessage: "message has expired",
+						Err:         errors.New("message has expired"),
+					})
 					return nil, nil, message, nil
 				}
 			}
