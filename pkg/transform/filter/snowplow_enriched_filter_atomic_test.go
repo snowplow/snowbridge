@@ -95,7 +95,7 @@ func TestNewAtomicFilter(t *testing.T) {
 	assert.Nil(aidMultipleOut)
 	assert.Nil(fail)
 
-	aidFilterFuncDiscardWithMultiple, _ := NewAtomicFilterFunction("app_id", "^someotherValue|failThis$", "keep")
+	aidFilterFuncDiscardWithMultiple, err := NewAtomicFilterFunction("app_id", "^someotherValue|failThis$", "keep")
 	if err != nil {
 		panic(err)
 	}
@@ -194,7 +194,7 @@ func BenchmarkAtomicFilter(b *testing.B) {
 		panic(err)
 	}
 
-	aidFilterFuncNegationKeep, _ := NewAtomicFilterFunction("app_id", "^failThis", "drop")
+	aidFilterFuncNegationKeep, err := NewAtomicFilterFunction("app_id", "^failThis", "drop")
 	if err != nil {
 		panic(err)
 	}

@@ -71,7 +71,7 @@ func Base64Decode(message *models.Message, intermediateState any) (*models.Messa
 	_, err := base64.StdEncoding.Decode(b64DecodedData, message.Data)
 	if err != nil {
 		message.SetError(&models.TransformationError{
-			SafeMessage: err.Error(),
+			SafeMessage: "failed to decode data as base64",
 			Err:         err,
 		})
 		return nil, nil, message, nil

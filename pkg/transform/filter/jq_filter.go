@@ -54,10 +54,9 @@ func filterOutput(jqOutput transform.JqCommandOutput) transform.TransformationFu
 		shouldKeepMessage, isBoolean := jqOutput.(bool)
 
 		if !isBoolean {
-			err := fmt.Errorf("jq filter returned '%v'; expected boolean", jqOutput)
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
-				Err:         err,
+				SafeMessage: "jq filter didn't return expected [boolean] value",
+				Err:         fmt.Errorf("jq filter didn't return expected [boolean] value: %v", jqOutput),
 			})
 			return nil, nil, message, nil
 		}

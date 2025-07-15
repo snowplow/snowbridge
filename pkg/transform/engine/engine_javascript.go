@@ -202,7 +202,6 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		// validating output
 		protocol, err := validateJSEngineOut(res.Export())
 		if err != nil {
-			message.SetError(err)
 			message.SetError(&models.TransformationError{
 				SafeMessage: err.Error(),
 				Err:         err,
@@ -229,7 +228,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			if err != nil {
 				message.SetError(&models.TransformationError{
 					SafeMessage: "error encoding message data",
-					Err:         err,
+					Err:         fmt.Errorf("error encoding message data: %w", err),
 				})
 				return nil, nil, message, nil
 			}

@@ -95,6 +95,8 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-openapi/jsonpointer v0.21.0 // indirect
+	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
@@ -111,6 +113,9 @@ require (
 	github.com/jcmturner/gofork v1.7.6 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
+	github.com/josephburnett/jd/v2 v2.2.3 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-sqlite3 v2.0.2+incompatible // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -121,6 +126,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xdg/stringprep v1.0.3 // indirect
+	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	go.einride.tech/aip v0.70.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
@@ -130,6 +136,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.36.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.36.0 // indirect
 	go.opentelemetry.io/otel/trace v1.36.0 // indirect
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
@@ -138,6 +145,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250519155744-55703ea1f237 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

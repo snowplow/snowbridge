@@ -19,6 +19,7 @@ import (
 // If an error implements this interface, it has to provide code and description that is safe to report as metadata.
 type ErrorMetadata interface {
 	ReportableCode() string
+	ReportableError() string
 	ReportableDescription() string
 	ReportableType() string
 }
@@ -46,6 +47,10 @@ func (e *TransformationError) ReportableDescription() string {
 	return e.SafeMessage
 }
 
+func (e *TransformationError) ReportableError() string {
+	return e.Error()
+}
+
 func (e *TransformationError) ReportableType() string {
 	return ErrorTypeTransformation
 }
@@ -67,6 +72,10 @@ func (e *ApiError) ReportableDescription() string {
 	return e.ResponseBody
 }
 
+func (e *ApiError) ReportableError() string {
+	return e.Error()
+}
+
 func (e *ApiError) ReportableType() string {
 	return ErrorTypeAPI
 }
@@ -86,6 +95,10 @@ func (e *TemplatingError) ReportableCode() string {
 
 func (e *TemplatingError) ReportableDescription() string {
 	return e.SafeMessage
+}
+
+func (e *TemplatingError) ReportableError() string {
+	return e.Error()
 }
 
 func (e *TemplatingError) ReportableType() string {

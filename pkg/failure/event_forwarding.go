@@ -68,7 +68,7 @@ func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*mode
 					OriginalTSV:       msg.OriginalData,
 					ErrorType:         reportableError.ReportableType(),
 					LatestState:       msg.Data,
-					ErrorMessage:      reportableError.ReportableDescription(),
+					ErrorMessage:      reportableError.ReportableError(),
 					ErrorCode:         reportableError.ReportableCode(),
 					FailureTimestamp:  msg.TimePulled,
 				},

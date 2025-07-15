@@ -41,12 +41,12 @@ func (f setPkAdapter) ProvideDefault() (any, error) {
 	return cfg, nil
 }
 
-// adapterGenerator returns a spEnrichedSetPk transformation adapter.
+// setPkAdapterGenerator returns a spEnrichedSetPk transformation adapter.
 func setPkAdapterGenerator(f func(c *SetPkConfig) (TransformationFunction, error)) setPkAdapter {
 	return func(i any) (any, error) {
 		cfg, ok := i.(*SetPkConfig)
 		if !ok {
-			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
+			return nil, errors.New("invalid input, expected spEnrichedSetPKConfig")
 		}
 
 		return f(cfg)
@@ -80,8 +80,8 @@ func NewSpEnrichedSetPkFunction(pkField string) (TransformationFunction, error) 
 		parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(&models.TransformationError{
-				SafeMessage: parseErr.Error(),
-				Err:         parseErr,
+				SafeMessage: "intermediate state cannot be parsed as parsedEvent",
+				Err:         fmt.Errorf("intermediate state cannot be parsed as parsedEvent: %w", parseErr),
 			})
 			return nil, nil, message, nil
 		}
@@ -89,8 +89,8 @@ func NewSpEnrichedSetPkFunction(pkField string) (TransformationFunction, error) 
 		pk, err := parsedEvent.GetValue(pkField)
 		if err != nil {
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
-				Err:         err,
+				SafeMessage: "failed to get value of the provided atomic field",
+				Err:         fmt.Errorf("failed to get value of the provided atomic field: %w", err),
 			})
 			return nil, nil, message, nil
 		}

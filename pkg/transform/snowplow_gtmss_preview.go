@@ -14,6 +14,7 @@ package transform
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/snowplow/snowbridge/config"
@@ -74,8 +75,8 @@ func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Dur
 		parsedEvent, err := IntermediateAsSpEnrichedParsed(interState, message)
 		if err != nil {
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
-				Err:         err,
+				SafeMessage: "intermediate state cannot be parsed as parsedEvent",
+				Err:         fmt.Errorf("intermediate state cannot be parsed as parsedEvent: %w", err),
 			})
 			return nil, nil, message, nil
 		}
@@ -83,8 +84,8 @@ func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Dur
 		headerVal, err := extractHeaderValue(parsedEvent, ctx, property)
 		if err != nil {
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
-				Err:         err,
+				SafeMessage: "failed to extract HeaderValue from parsedEvent",
+				Err:         fmt.Errorf("failed to extract HeaderValue from parsedEvent: %w", err),
 			})
 			return nil, nil, message, nil
 		}
@@ -93,8 +94,8 @@ func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Dur
 			tstamp, err := parsedEvent.GetValue("collector_tstamp")
 			if err != nil {
 				message.SetError(&models.TransformationError{
-					SafeMessage: err.Error(),
-					Err:         err,
+					SafeMessage: "failed to get value of the [collector_tstamp] atomic field",
+					Err:         fmt.Errorf("failed to get value of the [collector_tstamp] atomic field: %w", err),
 				})
 				return nil, nil, message, nil
 			}

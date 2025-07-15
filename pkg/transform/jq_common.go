@@ -144,7 +144,7 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 		input, parsedEvent, err := mkJQInput(message, interState, spMode)
 		if err != nil {
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
+				SafeMessage: "failed to prepare expected JQ input",
 				Err:         err,
 			})
 			return nil, nil, message, nil
@@ -166,9 +166,8 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 		}
 
 		if err, ok := jqOutput.(error); ok {
-			message.SetError(err)
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
+				SafeMessage: "jq output is an error",
 				Err:         err,
 			})
 			return nil, nil, message, nil
