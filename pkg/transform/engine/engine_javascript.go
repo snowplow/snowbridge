@@ -180,7 +180,6 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		if err := vm.Set("hash", resolveHash(vm, e.HashSaltSecret)); err != nil {
 			// runtime error counts as failure
 			runErr := fmt.Errorf("error setting JavaScript function [%s]: %q", "hash", err.Error())
-			message.SetError(runErr)
 			message.SetError(&models.TransformationError{
 				SafeMessage: "error setting JavaScript function [hash]",
 				Err:         runErr,
