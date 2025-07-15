@@ -54,6 +54,7 @@ require (
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/itchyny/gojq v0.12.17
+	github.com/josephburnett/jd/v2 v2.2.3
 	github.com/json-iterator/go v1.1.12
 	github.com/snowplow/snowplow-golang-tracker/v2 v2.4.1
 	github.com/twinj/uuid v1.0.0
@@ -113,7 +114,6 @@ require (
 	github.com/jcmturner/gofork v1.7.6 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
-	github.com/josephburnett/jd/v2 v2.2.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-sqlite3 v2.0.2+incompatible // indirect
