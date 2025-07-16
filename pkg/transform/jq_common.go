@@ -14,7 +14,6 @@ package transform
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -157,10 +156,8 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 		// no looping since we only keep first value
 		jqOutput, ok := iter.Next()
 		if !ok {
-			err := errors.New("jq query got no output")
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
-				Err:         err,
+				SafeMessage: "jq query got no output",
 			})
 			return nil, nil, message, nil
 		}

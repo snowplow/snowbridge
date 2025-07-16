@@ -13,7 +13,6 @@ package transform
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -71,7 +70,7 @@ func SpEnrichedToJSON(message *models.Message, intermediateState any) (*models.M
 	if parseErr != nil {
 		message.SetError(&models.TransformationError{
 			SafeMessage: "intermediate state cannot be parsed as parsedEvent",
-			Err:         fmt.Errorf("intermediate state cannot be parsed as parsedEvent: %w", parseErr),
+			Err:         parseErr,
 		})
 		return nil, nil, message, nil
 	}
@@ -80,7 +79,7 @@ func SpEnrichedToJSON(message *models.Message, intermediateState any) (*models.M
 	if err != nil {
 		message.SetError(&models.TransformationError{
 			SafeMessage: "failed to convert parsedEvent to JSON",
-			Err:         fmt.Errorf("failed to convert parsedEvent to JSON: %w", err),
+			Err:         err,
 		})
 		return nil, nil, message, nil
 	}

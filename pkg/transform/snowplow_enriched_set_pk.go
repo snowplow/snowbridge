@@ -81,7 +81,7 @@ func NewSpEnrichedSetPkFunction(pkField string) (TransformationFunction, error) 
 		if parseErr != nil {
 			message.SetError(&models.TransformationError{
 				SafeMessage: "intermediate state cannot be parsed as parsedEvent",
-				Err:         fmt.Errorf("intermediate state cannot be parsed as parsedEvent: %w", parseErr),
+				Err:         parseErr,
 			})
 			return nil, nil, message, nil
 		}
@@ -90,7 +90,7 @@ func NewSpEnrichedSetPkFunction(pkField string) (TransformationFunction, error) 
 		if err != nil {
 			message.SetError(&models.TransformationError{
 				SafeMessage: "failed to get value of the provided atomic field",
-				Err:         fmt.Errorf("failed to get value of the provided atomic field: %w", err),
+				Err:         err,
 			})
 			return nil, nil, message, nil
 		}

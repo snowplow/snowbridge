@@ -156,7 +156,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		if err != nil {
 			message.SetError(&models.TransformationError{
 				SafeMessage: "failed making input for the JavaScript runtime",
-				Err:         fmt.Errorf("failed making input for the JavaScript runtime: %q", err.Error()),
+				Err:         err,
 			})
 			return nil, nil, message, nil
 		}
@@ -166,7 +166,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		if err != nil {
 			message.SetError(&models.TransformationError{
 				SafeMessage: "failed initializing JavaScript runtime",
-				Err:         fmt.Errorf("failed initializing JavaScript runtime: %q", err.Error()),
+				Err:         err,
 			})
 			return nil, nil, message, nil
 		}
@@ -179,10 +179,9 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		// handle custom functions
 		if err := vm.Set("hash", resolveHash(vm, e.HashSaltSecret)); err != nil {
 			// runtime error counts as failure
-			runErr := fmt.Errorf("error setting JavaScript function [%s]: %q", "hash", err.Error())
 			message.SetError(&models.TransformationError{
 				SafeMessage: "error setting JavaScript function [hash]",
-				Err:         runErr,
+				Err:         err,
 			})
 			return nil, nil, message, nil
 		}
@@ -193,7 +192,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			// runtime error counts as failure
 			message.SetError(&models.TransformationError{
 				SafeMessage: fmt.Sprintf("error running JavaScript function [%s]", funcName),
-				Err:         fmt.Errorf("error running JavaScript function [%s]: %q", funcName, err.Error()),
+				Err:         err,
 			})
 			return nil, nil, message, nil
 		}
@@ -202,7 +201,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		protocol, err := validateJSEngineOut(res.Export())
 		if err != nil {
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
+				SafeMessage: "failed to validate JS engine output",
 				Err:         err,
 			})
 			return nil, nil, message, nil
@@ -227,16 +226,14 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			if err != nil {
 				message.SetError(&models.TransformationError{
 					SafeMessage: "error encoding message data",
-					Err:         fmt.Errorf("error encoding message data: %w", err),
+					Err:         err,
 				})
 				return nil, nil, message, nil
 			}
 			message.Data = encoded
 		default:
-			err := fmt.Errorf("invalid return type from JavaScript transformation; expected string or object")
 			message.SetError(&models.TransformationError{
-				SafeMessage: err.Error(),
-				Err:         err,
+				SafeMessage: "invalid return type from JavaScript transformation; expected string or object",
 			})
 			return nil, nil, message, nil
 		}

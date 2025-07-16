@@ -37,7 +37,10 @@ type TransformationError struct {
 }
 
 func (e *TransformationError) Error() string {
-	return e.Err.Error()
+	if e.Err != nil {
+		return errors.Wrap(e.Err, e.SafeMessage).Error()
+	}
+	return e.SafeMessage
 }
 
 func (e *TransformationError) Code() string {

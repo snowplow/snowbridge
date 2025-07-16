@@ -385,7 +385,7 @@ function main(x) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         fmt.Errorf(`error running JavaScript function [main]: "TypeError: Object has no member 'toExponential' at main`),
+			Error:         fmt.Errorf(`error running JavaScript function [main]: TypeError: Object has no member 'toExponential' at main`),
 		},
 		{
 			Src: `
@@ -407,7 +407,7 @@ function main(x) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         fmt.Errorf(`error running JavaScript function [main]: "Failed at main`),
+			Error:         fmt.Errorf(`error running JavaScript function [main]: Failed at main`),
 		},
 		{
 			Src: `

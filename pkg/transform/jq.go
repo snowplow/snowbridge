@@ -14,7 +14,6 @@ package transform
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/snowplow/snowbridge/config"
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -47,7 +46,7 @@ func transformOutput(jqOutput JqCommandOutput) TransformationFunction {
 		if err != nil {
 			message.SetError(&models.TransformationError{
 				SafeMessage: "error encoding jq query output data",
-				Err:         fmt.Errorf("error encoding jq query output data: %w", err),
+				Err:         err,
 			})
 			return nil, nil, message, nil
 		}
