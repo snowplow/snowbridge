@@ -28,7 +28,7 @@ type SanitisedErrorMetadata interface {
 const (
 	ErrorTypeAPI            = "api"
 	ErrorTypeTransformation = "transformation"
-	ErrorTypeTemplate       = "template"
+	ErrorTypeTemplating     = "template"
 )
 
 type TransformationError struct {
@@ -93,5 +93,5 @@ func (e *TemplatingError) SanitisedError() string {
 }
 
 func (e *TemplatingError) Type() string {
-	return ErrorTypeTemplate
+	return ErrorTypeTemplating
 }

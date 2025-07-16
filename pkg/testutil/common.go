@@ -67,7 +67,7 @@ func GetSequentialTestMessages(count int, ackFunc func()) []*models.Message {
 	return messages
 }
 
-// GetJsonDiff ccompares JSON strings and returns diff (if any) or an error if any JSON string is invalid
+// GetJsonDiff compares JSON strings and returns diff (if any) or an error if any JSON string is invalid
 func GetJsonDiff(expected, actual string) (string, error) {
 	exp, err := jd.ReadJsonString(expected)
 	if err != nil {

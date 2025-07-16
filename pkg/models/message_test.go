@@ -115,3 +115,61 @@ func TestFilterOversizedMessages(t *testing.T) {
 	assert.Equal(4, len(safe))
 	assert.Equal(1, len(oversized))
 }
+
+func TestMessageString_EventForwardingErrors(t *testing.T) {
+	assert := assert.New(t)
+
+	msg := Message{
+		Data:         []byte("Hello World!"),
+		PartitionKey: "some-key",
+	}
+
+	assert.Equal("PartitionKey:some-key,TimeCreated:0001-01-01 00:00:00 +0000 UTC,TimePulled:0001-01-01 00:00:00 +0000 UTC,TimeTransformed:0001-01-01 00:00:00 +0000 UTC,Data:Hello World!", msg.String())
+	assert.Nil(msg.GetError())
+	assert.Nil(msg.HTTPHeaders)
+
+	// Assert ApiError works as expected
+	msg.SetError(&ApiError{
+		StatusCode:   "401",
+		SafeMessage:  "safe error message",
+		ResponseBody: "some response body",
+	})
+
+	assert.NotNil(msg.GetError())
+	if msg.GetError() != nil {
+		assert.Equal("HTTP Status Code: 401 Body: some response body", msg.GetError().Error())
+		tErr, _ := msg.GetError().(SanitisedErrorMetadata)
+		assert.Equal("safe error message", tErr.SanitisedError())
+		assert.Equal(ErrorTypeAPI, tErr.Type())
+		assert.Equal("401", tErr.Code())
+
+	}
+
+	// Assert TransformationError works as expected
+	msg.SetError(&TransformationError{
+		SafeMessage: "safe error message",
+		Err:         errors.New("failure"),
+	})
+
+	assert.NotNil(msg.GetError())
+	if msg.GetError() != nil {
+		assert.Equal("failure", msg.GetError().Error())
+		tErr, _ := msg.GetError().(SanitisedErrorMetadata)
+		assert.Equal("safe error message", tErr.SanitisedError())
+		assert.Equal(ErrorTypeTransformation, tErr.Type())
+	}
+
+	// Assert TemplatingError works as expected
+	msg.SetError(&TemplatingError{
+		SafeMessage: "safe error message",
+		Err:         errors.New("failure"),
+	})
+
+	assert.NotNil(msg.GetError())
+	if msg.GetError() != nil {
+		assert.Equal("safe error message: failure", msg.GetError().Error())
+		tErr, _ := msg.GetError().(SanitisedErrorMetadata)
+		assert.Equal("safe error message", tErr.SanitisedError())
+		assert.Equal(ErrorTypeTemplating, tErr.Type())
+	}
+}
