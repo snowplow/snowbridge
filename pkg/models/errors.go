@@ -53,20 +53,22 @@ func (e *TransformationError) Type() string {
 }
 
 type ApiError struct {
-	HttpStatus   string
+	StatusCode string
+
+	SafeMessage  string
 	ResponseBody string
 }
 
 func (e *ApiError) Error() string {
-	return fmt.Sprintf("HTTP Status Code: %s Body: %s", e.HttpStatus, e.ResponseBody)
+	return fmt.Sprintf("HTTP Status Code: %s Body: %s", e.StatusCode, e.ResponseBody)
 }
 
 func (e *ApiError) Code() string {
-	return e.HttpStatus
+	return e.StatusCode
 }
 
 func (e *ApiError) SanitisedError() string {
-	return e.ResponseBody
+	return e.SafeMessage
 }
 
 func (e *ApiError) Type() string {

@@ -154,7 +154,7 @@ func TestEventForwardingFailure_WriteInvalidApiError(t *testing.T) {
 	messages := testutil.GetTestMessages(5, "Hello EventForwarding!!", nil)
 	for _, msg := range messages {
 		msg.SetError(&models.ApiError{
-			HttpStatus:   "401",
+			StatusCode:   "401",
 			ResponseBody: "unauthorised",
 		})
 	}
