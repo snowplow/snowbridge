@@ -12,7 +12,6 @@
 package transformconfig
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,7 +78,6 @@ func TestEnginesAndTransformations(t *testing.T) {
 	messageJSCompileErr.SetError(
 		&models.TransformationError{
 			SafeMessage: "invalid return type from JavaScript transformation; expected string or object",
-			Err:         errors.New("invalid return type from JavaScript transformation; expected string or object"),
 		},
 	)
 
