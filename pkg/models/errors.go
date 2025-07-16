@@ -15,13 +15,12 @@ import (
 	"fmt"
 )
 
-// ErrorMetadata is an interface which could be implemented by errors produced by various Snowbridge components.
+// SanitisedErrorMetadata is an interface which could be implemented by errors produced by various Snowbridge components.
 // If an error implements this interface, it has to provide code and description that is safe to report as metadata.
-type ErrorMetadata interface {
-	ReportableCode() string
-	ReportableError() string
-	ReportableDescription() string
-	ReportableType() string
+type SanitisedErrorMetadata interface {
+	Code() string
+	SanitisedError() string
+	Type() string
 }
 
 const (
@@ -39,19 +38,15 @@ func (e *TransformationError) Error() string {
 	return e.Err.Error()
 }
 
-func (e *TransformationError) ReportableCode() string {
+func (e *TransformationError) Code() string {
 	return ""
 }
 
-func (e *TransformationError) ReportableDescription() string {
+func (e *TransformationError) SanitisedError() string {
 	return e.SafeMessage
 }
 
-func (e *TransformationError) ReportableError() string {
-	return e.Error()
-}
-
-func (e *TransformationError) ReportableType() string {
+func (e *TransformationError) Type() string {
 	return ErrorTypeTransformation
 }
 
@@ -64,19 +59,15 @@ func (e *ApiError) Error() string {
 	return fmt.Sprintf("HTTP Status Code: %s Body: %s", e.HttpStatus, e.ResponseBody)
 }
 
-func (e *ApiError) ReportableCode() string {
+func (e *ApiError) Code() string {
 	return e.HttpStatus
 }
 
-func (e *ApiError) ReportableDescription() string {
+func (e *ApiError) SanitisedError() string {
 	return e.ResponseBody
 }
 
-func (e *ApiError) ReportableError() string {
-	return e.Error()
-}
-
-func (e *ApiError) ReportableType() string {
+func (e *ApiError) Type() string {
 	return ErrorTypeAPI
 }
 
@@ -89,18 +80,14 @@ func (e *TemplatingError) Error() string {
 	return e.Err.Error()
 }
 
-func (e *TemplatingError) ReportableCode() string {
+func (e *TemplatingError) Code() string {
 	return ""
 }
 
-func (e *TemplatingError) ReportableDescription() string {
+func (e *TemplatingError) SanitisedError() string {
 	return e.SafeMessage
 }
 
-func (e *TemplatingError) ReportableError() string {
-	return e.Error()
-}
-
-func (e *TemplatingError) ReportableType() string {
+func (e *TemplatingError) Type() string {
 	return ErrorTypeTemplate
 }

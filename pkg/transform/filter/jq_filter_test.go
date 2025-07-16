@@ -114,7 +114,7 @@ func TestJQFilter_non_boolean_output(t *testing.T) {
 
 	assert.Empty(kept)
 	assert.Empty(dropped)
-	assert.Equal("jq filter returned '1557499235'; expected boolean", invalid.GetError().Error())
+	assert.Equal("jq filter didn't return expected [boolean] value: 1557499235", invalid.GetError().Error())
 }
 
 func TestJQFilter_invalid_jq_command(t *testing.T) {

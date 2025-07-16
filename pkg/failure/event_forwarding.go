@@ -59,17 +59,17 @@ func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*mode
 		}
 
 		var sv *badrows.BadRow
-		reportableError, ok := err.(models.ErrorMetadata)
+		reportableError, ok := err.(models.SanitisedErrorMetadata)
 		if ok {
 			sv, err = badrows.NewEventForwardingError(
 				&badrows.EventForwardingErrorInput{
 					ProcessorArtifact: ef.processorArtifact,
 					ProcessorVersion:  ef.processorVersion,
 					OriginalTSV:       msg.OriginalData,
-					ErrorType:         reportableError.ReportableType(),
+					ErrorType:         reportableError.Type(),
 					LatestState:       msg.Data,
-					ErrorMessage:      reportableError.ReportableError(),
-					ErrorCode:         reportableError.ReportableCode(),
+					ErrorMessage:      err.Error(),
+					ErrorCode:         reportableError.Code(),
 					FailureTimestamp:  msg.TimePulled,
 				},
 				ef.target.MaximumAllowedMessageSizeBytes(),
