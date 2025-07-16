@@ -512,7 +512,7 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 		if err := json.Unmarshal(msg.Data, &asJSON); err != nil {
 			msg.SetError(&models.TemplatingError{
 				SafeMessage: "Message can't be parsed as valid JSON",
-				Err:         errors.Wrap(err, "Message can't be parsed as valid JSON"),
+				Err:         err,
 			})
 			invalid = append(invalid, msg)
 			continue
@@ -528,7 +528,7 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 		for _, msg := range success {
 			msg.SetError(&models.TemplatingError{
 				SafeMessage: "Could not create request JSON",
-				Err:         errors.Wrap(tmplErr, "Could not create request JSON"),
+				Err:         tmplErr,
 			})
 			invalid = append(invalid, msg)
 		}
@@ -550,7 +550,7 @@ func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []b
 		if err := json.Unmarshal(msg.Data, &asRaw); err != nil {
 			msg.SetError(&models.TemplatingError{
 				SafeMessage: "Message can't be parsed as valid JSON",
-				Err:         errors.Wrap(err, "Message can't be parsed as valid JSON"),
+				Err:         err,
 			})
 			invalid = append(invalid, msg)
 			continue
@@ -565,7 +565,7 @@ func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []b
 		for _, msg := range success {
 			msg.SetError(&models.TemplatingError{
 				SafeMessage: "Could not create request JSON",
-				Err:         errors.Wrap(err, "Could not create request JSON"),
+				Err:         err,
 			})
 			invalid = append(invalid, msg)
 		}

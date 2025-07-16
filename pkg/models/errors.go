@@ -13,6 +13,8 @@ package models
 
 import (
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // SanitisedErrorMetadata is an interface which could be implemented by errors produced by various Snowbridge components.
@@ -77,7 +79,7 @@ type TemplatingError struct {
 }
 
 func (e *TemplatingError) Error() string {
-	return e.Err.Error()
+	return errors.Wrap(e.Err, e.SafeMessage).Error()
 }
 
 func (e *TemplatingError) Code() string {
