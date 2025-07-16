@@ -59,7 +59,7 @@ func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
 		assert.Equal(5, len(messages))
 		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(`{"data":{"errorCode":"","errorMessage":"failure","errorType":"transformation","latestState":"Hello EventForwarding!!","originalTSV":"","payload":"","processor":{"artifact":"test","version":"0.1.0"},"timestamp":"0001-01-01T00:00:00Z"},"schema":"iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0"}`, string(msg.Data))
+			diff, err := testutil.GetJsonDiff(`{"data":{"errorCode":"","errorMessage":"failure: failure","errorType":"transformation","latestState":"Hello EventForwarding!!","originalTSV":"","payload":"","processor":{"artifact":"test","version":"0.1.0"},"timestamp":"0001-01-01T00:00:00Z"},"schema":"iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0"}`, string(msg.Data))
 			assert.Nil(err)
 			assert.Zero(diff)
 		}

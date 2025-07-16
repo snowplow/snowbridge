@@ -153,7 +153,7 @@ func TestMessageString_EventForwardingErrors(t *testing.T) {
 
 	assert.NotNil(msg.GetError())
 	if msg.GetError() != nil {
-		assert.Equal("failure", msg.GetError().Error())
+		assert.Equal("safe error message: failure", msg.GetError().Error())
 		tErr, _ := msg.GetError().(SanitisedErrorMetadata)
 		assert.Equal("safe error message", tErr.SanitisedError())
 		assert.Equal(ErrorTypeTransformation, tErr.Type())
