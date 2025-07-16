@@ -12,8 +12,6 @@
 package failure
 
 import (
-	"strings"
-
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
@@ -51,12 +49,8 @@ func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*mode
 	var transformed []*models.Message
 
 	for _, msg := range invalid {
-		var failureErrors []string
 
 		err := msg.GetError()
-		if err != nil {
-			failureErrors = append(failureErrors, err.Error())
-		}
 
 		var sv *badrows.BadRow
 		reportableError, ok := err.(models.SanitisedErrorMetadata)
@@ -81,7 +75,7 @@ func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*mode
 					ProcessorVersion:  ef.processorVersion,
 					OriginalTSV:       msg.OriginalData,
 					LatestState:       msg.Data,
-					ErrorMessage:      strings.Join(failureErrors, ": "),
+					ErrorMessage:      err.Error(),
 					FailureTimestamp:  msg.TimePulled,
 				},
 				ef.target.MaximumAllowedMessageSizeBytes(),
