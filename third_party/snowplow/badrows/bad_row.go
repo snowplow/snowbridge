@@ -30,6 +30,12 @@ const (
 	dataKeyProcessor = "processor"
 	dataKeyFailure   = "failure"
 	dataKeyPayload   = "payload"
+
+	dataKeyErrorType    = "errorType"
+	dataKeyLatestState  = "latestState"
+	dataKeyErrorMessage = "errorMessage"
+	dataKeyErrorCode    = "errorCode"
+	dataKeyTimestamp    = "timestamp"
 )
 
 // BadRow is the base structure for the data contained within a bad-row
@@ -38,12 +44,12 @@ type BadRow struct {
 	selfDescribingData *iglu.SelfDescribingData
 }
 
-// newBadRow returns a new bad-row structure
-func newBadRow(schema string, data map[string]interface{}, payload []byte, targetByteLimit int) (*BadRow, error) {
+// newBadRow handles oversized payloads and returns a new bad-row structure
+func newBadRow(schema string, data map[string]any, payload []byte, targetByteLimit int) (*BadRow, error) {
 	payloadLength := len(payload)
 
 	// Ensure data map does not contain anything for payload
-	data[dataKeyPayload] = map[string]interface{}{}
+	data[dataKeyPayload] = ""
 
 	// Check bytes allocated to data map (without payload)
 	dataBytes, err := json.Marshal(data)
@@ -72,6 +78,57 @@ func newBadRow(schema string, data map[string]interface{}, payload []byte, targe
 			data,
 		),
 	}, nil
+}
+
+// newBadRowEventForwardingError first handles oversized latestState, then calls newBadRow to handle oversized payload and create the bad-row.
+func newBadRowEventForwardingError(schema string, data map[string]any, payload []byte, latestState []byte, targetByteLimit int) (*BadRow, error) {
+
+	latestStateLength := len(latestState)
+
+	// Ensure data map does not contain anything for payload or latest state
+	data[dataKeyPayload] = ""
+	if data[dataKeyFailure] == nil {
+		return nil, errors.New("Error creating bad data - failure data is nil")
+	}
+	failureMap, ok := data[dataKeyFailure].(map[string]string)
+	if !ok {
+		return nil, errors.New("Error creating bad data - failure data is not a map[string]string")
+	}
+	failureMap[dataKeyLatestState] = ""
+	data[dataKeyFailure] = failureMap
+
+	// Check bytes allocated to data map (without payload)
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not unmarshall bad-row data blob to JSON")
+	}
+
+	currentByteCount := len(schema) + badRowWrapperBytes + len(dataBytes)
+
+	// Figure out if we have enough bytes left to include the latestState (or a truncated latestState)
+	// We include the length of the payload in this calculation, because we'd rather truncate the latestState if one of them needs it.
+	bytesForLatestState := targetByteLimit - currentByteCount - len(payload)
+	if bytesForLatestState <= 0 {
+		// Unlike in newBadRow, we might have enough room for a payload or truncated payload in this case.
+		// So we'll allocate 0 bytes to latestState and proceed with the payload.
+		bytesForLatestState = 0
+	}
+
+	// First provide latestState
+	if latestStateLength > bytesForLatestState {
+		failureMap[dataKeyLatestState] = string(latestState[:bytesForLatestState])
+	} else {
+		failureMap[dataKeyLatestState] = string(latestState)
+	}
+
+	data[dataKeyFailure] = failureMap
+
+	// Now we can let the previous function handle the rest
+	return newBadRow(
+		schema,
+		data,
+		payload,
+		targetByteLimit)
 }
 
 // Compact returns a compacted version of this badrow

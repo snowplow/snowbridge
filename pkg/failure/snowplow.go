@@ -20,6 +20,8 @@ import (
 	"github.com/snowplow/snowbridge/third_party/snowplow/badrows"
 )
 
+const SnowplowFailureTarget = "snowplow"
+
 // SnowplowFailure holds a new client for transforming failed messages and emitting
 // them to a target
 type SnowplowFailure struct {
@@ -37,7 +39,7 @@ func NewSnowplowFailure(target targetiface.Target, processorArtifact string, pro
 		processorArtifact: processorArtifact,
 		processorVersion:  processorVersion,
 		target:            target,
-		log:               log.WithFields(log.Fields{"failed": "snowplow"}),
+		log:               log.WithFields(log.Fields{"failed": SnowplowFailureTarget}),
 	}, nil
 }
 
