@@ -70,14 +70,20 @@ func createFilterFunction(regex string, getFunc valueGetter, filterAction string
 		// Evaluate intermediateState to parsedEvent
 		parsedEvent, parseErr := transform.IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
-			message.SetError(parseErr)
+			message.SetError(&models.TransformationError{
+				SafeMessage: "intermediate state cannot be parsed as parsedEvent",
+				Err:         parseErr,
+			})
 			return nil, nil, message, nil
 		}
 
 		// get the value
 		valueFound, err := getFunc(parsedEvent)
 		if err != nil {
-			message.SetError(err)
+			message.SetError(&models.TransformationError{
+				SafeMessage: "failed to get value of parsed event",
+				Err:         err,
+			})
 			return nil, nil, message, nil
 		}
 

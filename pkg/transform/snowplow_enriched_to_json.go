@@ -25,15 +25,15 @@ import (
 type EnrichedToJSONConfig struct {
 }
 
-type enrichedToJSONAdapter func(i interface{}) (interface{}, error)
+type enrichedToJSONAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f enrichedToJSONAdapter) Create(i interface{}) (interface{}, error) {
+func (f enrichedToJSONAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f enrichedToJSONAdapter) ProvideDefault() (interface{}, error) {
+func (f enrichedToJSONAdapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &EnrichedToJSONConfig{}
 
@@ -42,7 +42,7 @@ func (f enrichedToJSONAdapter) ProvideDefault() (interface{}, error) {
 
 // adapterGenerator returns a spEnrichedToJson transformation adapter.
 func enrichedToJSONAdapterGenerator(f func(c *EnrichedToJSONConfig) (TransformationFunction, error)) enrichedToJSONAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*EnrichedToJSONConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected enrichedToJSONConfig")
@@ -64,17 +64,23 @@ var EnrichedToJSONConfigPair = config.ConfigurationPair{
 }
 
 // SpEnrichedToJSON is a specific transformation implementation to transform good enriched data within a message to Json
-func SpEnrichedToJSON(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+func SpEnrichedToJSON(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 	// Evalute intermediateState to parsedEvent
 	parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
 	if parseErr != nil {
-		message.SetError(parseErr)
+		message.SetError(&models.TransformationError{
+			SafeMessage: "intermediate state cannot be parsed as parsedEvent",
+			Err:         parseErr,
+		})
 		return nil, nil, message, nil
 	}
 
 	jsonMessage, err := parsedEvent.ToJson()
 	if err != nil {
-		message.SetError(err)
+		message.SetError(&models.TransformationError{
+			SafeMessage: "failed to convert parsedEvent to JSON",
+			Err:         err,
+		})
 		return nil, nil, message, nil
 	}
 	message.Data = jsonMessage

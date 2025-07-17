@@ -29,6 +29,8 @@ const (
 
 	// Each record can only be up to 10 MiB in size
 	pubSubPublishMessageByteLimit = 10485760
+
+	SupportedTargetPubsub = "pubsub"
 )
 
 // PubSubTargetConfig configures the destination for records consumed
@@ -67,7 +69,7 @@ func newPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) 
 		projectID: projectID,
 		client:    client,
 		topicName: topicName,
-		log:       log.WithFields(log.Fields{"target": "pubsub", "cloud": "GCP", "project": projectID, "topic": topicName}),
+		log:       log.WithFields(log.Fields{"target": SupportedTargetPubsub, "cloud": "GCP", "project": projectID, "topic": topicName}),
 	}, nil
 }
 
