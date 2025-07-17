@@ -12,7 +12,6 @@
 package transformconfig
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,10 +72,14 @@ func TestGetTransformations(t *testing.T) {
 
 func TestEnginesAndTransformations(t *testing.T) {
 	var messageJSCompileErr = &models.Message{
-		Data:         snowplowTsv1,
+		Data:         snowplowJSON1,
 		PartitionKey: "some-key",
 	}
-	messageJSCompileErr.SetError(errors.New(`failed initializing JavaScript runtime: "could not assert as function: \"main\""`))
+	messageJSCompileErr.SetError(
+		&models.TransformationError{
+			SafeMessage: "invalid return type from JavaScript transformation; expected string or object",
+		},
+	)
 
 	configDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "configs")
 	scriptDirPath := filepath.Join(assets.AssetsRootDir, "test", "transformconfig", "TestEnginesAndTransformations", "scripts")
@@ -101,6 +104,17 @@ func TestEnginesAndTransformations(t *testing.T) {
 			},
 		},
 		{
+			Description: "invalid return failure",
+			File:        "transform-js-invalid-return.hcl",
+			ExpectedMessages: expectedMessages{
+				Before: []*models.Message{{
+					Data:         snowplowJSON1,
+					PartitionKey: "some-key",
+				}},
+				After: []*models.Message{messageJSCompileErr},
+			},
+		},
+		{
 			Description: "simple transform with js compile error",
 			File:        "transform-js-error.hcl",
 			ExpectedMessages: expectedMessages{
@@ -108,7 +122,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
 				}},
-				After: []*models.Message{messageJSCompileErr},
+				After: []*models.Message{{}},
 			},
 			CompileErr: `error building JS engine:`,
 		},
@@ -149,7 +163,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
 				}},
-				After: []*models.Message{messageJSCompileErr},
+				After: []*models.Message{{}},
 			},
 			CompileErr: `error building JS engine:`,
 		},
@@ -209,6 +223,9 @@ func TestEnginesAndTransformations(t *testing.T) {
 	JSErrorPath := filepath.Join(scriptDirPath, "js-error.txt")
 	t.Setenv("JS_ERROR_PATH", JSErrorPath)
 
+	JSInvalidReturn := filepath.Join(scriptDirPath, "js-invalid-return.js")
+	t.Setenv("JS_INVALID_RETURN", JSInvalidReturn)
+
 	for _, tt := range testCases {
 		t.Run(tt.Description, func(t *testing.T) {
 			assert := assert.New(t)
@@ -224,6 +241,7 @@ func TestEnginesAndTransformations(t *testing.T) {
 
 			// get transformations, and run the transformations on the expected messages
 			tr, err := GetTransformations(c, SupportedTransformations)
+
 			if tt.CompileErr != `` {
 				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
 				assert.Nil(tr)
@@ -241,24 +259,24 @@ func TestEnginesAndTransformations(t *testing.T) {
 
 			// check result for successfully transformed messages
 			for idx, resultMessage := range result.Result {
-				assert.Equal(resultMessage.Data, tt.ExpectedMessages.After[idx].Data)
+				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
 			}
 
 			// check errors for invalid messages
 			for idx, resultMessage := range result.Invalid {
-				assert.Equal(resultMessage.GetError(), tt.ExpectedMessages.After[idx].GetError())
+				assert.Equal(tt.ExpectedMessages.After[idx].GetError(), resultMessage.GetError())
 			}
 
 			// check if collector timestamp has been attached
 			for idx, resultMessage := range result.Result {
-				assert.Equal(resultMessage.CollectorTstamp, tt.ExpectedMessages.After[idx].CollectorTstamp)
+				assert.Equal(tt.ExpectedMessages.After[idx].CollectorTstamp, resultMessage.CollectorTstamp)
 			}
 
 			// check result for transformed messages in case of filtered results
 			if result.FilteredCount != 0 {
 				assert.NotNil(result.Filtered)
 				for idx, resultMessage := range result.Filtered {
-					assert.Equal(resultMessage.Data, tt.ExpectedMessages.After[idx].Data)
+					assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
 				}
 			}
 		})
@@ -275,7 +293,6 @@ func TestJQHashTransformation(t *testing.T) {
 		Description      string
 		File             string
 		ExpectedMessages expectedMessages
-		CompileErr       string
 	}{
 		{
 			Description: "simple JQ transform with hash & without salt - success",
@@ -322,12 +339,6 @@ func TestJQHashTransformation(t *testing.T) {
 
 			// get transformations, and run the transformations on the expected messages
 			tr, err := GetTransformations(c, SupportedTransformations)
-			if tt.CompileErr != `` {
-				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
-				assert.Nil(tr)
-				return
-			}
-
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -353,7 +364,6 @@ func TestJSScriptHashTransformation(t *testing.T) {
 		Description      string
 		File             string
 		ExpectedMessages expectedMessages
-		CompileErr       string
 		HashSalt         string
 	}{
 		{
@@ -403,12 +413,6 @@ func TestJSScriptHashTransformation(t *testing.T) {
 
 			// get transformations, and run the transformations on the expected messages
 			tr, err := GetTransformations(c, SupportedTransformations)
-			if tt.CompileErr != `` {
-				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
-				assert.Nil(tr)
-				return
-			}
-
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -439,7 +443,6 @@ func TestJSScriptPathHashTransformation(t *testing.T) {
 		Description      string
 		File             string
 		ExpectedMessages expectedMessages
-		CompileErr       string
 		HashSalt         string
 	}{
 		{
@@ -490,12 +493,6 @@ func TestJSScriptPathHashTransformation(t *testing.T) {
 
 			// get transformations, and run the transformations on the expected messages
 			tr, err := GetTransformations(c, SupportedTransformations)
-			if tt.CompileErr != `` {
-				assert.True(strings.HasPrefix(err.Error(), tt.CompileErr))
-				assert.Nil(tr)
-				return
-			}
-
 			if err != nil {
 				t.Fatal(err.Error())
 			}

@@ -66,7 +66,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	assert.NotNil(fail)
 	assert.NotNil(fail.GetError())
 	if fail.GetError() != nil {
-		assert.Equal("Cannot parse tsv event - wrong number of fields provided: 4", fail.GetError().Error())
+		assert.Equal("intermediate state cannot be parsed as parsedEvent: Cannot parse tsv event - wrong number of fields provided: 4", fail.GetError().Error())
 	}
 
 	// Nuanced success case

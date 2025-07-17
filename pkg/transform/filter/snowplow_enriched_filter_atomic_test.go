@@ -29,7 +29,7 @@ func TestMakeBaseValueGetter(t *testing.T) {
 
 	res, err := appIDGetter(transform.SpTsv3Parsed)
 
-	assert.Equal([]interface{}{"test-data3"}, res)
+	assert.Equal([]any{"test-data3"}, res)
 	assert.Nil(err)
 
 	// Leaving the test here as it accurately describes the getter's behaviour,
@@ -95,7 +95,7 @@ func TestNewAtomicFilter(t *testing.T) {
 	assert.Nil(aidMultipleOut)
 	assert.Nil(fail)
 
-	aidFilterFuncDiscardWithMultiple, _ := NewAtomicFilterFunction("app_id", "^someotherValue|failThis$", "keep")
+	aidFilterFuncDiscardWithMultiple, err := NewAtomicFilterFunction("app_id", "^someotherValue|failThis$", "keep")
 	if err != nil {
 		panic(err)
 	}
@@ -194,7 +194,7 @@ func BenchmarkAtomicFilter(b *testing.B) {
 		panic(err)
 	}
 
-	aidFilterFuncNegationKeep, _ := NewAtomicFilterFunction("app_id", "^failThis", "drop")
+	aidFilterFuncNegationKeep, err := NewAtomicFilterFunction("app_id", "^failThis", "drop")
 	if err != nil {
 		panic(err)
 	}

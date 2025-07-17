@@ -246,31 +246,31 @@ func (c *Config) GetTarget() (targetiface.Target, error) {
 	}
 
 	switch useTarget.Name {
-	case "stdout":
+	case target.SupportedTargetStdout:
 		plug = target.AdaptStdoutTargetFunc(
 			target.StdoutTargetConfigFunction,
 		)
-	case "kinesis":
+	case target.SupportedTargetKinesis:
 		plug = target.AdaptKinesisTargetFunc(
 			target.KinesisTargetConfigFunction,
 		)
-	case "pubsub":
+	case target.SupportedTargetPubsub:
 		plug = target.AdaptPubSubTargetFunc(
 			target.PubSubTargetConfigFunction,
 		)
-	case "sqs":
+	case target.SupportedTargetSQS:
 		plug = target.AdaptSQSTargetFunc(
 			target.SQSTargetConfigFunction,
 		)
-	case "kafka":
+	case target.SupportedTargetKafka:
 		plug = target.AdaptKafkaTargetFunc(
 			target.NewKafkaTarget,
 		)
-	case "eventhub":
+	case target.SupportedTargetEventHub:
 		plug = target.AdaptEventHubTargetFunc(
 			target.EventHubTargetConfigFunction,
 		)
-	case "http":
+	case target.SupportedTargetHTTP:
 		plug = target.AdaptHTTPTargetFunc(
 			target.HTTPTargetConfigFunction,
 		)
@@ -301,31 +301,31 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 	}
 
 	switch useFailureTarget.Name {
-	case "stdout":
+	case target.SupportedTargetStdout:
 		plug = target.AdaptStdoutTargetFunc(
 			target.StdoutTargetConfigFunction,
 		)
-	case "kinesis":
+	case target.SupportedTargetKinesis:
 		plug = target.AdaptKinesisTargetFunc(
 			target.KinesisTargetConfigFunction,
 		)
-	case "pubsub":
+	case target.SupportedTargetPubsub:
 		plug = target.AdaptPubSubTargetFunc(
 			target.PubSubTargetConfigFunction,
 		)
-	case "sqs":
+	case target.SupportedTargetSQS:
 		plug = target.AdaptSQSTargetFunc(
 			target.SQSTargetConfigFunction,
 		)
-	case "kafka":
+	case target.SupportedTargetKafka:
 		plug = target.AdaptKafkaTargetFunc(
 			target.NewKafkaTarget,
 		)
-	case "eventhub":
+	case target.SupportedTargetEventHub:
 		plug = target.AdaptEventHubTargetFunc(
 			target.EventHubTargetConfigFunction,
 		)
-	case "http":
+	case target.SupportedTargetHTTP:
 		plug = target.AdaptHTTPTargetFunc(
 			target.HTTPTargetConfigFunction,
 		)
@@ -340,10 +340,12 @@ func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureifa
 
 	if t, ok := component.(targetiface.Target); ok {
 		switch c.Data.FailureTarget.Format {
-		case "snowplow":
+		case failure.SnowplowFailureTarget:
 			return failure.NewSnowplowFailure(t, AppName, AppVersion)
+		case failure.EventForwardingFailureTarget:
+			return failure.NewEventForwardingFailure(t, AppName, AppVersion)
 		default:
-			return nil, errors.New(fmt.Sprintf("Invalid failure format found; expected one of 'snowplow' and got '%s'", c.Data.FailureTarget.Format))
+			return nil, errors.New(fmt.Sprintf("Invalid failure format found; expected one of 'snowplow', 'event_forwarding' and got '%s'", c.Data.FailureTarget.Format))
 		}
 	}
 
@@ -359,36 +361,36 @@ func (c *Config) GetFilterTarget() (targetiface.Target, error) {
 	}
 
 	switch useTarget.Name {
-	case "stdout":
+	case target.SupportedTargetStdout:
 		plug = target.AdaptStdoutTargetFunc(
 			target.StdoutTargetConfigFunction,
 		)
-	case "kinesis":
+	case target.SupportedTargetKinesis:
 		plug = target.AdaptKinesisTargetFunc(
 			target.KinesisTargetConfigFunction,
 		)
-	case "pubsub":
+	case target.SupportedTargetPubsub:
 		plug = target.AdaptPubSubTargetFunc(
 			target.PubSubTargetConfigFunction,
 		)
-	case "sqs":
+	case target.SupportedTargetSQS:
 		plug = target.AdaptSQSTargetFunc(
 			target.SQSTargetConfigFunction,
 		)
-	case "kafka":
+	case target.SupportedTargetKafka:
 		plug = target.AdaptKafkaTargetFunc(
 			target.NewKafkaTarget,
 		)
-	case "eventhub":
+	case target.SupportedTargetEventHub:
 		plug = target.AdaptEventHubTargetFunc(
 			target.EventHubTargetConfigFunction,
 		)
-	case "http":
+	case target.SupportedTargetHTTP:
 		plug = target.AdaptHTTPTargetFunc(
 			target.HTTPTargetConfigFunction,
 		)
 	//This one is only available for filter target
-	case "silent":
+	case target.SupportedTargetSilent:
 		plug = target.AdaptSilentTargetFunc(
 			target.SilentTargetConfigFunction,
 		)

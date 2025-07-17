@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/josephburnett/jd/v2"
 
 	"github.com/snowplow/snowbridge/pkg/models"
 )
@@ -42,7 +43,7 @@ func GenRandomString(length int) string {
 // targets and sources
 func GetTestMessages(count int, body string, ackFunc func()) []*models.Message {
 	var messages []*models.Message
-	for i := 0; i < count; i++ {
+	for range count {
 		messages = append(messages, &models.Message{
 			Data:         []byte(body),
 			PartitionKey: uuid.New().String(),
@@ -56,7 +57,7 @@ func GetTestMessages(count int, body string, ackFunc func()) []*models.Message {
 // targets and sources. Message data will be sequential integers for easier testing of accuracy, duplicates, etc.
 func GetSequentialTestMessages(count int, ackFunc func()) []*models.Message {
 	var messages []*models.Message
-	for i := 0; i < count; i++ {
+	for i := range count {
 		messages = append(messages, &models.Message{
 			Data:         []byte(fmt.Sprint(i)),
 			PartitionKey: uuid.New().String(),
@@ -64,4 +65,19 @@ func GetSequentialTestMessages(count int, ackFunc func()) []*models.Message {
 		})
 	}
 	return messages
+}
+
+// GetJsonDiff compares JSON strings and returns diff (if any) or an error if any JSON string is invalid
+func GetJsonDiff(expected, actual string) (string, error) {
+	exp, err := jd.ReadJsonString(expected)
+	if err != nil {
+		return "", err
+	}
+
+	act, err := jd.ReadJsonString(actual)
+	if err != nil {
+		return "", err
+	}
+
+	return exp.Diff(act).Render(), nil
 }
