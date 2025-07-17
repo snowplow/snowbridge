@@ -20,7 +20,7 @@ import (
 
 // IntermediateAsSpEnrichedParsed returns the intermediate state as a ParsedEvent if valid or parses
 // the message as an event
-func IntermediateAsSpEnrichedParsed(intermediateState interface{}, message *models.Message) (analytics.ParsedEvent, error) {
+func IntermediateAsSpEnrichedParsed(intermediateState any, message *models.Message) (analytics.ParsedEvent, error) {
 	var parsedEvent, ok = intermediateState.(analytics.ParsedEvent)
 	var parseErr error
 	if ok {

@@ -30,6 +30,13 @@ const (
 	dataKeyProcessor = "processor"
 	dataKeyFailure   = "failure"
 	dataKeyPayload   = "payload"
+
+	dataKeyErrorType    = "errorType"
+	dataKeyOriginalTSV  = "originalTSV"
+	dataKeyLatestState  = "latestState"
+	dataKeyErrorMessage = "errorMessage"
+	dataKeyErrorCode    = "errorCode"
+	dataKeyTimestamp    = "timestamp"
 )
 
 // BadRow is the base structure for the data contained within a bad-row
@@ -39,11 +46,11 @@ type BadRow struct {
 }
 
 // newBadRow returns a new bad-row structure
-func newBadRow(schema string, data map[string]interface{}, payload []byte, targetByteLimit int) (*BadRow, error) {
+func newBadRow(schema string, data map[string]any, payload []byte, targetByteLimit int) (*BadRow, error) {
 	payloadLength := len(payload)
 
 	// Ensure data map does not contain anything for payload
-	data[dataKeyPayload] = map[string]interface{}{}
+	data[dataKeyPayload] = map[string]any{}
 
 	// Check bytes allocated to data map (without payload)
 	dataBytes, err := json.Marshal(data)

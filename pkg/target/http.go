@@ -34,6 +34,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const SupportedTargetHTTP = "http"
+
 // HTTPTargetConfig configures the destination for records consumed
 type HTTPTargetConfig struct {
 	URL                     string `hcl:"url"`
@@ -249,7 +251,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		headers:              parsedHeaders,
 		basicAuthUsername:    c.BasicAuthUsername,
 		basicAuthPassword:    c.BasicAuthPassword,
-		log:                  log.WithFields(log.Fields{"target": "http", "url": c.URL}),
+		log:                  log.WithFields(log.Fields{"target": SupportedTargetHTTP, "url": c.URL}),
 		dynamicHeaders:       c.DynamicHeaders,
 		requestMaxMessages:   c.RequestMaxMessages,
 		requestByteLimit:     c.RequestByteLimit,
@@ -411,7 +413,11 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
 				for _, msg := range goodMsgs {
-					msg.SetError(errors.New(response.Body))
+					msg.SetError(&models.ApiError{
+						StatusCode:   resp.Status,
+						ResponseBody: response.Body,
+						SafeMessage:  "matched invalid response rule",
+					})
 				}
 
 				invalid = append(invalid, goodMsgs...)
@@ -505,7 +511,10 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 		var asJSON interface{}
 
 		if err := json.Unmarshal(msg.Data, &asJSON); err != nil {
-			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))
+			msg.SetError(&models.TemplatingError{
+				SafeMessage: "Message can't be parsed as valid JSON",
+				Err:         err,
+			})
 			invalid = append(invalid, msg)
 			continue
 		}
@@ -518,7 +527,10 @@ func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (temp
 	tmplErr := ht.requestTemplate.Execute(&buf, validJsons)
 	if tmplErr != nil {
 		for _, msg := range success {
-			msg.SetError(errors.Wrap(tmplErr, "Could not create request JSON"))
+			msg.SetError(&models.TemplatingError{
+				SafeMessage: "Could not create request JSON",
+				Err:         tmplErr,
+			})
 			invalid = append(invalid, msg)
 		}
 		return nil, nil, invalid
@@ -537,7 +549,10 @@ func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []b
 		var asRaw json.RawMessage
 		// If any data is not json compatible, we must treat as invalid
 		if err := json.Unmarshal(msg.Data, &asRaw); err != nil {
-			msg.SetError(errors.Wrap(err, "Message can't be parsed as valid JSON"))
+			msg.SetError(&models.TemplatingError{
+				SafeMessage: "Message can't be parsed as valid JSON",
+				Err:         err,
+			})
 			invalid = append(invalid, msg)
 			continue
 		}
@@ -549,7 +564,10 @@ func (ht *HTTPTarget) renderJSONArray(messages []*models.Message) (templated []b
 	requestBody, err := json.Marshal(requestData)
 	if err != nil {
 		for _, msg := range success {
-			msg.SetError(errors.Wrap(err, "Could not create request JSON"))
+			msg.SetError(&models.TemplatingError{
+				SafeMessage: "Could not create request JSON",
+				Err:         err,
+			})
 			invalid = append(invalid, msg)
 		}
 		return nil, nil, invalid
