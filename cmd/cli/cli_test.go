@@ -309,7 +309,6 @@ func run(input []*models.Message, targetMocks targetMocks, transformation transf
 
 	failure, _ := failure.NewSnowplowFailure(&failureTarget, "test-processor", "test-version")
 	obs := observer.New(&testStatsReceiver{}, time.Minute, time.Second)
-
 	f := sourceWriteFunc(&goodTarget, failure, &filterTarget, transformation, obs, config, nil)
 	err := f(input)
 
