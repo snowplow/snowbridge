@@ -12,7 +12,7 @@
 package badrows
 
 import (
-	"fmt"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -40,7 +40,26 @@ func TestNewGenericError(t *testing.T) {
 	compact, err := sv.Compact()
 	assert.Nil(err)
 	assert.NotNil(compact)
-	assert.Equal(fmt.Sprintf("{\"data\":{\"failure\":{\"errors\":[],\"timestamp\":\"%s\"},\"payload\":\"\\u0001\",\"processor\":{\"artifact\":\"snowbridge\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0\"}", timeNow.UTC().Format("2006-01-02T15:04:05Z07:00")), compact)
+
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"processor": map[string]string{
+				"artifact": "snowbridge",
+				"version":  "0.1.0",
+			},
+			"payload": "\u0001",
+			"failure": map[string]any{
+				"timestamp": timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
+				"errors":    []string{},
+			},
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
+	assert.Equal(string(expectedJSONString), compact)
 }
 
 func TestNewGenericError_WithErrors(t *testing.T) {
@@ -64,5 +83,24 @@ func TestNewGenericError_WithErrors(t *testing.T) {
 	compact, err := sv.Compact()
 	assert.Nil(err)
 	assert.NotNil(compact)
-	assert.Equal(fmt.Sprintf("{\"data\":{\"failure\":{\"errors\":[\"hello!\"],\"timestamp\":\"%s\"},\"payload\":\"\\u0001\",\"processor\":{\"artifact\":\"snowbridge\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0\"}", timeNow.UTC().Format("2006-01-02T15:04:05Z07:00")), compact)
+
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"processor": map[string]string{
+				"artifact": "snowbridge",
+				"version":  "0.1.0",
+			},
+			"payload": "\u0001",
+			"failure": map[string]any{
+				"timestamp": timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
+				"errors":    []string{"hello!"},
+			},
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
+	assert.Equal(string(expectedJSONString), compact)
 }
