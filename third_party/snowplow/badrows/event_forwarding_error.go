@@ -36,16 +36,23 @@ type EventForwardingErrorInput struct {
 // NewEventForwardingError will build a new event forwarding error JSON that can be emitted to a Snowplow badrows stream
 func NewEventForwardingError(input *EventForwardingErrorInput, targetByteLimit int) (*BadRow, error) {
 	data := map[string]any{
+		// Processor information
 		dataKeyProcessor: map[string]string{
 			"artifact": input.ProcessorArtifact,
 			"version":  input.ProcessorVersion,
 		},
-		dataKeyErrorType:    input.ErrorType,
-		dataKeyOriginalTSV:  string(input.OriginalTSV),
-		dataKeyLatestState:  string(input.LatestState),
-		dataKeyErrorMessage: input.ErrorMessage,
-		dataKeyErrorCode:    input.ErrorCode,
-		dataKeyTimestamp:    formatTimeISO8601(input.FailureTimestamp),
+		// Payload information
+		dataKeyPayload: map[string]string{
+			dataKeyOriginalTSV: string(input.OriginalTSV),
+			dataKeyLatestState: string(input.LatestState),
+		},
+		// Failure information
+		dataKeyFailure: map[string]string{
+			dataKeyTimestamp:    formatTimeISO8601(input.FailureTimestamp),
+			dataKeyErrorType:    input.ErrorType,
+			dataKeyErrorMessage: input.ErrorMessage,
+			dataKeyErrorCode:    input.ErrorCode,
+		},
 	}
 
 	return newBadRow(
