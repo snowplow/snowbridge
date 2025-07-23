@@ -32,7 +32,6 @@ const (
 	dataKeyPayload   = "payload"
 
 	dataKeyErrorType    = "errorType"
-	dataKeyOriginalTSV  = "originalTSV"
 	dataKeyLatestState  = "latestState"
 	dataKeyErrorMessage = "errorMessage"
 	dataKeyErrorCode    = "errorCode"
@@ -50,7 +49,7 @@ func newBadRow(schema string, data map[string]any, payload []byte, targetByteLim
 	payloadLength := len(payload)
 
 	// Ensure data map does not contain anything for payload
-	data[dataKeyPayload] = map[string]any{}
+	data[dataKeyPayload] = ""
 
 	// Check bytes allocated to data map (without payload)
 	dataBytes, err := json.Marshal(data)
@@ -82,21 +81,15 @@ func newBadRow(schema string, data map[string]any, payload []byte, targetByteLim
 }
 
 // newBadRowEventForwardingError does the same thing, but allows for the more complex payloads in this bad row type
-func newBadRowEventForwardingError(schema string, data map[string]any, payload map[string]string, targetByteLimit int) (*BadRow, error) {
+func newBadRowEventForwardingError(schema string, data map[string]any, payload []byte, latestState []byte, targetByteLimit int) (*BadRow, error) {
 
-	originalTSV := []byte(payload[dataKeyOriginalTSV])
-	latestState := []byte(payload[dataKeyLatestState])
-
-	originalTSVLength := len(originalTSV)
 	latestStateLength := len(latestState)
 
-	payloadMap := map[string]string{
-		dataKeyOriginalTSV: "",
-		dataKeyLatestState: "",
-	}
-
-	// Ensure data map does not contain anything for payload
-	data[dataKeyPayload] = payloadMap
+	// Ensure data map does not contain anything for payload or latest state
+	data[dataKeyPayload] = ""
+	failureMap := data[dataKeyFailure].(map[string]any)
+	failureMap[dataKeyLatestState] = ""
+	data[dataKeyFailure] = failureMap
 
 	// Check bytes allocated to data map (without payload)
 	dataBytes, err := json.Marshal(data)
@@ -106,41 +99,27 @@ func newBadRowEventForwardingError(schema string, data map[string]any, payload m
 
 	currentByteCount := len(schema) + badRowWrapperBytes + len(dataBytes)
 
-	// Figure out if we have enough bytes left to include the payload (or a truncated payload)
-	bytesForOriginalTSV := targetByteLimit - currentByteCount
-	if bytesForOriginalTSV <= 0 {
+	// Figure out if we have enough bytes left to include the latestState (or a truncated latestState)
+	bytesForLatestState := targetByteLimit - currentByteCount
+	if bytesForLatestState <= 0 {
 		return nil, errors.New("Failed to create bad-row as resultant payload will exceed the targets byte limit")
 	}
 
-	var bytesForLatestState int
-
-	// First provide original data
-	if originalTSVLength > bytesForOriginalTSV {
-		payloadMap[dataKeyOriginalTSV] = string(originalTSV[:bytesForOriginalTSV])
-		// We had to trim original, so no room for latest
-		bytesForLatestState = 0
-	} else {
-		payloadMap[dataKeyOriginalTSV] = string(originalTSV)
-		// Can't be negative since we're in the else case
-		bytesForLatestState = bytesForOriginalTSV - originalTSVLength
-	}
-
-	// Now latest state
+	// First provide latestState
 	if latestStateLength > bytesForLatestState {
-		payloadMap[dataKeyLatestState] = string(latestState[:bytesForLatestState])
+		failureMap[dataKeyFailure] = string(latestState[:bytesForLatestState])
 	} else {
-		payloadMap[dataKeyLatestState] = string(latestState)
+		failureMap[dataKeyFailure] = string(latestState)
 	}
 
-	data[dataKeyPayload] = payloadMap
+	data[dataKeyFailure] = failureMap
 
-	return &BadRow{
-		schema: schema,
-		selfDescribingData: iglu.NewSelfDescribingData(
-			schema,
-			data,
-		),
-	}, nil
+	// Now we can let the previous function handle the rest
+	return newBadRow(
+		schema,
+		data,
+		payload,
+		targetByteLimit)
 }
 
 // Compact returns a compacted version of this badrow

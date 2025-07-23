@@ -52,11 +52,9 @@ func TestNewEventForwardingError(t *testing.T) {
 				"artifact": "snowbridge",
 				"version":  "0.1.0",
 			},
-			"payload": map[string]string{
-				"originalTSV": "\u0001",
-				"latestState": "\u0001",
-			},
+			"payload": "\u0001",
 			"failure": map[string]string{
+				"latestState":  "\u0001",
 				"timestamp":    timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
 				"errorType":    "transformation",
 				"errorMessage": "",
@@ -105,11 +103,9 @@ func TestNewEventForwardingError_WithErrors(t *testing.T) {
 				"artifact": "snowbridge",
 				"version":  "0.1.0",
 			},
-			"payload": map[string]string{
-				"originalTSV": "\u0001",
-				"latestState": "\u0001",
-			},
+			"payload": "\u0001",
 			"failure": map[string]string{
+				"latestState":  "\u0001",
 				"timestamp":    timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
 				"errorType":    "api",
 				"errorMessage": "Unauthorised",

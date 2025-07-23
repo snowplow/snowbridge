@@ -51,16 +51,11 @@ func NewEventForwardingError(input *EventForwardingErrorInput, targetByteLimit i
 		},
 	}
 
-	// Payload information
-	payload := map[string]string{
-		dataKeyOriginalTSV: string(input.OriginalTSV),
-		dataKeyLatestState: string(input.LatestState),
-	}
-
 	return newBadRowEventForwardingError(
 		eventForwardingViolationSchema,
 		data,
-		payload,
+		input.OriginalTSV,
+		input.LatestState,
 		targetByteLimit,
 	)
 }

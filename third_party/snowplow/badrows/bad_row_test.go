@@ -47,12 +47,7 @@ func TestNewBadRowEventForwardingError_InvalidData(t *testing.T) {
 		},
 	}
 
-	payload := map[string]string{
-		dataKeyOriginalTSV: "test",
-		dataKeyLatestState: "test",
-	}
-
-	br, err := newBadRowEventForwardingError(schema, data, payload, 5000)
+	br, err := newBadRowEventForwardingError(schema, data, []byte("test"), []byte("test"), 5000)
 	assert.NotNil(err)
 	if err != nil {
 		assert.Equal("Could not unmarshall bad-row data blob to JSON: json: unsupported type: map[bool]string", err.Error())
@@ -76,12 +71,7 @@ func TestNewBadRowEventForwardingError_Success(t *testing.T) {
 		},
 	}
 
-	payload := map[string]string{
-		dataKeyOriginalTSV: "original data",
-		dataKeyLatestState: "latest data",
-	}
-
-	br, err := newBadRowEventForwardingError(schema, data, payload, 5000)
+	br, err := newBadRowEventForwardingError(schema, data, []byte("test"), []byte("test"), 5000)
 	assert.Nil(err)
 	assert.NotNil(br)
 
@@ -108,13 +98,8 @@ func TestNewBadRowEventForwardingError_ByteLimitExceeded(t *testing.T) {
 		},
 	}
 
-	payload := map[string]string{
-		dataKeyOriginalTSV: "original data",
-		dataKeyLatestState: "latest data",
-	}
-
 	// Use a very small byte limit to trigger the error
-	br, err := newBadRowEventForwardingError(schema, data, payload, 10)
+	br, err := newBadRowEventForwardingError(schema, data, []byte("test"), []byte("test"), 10)
 	assert.NotNil(err)
 	if err != nil {
 		assert.Equal("Failed to create bad-row as resultant payload will exceed the targets byte limit", err.Error())
