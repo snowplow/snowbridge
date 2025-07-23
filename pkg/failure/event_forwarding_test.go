@@ -79,17 +79,20 @@ func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 
 	expectedJSON := map[string]any{
 		"data": map[string]any{
-			"errorCode":    "",
-			"errorMessage": "failure: failure",
-			"errorType":    "transformation",
-			"latestState":  "Hello EventForwarding!!",
-			"originalTSV":  "",
-			"payload":      "",
 			"processor": map[string]string{
 				"artifact": "test",
 				"version":  "0.1.0",
 			},
-			"timestamp": "0001-01-01T00:00:00Z",
+			"payload": map[string]string{
+				"originalTSV": "",
+				"latestState": "Hello EventForwarding!!",
+			},
+			"failure": map[string]string{
+				"timestamp":    "0001-01-01T00:00:00Z",
+				"errorType":    "transformation",
+				"errorMessage": "failure: failure",
+				"errorCode":    "",
+			},
 		},
 		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
 	}
@@ -136,17 +139,20 @@ func TestEventForwardingFailure_WriteInvalidTemplatingError(t *testing.T) {
 
 	expectedJSON := map[string]any{
 		"data": map[string]any{
-			"errorCode":    "",
-			"errorMessage": "failure: failure",
-			"errorType":    "template",
-			"latestState":  "Hello EventForwarding!!",
-			"originalTSV":  "",
-			"payload":      "",
 			"processor": map[string]string{
 				"artifact": "test",
 				"version":  "0.1.0",
 			},
-			"timestamp": "0001-01-01T00:00:00Z",
+			"payload": map[string]string{
+				"originalTSV": "",
+				"latestState": "Hello EventForwarding!!",
+			},
+			"failure": map[string]string{
+				"timestamp":    "0001-01-01T00:00:00Z",
+				"errorType":    "template",
+				"errorMessage": "failure: failure",
+				"errorCode":    "",
+			},
 		},
 		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
 	}
@@ -193,17 +199,20 @@ func TestEventForwardingFailure_WriteInvalidApiError(t *testing.T) {
 
 	expectedJSON := map[string]any{
 		"data": map[string]any{
-			"errorCode":    "401",
-			"errorMessage": "HTTP Status Code: 401 Body: unauthorised",
-			"errorType":    "api",
-			"latestState":  "Hello EventForwarding!!",
-			"originalTSV":  "",
-			"payload":      "",
 			"processor": map[string]string{
 				"artifact": "test",
 				"version":  "0.1.0",
 			},
-			"timestamp": "0001-01-01T00:00:00Z",
+			"payload": map[string]string{
+				"originalTSV": "",
+				"latestState": "Hello EventForwarding!!",
+			},
+			"failure": map[string]string{
+				"timestamp":    "0001-01-01T00:00:00Z",
+				"errorType":    "api",
+				"errorMessage": "HTTP Status Code: 401 Body: unauthorised",
+				"errorCode":    "401",
+			},
 		},
 		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
 	}
