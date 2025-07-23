@@ -100,9 +100,12 @@ func newBadRowEventForwardingError(schema string, data map[string]any, payload [
 	currentByteCount := len(schema) + badRowWrapperBytes + len(dataBytes)
 
 	// Figure out if we have enough bytes left to include the latestState (or a truncated latestState)
-	bytesForLatestState := targetByteLimit - currentByteCount
+	// We include the length of the payload in this calculation, because we'd rather truncate the latestState if one of them needs it.
+	bytesForLatestState := targetByteLimit - currentByteCount - len(payload)
 	if bytesForLatestState <= 0 {
-		return nil, errors.New("Failed to create bad-row as resultant payload will exceed the targets byte limit")
+		// Unlike in newBadRow, we might have enough room for a payload or truncated payload in this case.
+		// So we'll allocate 0 bytes to latestState and proceed with the payload.
+		bytesForLatestState = 0
 	}
 
 	// First provide latestState
