@@ -87,7 +87,7 @@ func newBadRowEventForwardingError(schema string, data map[string]any, payload [
 
 	// Ensure data map does not contain anything for payload or latest state
 	data[dataKeyPayload] = ""
-	failureMap := data[dataKeyFailure].(map[string]any)
+	failureMap := data[dataKeyFailure].(map[string]string)
 	failureMap[dataKeyLatestState] = ""
 	data[dataKeyFailure] = failureMap
 
@@ -107,9 +107,9 @@ func newBadRowEventForwardingError(schema string, data map[string]any, payload [
 
 	// First provide latestState
 	if latestStateLength > bytesForLatestState {
-		failureMap[dataKeyFailure] = string(latestState[:bytesForLatestState])
+		failureMap[dataKeyLatestState] = string(latestState[:bytesForLatestState])
 	} else {
-		failureMap[dataKeyFailure] = string(latestState)
+		failureMap[dataKeyLatestState] = string(latestState)
 	}
 
 	data[dataKeyFailure] = failureMap
