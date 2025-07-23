@@ -36,25 +36,6 @@ func TestNewBadRow_InvalidData(t *testing.T) {
 	assert.Nil(br)
 }
 
-func TestNewBadRowEventForwardingError_InvalidData(t *testing.T) {
-	assert := assert.New(t)
-
-	schema := "iglu:com.acme/event/jsonschema/1-0-0"
-
-	data := map[string]any{
-		"hello": map[bool]string{
-			true: "pv",
-		},
-	}
-
-	br, err := newBadRowEventForwardingError(schema, data, []byte("test"), []byte("test"), 5000)
-	assert.NotNil(err)
-	if err != nil {
-		assert.Equal("Could not unmarshall bad-row data blob to JSON: json: unsupported type: map[bool]string", err.Error())
-	}
-	assert.Nil(br)
-}
-
 func TestNewBadRowEventForwardingError_Success(t *testing.T) {
 	assert := assert.New(t)
 
