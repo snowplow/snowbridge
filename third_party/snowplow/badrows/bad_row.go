@@ -44,7 +44,7 @@ type BadRow struct {
 	selfDescribingData *iglu.SelfDescribingData
 }
 
-// newBadRow returns a new bad-row structure
+// newBadRow handles oversized payloads and returns a new bad-row structure
 func newBadRow(schema string, data map[string]any, payload []byte, targetByteLimit int) (*BadRow, error) {
 	payloadLength := len(payload)
 
@@ -80,7 +80,7 @@ func newBadRow(schema string, data map[string]any, payload []byte, targetByteLim
 	}, nil
 }
 
-// newBadRowEventForwardingError does the same thing, but allows for the more complex payloads in this bad row type
+// newBadRowEventForwardingError first handles oversized latestState, then calls newBadRow to handle oversized payload and create the bad-row.
 func newBadRowEventForwardingError(schema string, data map[string]any, payload []byte, latestState []byte, targetByteLimit int) (*BadRow, error) {
 
 	latestStateLength := len(latestState)
