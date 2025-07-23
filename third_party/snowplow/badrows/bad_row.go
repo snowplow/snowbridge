@@ -45,6 +45,69 @@ type BadRow struct {
 	selfDescribingData *iglu.SelfDescribingData
 }
 
+// TODO: We need to find a pattern that allows us to handle oversized payloads where it's an object as well
+// Note that this is used for ovesized as well as generic errors - that's a factor here.
+func newBadRowEventForwardingError(schema string, data map[string]any, payload map[string]string, targetByteLimit int) (*BadRow, error) {
+
+	originalTSV := []byte(payload[dataKeyOriginalTSV])
+	latestState := []byte(payload[dataKeyLatestState])
+
+	originalTSVLength := len(originalTSV)
+	latestStateLength := len(latestState)
+
+	payloadMap := map[string]string{
+		dataKeyOriginalTSV: "",
+		dataKeyLatestState: "",
+	}
+
+	// Ensure data map does not contain anything for payload
+	data[dataKeyPayload] = payloadMap
+
+	// Check bytes allocated to data map (without payload)
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not unmarshall bad-row data blob to JSON")
+	}
+
+	currentByteCount := len(schema) + badRowWrapperBytes + len(dataBytes)
+
+	// Figure out if we have enough bytes left to include the payload (or a truncated payload)
+	bytesForOriginalTSV := targetByteLimit - currentByteCount
+	if bytesForOriginalTSV <= 0 {
+		return nil, errors.New("Failed to create bad-row as resultant payload will exceed the targets byte limit")
+	}
+
+	var bytesForLatestState int
+
+	// First provide original data
+	if originalTSVLength > bytesForOriginalTSV {
+		payloadMap[dataKeyOriginalTSV] = string(originalTSV[:bytesForOriginalTSV])
+		// We had to trim original, so no room for latest
+		bytesForLatestState = 0
+	} else {
+		payloadMap[dataKeyOriginalTSV] = string(originalTSV)
+		// Can't be negative since we're in the else case
+		bytesForLatestState = bytesForOriginalTSV - originalTSVLength
+	}
+
+	// Now latest state
+	if latestStateLength > bytesForLatestState {
+		payloadMap[dataKeyLatestState] = string(latestState[:bytesForLatestState])
+	} else {
+		payloadMap[dataKeyLatestState] = string(latestState)
+	}
+
+	data[dataKeyPayload] = payloadMap
+
+	return &BadRow{
+		schema: schema,
+		selfDescribingData: iglu.NewSelfDescribingData(
+			schema,
+			data,
+		),
+	}, nil
+}
+
 // newBadRow returns a new bad-row structure
 func newBadRow(schema string, data map[string]any, payload []byte, targetByteLimit int) (*BadRow, error) {
 	payloadLength := len(payload)
