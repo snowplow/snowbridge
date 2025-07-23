@@ -83,11 +83,9 @@ func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 				"artifact": "test",
 				"version":  "0.1.0",
 			},
-			"payload": map[string]string{
-				"originalTSV": "",
-				"latestState": "Hello EventForwarding!!",
-			},
+			"payload": "EventForwarding",
 			"failure": map[string]string{
+				"latestState":  "Hello EventForwarding!!",
 				"timestamp":    "0001-01-01T00:00:00Z",
 				"errorType":    "transformation",
 				"errorMessage": "failure: failure",
@@ -123,6 +121,7 @@ func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 
 	messages := testutil.GetTestMessages(5, "Hello EventForwarding!!", nil)
 	for _, msg := range messages {
+		msg.OriginalData = []byte("EventForwarding")
 		msg.SetError(&models.TransformationError{
 			SafeMessage: "failure",
 			Err:         errors.New("failure"),
@@ -143,11 +142,9 @@ func TestEventForwardingFailure_WriteInvalidTemplatingError(t *testing.T) {
 				"artifact": "test",
 				"version":  "0.1.0",
 			},
-			"payload": map[string]string{
-				"originalTSV": "",
-				"latestState": "Hello EventForwarding!!",
-			},
+			"payload": "EventForwarding",
 			"failure": map[string]string{
+				"latestState":  "Hello EventForwarding!!",
 				"timestamp":    "0001-01-01T00:00:00Z",
 				"errorType":    "template",
 				"errorMessage": "failure: failure",
@@ -183,6 +180,7 @@ func TestEventForwardingFailure_WriteInvalidTemplatingError(t *testing.T) {
 
 	messages := testutil.GetTestMessages(5, "Hello EventForwarding!!", nil)
 	for _, msg := range messages {
+		msg.OriginalData = []byte("EventForwarding")
 		msg.SetError(&models.TemplatingError{
 			SafeMessage: "failure",
 			Err:         errors.New("failure"),
@@ -203,11 +201,9 @@ func TestEventForwardingFailure_WriteInvalidApiError(t *testing.T) {
 				"artifact": "test",
 				"version":  "0.1.0",
 			},
-			"payload": map[string]string{
-				"originalTSV": "",
-				"latestState": "Hello EventForwarding!!",
-			},
+			"payload": "EventForwarding",
 			"failure": map[string]string{
+				"latestState":  "Hello EventForwarding!!",
 				"timestamp":    "0001-01-01T00:00:00Z",
 				"errorType":    "api",
 				"errorMessage": "HTTP Status Code: 401 Body: unauthorised",
@@ -243,6 +239,7 @@ func TestEventForwardingFailure_WriteInvalidApiError(t *testing.T) {
 
 	messages := testutil.GetTestMessages(5, "Hello EventForwarding!!", nil)
 	for _, msg := range messages {
+		msg.OriginalData = []byte("EventForwarding")
 		msg.SetError(&models.ApiError{
 			StatusCode:   "401",
 			ResponseBody: "unauthorised",
