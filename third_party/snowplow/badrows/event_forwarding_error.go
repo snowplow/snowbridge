@@ -41,11 +41,7 @@ func NewEventForwardingError(input *EventForwardingErrorInput, targetByteLimit i
 			"artifact": input.ProcessorArtifact,
 			"version":  input.ProcessorVersion,
 		},
-		// Payload information
-		dataKeyPayload: map[string]string{
-			dataKeyOriginalTSV: string(input.OriginalTSV),
-			dataKeyLatestState: string(input.LatestState),
-		},
+
 		// Failure information
 		dataKeyFailure: map[string]string{
 			dataKeyTimestamp:    formatTimeISO8601(input.FailureTimestamp),
@@ -55,10 +51,16 @@ func NewEventForwardingError(input *EventForwardingErrorInput, targetByteLimit i
 		},
 	}
 
-	return newBadRow(
+	// Payload information
+	payload := map[string]string{
+		dataKeyOriginalTSV: string(input.OriginalTSV),
+		dataKeyLatestState: string(input.LatestState),
+	}
+
+	return newBadRowEventForwardingError(
 		eventForwardingViolationSchema,
 		data,
-		input.OriginalTSV,
+		payload,
 		targetByteLimit,
 	)
 }

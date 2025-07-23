@@ -45,8 +45,6 @@ type BadRow struct {
 	selfDescribingData *iglu.SelfDescribingData
 }
 
-// TODO: We need to find a pattern that allows us to handle oversized payloads where it's an object as well
-// Note that this is used for ovesized as well as generic errors - that's a factor here.
 func newBadRowEventForwardingError(schema string, data map[string]any, payload map[string]string, targetByteLimit int) (*BadRow, error) {
 
 	originalTSV := []byte(payload[dataKeyOriginalTSV])
