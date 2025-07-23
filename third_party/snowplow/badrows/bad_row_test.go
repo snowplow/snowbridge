@@ -52,7 +52,7 @@ func TestNewBadRowEventForwardingError_Success(t *testing.T) {
 		},
 	}
 
-	br, err := newBadRowEventForwardingError(schema, data, []byte("test"), []byte("test"), 5000)
+	br, err := newBadRowEventForwardingError(schema, data, []byte("original data"), []byte("latest data"), 5000)
 	assert.Nil(err)
 	assert.NotNil(br)
 
@@ -80,7 +80,7 @@ func TestNewBadRowEventForwardingError_ByteLimitExceeded(t *testing.T) {
 	}
 
 	// Use a very small byte limit to trigger the error
-	br, err := newBadRowEventForwardingError(schema, data, []byte("test"), []byte("test"), 10)
+	br, err := newBadRowEventForwardingError(schema, data, []byte("original data"), []byte("latest data"), 10)
 	assert.NotNil(err)
 	if err != nil {
 		assert.Equal("Failed to create bad-row as resultant payload will exceed the targets byte limit", err.Error())
