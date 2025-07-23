@@ -12,6 +12,7 @@
 package failure
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -24,10 +25,30 @@ import (
 func TestEventForwardingFailure_WriteOversized(t *testing.T) {
 	assert := assert.New(t)
 
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"failure": map[string]any{
+				"actualSizeBytes":         23,
+				"expectation":             "Expected payload to fit into requested target",
+				"maximumAllowedSizeBytes": 5000,
+				"timestamp":               "0001-01-01T00:00:00Z",
+			},
+			"payload": "Hello EventForwarding!!",
+			"processor": map[string]string{
+				"artifact": "test",
+				"version":  "0.1.0",
+			},
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/size_violation/jsonschema/1-0-0",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
 	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
 		assert.Equal(5, len(messages))
 		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(`{"data":{"failure":{"actualSizeBytes":23,"expectation":"Expected payload to fit into requested target","maximumAllowedSizeBytes":5000,"timestamp":"0001-01-01T00:00:00Z"},"payload":"Hello EventForwarding!!","processor":{"artifact":"test","version":"0.1.0"}},"schema":"iglu:com.snowplowanalytics.snowplow.badrows/size_violation/jsonschema/1-0-0"}`, string(msg.Data))
+			diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
 			assert.Nil(err)
 			assert.Zero(diff)
 		}
@@ -56,10 +77,30 @@ func TestEventForwardingFailure_WriteOversized(t *testing.T) {
 func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 	assert := assert.New(t)
 
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"errorCode":    "",
+			"errorMessage": "failure: failure",
+			"errorType":    "transformation",
+			"latestState":  "Hello EventForwarding!!",
+			"originalTSV":  "",
+			"payload":      "",
+			"processor": map[string]string{
+				"artifact": "test",
+				"version":  "0.1.0",
+			},
+			"timestamp": "0001-01-01T00:00:00Z",
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
 	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
 		assert.Equal(5, len(messages))
 		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(`{"data":{"errorCode":"","errorMessage":"failure: failure","errorType":"transformation","latestState":"Hello EventForwarding!!","originalTSV":"","payload":"","processor":{"artifact":"test","version":"0.1.0"},"timestamp":"0001-01-01T00:00:00Z"},"schema":"iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0"}`, string(msg.Data))
+			diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
 			assert.Nil(err)
 			assert.Zero(diff)
 		}
@@ -93,10 +134,30 @@ func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 func TestEventForwardingFailure_WriteInvalidTemplatingError(t *testing.T) {
 	assert := assert.New(t)
 
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"errorCode":    "",
+			"errorMessage": "failure: failure",
+			"errorType":    "template",
+			"latestState":  "Hello EventForwarding!!",
+			"originalTSV":  "",
+			"payload":      "",
+			"processor": map[string]string{
+				"artifact": "test",
+				"version":  "0.1.0",
+			},
+			"timestamp": "0001-01-01T00:00:00Z",
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
 	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
 		assert.Equal(5, len(messages))
 		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(`{"data":{"errorCode":"","errorMessage":"failure: failure","errorType":"template","latestState":"Hello EventForwarding!!","originalTSV":"","payload":"","processor":{"artifact":"test","version":"0.1.0"},"timestamp":"0001-01-01T00:00:00Z"},"schema":"iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0"}`, string(msg.Data))
+			diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
 			assert.Nil(err)
 			assert.Zero(diff)
 		}
@@ -130,10 +191,30 @@ func TestEventForwardingFailure_WriteInvalidTemplatingError(t *testing.T) {
 func TestEventForwardingFailure_WriteInvalidApiError(t *testing.T) {
 	assert := assert.New(t)
 
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"errorCode":    "401",
+			"errorMessage": "HTTP Status Code: 401 Body: unauthorised",
+			"errorType":    "api",
+			"latestState":  "Hello EventForwarding!!",
+			"originalTSV":  "",
+			"payload":      "",
+			"processor": map[string]string{
+				"artifact": "test",
+				"version":  "0.1.0",
+			},
+			"timestamp": "0001-01-01T00:00:00Z",
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
 	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
 		assert.Equal(5, len(messages))
 		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(`{"data":{"errorCode":"401","errorMessage":"HTTP Status Code: 401 Body: unauthorised","errorType":"api","latestState":"Hello EventForwarding!!","originalTSV":"","payload":"","processor":{"artifact":"test","version":"0.1.0"},"timestamp":"0001-01-01T00:00:00Z"},"schema":"iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0"}`, string(msg.Data))
+			diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
 			assert.Nil(err)
 			assert.Zero(diff)
 		}
