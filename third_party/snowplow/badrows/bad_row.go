@@ -87,7 +87,13 @@ func newBadRowEventForwardingError(schema string, data map[string]any, payload [
 
 	// Ensure data map does not contain anything for payload or latest state
 	data[dataKeyPayload] = ""
-	failureMap := data[dataKeyFailure].(map[string]string)
+	if data[dataKeyFailure] == nil {
+		return nil, errors.New("Error creating bad data - failure data is nil")
+	}
+	failureMap, ok := data[dataKeyFailure].(map[string]string)
+	if !ok {
+		return nil, errors.New("Error creating bad data - failure data is not a map[string]string")
+	}
 	failureMap[dataKeyLatestState] = ""
 	data[dataKeyFailure] = failureMap
 
