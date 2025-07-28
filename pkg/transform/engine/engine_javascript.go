@@ -219,7 +219,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		case map[string]any:
 
 			if e.RemoveNulls {
-				transform.RemoveNullFields(protoData)
+				protoData = transform.RemoveNullFromMap(protoData)
 			}
 			// encode
 			encoded, err := json.Marshal(protoData)

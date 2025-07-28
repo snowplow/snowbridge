@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRemoveNullFields(t *testing.T) {
+func TestRemoveNullFields_MapInput(t *testing.T) {
 	assert := assert.New(t)
 
 	data := map[string]any{
@@ -55,19 +55,12 @@ func TestRemoveNullFields(t *testing.T) {
 					"emptyField":    nil,
 				},
 			},
-
-			// For maps, we use the delete() builtin.
-			// For slices, to remove nil or empty _elements_ requires a wider change, which is outside the scope of current requirements.
-			// should we encounter this requirement, I think the simplest approaches are to either have RemoveNulls return an output, or
-			// have it take a pointer to a typecast variable as an input. (perhaps splitting it into two functions in the process)
-			// the former seems more sensible
-
-			// nil,
-			// map[string]any{},
-			// []any{},
-			// map[string]any{
-			// 	"onlyNil": nil,
-			// },
+			nil,
+			map[string]any{},
+			[]any{},
+			map[string]any{
+				"onlyNil": nil,
+			},
 		},
 		// empty map and empty slice - these should be removed too
 		"emptyMap":   map[string]any{},
@@ -103,8 +96,49 @@ func TestRemoveNullFields(t *testing.T) {
 		},
 	}
 
-	RemoveNullFields(data)
+	output := RemoveNullFields(data)
 
-	assert.Equal(expected, data)
+	assert.Equal(expected, output)
 
+}
+
+func TestRemoveNullFields_SliceInput(t *testing.T) {
+	assert := assert.New(t)
+
+	data := []any{
+		"stringvalue",
+		map[string]any{
+			"emptyInnerField": nil,
+			"emptyInnerMap":   map[string]any{},
+			"nonEmptyField":   "stringvalue",
+		},
+		[]any{
+			map[string]any{
+				"nonEmptyField": "stringvalue",
+				"emptyField":    nil,
+			},
+		},
+		// nil and empty slice elements
+		nil,
+		map[string]any{},
+		[]any{},
+		map[string]any{
+			"onlyNil": nil,
+		},
+	}
+	expected := []any{
+		"stringvalue",
+		map[string]any{
+			"nonEmptyField": "stringvalue",
+		},
+		[]any{
+			map[string]any{
+				"nonEmptyField": "stringvalue",
+			},
+		},
+		// nil, empty map, empty slice, and map with only nil should be removed
+	}
+	output := RemoveNullFields(data)
+
+	assert.Equal(expected, output)
 }
