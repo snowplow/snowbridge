@@ -23,6 +23,8 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
+const SupportedTargetStdout = "stdout"
+
 // StdoutTargetConfig configures the destination for records consumed
 type StdoutTargetConfig struct {
 	DataOnlyOutput bool `hcl:"data_only_output,optional"`
@@ -47,7 +49,7 @@ func newStdoutTargetWithInterfaces(writer io.Writer, dataOnlyOutput bool) (*Stdo
 	return &StdoutTarget{
 		output:         writer,
 		dataOnlyOutput: dataOnlyOutput,
-		log:            log.WithFields(log.Fields{"target": "stdout"}),
+		log:            log.WithFields(log.Fields{"target": SupportedTargetStdout}),
 	}, nil
 }
 
@@ -140,5 +142,5 @@ func (st *StdoutTarget) MaximumAllowedMessageSizeBytes() int {
 
 // GetID returns the identifier for this target
 func (st *StdoutTarget) GetID() string {
-	return "stdout"
+	return SupportedTargetStdout
 }

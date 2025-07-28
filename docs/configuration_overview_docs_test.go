@@ -45,4 +45,6 @@ func TestConfigurationOverview(t *testing.T) {
 	// Test that sentry compiles
 	testSentryConfig(t, hclFilePath, false)
 
+	// Test that webhook monitoring (heartbeat & alert) compiles
+	testWebhookConfig(t, hclFilePath, false)
 }

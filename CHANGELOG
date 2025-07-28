@@ -1,3 +1,8 @@
+Version 3.4.0 (2025-07-28)
+--------------------------
+Implement new `FailureTarget` format (#434)
+Send heartbeat and alert events to webhook (#428)
+
 Version 3.3.0 (2025-07-03)
 --------------------------
 Use more declarative name for hash function builder

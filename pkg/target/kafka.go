@@ -24,6 +24,8 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
+const SupportedTargetKafka = "kafka"
+
 // KafkaConfig contains configurable options for the kafka target
 type KafkaConfig struct {
 	Brokers        string `hcl:"brokers"`
@@ -74,7 +76,7 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 		return nil, err
 	}
 
-	logger := log.WithFields(log.Fields{"target": "kafka", "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion})
+	logger := log.WithFields(log.Fields{"target": SupportedTargetKafka, "brokers": cfg.Brokers, "topic": cfg.TopicName, "version": kafkaVersion})
 	sarama.Logger = logger
 
 	saramaConfig := sarama.NewConfig()

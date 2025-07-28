@@ -68,7 +68,7 @@ func TestNewConfig_InvalidFailureFormat(t *testing.T) {
 	assert.Nil(ft)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid failure format found; expected one of 'snowplow' and got 'fakeHCL'", err.Error())
+		assert.Equal("Invalid failure format found; expected one of 'snowplow', 'event_forwarding' and got 'fakeHCL'", err.Error())
 	}
 }
 
@@ -218,4 +218,36 @@ func TestNewConfig_HclTransformationOrder(t *testing.T) {
 	assert.Equal("three", c.Data.Transformations[2].Use.Name)
 	assert.Equal("four", c.Data.Transformations[3].Use.Name)
 	assert.Equal("five", c.Data.Transformations[4].Use.Name)
+}
+
+func TestNewConfig_GetWebhookMonitoring(t *testing.T) {
+	assert := assert.New(t)
+
+	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+
+	c, err := NewConfig()
+	assert.NotNil(c)
+	if err != nil {
+		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	}
+
+	monitoring, alertChan, err := c.GetWebhookMonitoring("", "")
+	assert.Nil(monitoring)
+	assert.Nil(alertChan)
+	assert.Nil(err)
+
+	// Should error with invalid endpoint
+	c.Data.Monitoring.Webhook.Endpoint = "http:/example.com"
+	monitoring, alertChan, err = c.GetWebhookMonitoring("", "")
+	assert.Nil(monitoring)
+	assert.Nil(alertChan)
+	assert.NotNil(err)
+
+	// Should not error with valid endpoint
+	c.Data.Monitoring.Webhook.Endpoint = "http://example.com"
+	monitoring, alertChan, err = c.GetWebhookMonitoring("", "")
+	assert.NotNil(monitoring)
+	assert.NotNil(alertChan)
+	assert.Nil(err)
 }

@@ -44,7 +44,10 @@ func transformOutput(jqOutput JqCommandOutput) TransformationFunction {
 		// here v is any, so we Marshal. alternative: gojq.Marshal
 		data, err := json.Marshal(jqOutput)
 		if err != nil {
-			message.SetError(errors.New("error encoding jq query output data"))
+			message.SetError(&models.TransformationError{
+				SafeMessage: "error encoding jq query output data",
+				Err:         err,
+			})
 			return nil, nil, message, nil
 		}
 

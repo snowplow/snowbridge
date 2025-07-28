@@ -362,7 +362,7 @@ func TestHTTP_NewHTTPTarget(t *testing.T) {
 	httpTarget, err = HTTPTargetConfigFunction(config)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid url for HTTP target: 'something'", err.Error())
+		assert.Equal("invalid url for HTTP target: 'something'", err.Error())
 	}
 	assert.Nil(httpTarget)
 
@@ -370,7 +370,7 @@ func TestHTTP_NewHTTPTarget(t *testing.T) {
 	httpTarget, err = HTTPTargetConfigFunction(config)
 	assert.NotNil(err)
 	if err != nil {
-		assert.Equal("Invalid url for HTTP target: ''", err.Error())
+		assert.Equal("invalid url for HTTP target: ''", err.Error())
 	}
 	assert.Nil(httpTarget)
 }
@@ -788,7 +788,7 @@ func TestHTTP_Write_Invalid(t *testing.T) {
 	assert.Nil(err1)
 	assert.Equal(0, len(writeResult.Sent))
 	assert.Equal(1, len(writeResult.Invalid))
-	assert.Equal("Request is invalid. Invalid value for field 'attribute'", writeResult.Invalid[0].GetError().Error())
+	assert.Equal("HTTP Status Code: 400 Bad Request Body: Request is invalid. Invalid value for field 'attribute'", writeResult.Invalid[0].GetError().Error())
 }
 
 func TestHTTP_Write_Setup(t *testing.T) {
@@ -1130,7 +1130,7 @@ type ngrokAPIResponse struct {
 func getNgrokAddress() string {
 	var resp *http.Response
 	var err error
-	for i := 0; i < 3; i++ { // retry 3 times as this part is flaky
+	for range 3 { // retry 3 times as this part is flaky
 		resp, err = http.DefaultClient.Get("http://localhost:4040/api/tunnels")
 		if resp != nil {
 			err = nil

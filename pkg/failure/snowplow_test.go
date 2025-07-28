@@ -12,6 +12,7 @@
 package failure
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -48,10 +49,30 @@ func (t *TestFailureTarget) GetID() string {
 func TestSnowplowFailure_WriteOversized(t *testing.T) {
 	assert := assert.New(t)
 
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"failure": map[string]any{
+				"actualSizeBytes":         16,
+				"expectation":             "Expected payload to fit into requested target",
+				"maximumAllowedSizeBytes": 5000,
+				"timestamp":               "0001-01-01T00:00:00Z",
+			},
+			"payload": "Hello Snowplow!!",
+			"processor": map[string]string{
+				"artifact": "test",
+				"version":  "0.1.0",
+			},
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/size_violation/jsonschema/1-0-0",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
 	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
 		assert.Equal(5, len(messages))
 		for _, msg := range messages {
-			assert.Equal("{\"data\":{\"failure\":{\"actualSizeBytes\":16,\"expectation\":\"Expected payload to fit into requested target\",\"maximumAllowedSizeBytes\":5000,\"timestamp\":\"0001-01-01T00:00:00Z\"},\"payload\":\"Hello Snowplow!!\",\"processor\":{\"artifact\":\"test\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/size_violation/jsonschema/1-0-0\"}", string(msg.Data))
+			assert.Equal(string(expectedJSONString), string(msg.Data))
 		}
 
 		return nil, nil
@@ -78,10 +99,28 @@ func TestSnowplowFailure_WriteOversized(t *testing.T) {
 func TestSnowplowFailure_WriteInvalid(t *testing.T) {
 	assert := assert.New(t)
 
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"failure": map[string]any{
+				"errors":    []string{"failure"},
+				"timestamp": "0001-01-01T00:00:00Z",
+			},
+			"payload": "Hello Snowplow!!",
+			"processor": map[string]string{
+				"artifact": "test",
+				"version":  "0.1.0",
+			},
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
 	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
 		assert.Equal(5, len(messages))
 		for _, msg := range messages {
-			assert.Equal("{\"data\":{\"failure\":{\"errors\":[\"failure\"],\"timestamp\":\"0001-01-01T00:00:00Z\"},\"payload\":\"Hello Snowplow!!\",\"processor\":{\"artifact\":\"test\",\"version\":\"0.1.0\"}},\"schema\":\"iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0\"}", string(msg.Data))
+			assert.Equal(string(expectedJSONString), string(msg.Data))
 		}
 
 		return nil, nil

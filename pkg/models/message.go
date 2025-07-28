@@ -81,8 +81,7 @@ func GetChunkedMessages(messages []*Message, chunkSize int, maxMessageByteSize i
 	var chunkBuffer []*Message
 	var chunkBufferByteLen int
 
-	for i := 0; i < len(messages); i++ {
-		msg := messages[i]
+	for _, msg := range messages {
 		msgByteLen := len(msg.Data)
 
 		if msgByteLen > maxMessageByteSize {
@@ -106,8 +105,7 @@ func GetChunkedMessages(messages []*Message, chunkSize int, maxMessageByteSize i
 
 // FilterOversizedMessages will filter out all messages that exceed the byte size limit
 func FilterOversizedMessages(messages []*Message, maxMessageByteSize int) (safe []*Message, oversized []*Message) {
-	for i := 0; i < len(messages); i++ {
-		msg := messages[i]
+	for _, msg := range messages {
 		msgByteLen := len(msg.Data)
 
 		if msgByteLen > maxMessageByteSize {

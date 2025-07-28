@@ -14,7 +14,6 @@ package transform
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -143,7 +142,10 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		input, parsedEvent, err := mkJQInput(message, interState, spMode)
 		if err != nil {
-			message.SetError(err)
+			message.SetError(&models.TransformationError{
+				SafeMessage: "failed to prepare expected JQ input",
+				Err:         err,
+			})
 			return nil, nil, message, nil
 		}
 
@@ -154,12 +156,17 @@ func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler 
 		// no looping since we only keep first value
 		jqOutput, ok := iter.Next()
 		if !ok {
-			message.SetError(errors.New("jq query got no output"))
+			message.SetError(&models.TransformationError{
+				SafeMessage: "jq query got no output",
+			})
 			return nil, nil, message, nil
 		}
 
 		if err, ok := jqOutput.(error); ok {
-			message.SetError(err)
+			message.SetError(&models.TransformationError{
+				SafeMessage: "jq output is an error",
+				Err:         err,
+			})
 			return nil, nil, message, nil
 		}
 

@@ -16,21 +16,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/snowplow/snowbridge/pkg/testutil"
+
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewGenericError(t *testing.T) {
+func TestNewEventForwardingError(t *testing.T) {
 	assert := assert.New(t)
 
 	timeNow := time.Now()
 
-	sv, err := NewGenericError(
-		&GenericErrorInput{
+	sv, err := NewEventForwardingError(
+		&EventForwardingErrorInput{
 			ProcessorArtifact: "snowbridge",
 			ProcessorVersion:  "0.1.0",
-			Payload:           []byte("\u0001"),
+			OriginalTSV:       []byte("\u0001"),
+			ErrorType:         "transformation",
+			LatestState:       []byte("\u0001"),
+			ErrorMessage:      "",
+			ErrorCode:         "",
 			FailureTimestamp:  timeNow,
-			FailureErrors:     nil,
 		},
 		262144,
 	)
@@ -48,32 +53,40 @@ func TestNewGenericError(t *testing.T) {
 				"version":  "0.1.0",
 			},
 			"payload": "\u0001",
-			"failure": map[string]any{
-				"timestamp": timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
-				"errors":    []string{},
+			"failure": map[string]string{
+				"latestState":  "\u0001",
+				"timestamp":    timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
+				"errorType":    "transformation",
+				"errorMessage": "",
+				"errorCode":    "",
 			},
 		},
-		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0",
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
 	}
 
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	assert.Equal(string(expectedJSONString), compact)
+	diff, err := testutil.GetJsonDiff(string(expectedJSONString), compact)
+	assert.Nil(err)
+	assert.Zero(diff)
 }
 
-func TestNewGenericError_WithErrors(t *testing.T) {
+func TestNewEventForwardingError_WithErrors(t *testing.T) {
 	assert := assert.New(t)
 
 	timeNow := time.Now()
 
-	sv, err := NewGenericError(
-		&GenericErrorInput{
+	sv, err := NewEventForwardingError(
+		&EventForwardingErrorInput{
 			ProcessorArtifact: "snowbridge",
 			ProcessorVersion:  "0.1.0",
-			Payload:           []byte("\u0001"),
+			OriginalTSV:       []byte("\u0001"),
+			ErrorType:         "api",
+			LatestState:       []byte("\u0001"),
+			ErrorMessage:      "Unauthorised",
+			ErrorCode:         "401",
 			FailureTimestamp:  timeNow,
-			FailureErrors:     []string{"hello!"},
 		},
 		262144,
 	)
@@ -91,16 +104,21 @@ func TestNewGenericError_WithErrors(t *testing.T) {
 				"version":  "0.1.0",
 			},
 			"payload": "\u0001",
-			"failure": map[string]any{
-				"timestamp": timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
-				"errors":    []string{"hello!"},
+			"failure": map[string]string{
+				"latestState":  "\u0001",
+				"timestamp":    timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
+				"errorType":    "api",
+				"errorMessage": "Unauthorised",
+				"errorCode":    "401",
 			},
 		},
-		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/generic_error/jsonschema/1-0-0",
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
 	}
 
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	assert.Equal(string(expectedJSONString), compact)
+	diff, err := testutil.GetJsonDiff(string(expectedJSONString), compact)
+	assert.Nil(err)
+	assert.Zero(diff)
 }
