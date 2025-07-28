@@ -34,46 +34,57 @@ var (
 )
 
 // RemoveNullFields removes null fields, empty maps and empty slices from the input object, as long as map keys are strings.
-// At present it doesn't remove null or empty elements from slices.
-func RemoveNullFields(data any) {
-	switch input := data.(type) {
+// It also removes null and empty elements from slices.
+// It doesn't modify the original object but returns a new one with null fields removed.
+func RemoveNullFields(value any) any {
+	switch v := value.(type) {
 	case map[string]any:
-		removeNullFromMap(input)
+		return RemoveNullFromMap(v)
 	case []any:
-		removeNullFromSlice(input)
+		return removeNullFromSlice(v)
 	default:
-		return
+		return v
 	}
 }
 
-func removeNullFromMap(input map[string]any) {
-	for key := range input {
-		field := input[key]
-		if field == nil {
-			delete(input, key)
-			continue
-		}
-		// Recurse first, because the outcome might be an empty field.
-		RemoveNullFields(field)
+func RemoveNullFromMap(input map[string]any) map[string]any {
+	result := make(map[string]any)
 
-		// Now cast types and check for empties
-		asMap, ok := field.(map[string]any)
-		if ok && len(asMap) == 0 {
-			delete(input, key)
-			continue
+	for key, value := range input {
+		cleaned := RemoveNullFields(value)
+		if !isEmpty(cleaned) {
+			result[key] = cleaned
 		}
-		asSlice, ok := field.([]any)
-		if ok && len(asSlice) == 0 {
-			delete(input, key)
-			continue
-		}
-
 	}
+
+	return result
 }
 
-func removeNullFromSlice(input []any) {
+func removeNullFromSlice(input []any) []any {
+	result := make([]any, 0)
+
 	for _, item := range input {
-		RemoveNullFields(item)
+		cleaned := RemoveNullFields(item)
+		if !isEmpty(cleaned) {
+			result = append(result, cleaned)
+		}
+	}
+
+	return result
+}
+
+func isEmpty(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	switch v := value.(type) {
+	case map[string]any:
+		return len(v) == 0
+	case []any:
+		return len(v) == 0
+	default:
+		return false
 	}
 }
 

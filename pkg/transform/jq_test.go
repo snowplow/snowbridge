@@ -518,6 +518,27 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 			ExpInterState: nil,
 			Error:         nil,
 		},
+		{
+			Scenario:  "remove_nulls_arrays_empty_output",
+			JQCommand: ".items",
+			InputMsg: &models.Message{
+				Data: []byte(`
+ 			{"items": [{}, [], null, {"nested": []}]}
+          `),
+				PartitionKey: "some-key",
+			},
+			InputInterState: nil,
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`[]`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
 	}
 
 	for _, tt := range testCases {

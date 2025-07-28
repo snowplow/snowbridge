@@ -39,7 +39,7 @@ func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
 
 func transformOutput(jqOutput JqCommandOutput) TransformationFunction {
 	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
-		RemoveNullFields(jqOutput)
+		jqOutput = RemoveNullFields(jqOutput)
 
 		// here v is any, so we Marshal. alternative: gojq.Marshal
 		data, err := json.Marshal(jqOutput)
