@@ -13,7 +13,6 @@ package models
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
 
 	"github.com/snowplow/snowbridge/pkg/common"
@@ -57,24 +56,22 @@ type ObserverBuffer struct {
 	MinE2ELatency       time.Duration
 	SumE2ELatency       time.Duration
 
-	InvalidErrors []ErrorMetadata
-	FailedErrors  []ErrorMetadata
+	InvalidErrors []SanitisedErrorMetadata
+	FailedErrors  []SanitisedErrorMetadata
 }
 
 func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
 	for _, msg := range msgs {
-		var em ErrorMetadata
-		if errors.As(msg.GetError(), &em) {
-			b.InvalidErrors = append(b.InvalidErrors, em)
+		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
+			b.InvalidErrors = append(b.InvalidErrors, sem)
 		}
 	}
 }
 
 func (b *ObserverBuffer) appendFailedError(msgs []*Message) {
 	for _, msg := range msgs {
-		var em ErrorMetadata
-		if errors.As(msg.GetError(), &em) {
-			b.FailedErrors = append(b.FailedErrors, em)
+		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
+			b.InvalidErrors = append(b.InvalidErrors, sem)
 		}
 	}
 }

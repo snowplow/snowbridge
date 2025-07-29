@@ -13,6 +13,7 @@ package models
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -31,9 +32,19 @@ const (
 	ErrorTypeTemplating     = "template"
 )
 
+type TransformationErrorCode string
+
+const (
+	TransformationGenericErrorCode   TransformationErrorCode = "GenericError"
+	TransformationTypeErrorCode      TransformationErrorCode = "TypeError"
+	TransformationSyntaxErrorCode    TransformationErrorCode = "SyntaxError"
+	TransformationReferenceErrorCode TransformationErrorCode = "ReferenceError"
+)
+
 type TransformationError struct {
 	SafeMessage string
 	Err         error
+	ErrorCode   TransformationErrorCode
 }
 
 func (e *TransformationError) Error() string {
@@ -44,7 +55,16 @@ func (e *TransformationError) Error() string {
 }
 
 func (e *TransformationError) Code() string {
-	return ""
+	if strings.Contains(e.Error(), string(TransformationTypeErrorCode)) {
+		return string(TransformationTypeErrorCode)
+	}
+	if strings.Contains(e.Error(), string(TransformationSyntaxErrorCode)) {
+		return string(TransformationSyntaxErrorCode)
+	}
+	if strings.Contains(e.Error(), string(TransformationReferenceErrorCode)) {
+		return string(TransformationReferenceErrorCode)
+	}
+	return string(TransformationGenericErrorCode)
 }
 
 func (e *TransformationError) SanitisedError() string {

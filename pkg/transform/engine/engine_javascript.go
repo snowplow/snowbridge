@@ -14,7 +14,6 @@ package engine
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	goja "github.com/dop251/goja"
@@ -373,46 +372,4 @@ func validateJSEngineOut(output any) (*engineProtocol, error) {
 	}
 
 	return result, nil
-}
-
-const fixedJSErrorCode = "JavaScript"
-
-type unsafeJSError struct {
-	err error
-}
-
-type safeJSError struct {
-	safeMessage string
-}
-
-func (e unsafeJSError) Error() string {
-	return e.err.Error()
-}
-
-func (e unsafeJSError) ReportableCode() string {
-	return fixedJSErrorCode
-}
-
-func (e unsafeJSError) ReportableDescription() string {
-	//TODO sanitaze `err` field, try to categorize as type/reference/syntax etc. errors. Can we extract more?
-	categories := []string{"TypeError", "SyntaxError", "ReferenceError"}
-
-	for _, category := range categories {
-		if strings.Contains(e.err.Error(), category) {
-			return category
-		}
-	}
-	return ""
-}
-
-func (e safeJSError) Error() string {
-	return e.safeMessage
-}
-
-func (e safeJSError) ReportableCode() string {
-	return fixedJSErrorCode
-}
-
-func (e safeJSError) ReportableDescription() string {
-	return e.safeMessage
 }

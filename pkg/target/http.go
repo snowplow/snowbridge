@@ -413,7 +413,11 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			// Set errors with code and body for metadata reporting
 			for _, msg := range goodMsgs {
-				msg.SetError(apiError{httpStatus: resp.Status, responseBody: response.Body})
+				msg.SetError(&models.ApiError{
+					StatusCode:   resp.Status,
+					ResponseBody: response.Body,
+					SafeMessage:  "received non-2xx response",
+				})
 			}
 
 			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
@@ -608,40 +612,4 @@ func (ht *HTTPTarget) groupByDynamicHeaders(messages []*models.Message) [][]*mod
 	}
 
 	return outBatches
-}
-
-type apiError struct {
-	httpStatus   string
-	responseBody string
-}
-
-func (e apiError) Error() string {
-	return fmt.Sprintf("HTTP Status Code: %s Body: %s", e.httpStatus, e.responseBody)
-}
-
-func (e apiError) ReportableCode() string {
-	return e.httpStatus
-}
-
-func (e apiError) ReportableDescription() string {
-	//TODO sanitize response body
-	return ""
-}
-
-type templatingError struct {
-	safeMessage string
-	err         error
-}
-
-func (e templatingError) Error() string {
-	return errors.Wrap(e.err, e.safeMessage).Error()
-}
-
-func (e templatingError) ReportableCode() string {
-	return "TemplateError"
-}
-
-func (e templatingError) ReportableDescription() string {
-	//TODO use error somehow?
-	return e.safeMessage
 }

@@ -20,11 +20,15 @@ import (
 	"github.com/snowplow/snowbridge/pkg/statsreceiver/statsreceiveriface"
 )
 
+type metadataClienter interface {
+	Send(b *models.ObserverBuffer, periodStart, periodEnd time.Time)
+}
+
 // Observer holds the channels and settings for aggregating telemetry from processed messages
 // and emitting them to downstream destinations
 type Observer struct {
 	statsClient              statsreceiveriface.StatsReceiver
-	errorsMetadataClient     statsreceiveriface.StatsReceiver // for now reusing stats receiver interface for metadata reporting, but it could be a new one
+	errorsMetadataClient     metadataClienter
 	exitSignal               chan struct{}
 	stopDone                 chan struct{}
 	filteredChan             chan *models.FilterResult
@@ -40,9 +44,10 @@ type Observer struct {
 
 // New builds a new observer to be used to gather telemetry
 // about target writes
-func New(statsClient statsreceiveriface.StatsReceiver, timeout time.Duration, reportInterval time.Duration) *Observer {
+func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval time.Duration, metadataClient metadataClienter) *Observer {
 	return &Observer{
 		statsClient:              statsClient,
+		errorsMetadataClient:     metadataClient,
 		exitSignal:               make(chan struct{}),
 		stopDone:                 make(chan struct{}),
 		filteredChan:             make(chan *models.FilterResult, 1000),
@@ -95,14 +100,15 @@ func (o *Observer) Start() {
 			}
 
 			// We can make separate report time/buffers for errors metadata
-			if time.Now().UTC().After(reportTime) {
+			now := time.Now().UTC()
+			if now.After(reportTime) {
 				o.log.Info(buffer.String())
 				if o.statsClient != nil {
 					o.statsClient.Send(&buffer)
 				}
 
 				if o.errorsMetadataClient != nil {
-					o.errorsMetadataClient.Send(&buffer)
+					o.errorsMetadataClient.Send(&buffer, reportTime.Add(-o.reportInterval), now)
 				}
 
 				reportTime = time.Now().UTC().Add(o.reportInterval)

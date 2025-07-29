@@ -12,6 +12,7 @@
 package observer
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,6 +28,16 @@ type TestStatsReceiver struct {
 }
 
 func (s *TestStatsReceiver) Send(b *models.ObserverBuffer) {
+	s.onSend(b)
+}
+
+// --- Test MetadataReporter
+
+type TestMetadataReporter struct {
+	onSend func(b *models.ObserverBuffer)
+}
+
+func (s *TestMetadataReporter) Send(b *models.ObserverBuffer, _, _ time.Time) {
 	s.onSend(b)
 }
 
@@ -50,9 +61,29 @@ func TestObserverTargetWrite(t *testing.T) {
 		}
 	}
 
-	sr := TestStatsReceiver{onSend: onSend}
+	metaCounter := 0
+	onSendMetadata := func(b *models.ObserverBuffer) {
+		assert.NotNil(b)
+		if metaCounter == 0 {
+			assert.Equal(int64(5), b.TargetResults)
+			assert.Equal(int64(5), b.OversizedTargetResults)
+			assert.Equal(int64(5), b.InvalidTargetResults)
+			assert.Equal(int(5), len(b.InvalidErrors))
+			assert.Equal("safe message", b.InvalidErrors[0].SanitisedError())
+			metaCounter++
+		} else {
+			assert.Equal(int64(1), b.TargetResults)
+			assert.Equal(int64(1), b.OversizedTargetResults)
+			assert.Equal(int64(1), b.InvalidTargetResults)
+			assert.Equal(int(1), len(b.InvalidErrors))
+			assert.Equal("safe message", b.InvalidErrors[0].SanitisedError())
+		}
+	}
 
-	observer := New(&sr, 1*time.Second, 3*time.Second)
+	sr := &TestStatsReceiver{onSend: onSend}
+	mr := &TestMetadataReporter{onSend: onSendMetadata}
+
+	observer := New(sr, 1*time.Second, 3*time.Second, mr)
 	assert.NotNil(observer)
 	observer.Start()
 
@@ -86,8 +117,13 @@ func TestObserverTargetWrite(t *testing.T) {
 			TimeRequestFinished: timeNow,
 		},
 	}
+	failed[0].SetError(&models.TemplatingError{
+		SafeMessage: "safe message",
+		Err:         fmt.Errorf("actual bad error"),
+	})
+
 	r := models.NewTargetWriteResult(sent, failed, nil, nil)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		observer.TargetWrite(r)
 		observer.TargetWriteOversized(r)
 		observer.TargetWriteInvalid(r)

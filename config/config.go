@@ -111,13 +111,19 @@ type metricsConfig struct {
 }
 
 type monitoringConfig struct {
-	Webhook *webhookConfig `hcl:"webhook,block"`
+	Webhook          *webhookConfig          `hcl:"webhook,block"`
+	MetadataReporter *metadataReporterConfig `hcl:"metadata_reporter,block"`
 }
 
 type webhookConfig struct {
 	Endpoint          string            `hcl:"endpoint"`
 	Tags              map[string]string `hcl:"tags,optional"`
 	HeartbeatInterval int               `hcl:"heartbeat_interval_seconds,optional"`
+}
+
+type metadataReporterConfig struct {
+	Endpoint string            `hcl:"endpoint"`
+	Tags     map[string]string `hcl:"tags,optional"`
 }
 
 type transientRetryConfig struct {
@@ -170,6 +176,9 @@ func defaultConfigData() *configurationData {
 			Webhook: &webhookConfig{
 				Tags:              map[string]string{},
 				HeartbeatInterval: 300,
+			},
+			MetadataReporter: &metadataReporterConfig{
+				Tags: map[string]string{},
 			},
 		},
 	}
@@ -430,13 +439,19 @@ func (c *Config) GetTags() (map[string]string, error) {
 }
 
 // GetObserver builds and returns the observer with the embedded
-// optional stats receiver
-func (c *Config) GetObserver(tags map[string]string) (*observer.Observer, error) {
+// optional stats receiver & metadata reporter
+func (c *Config) GetObserver(appName, appVersion string, tags map[string]string) (*observer.Observer, error) {
 	sr, err := c.getStatsReceiver(tags)
 	if err != nil {
 		return nil, err
 	}
-	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second), nil
+
+	metadataReporter, err := c.getMetadaReporter(appName, appVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second, metadataReporter), nil
 }
 
 func (c *Config) GetWebhookMonitoring(appName, appVersion string) (*monitoring.WebhookMonitoring, chan error, error) {
@@ -485,4 +500,20 @@ func (c *Config) getStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	default:
 		return nil, errors.New(fmt.Sprintf("Invalid stats receiver found; expected one of 'statsd' and got '%s'", useReceiver.Name))
 	}
+}
+
+func (c *Config) getMetadaReporter(appName, appVersion string) (*monitoring.MetadataReporter, error) {
+	if c.Data.Monitoring.MetadataReporter.Endpoint == "" {
+		return nil, nil
+	}
+
+	if err := common.CheckURL(c.Data.Monitoring.MetadataReporter.Endpoint); err != nil {
+		return nil, err
+	}
+
+	client := http.DefaultClient
+	endpoint := c.Data.Monitoring.MetadataReporter.Endpoint
+	tags := c.Data.Monitoring.MetadataReporter.Tags
+
+	return monitoring.NewMetadataReporter(appName, appVersion, client, endpoint, tags), nil
 }
