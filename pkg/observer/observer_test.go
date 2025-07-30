@@ -46,6 +46,16 @@ func (s *TestMetadataReporter) Send(b *models.ObserverBuffer, _, _ time.Time) {
 func TestObserverTargetWrite(t *testing.T) {
 	assert := assert.New(t)
 
+	failedTempError := models.TemplatingError{
+		SafeMessage: "failed safe message",
+		Err:         fmt.Errorf("actual bad error"),
+	}
+
+	invalidTempError := models.TemplatingError{
+		SafeMessage: "invalid safe message",
+		Err:         fmt.Errorf("actual bad error"),
+	}
+
 	counter := 0
 	onSend := func(b *models.ObserverBuffer) {
 		assert.NotNil(b)
@@ -68,15 +78,28 @@ func TestObserverTargetWrite(t *testing.T) {
 			assert.Equal(int64(5), b.TargetResults)
 			assert.Equal(int64(5), b.OversizedTargetResults)
 			assert.Equal(int64(5), b.InvalidTargetResults)
-			assert.Equal(int(5), len(b.InvalidErrors))
-			assert.Equal("safe message", b.InvalidErrors[0].SanitisedError())
+			for kErr, v := range b.FailedErrors {
+				assert.Equal(failedTempError.SafeMessage, kErr.SanitisedError())
+				assert.Equal(5, v)
+			}
+			for kErr, v := range b.InvalidErrors {
+				assert.Equal(invalidTempError.SafeMessage, kErr.SanitisedError())
+				assert.Equal(5, v)
+			}
+
 			metaCounter++
 		} else {
 			assert.Equal(int64(1), b.TargetResults)
 			assert.Equal(int64(1), b.OversizedTargetResults)
 			assert.Equal(int64(1), b.InvalidTargetResults)
-			assert.Equal(int(1), len(b.InvalidErrors))
-			assert.Equal("safe message", b.InvalidErrors[0].SanitisedError())
+			for kErr, v := range b.FailedErrors {
+				assert.Equal(failedTempError.SafeMessage, kErr.SanitisedError())
+				assert.Equal(1, v)
+			}
+			for kErr, v := range b.InvalidErrors {
+				assert.Equal(invalidTempError.SafeMessage, kErr.SanitisedError())
+				assert.Equal(1, v)
+			}
 		}
 	}
 
@@ -110,19 +133,27 @@ func TestObserverTargetWrite(t *testing.T) {
 	}
 	failed := []*models.Message{
 		{
-			Data:                []byte("Foo"),
+			Data:                []byte("FailedFoo"),
 			PartitionKey:        "partition3",
 			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
 			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
 			TimeRequestFinished: timeNow,
 		},
 	}
-	failed[0].SetError(&models.TemplatingError{
-		SafeMessage: "safe message",
-		Err:         fmt.Errorf("actual bad error"),
-	})
+	failed[0].SetError(&failedTempError)
 
-	r := models.NewTargetWriteResult(sent, failed, nil, nil)
+	invalid := []*models.Message{
+		{
+			Data:                []byte("InvalidFoo"),
+			PartitionKey:        "partition4",
+			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
+			TimeRequestFinished: timeNow,
+		},
+	}
+	invalid[0].SetError(&invalidTempError)
+
+	r := models.NewTargetWriteResult(sent, failed, nil, invalid)
 	for range 5 {
 		observer.TargetWrite(r)
 		observer.TargetWriteOversized(r)

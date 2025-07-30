@@ -56,14 +56,14 @@ type ObserverBuffer struct {
 	MinE2ELatency       time.Duration
 	SumE2ELatency       time.Duration
 
-	InvalidErrors []SanitisedErrorMetadata
-	FailedErrors  []SanitisedErrorMetadata
+	InvalidErrors map[SanitisedErrorMetadata]int
+	FailedErrors  map[SanitisedErrorMetadata]int
 }
 
 func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
 	for _, msg := range msgs {
 		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
-			b.InvalidErrors = append(b.InvalidErrors, sem)
+			b.InvalidErrors[sem] = b.InvalidErrors[sem] + 1
 		}
 	}
 }
@@ -71,7 +71,7 @@ func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
 func (b *ObserverBuffer) appendFailedError(msgs []*Message) {
 	for _, msg := range msgs {
 		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
-			b.InvalidErrors = append(b.InvalidErrors, sem)
+			b.FailedErrors[sem] = b.FailedErrors[sem] + 1
 		}
 	}
 }

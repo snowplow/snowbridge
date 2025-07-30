@@ -420,12 +420,12 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				})
 			}
 
-			if findMatchingRule(response, ht.responseRules.Invalid) != nil {
+			if matchedRule := findMatchingRule(response, ht.responseRules.Invalid); matchedRule != nil {
 				for _, msg := range goodMsgs {
 					msg.SetError(&models.ApiError{
 						StatusCode:   resp.Status,
 						ResponseBody: response.Body,
-						SafeMessage:  "matched invalid response rule",
+						SafeMessage:  matchedRule.MatchingBodyPart,
 					})
 				}
 

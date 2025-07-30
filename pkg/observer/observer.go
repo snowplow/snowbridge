@@ -71,7 +71,10 @@ func (o *Observer) Start() {
 
 	go func() {
 		reportTime := time.Now().UTC().Add(o.reportInterval)
-		buffer := models.ObserverBuffer{}
+		buffer := models.ObserverBuffer{
+			InvalidErrors: make(map[models.SanitisedErrorMetadata]int),
+			FailedErrors:  make(map[models.SanitisedErrorMetadata]int),
+		}
 
 	ObserverLoop:
 		for {
@@ -112,7 +115,10 @@ func (o *Observer) Start() {
 				}
 
 				reportTime = time.Now().UTC().Add(o.reportInterval)
-				buffer = models.ObserverBuffer{}
+				buffer = models.ObserverBuffer{
+					InvalidErrors: make(map[models.SanitisedErrorMetadata]int),
+					FailedErrors:  make(map[models.SanitisedErrorMetadata]int),
+				}
 			}
 		}
 		o.stopDone <- struct{}{}
@@ -136,19 +142,19 @@ func (o *Observer) Filtered(r *models.FilterResult) {
 	o.filteredChan <- r
 }
 
-// TargetWrite pushes a targets write result onto a channel for processing
+// TargetWrite pushes normal targets write result onto a channel for processing
 // by the observer
 func (o *Observer) TargetWrite(r *models.TargetWriteResult) {
 	o.targetWriteChan <- r
 }
 
-// TargetWriteOversized pushes a failure targets write result onto a channel for processing
+// TargetWriteOversized pushes an oversized targets write result onto a channel for processing
 // by the observer
 func (o *Observer) TargetWriteOversized(r *models.TargetWriteResult) {
 	o.targetWriteOversizedChan <- r
 }
 
-// TargetWriteInvalid pushes a failure targets write result onto a channel for processing
+// TargetWriteInvalid pushes an invalid targets write result onto a channel for processing
 // by the observer
 func (o *Observer) TargetWriteInvalid(r *models.TargetWriteResult) {
 	o.targetWriteInvalidChan <- r

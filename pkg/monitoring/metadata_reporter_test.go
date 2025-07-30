@@ -53,20 +53,20 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 				PeriodEnd:   now.Format(time.RFC3339),
 				Success:     7,
 				Failed:      3,
-				FailedErrors: []AggregatedError{
+				FailedErrors: []models.AggregatedError{
 					{
 						Code:        "400 Bad Request",
-						Description: "",
+						Description: "bad request",
 						Count:       1,
 					},
 					{
 						Code:        "",
-						Description: "",
+						Description: "some error",
 						Count:       1,
 					},
 					{
 						Code:        "SyntaxError",
-						Description: "",
+						Description: "SyntaxError",
 						Count:       1,
 					},
 				},
@@ -102,18 +102,18 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 			MsgSent:       7,
 			MsgFailed:     3,
 			MsgTotal:      10,
-			InvalidErrors: []models.SanitisedErrorMetadata{},
-			FailedErrors: []models.SanitisedErrorMetadata{
+			InvalidErrors: map[models.SanitisedErrorMetadata]int{},
+			FailedErrors: map[models.SanitisedErrorMetadata]int{
 				&models.ApiError{
 					StatusCode:  "400 Bad Request",
 					SafeMessage: "bad request",
-				},
+				}: 1,
 				&models.TemplatingError{
 					SafeMessage: "some error",
-				},
+				}: 1,
 				&models.TransformationError{
 					SafeMessage: "SyntaxError",
-				},
+				}: 1,
 			},
 		}
 

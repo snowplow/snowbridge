@@ -3,7 +3,6 @@ package monitoring
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -45,23 +44,17 @@ type MetadataEvent struct {
 }
 
 type MetadataWrapper struct {
-	AppName       string            `json:"appName"`
-	AppVersion    string            `json:"appVersion"`
-	PeriodStart   string            `json:"periodStart"`
-	PeriodEnd     string            `json:"periodEnd"`
-	Success       int64             `json:"successCount"`
-	Filter        int64             `json:"filterCount"`
-	Failed        int64             `json:"failedCount"`
-	Invalid       int64             `json:"invalidCount"`
-	InvalidErrors []AggregatedError `json:"invalidErrors,omitempty"`
-	FailedErrors  []AggregatedError `json:"failedErrors,omitempty"` // transient/retryable
-	Tags          map[string]string `json:"tags"`
-}
-
-type AggregatedError struct {
-	Code        string `json:"code"`
-	Description string `json:"description"`
-	Count       int    `json:"count"`
+	AppName       string                   `json:"appName"`
+	AppVersion    string                   `json:"appVersion"`
+	PeriodStart   string                   `json:"periodStart"`
+	PeriodEnd     string                   `json:"periodEnd"`
+	Success       int64                    `json:"successCount"`
+	Filter        int64                    `json:"filterCount"`
+	Failed        int64                    `json:"failedCount"`
+	Invalid       int64                    `json:"invalidCount"`
+	InvalidErrors []models.AggregatedError `json:"invalidErrors,omitempty"`
+	FailedErrors  []models.AggregatedError `json:"failedErrors,omitempty"` // transient/retryable
+	Tags          map[string]string        `json:"tags"`
 }
 
 func (s *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd time.Time) {
@@ -112,19 +105,14 @@ func (s *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd
 	}
 }
 
-func aggregateErrors(errs []models.SanitisedErrorMetadata) []AggregatedError {
-	tempAggrMap := make(map[string]int)
+func aggregateErrors(errsMap map[models.SanitisedErrorMetadata]int) []models.AggregatedError {
+	var aggrErrors []models.AggregatedError
 
-	for _, err := range errs {
-		fmt.Println(err, tempAggrMap)
-		tempAggrMap[err.Code()] = tempAggrMap[err.Code()] + 1
-	}
-
-	var aggrErrors []AggregatedError
-	for k, v := range tempAggrMap {
-		aggrErrors = append(aggrErrors, AggregatedError{
-			Code:  k,
-			Count: v,
+	for err, v := range errsMap {
+		aggrErrors = append(aggrErrors, models.AggregatedError{
+			Code:        err.Code(),
+			Description: err.SanitisedError(),
+			Count:       v,
 		})
 	}
 	return aggrErrors
