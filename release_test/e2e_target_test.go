@@ -849,3 +849,89 @@ func testE2EHttpTargetSetupErrorWithoutMonitor(t *testing.T) {
 	}
 	srvExitWg.Wait()
 }
+
+func TestE2EMetadataReporter(t *testing.T) {
+	assert := assert.New(t)
+
+	// Channel to receive metadata reporter payloads
+	metadataChan := make(chan map[string]any, 2)
+
+	// Start a mock metadata reporter server
+	startMetadataServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":12080"}
+		http.HandleFunc("/target", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		})
+
+		http.HandleFunc("/metadata", func(w http.ResponseWriter, r *http.Request) {
+			defer r.Body.Close()
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Errorf("Failed to decode metadata payload: %v", err)
+			}
+			metadataChan <- payload
+			w.WriteHeader(http.StatusOK)
+		})
+
+		go func() {
+			defer wg.Done()
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				t.Errorf("Metadata server error: %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+	srvExitWg.Add(1)
+	srv := startMetadataServer(srvExitWg)
+
+	// Use a config that triggers both failed and invalid errors and points metadata reporter to our server
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "metadata_reporter.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	// Run Snowbridge (simulate or use Docker as in other E2E tests)
+	_, cmdErr := runDockerCommand(5*time.Second, "httpTargetMetadata", configFilePath, "", "")
+	assert.NoError(cmdErr, "Docker run returned error for HTTP target with metadata reporter")
+
+	// Wait for metadata reporter payload(s)
+	var received []map[string]any
+receiveLoop:
+	for {
+		select {
+		case payload := <-metadataChan:
+			received = append(received, payload)
+			if len(received) >= 1 { // Expect at least one flush
+				break receiveLoop
+			}
+		case <-time.After(3 * time.Second):
+			break receiveLoop
+		}
+	}
+
+	assert.NotEmpty(received, "No metadata reporter payloads received")
+
+	// Validate the payload contains expected error metadata
+	foundInvalid := false
+	for _, payload := range received {
+		fmt.Println(payload)
+		if errors, ok := payload["InvalidErrors"].(map[string]any); ok {
+			for _, count := range errors {
+				if int(count.(float64)) > 0 {
+					foundInvalid = true
+				}
+			}
+		}
+	}
+	assert.True(foundInvalid, "Invalid error not reported in metadata")
+
+	// Cleanup
+	if err := srv.Shutdown(context.Background()); err != nil {
+		t.Errorf("Failed to shutdown metadata server: %v", err)
+	}
+	srvExitWg.Wait()
+}

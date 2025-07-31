@@ -99,7 +99,6 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 				t.Fatalf("unexpected body (-want +got):\n%s", diff)
 			}
 
-			assert.Equal(expectedMetadataRequest.Body, actualBody)
 			assert.Equal(expectedMetadataRequest.Method, b.Method)
 			assert.Equal(expectedMetadataRequest.URL, b.URL.String())
 
