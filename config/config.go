@@ -446,7 +446,7 @@ func (c *Config) GetObserver(appName, appVersion string, tags map[string]string)
 		return nil, err
 	}
 
-	metadataReporter, err := c.getMetadaReporter(appName, appVersion)
+	metadataReporter, err := c.getMetadataReporter(appName, appVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +502,7 @@ func (c *Config) getStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	}
 }
 
-func (c *Config) getMetadaReporter(appName, appVersion string) (*monitoring.MetadataReporter, error) {
+func (c *Config) getMetadataReporter(appName, appVersion string) (*monitoring.MetadataReporter, error) {
 	if c.Data.Monitoring.MetadataReporter.Endpoint == "" {
 		return nil, nil
 	}

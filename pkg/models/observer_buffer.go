@@ -18,6 +18,12 @@ import (
 	"github.com/snowplow/snowbridge/pkg/common"
 )
 
+// MetadataEvent holds data required for metadata reporter's event
+type MetadataCodeDescription struct {
+	Code        string
+	Description string
+}
+
 // ObserverBuffer contains all the metrics we are processing
 type ObserverBuffer struct {
 	TargetResults int64
@@ -56,14 +62,18 @@ type ObserverBuffer struct {
 	MinE2ELatency       time.Duration
 	SumE2ELatency       time.Duration
 
-	InvalidErrors map[SanitisedErrorMetadata]int
-	FailedErrors  map[SanitisedErrorMetadata]int
+	InvalidErrors map[MetadataCodeDescription]int
+	FailedErrors  map[MetadataCodeDescription]int
 }
 
 func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
 	for _, msg := range msgs {
 		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
-			b.InvalidErrors[sem] = b.InvalidErrors[sem] + 1
+			e := MetadataCodeDescription{
+				Code:        sem.Code(),
+				Description: sem.SanitisedError(),
+			}
+			b.InvalidErrors[e] = b.InvalidErrors[e] + 1
 		}
 	}
 }
@@ -71,7 +81,11 @@ func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
 func (b *ObserverBuffer) appendFailedError(msgs []*Message) {
 	for _, msg := range msgs {
 		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
-			b.FailedErrors[sem] = b.FailedErrors[sem] + 1
+			e := MetadataCodeDescription{
+				Code:        sem.Code(),
+				Description: sem.SanitisedError(),
+			}
+			b.FailedErrors[e] = b.FailedErrors[e] + 1
 		}
 	}
 }

@@ -22,8 +22,8 @@ func TestObserverBuffer(t *testing.T) {
 	assert := assert.New(t)
 
 	b := ObserverBuffer{
-		InvalidErrors: make(map[SanitisedErrorMetadata]int),
-		FailedErrors:  make(map[SanitisedErrorMetadata]int),
+		InvalidErrors: make(map[MetadataCodeDescription]int),
+		FailedErrors:  make(map[MetadataCodeDescription]int),
 	}
 	assert.NotNil(b)
 
@@ -138,8 +138,8 @@ func TestObserverBuffer_Basic(t *testing.T) {
 	assert := assert.New(t)
 
 	b := ObserverBuffer{
-		InvalidErrors: make(map[SanitisedErrorMetadata]int),
-		FailedErrors:  make(map[SanitisedErrorMetadata]int),
+		InvalidErrors: make(map[MetadataCodeDescription]int),
+		FailedErrors:  make(map[MetadataCodeDescription]int),
 	}
 	assert.NotNil(b)
 
@@ -213,8 +213,8 @@ func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 	assert := assert.New(t)
 
 	b := ObserverBuffer{
-		InvalidErrors: make(map[SanitisedErrorMetadata]int),
-		FailedErrors:  make(map[SanitisedErrorMetadata]int),
+		InvalidErrors: make(map[MetadataCodeDescription]int),
+		FailedErrors:  make(map[MetadataCodeDescription]int),
 	}
 	assert.NotNil(b)
 

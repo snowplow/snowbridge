@@ -18,14 +18,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// AggregatedError holds aggregated error information
-// for reporting by metadata reporter
-type AggregatedError struct {
-	Code        string `json:"code"`
-	Description string `json:"description"`
-	Count       int    `json:"count"`
-}
-
 // SanitisedErrorMetadata is an interface which could be implemented by errors produced by various Snowbridge components.
 // If an error implements this interface, it has to provide code and description that is safe to report as metadata.
 type SanitisedErrorMetadata interface {

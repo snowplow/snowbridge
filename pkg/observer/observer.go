@@ -72,8 +72,8 @@ func (o *Observer) Start() {
 	go func() {
 		reportTime := time.Now().UTC().Add(o.reportInterval)
 		buffer := models.ObserverBuffer{
-			InvalidErrors: make(map[models.SanitisedErrorMetadata]int),
-			FailedErrors:  make(map[models.SanitisedErrorMetadata]int),
+			InvalidErrors: make(map[models.MetadataCodeDescription]int),
+			FailedErrors:  make(map[models.MetadataCodeDescription]int),
 		}
 
 	ObserverLoop:
@@ -116,8 +116,8 @@ func (o *Observer) Start() {
 
 				reportTime = time.Now().UTC().Add(o.reportInterval)
 				buffer = models.ObserverBuffer{
-					InvalidErrors: make(map[models.SanitisedErrorMetadata]int),
-					FailedErrors:  make(map[models.SanitisedErrorMetadata]int),
+					InvalidErrors: make(map[models.MetadataCodeDescription]int),
+					FailedErrors:  make(map[models.MetadataCodeDescription]int),
 				}
 			}
 		}

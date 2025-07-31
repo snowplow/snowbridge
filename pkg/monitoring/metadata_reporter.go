@@ -10,6 +10,14 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
+// aggregatedError holds aggregated error information
+// for reporting by metadata reporter
+type aggregatedError struct {
+	Code        string `json:"code"`
+	Description string `json:"description"`
+	Count       int    `json:"count"`
+}
+
 // MetadataSender describes the interface for how to send metadata events
 type MetadataSender interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -44,17 +52,17 @@ type MetadataEvent struct {
 }
 
 type MetadataWrapper struct {
-	AppName       string                   `json:"appName"`
-	AppVersion    string                   `json:"appVersion"`
-	PeriodStart   string                   `json:"periodStart"`
-	PeriodEnd     string                   `json:"periodEnd"`
-	Success       int64                    `json:"successCount"`
-	Filter        int64                    `json:"filterCount"`
-	Failed        int64                    `json:"failedCount"`
-	Invalid       int64                    `json:"invalidCount"`
-	InvalidErrors []models.AggregatedError `json:"invalidErrors,omitempty"`
-	FailedErrors  []models.AggregatedError `json:"failedErrors,omitempty"` // transient/retryable
-	Tags          map[string]string        `json:"tags"`
+	AppName       string            `json:"appName"`
+	AppVersion    string            `json:"appVersion"`
+	PeriodStart   string            `json:"periodStart"`
+	PeriodEnd     string            `json:"periodEnd"`
+	Success       int64             `json:"successCount"`
+	Filtered      int64             `json:"filteredCount"`
+	Failed        int64             `json:"failedCount"`
+	Invalid       int64             `json:"invalidCount"`
+	InvalidErrors []aggregatedError `json:"invalidErrors,omitempty"`
+	FailedErrors  []aggregatedError `json:"failedErrors,omitempty"` // transient/retryable
+	Tags          map[string]string `json:"tags"`
 }
 
 func (s *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd time.Time) {
@@ -69,7 +77,7 @@ func (s *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd
 			PeriodStart:   periodStart.Format(time.RFC3339),
 			PeriodEnd:     periodEnd.Format(time.RFC3339),
 			Success:       b.MsgSent,
-			Filter:        b.MsgFiltered,
+			Filtered:      b.MsgFiltered,
 			Failed:        b.MsgFailed,
 			Invalid:       b.InvalidMsgSent,
 			InvalidErrors: aggrInvalid,
@@ -105,13 +113,13 @@ func (s *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd
 	}
 }
 
-func aggregateErrors(errsMap map[models.SanitisedErrorMetadata]int) []models.AggregatedError {
-	var aggrErrors []models.AggregatedError
+func aggregateErrors(errsMap map[models.MetadataCodeDescription]int) []aggregatedError {
+	var aggrErrors []aggregatedError
 
 	for err, v := range errsMap {
-		aggrErrors = append(aggrErrors, models.AggregatedError{
-			Code:        err.Code(),
-			Description: err.SanitisedError(),
+		aggrErrors = append(aggrErrors, aggregatedError{
+			Code:        err.Code,
+			Description: err.Description,
 			Count:       v,
 		})
 	}

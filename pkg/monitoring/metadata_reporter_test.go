@@ -19,6 +19,9 @@ import (
 
 	"github.com/snowplow/snowbridge/pkg/models"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // --- Test MetadataReporter
@@ -53,7 +56,7 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 				PeriodEnd:   now.Format(time.RFC3339),
 				Success:     7,
 				Failed:      3,
-				FailedErrors: []models.AggregatedError{
+				FailedErrors: []aggregatedError{
 					{
 						Code:        "400 Bad Request",
 						Description: "bad request",
@@ -85,6 +88,17 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 				t.Fatalf("not expecting error: %s", err)
 			}
 
+			if diff := cmp.Diff(
+				expectedMetadataRequest.Body,
+				actualBody,
+				cmpopts.SortSlices(
+					func(a, b string) bool {
+						return a < b
+					}),
+			); diff != "" {
+				t.Fatalf("unexpected body (-want +got):\n%s", diff)
+			}
+
 			assert.Equal(expectedMetadataRequest.Body, actualBody)
 			assert.Equal(expectedMetadataRequest.Method, b.Method)
 			assert.Equal(expectedMetadataRequest.URL, b.URL.String())
@@ -102,17 +116,19 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 			MsgSent:       7,
 			MsgFailed:     3,
 			MsgTotal:      10,
-			InvalidErrors: map[models.SanitisedErrorMetadata]int{},
-			FailedErrors: map[models.SanitisedErrorMetadata]int{
-				&models.ApiError{
-					StatusCode:  "400 Bad Request",
-					SafeMessage: "bad request",
+			InvalidErrors: map[models.MetadataCodeDescription]int{},
+			FailedErrors: map[models.MetadataCodeDescription]int{
+				{
+					Code:        "400 Bad Request",
+					Description: "bad request",
 				}: 1,
-				&models.TemplatingError{
-					SafeMessage: "some error",
+				{
+					Code:        "",
+					Description: "some error",
 				}: 1,
-				&models.TransformationError{
-					SafeMessage: "SyntaxError",
+				{
+					Code:        "SyntaxError",
+					Description: "SyntaxError",
 				}: 1,
 			},
 		}
