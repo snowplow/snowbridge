@@ -864,7 +864,12 @@ func TestE2EMetadataReporter(t *testing.T) {
 		})
 
 		http.HandleFunc("/metadata", func(w http.ResponseWriter, r *http.Request) {
-			defer r.Body.Close()
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+
 			var payload map[string]any
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 				t.Errorf("Failed to decode metadata payload: %v", err)
