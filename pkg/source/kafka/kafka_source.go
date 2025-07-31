@@ -239,22 +239,17 @@ func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
 
 	// Kafka rebalance strategy, defaulted to "range"
 	switch cfg.Assignor {
-	// TODO: we need to review below nolint's as deprecation notes mention
-	// that there are data races in the currently used options
 	case "sticky":
-		// nolint: staticcheck
 		saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
-			sarama.BalanceStrategySticky,
+			sarama.NewBalanceStrategySticky(),
 		}
 	case "roundrobin":
-		// nolint: staticcheck
 		saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
-			sarama.BalanceStrategyRoundRobin,
+			sarama.NewBalanceStrategyRoundRobin(),
 		}
 	default:
-		// nolint: staticcheck
 		saramaConfig.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
-			sarama.BalanceStrategyRange,
+			sarama.NewBalanceStrategyRange(),
 		}
 	}
 
