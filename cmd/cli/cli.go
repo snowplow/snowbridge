@@ -144,6 +144,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	if err != nil {
 		return err
 	}
+
 	observer, err := cfg.GetObserver(cmd.AppName, cmd.AppVersion, tags)
 	if err != nil {
 		return err
@@ -293,6 +294,11 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 
 		// Send invalid message buffer
 		if len(invalid) > 0 {
+			// This is a special case, as we want to send invalid messages to the metadata reporter
+			// If not handled here, then we only report invalid messages
+			// which we failed to send to the failure target
+			o.TargetWriteInvalid(models.NewTargetWriteResult([]*models.Message{}, []*models.Message{}, nil, invalid))
+
 			messagesToSend = invalid
 			writeInvalid := func() error {
 				result, err := ft.WriteInvalid(messagesToSend)

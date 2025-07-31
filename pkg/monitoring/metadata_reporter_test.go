@@ -51,12 +51,12 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 			Schema: "iglu:com.snowplowanalytics.snowplow/event_forwarding_metrics/jsonschema/1-0-0",
 			Data: MetadataWrapper{
 				AppName:     "snowbridge",
-				AppVersion:  "3.2.3",
+				AppVersion:  "3.4.0",
 				PeriodStart: now.Format(time.RFC3339),
 				PeriodEnd:   now.Format(time.RFC3339),
 				Success:     7,
 				Failed:      3,
-				FailedErrors: []aggregatedError{
+				FailedErrors: []AggregatedError{
 					{
 						Code:        "400 Bad Request",
 						Description: "bad request",
@@ -92,7 +92,7 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 				expectedMetadataRequest.Body,
 				actualBody,
 				cmpopts.SortSlices(
-					func(a, b aggregatedError) bool {
+					func(a, b AggregatedError) bool {
 						return a.Code < b.Code
 					}),
 			); diff != "" {
@@ -108,7 +108,7 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 
 		mr := &TestMetadataReporter{onDo: onDo}
 
-		webhook := NewMetadataReporter("snowbridge", "3.2.3", mr, "https://test.metadatareporter.com", nil)
+		webhook := NewMetadataReporter("snowbridge", "3.4.0", mr, "https://test.metadatareporter.com", nil)
 		assert.NotNil(webhook)
 		buffer := &models.ObserverBuffer{
 			TargetResults: 10,

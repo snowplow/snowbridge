@@ -19,13 +19,6 @@ target {
     }
 }
 
-retry {
-  setup {
-    # Initial delay (before first retry) for setup errors
-    delay_ms = 200
-  }
-}
-
 monitoring {
   metadata_reporter {
     # An actual HTTP endpoint where metadata events would be sent

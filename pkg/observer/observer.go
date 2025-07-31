@@ -83,10 +83,7 @@ func (o *Observer) Start() {
 				o.log.Warn("Received exit signal, shutting down Observer ...")
 
 				// Attempt final flush
-				o.log.Info(buffer.String())
-				if o.statsClient != nil {
-					o.statsClient.Send(&buffer)
-				}
+				o.flushStats(&buffer, reportTime)
 
 				o.isRunning = false
 				break ObserverLoop
@@ -103,16 +100,8 @@ func (o *Observer) Start() {
 			}
 
 			// We can make separate report time/buffers for errors metadata
-			now := time.Now().UTC()
-			if now.After(reportTime) {
-				o.log.Info(buffer.String())
-				if o.statsClient != nil {
-					o.statsClient.Send(&buffer)
-				}
-
-				if o.errorsMetadataClient != nil {
-					o.errorsMetadataClient.Send(&buffer, reportTime.Add(-o.reportInterval), now)
-				}
+			if time.Now().UTC().After(reportTime) {
+				o.flushStats(&buffer, reportTime)
 
 				reportTime = time.Now().UTC().Add(o.reportInterval)
 				buffer = models.ObserverBuffer{
@@ -123,6 +112,17 @@ func (o *Observer) Start() {
 		}
 		o.stopDone <- struct{}{}
 	}()
+}
+
+func (o *Observer) flushStats(buffer *models.ObserverBuffer, reportTime time.Time) {
+	o.log.Info(buffer.String())
+	if o.statsClient != nil {
+		o.statsClient.Send(buffer)
+	}
+
+	if o.errorsMetadataClient != nil {
+		o.errorsMetadataClient.Send(buffer, reportTime.Add(-o.reportInterval), time.Now().UTC())
+	}
 }
 
 // Stop issues a signal to halt observer processing

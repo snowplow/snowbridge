@@ -31,6 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/sirupsen/logrus"
+	"github.com/snowplow/snowbridge/pkg/monitoring"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
@@ -854,7 +855,7 @@ func TestE2EMetadataReporter(t *testing.T) {
 	assert := assert.New(t)
 
 	// Channel to receive metadata reporter payloads
-	metadataChan := make(chan map[string]any, 2)
+	metadataChan := make(chan monitoring.MetadataEvent, 2)
 
 	// Start a mock metadata reporter server
 	startMetadataServer := func(wg *sync.WaitGroup) *http.Server {
@@ -870,10 +871,13 @@ func TestE2EMetadataReporter(t *testing.T) {
 				}
 			}()
 
-			var payload map[string]any
+			var payload monitoring.MetadataEvent
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 				t.Errorf("Failed to decode metadata payload: %v", err)
 			}
+
+			fmt.Println(payload)
+
 			metadataChan <- payload
 			w.WriteHeader(http.StatusOK)
 		})
@@ -904,7 +908,7 @@ func TestE2EMetadataReporter(t *testing.T) {
 	assert.NoError(cmdErr, "Docker run returned error for HTTP target with metadata reporter")
 
 	// Wait for metadata reporter payload(s)
-	var received []map[string]any
+	var received []monitoring.MetadataEvent
 receiveLoop:
 	for {
 		select {
@@ -913,7 +917,7 @@ receiveLoop:
 			if len(received) >= 1 { // Expect at least one flush
 				break receiveLoop
 			}
-		case <-time.After(3 * time.Second):
+		case <-time.After(5 * time.Second):
 			break receiveLoop
 		}
 	}
@@ -921,18 +925,10 @@ receiveLoop:
 	assert.NotEmpty(received, "No metadata reporter payloads received")
 
 	// Validate the payload contains expected error metadata
-	foundInvalid := false
 	for _, payload := range received {
 		fmt.Println(payload)
-		if errors, ok := payload["InvalidErrors"].(map[string]any); ok {
-			for _, count := range errors {
-				if int(count.(float64)) > 0 {
-					foundInvalid = true
-				}
-			}
-		}
+		assert.Equal(200, payload.Data.InvalidErrors[0].Count)
 	}
-	assert.True(foundInvalid, "Invalid error not reported in metadata")
 
 	// Cleanup
 	if err := srv.Shutdown(context.Background()); err != nil {

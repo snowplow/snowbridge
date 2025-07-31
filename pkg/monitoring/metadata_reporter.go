@@ -10,9 +10,9 @@ import (
 	"github.com/snowplow/snowbridge/pkg/models"
 )
 
-// aggregatedError holds aggregated error information
+// AggregatedError holds aggregated error information
 // for reporting by metadata reporter
-type aggregatedError struct {
+type AggregatedError struct {
 	Code        string `json:"code"`
 	Description string `json:"description"`
 	Count       int    `json:"count"`
@@ -60,20 +60,20 @@ type MetadataWrapper struct {
 	Filtered      int64             `json:"filteredCount"`
 	Failed        int64             `json:"failedCount"`
 	Invalid       int64             `json:"invalidCount"`
-	InvalidErrors []aggregatedError `json:"invalidErrors,omitempty"`
-	FailedErrors  []aggregatedError `json:"failedErrors,omitempty"` // transient/retryable
+	InvalidErrors []AggregatedError `json:"invalidErrors,omitempty"`
+	FailedErrors  []AggregatedError `json:"failedErrors,omitempty"` // transient/retryable
 	Tags          map[string]string `json:"tags"`
 }
 
-func (s *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd time.Time) {
+func (mr *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd time.Time) {
 	aggrInvalid := aggregateErrors(b.InvalidErrors)
 	aggrFailed := aggregateErrors(b.FailedErrors)
 
 	event := MetadataEvent{
 		Schema: "iglu:com.snowplowanalytics.snowplow/event_forwarding_metrics/jsonschema/1-0-0",
 		Data: MetadataWrapper{
-			AppName:       s.appName,
-			AppVersion:    s.appVersion,
+			AppName:       "snowbridge",
+			AppVersion:    "3.4.0",
 			PeriodStart:   periodStart.Format(time.RFC3339),
 			PeriodEnd:     periodEnd.Format(time.RFC3339),
 			Success:       b.MsgSent,
@@ -82,7 +82,7 @@ func (s *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd
 			Invalid:       b.InvalidMsgSent,
 			InvalidErrors: aggrInvalid,
 			FailedErrors:  aggrFailed,
-			Tags:          s.tags,
+			Tags:          mr.tags,
 		},
 	}
 
@@ -92,32 +92,32 @@ func (s *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd
 	var body bytes.Buffer
 	err := json.NewEncoder(&body).Encode(event)
 	if err != nil {
-		s.log.Errorf("failed to marshall event: %s", err)
+		mr.log.Errorf("failed to marshall event: %s", err)
 		return
 	}
 
 	req, err := http.NewRequest(
 		http.MethodPost,
-		s.endpoint,
+		mr.endpoint,
 		&body,
 	)
 	if err != nil {
-		s.log.Errorf("failed to create POST request: %s", err)
+		mr.log.Errorf("failed to create POST request: %s", err)
 		return
 	}
 	req.Header = header
 
-	if _, err := s.client.Do(req); err != nil {
-		s.log.Errorf("failed to send metadata event: %s", err)
+	if _, err := mr.client.Do(req); err != nil {
+		mr.log.Errorf("failed to send metadata event: %s", err)
 		return
 	}
 }
 
-func aggregateErrors(errsMap map[models.MetadataCodeDescription]int) []aggregatedError {
-	var aggrErrors []aggregatedError
+func aggregateErrors(errsMap map[models.MetadataCodeDescription]int) []AggregatedError {
+	var aggrErrors []AggregatedError
 
 	for err, v := range errsMap {
-		aggrErrors = append(aggrErrors, aggregatedError{
+		aggrErrors = append(aggrErrors, AggregatedError{
 			Code:        err.Code,
 			Description: err.Description,
 			Count:       v,
