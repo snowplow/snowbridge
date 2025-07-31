@@ -92,8 +92,8 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 				expectedMetadataRequest.Body,
 				actualBody,
 				cmpopts.SortSlices(
-					func(a, b string) bool {
-						return a < b
+					func(a, b aggregatedError) bool {
+						return a.Code < b.Code
 					}),
 			); diff != "" {
 				t.Fatalf("unexpected body (-want +got):\n%s", diff)
