@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/common"
 )
 
@@ -69,7 +68,6 @@ type ObserverBuffer struct {
 
 func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
 	for _, msg := range msgs {
-		logrus.Infof("appending invalid error: %+v", msg.GetError())
 		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
 			e := MetadataCodeDescription{
 				Code:        sem.Code(),
@@ -123,8 +121,6 @@ func (b *ObserverBuffer) AppendWriteOversized(res *TargetWriteResult) {
 
 // AppendWriteInvalid adds an invalid TargetWriteResult onto the buffer and stores the result
 func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
-	// logrus.Infof("AppendWrite-ing invalid message: %+v", res)
-
 	if res == nil {
 		return
 	}

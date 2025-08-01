@@ -117,8 +117,6 @@ func (o *Observer) flushStats(buffer *models.ObserverBuffer, reportTime time.Tim
 		o.statsClient.Send(buffer)
 	}
 
-	o.log.Infof("Metadata report is set? %t", o.errorsMetadataClient != nil)
-
 	if o.errorsMetadataClient != nil {
 		o.errorsMetadataClient.Send(buffer, reportTime.Add(-o.reportInterval), time.Now().UTC())
 	}

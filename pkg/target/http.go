@@ -416,22 +416,16 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				msg.SetError(&models.ApiError{
 					StatusCode:   resp.Status,
 					ResponseBody: response.Body,
-					SafeMessage:  "received non-2xx response",
+					SafeMessage:  "Transient error",
 				})
 			}
 
 			if matchedRule := findMatchingRule(response, ht.responseRules.Invalid); matchedRule != nil {
-
-				safeMessage := "matched invalid response rule"
-				if matchedRule.MatchingBodyPart != "" {
-					safeMessage = matchedRule.MatchingBodyPart
-				}
-
 				for _, msg := range goodMsgs {
 					msg.SetError(&models.ApiError{
 						StatusCode:   resp.Status,
 						ResponseBody: response.Body,
-						SafeMessage:  safeMessage,
+						SafeMessage:  "Invalid error",
 					})
 				}
 
@@ -442,10 +436,8 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			var errorDetails error
 			if rule := findMatchingRule(response, ht.responseRules.SetupError); rule != nil {
 				hitSetupError = true
-				safeMessage := "matched setup response rule"
 
 				if rule.MatchingBodyPart != "" {
-					safeMessage = rule.MatchingBodyPart
 					errorDetails = fmt.Errorf("got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
 				} else {
 					errorDetails = fmt.Errorf("got setup error, response status: '%s'", resp.Status)
@@ -455,7 +447,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 					msg.SetError(&models.ApiError{
 						StatusCode:   resp.Status,
 						ResponseBody: response.Body,
-						SafeMessage:  safeMessage,
+						SafeMessage:  "Setup error",
 					})
 				}
 

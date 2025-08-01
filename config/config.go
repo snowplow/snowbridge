@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/pkg/common"
 	"github.com/snowplow/snowbridge/pkg/failure"
 	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
@@ -451,9 +450,6 @@ func (c *Config) GetObserver(appName, appVersion string, tags map[string]string)
 	if err != nil {
 		return nil, err
 	}
-
-	logrus.Infof("GetObserver: %s, %s", appName, appVersion)
-	logrus.Info("GetObserver: ", metadataReporter)
 
 	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second, metadataReporter), nil
 }
