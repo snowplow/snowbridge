@@ -48,8 +48,6 @@ func NewMetadataReporter(appName, appVersion string, client MetadataSender, endp
 	}
 }
 
-// Schema design: https://www.notion.so/keep-in-the-snow/Snowbridge-metadata-metrics-reporting-21b07af295a28010af25dff43b628093
-// See option 1 as preferred design.
 type MetadataEvent struct {
 	Schema string          `json:"schema"`
 	Data   MetadataWrapper `json:"data"`

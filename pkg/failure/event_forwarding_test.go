@@ -89,7 +89,7 @@ func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 				"timestamp":    "0001-01-01T00:00:00Z",
 				"errorType":    "transformation",
 				"errorMessage": "failure: failure",
-				"errorCode":    "GenericError",
+				"errorCode":    "TransformationError",
 			},
 		},
 		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
