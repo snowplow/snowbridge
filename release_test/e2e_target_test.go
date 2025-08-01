@@ -38,6 +38,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	expectedHeartbeatMap = map[string]any{
+		"schema": "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
+		"data": map[string]any{
+			"appName":    cmd.AppName,
+			"appVersion": cmd.AppVersion,
+			"tags": map[string]any{
+				"pipeline": "release_tests",
+			},
+		},
+	}
+
+	expectedAlertMap = map[string]any{
+		"schema": "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
+		"data": map[string]any{
+			"appName":    cmd.AppName,
+			"appVersion": cmd.AppVersion,
+			"tags":       map[string]any{},
+			"message":    "1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n",
+		},
+	}
+)
+
 func TestE2ETargets(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -481,7 +504,12 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 		}
 
 		assert.Equal(1, len(foundData))
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+
+		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
+		assert.Nil(err)
+		diff, err := testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[0])
+		assert.Nil(err)
+		assert.Zero(diff)
 	}
 
 	close(receiverChannel)
@@ -577,7 +605,14 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 		}
 
 		assert.Equal(1, len(foundData))
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+
+		// Prepare expected alert JSON
+
+		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
+		assert.Nil(err)
+		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
+		assert.Nil(err)
+		assert.Zero(diff)
 	}
 
 	close(receiverChannel)
@@ -681,8 +716,19 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 		}
 
 		assert.Equal(2, len(foundData))
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[1])
+
+		// Prepare expected alert JSON
+		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
+		assert.Nil(err)
+		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
+		assert.Nil(err)
+		assert.Zero(diff)
+
+		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
+		assert.Nil(err)
+		diff, err = testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[1])
+		assert.Nil(err)
+		assert.Zero(diff)
 	}
 
 	if err := srv.Shutdown(t.Context()); err != nil {
@@ -785,8 +831,18 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
 		}
 
 		assert.Equal(2, len(foundData))
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[1])
+
+		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
+		assert.Nil(err)
+		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
+		assert.Nil(err)
+		assert.Zero(diff)
+
+		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
+		assert.Nil(err)
+		diff, err = testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[1])
+		assert.Nil(err)
+		assert.Zero(diff)
 	}
 
 	if err := srv.Shutdown(t.Context()); err != nil {
