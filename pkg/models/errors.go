@@ -35,7 +35,7 @@ const (
 type TransformationErrorCode string
 
 const (
-	TransformationGenericErrorCode   TransformationErrorCode = "GenericError"
+	TransformationGenericErrorCode   TransformationErrorCode = "TransformationError"
 	TransformationTypeErrorCode      TransformationErrorCode = "TypeError"
 	TransformationSyntaxErrorCode    TransformationErrorCode = "SyntaxError"
 	TransformationReferenceErrorCode TransformationErrorCode = "ReferenceError"
