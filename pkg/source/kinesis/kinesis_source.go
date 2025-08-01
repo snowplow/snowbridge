@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"

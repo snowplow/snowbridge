@@ -68,8 +68,8 @@ type MetadataWrapper struct {
 }
 
 func (mr *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEnd time.Time) {
-	aggrInvalid := aggregateErrors(b.InvalidErrors)
-	aggrFailed := aggregateErrors(b.FailedErrors)
+	aggrInvalid := errorsMapToSlice(b.InvalidErrors)
+	aggrFailed := errorsMapToSlice(b.FailedErrors)
 
 	event := MetadataEvent{
 		Schema: "iglu:com.snowplowanalytics.snowplow/event_forwarding_metrics/jsonschema/1-0-0",
@@ -115,7 +115,7 @@ func (mr *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEn
 	}
 }
 
-func aggregateErrors(errsMap map[models.MetadataCodeDescription]int) []AggregatedError {
+func errorsMapToSlice(errsMap map[models.MetadataCodeDescription]int) []AggregatedError {
 	var aggrErrors []AggregatedError
 
 	for err, v := range errsMap {

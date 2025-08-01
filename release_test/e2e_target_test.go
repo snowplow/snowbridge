@@ -984,7 +984,6 @@ receiveLoop:
 
 	// Validate the payload contains expected error metadata
 	for _, payload := range received {
-		fmt.Println(payload)
 		assert.Equal(200, payload.Data.InvalidErrors[0].Count)
 	}
 

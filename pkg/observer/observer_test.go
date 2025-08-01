@@ -78,10 +78,14 @@ func TestObserverTargetWrite(t *testing.T) {
 			assert.Equal(int64(5), b.TargetResults)
 			assert.Equal(int64(5), b.OversizedTargetResults)
 			assert.Equal(int64(5), b.InvalidTargetResults)
+
+			assert.Equal(1, len(b.FailedErrors))
 			for kErr, v := range b.FailedErrors {
 				assert.Equal(failedTempError.SafeMessage, kErr.Description)
 				assert.Equal(5, v)
 			}
+
+			assert.Equal(1, len(b.InvalidErrors))
 			for kErr, v := range b.InvalidErrors {
 				assert.Equal(invalidTempError.SafeMessage, kErr.Description)
 				assert.Equal(5, v)
@@ -92,10 +96,14 @@ func TestObserverTargetWrite(t *testing.T) {
 			assert.Equal(int64(1), b.TargetResults)
 			assert.Equal(int64(1), b.OversizedTargetResults)
 			assert.Equal(int64(1), b.InvalidTargetResults)
+
+			assert.Equal(1, len(b.InvalidErrors))
 			for kErr, v := range b.FailedErrors {
 				assert.Equal(failedTempError.SafeMessage, kErr.Description)
 				assert.Equal(1, v)
 			}
+
+			assert.Equal(1, len(b.InvalidErrors))
 			for kErr, v := range b.InvalidErrors {
 				assert.Equal(invalidTempError.SafeMessage, kErr.Description)
 				assert.Equal(1, v)
