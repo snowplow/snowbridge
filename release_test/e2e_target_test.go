@@ -55,8 +55,10 @@ var (
 		"data": map[string]any{
 			"appName":    cmd.AppName,
 			"appVersion": cmd.AppVersion,
-			"tags":       map[string]any{},
-			"message":    "1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n",
+			"tags": map[string]any{
+				"pipeline": "release_tests",
+			},
+			"message": "1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n",
 		},
 	}
 )
