@@ -23,6 +23,10 @@ type MetadataSender interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type MetadataReporterer interface {
+	Send(b *models.ObserverBuffer, periodStart, periodEnd time.Time)
+}
+
 type MetadataReporter struct {
 	client   MetadataSender
 	endpoint string
@@ -72,8 +76,8 @@ func (mr *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEn
 	event := MetadataEvent{
 		Schema: "iglu:com.snowplowanalytics.snowplow/event_forwarding_metrics/jsonschema/1-0-0",
 		Data: MetadataWrapper{
-			AppName:       "snowbridge",
-			AppVersion:    "3.4.0",
+			AppName:       mr.appName,
+			AppVersion:    mr.appVersion,
 			PeriodStart:   periodStart.Format(time.RFC3339),
 			PeriodEnd:     periodEnd.Format(time.RFC3339),
 			Success:       b.MsgSent,

@@ -17,18 +17,15 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/monitoring"
 	"github.com/snowplow/snowbridge/pkg/statsreceiver/statsreceiveriface"
 )
-
-type metadataClienter interface {
-	Send(b *models.ObserverBuffer, periodStart, periodEnd time.Time)
-}
 
 // Observer holds the channels and settings for aggregating telemetry from processed messages
 // and emitting them to downstream destinations
 type Observer struct {
 	statsClient              statsreceiveriface.StatsReceiver
-	errorsMetadataClient     metadataClienter
+	errorsMetadataClient     monitoring.MetadataReporterer
 	exitSignal               chan struct{}
 	stopDone                 chan struct{}
 	filteredChan             chan *models.FilterResult
@@ -44,7 +41,7 @@ type Observer struct {
 
 // New builds a new observer to be used to gather telemetry
 // about target writes
-func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval time.Duration, metadataClient metadataClienter) *Observer {
+func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval time.Duration, metadataClient monitoring.MetadataReporterer) *Observer {
 	return &Observer{
 		statsClient:              statsClient,
 		errorsMetadataClient:     metadataClient,
