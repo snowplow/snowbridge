@@ -13,9 +13,10 @@ package kinesissource
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"sync"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/google/uuid"
@@ -36,7 +37,7 @@ type Configuration struct {
 	Region                  string `hcl:"region"`
 	AppName                 string `hcl:"app_name"`
 	RoleARN                 string `hcl:"role_arn,optional"`
-	StartTimestamp          string `hcl:"start_timestamp,optional"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
+	StartTimestamp          string `hcl:"start_timestamp,optional"` // Timestamp for the kinesis shard iterator to begin processing. Format YYYY-MM-DD HH:MM:SS.MS (milliseconds optional)
 	ReadThrottleDelayMs     int    `hcl:"read_throttle_delay_ms,optional"`
 	CustomAWSEndpoint       string `hcl:"custom_aws_endpoint,optional"`
 	ShardCheckFreqSeconds   int    `hcl:"shard_check_freq_seconds,optional"`
