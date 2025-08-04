@@ -144,7 +144,8 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	if err != nil {
 		return err
 	}
-	observer, err := cfg.GetObserver(tags)
+
+	observer, err := cfg.GetObserver(cmd.AppName, cmd.AppVersion, tags)
 	if err != nil {
 		return err
 	}

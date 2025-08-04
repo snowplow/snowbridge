@@ -14,8 +14,6 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/snowplow/snowbridge/cmd"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -24,16 +22,44 @@ import (
 	"testing"
 	"time"
 
+	"github.com/snowplow/snowbridge/cmd"
+
 	"github.com/IBM/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/sirupsen/logrus"
+	"github.com/snowplow/snowbridge/pkg/monitoring"
 	"github.com/snowplow/snowbridge/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	expectedHeartbeatMap = map[string]any{
+		"schema": "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
+		"data": map[string]any{
+			"appName":    cmd.AppName,
+			"appVersion": cmd.AppVersion,
+			"tags": map[string]any{
+				"pipeline": "release_tests",
+			},
+		},
+	}
+
+	expectedAlertMap = map[string]any{
+		"schema": "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
+		"data": map[string]any{
+			"appName":    cmd.AppName,
+			"appVersion": cmd.AppVersion,
+			"tags": map[string]any{
+				"pipeline": "release_tests",
+			},
+			"message": "1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n",
+		},
+	}
 )
 
 func TestE2ETargets(t *testing.T) {
@@ -479,7 +505,12 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 		}
 
 		assert.Equal(1, len(foundData))
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+
+		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
+		assert.Nil(err)
+		diff, err := testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[0])
+		assert.Nil(err)
+		assert.Zero(diff)
 	}
 
 	close(receiverChannel)
@@ -575,7 +606,14 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 		}
 
 		assert.Equal(1, len(foundData))
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
+
+		// Prepare expected alert JSON
+
+		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
+		assert.Nil(err)
+		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
+		assert.Nil(err)
+		assert.Zero(diff)
 	}
 
 	close(receiverChannel)
@@ -679,8 +717,19 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 		}
 
 		assert.Equal(2, len(foundData))
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[1])
+
+		// Prepare expected alert JSON
+		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
+		assert.Nil(err)
+		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
+		assert.Nil(err)
+		assert.Zero(diff)
+
+		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
+		assert.Nil(err)
+		diff, err = testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[1])
+		assert.Nil(err)
+		assert.Zero(diff)
 	}
 
 	if err := srv.Shutdown(t.Context()); err != nil {
@@ -783,8 +832,18 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
 		}
 
 		assert.Equal(2, len(foundData))
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"},"message":"1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n"}}`, cmd.AppName, cmd.AppVersion), foundData[0])
-		assert.Equal(fmt.Sprintf(`{"schema":"iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0","data":{"appName":"%s","appVersion":"%s","tags":{"pipeline":"release_tests"}}}`, cmd.AppName, cmd.AppVersion), foundData[1])
+
+		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
+		assert.Nil(err)
+		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
+		assert.Nil(err)
+		assert.Zero(diff)
+
+		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
+		assert.Nil(err)
+		diff, err = testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[1])
+		assert.Nil(err)
+		assert.Zero(diff)
 	}
 
 	if err := srv.Shutdown(t.Context()); err != nil {
@@ -845,6 +904,89 @@ func testE2EHttpTargetSetupErrorWithoutMonitor(t *testing.T) {
 
 	if err := srv.Shutdown(t.Context()); err != nil {
 		panic(err) // failure/timeout shutting down the server gracefully
+	}
+	srvExitWg.Wait()
+}
+
+func TestE2EMetadataReporter(t *testing.T) {
+	assert := assert.New(t)
+
+	// Channel to receive metadata reporter payloads
+	metadataChan := make(chan monitoring.MetadataEvent, 2)
+
+	// Start a mock metadata reporter server
+	startMetadataServer := func(wg *sync.WaitGroup) *http.Server {
+		srv := &http.Server{Addr: ":12080"}
+		http.HandleFunc("/target", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		})
+
+		http.HandleFunc("/metadata", func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+
+			var payload monitoring.MetadataEvent
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Errorf("Failed to decode metadata payload: %v", err)
+			}
+
+			metadataChan <- payload
+			w.WriteHeader(http.StatusOK)
+		})
+
+		go func() {
+			defer wg.Done()
+			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+				t.Errorf("Metadata server error: %v", err)
+			}
+		}()
+
+		// returning reference so caller can call Shutdown()
+		return srv
+	}
+
+	srvExitWg := &sync.WaitGroup{}
+	srvExitWg.Add(1)
+	srv := startMetadataServer(srvExitWg)
+
+	// Use a config that triggers both failed and invalid errors and points metadata reporter to our server
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "metadata_reporter.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	// Run Snowbridge (simulate or use Docker as in other E2E tests)
+	_, cmdErr := runDockerCommand(5*time.Second, "httpTargetMetadata", configFilePath, "", "")
+	assert.NoError(cmdErr, "Docker run returned error for HTTP target with metadata reporter")
+
+	// Wait for metadata reporter payload(s)
+	var received []monitoring.MetadataEvent
+receiveLoop:
+	for {
+		select {
+		case payload := <-metadataChan:
+			received = append(received, payload)
+			if len(received) >= 1 { // Expect at least one flush
+				break receiveLoop
+			}
+		case <-time.After(5 * time.Second):
+			break receiveLoop
+		}
+	}
+
+	assert.NotEmpty(received, "No metadata reporter payloads received")
+
+	// Validate the payload contains expected error metadata
+	for _, payload := range received {
+		assert.Equal(200, payload.Data.InvalidErrors[0].Count)
+	}
+
+	// Cleanup
+	if err := srv.Shutdown(context.Background()); err != nil {
+		t.Errorf("Failed to shutdown metadata server: %v", err)
 	}
 	srvExitWg.Wait()
 }

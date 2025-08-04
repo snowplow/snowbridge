@@ -19,7 +19,7 @@ import (
 	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
 )
 
-// TODO: Refactor to provide a means to test errors without panicing
+// TODO: Refactor to provide a means to test errors without panicking
 
 // ReadAndReturnMessages takes a source, runs the read function, and outputs all messages found in a slice, against which we may run assertions.
 // The testWriteBuilder argument allows the test implementation to provide a write function builder,
@@ -28,10 +28,10 @@ func ReadAndReturnMessages(source sourceiface.Source, timeToWait time.Duration, 
 	var successfulReads []*models.Message
 
 	hitError := make(chan error)
-	msgRecieved := make(chan *models.Message)
+	msgReceived := make(chan *models.Message)
 	// run the read function in a goroutine, so that we can close it after a timeout
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: testWriteBuilder(source, msgRecieved, additionalOpts),
+		WriteToTarget: testWriteBuilder(source, msgReceived, additionalOpts),
 	}
 	go runRead(hitError, source, &sf)
 
@@ -40,7 +40,7 @@ resultLoop:
 		select {
 		case err1 := <-hitError:
 			panic(err1)
-		case msg := <-msgRecieved:
+		case msg := <-msgReceived:
 			// Append messages to the result slice
 			successfulReads = append(successfulReads, msg)
 		case <-time.After(timeToWait):

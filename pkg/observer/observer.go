@@ -17,6 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/pkg/monitoring"
 	"github.com/snowplow/snowbridge/pkg/statsreceiver/statsreceiveriface"
 )
 
@@ -24,6 +25,7 @@ import (
 // and emitting them to downstream destinations
 type Observer struct {
 	statsClient              statsreceiveriface.StatsReceiver
+	errorsMetadataClient     monitoring.MetadataReporterer
 	exitSignal               chan struct{}
 	stopDone                 chan struct{}
 	filteredChan             chan *models.FilterResult
@@ -39,9 +41,10 @@ type Observer struct {
 
 // New builds a new observer to be used to gather telemetry
 // about target writes
-func New(statsClient statsreceiveriface.StatsReceiver, timeout time.Duration, reportInterval time.Duration) *Observer {
+func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval time.Duration, metadataClient monitoring.MetadataReporterer) *Observer {
 	return &Observer{
 		statsClient:              statsClient,
+		errorsMetadataClient:     metadataClient,
 		exitSignal:               make(chan struct{}),
 		stopDone:                 make(chan struct{}),
 		filteredChan:             make(chan *models.FilterResult, 1000),
@@ -65,7 +68,10 @@ func (o *Observer) Start() {
 
 	go func() {
 		reportTime := time.Now().UTC().Add(o.reportInterval)
-		buffer := models.ObserverBuffer{}
+		buffer := models.ObserverBuffer{
+			InvalidErrors: make(map[models.MetadataCodeDescription]int),
+			FailedErrors:  make(map[models.MetadataCodeDescription]int),
+		}
 
 	ObserverLoop:
 		for {
@@ -74,10 +80,7 @@ func (o *Observer) Start() {
 				o.log.Warn("Received exit signal, shutting down Observer ...")
 
 				// Attempt final flush
-				o.log.Info(buffer.String())
-				if o.statsClient != nil {
-					o.statsClient.Send(&buffer)
-				}
+				o.flushStats(&buffer, reportTime)
 
 				o.isRunning = false
 				break ObserverLoop
@@ -93,18 +96,30 @@ func (o *Observer) Start() {
 				o.log.Debugf("Observer timed out after (%v) waiting for result", o.timeout)
 			}
 
+			// We can make separate report time/buffers for errors metadata
 			if time.Now().UTC().After(reportTime) {
-				o.log.Info(buffer.String())
-				if o.statsClient != nil {
-					o.statsClient.Send(&buffer)
-				}
+				o.flushStats(&buffer, reportTime)
 
 				reportTime = time.Now().UTC().Add(o.reportInterval)
-				buffer = models.ObserverBuffer{}
+				buffer = models.ObserverBuffer{
+					InvalidErrors: make(map[models.MetadataCodeDescription]int),
+					FailedErrors:  make(map[models.MetadataCodeDescription]int),
+				}
 			}
 		}
 		o.stopDone <- struct{}{}
 	}()
+}
+
+func (o *Observer) flushStats(buffer *models.ObserverBuffer, reportTime time.Time) {
+	o.log.Info(buffer.String())
+	if o.statsClient != nil {
+		o.statsClient.Send(buffer)
+	}
+
+	if o.errorsMetadataClient != nil {
+		o.errorsMetadataClient.Send(buffer, reportTime.Add(-o.reportInterval), time.Now().UTC())
+	}
 }
 
 // Stop issues a signal to halt observer processing
@@ -124,19 +139,19 @@ func (o *Observer) Filtered(r *models.FilterResult) {
 	o.filteredChan <- r
 }
 
-// TargetWrite pushes a targets write result onto a channel for processing
+// TargetWrite pushes normal targets write result onto a channel for processing
 // by the observer
 func (o *Observer) TargetWrite(r *models.TargetWriteResult) {
 	o.targetWriteChan <- r
 }
 
-// TargetWriteOversized pushes a failure targets write result onto a channel for processing
+// TargetWriteOversized pushes an oversized targets write result onto a channel for processing
 // by the observer
 func (o *Observer) TargetWriteOversized(r *models.TargetWriteResult) {
 	o.targetWriteOversizedChan <- r
 }
 
-// TargetWriteInvalid pushes a failure targets write result onto a channel for processing
+// TargetWriteInvalid pushes an invalid targets write result onto a channel for processing
 // by the observer
 func (o *Observer) TargetWriteInvalid(r *models.TargetWriteResult) {
 	o.targetWriteInvalidChan <- r
