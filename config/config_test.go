@@ -130,14 +130,13 @@ func TestNewConfig_Hcl_invalids(t *testing.T) {
 	})
 
 	t.Run("invalid_stats_receiver", func(t *testing.T) {
-		statsReceiver, err := c.GetObserver(map[string]string{})
+		statsReceiver, err := c.GetObserver("testAppName", "0.0.0", map[string]string{})
 		assert.Nil(statsReceiver)
 		assert.NotNil(err)
 		if err != nil {
 			assert.Equal("Invalid stats receiver found; expected one of 'statsd' and got 'fakeHCL'", err.Error())
 		}
 	})
-
 }
 
 func TestNewConfig_Hcl_NoExt_defaults(t *testing.T) {
@@ -220,7 +219,7 @@ func TestNewConfig_HclTransformationOrder(t *testing.T) {
 	assert.Equal("five", c.Data.Transformations[4].Use.Name)
 }
 
-func TestNewConfig_GetWebhookMonitoring(t *testing.T) {
+func TestNewConfig_GetMonitoring(t *testing.T) {
 	assert := assert.New(t)
 
 	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
@@ -250,4 +249,16 @@ func TestNewConfig_GetWebhookMonitoring(t *testing.T) {
 	assert.NotNil(monitoring)
 	assert.NotNil(alertChan)
 	assert.Nil(err)
+
+	// Should be able to build observer with metadata reporter
+	c.Data.Monitoring.MetadataReporter.Endpoint = "http://example.com"
+	observer, err := c.GetObserver("", "", map[string]string{})
+	assert.NotNil(observer)
+	assert.Nil(err)
+
+	// Should fail to build observer with metadata reporter
+	c.Data.Monitoring.MetadataReporter.Endpoint = "http:/example.com"
+	observer, err = c.GetObserver("", "", map[string]string{})
+	assert.Nil(observer)
+	assert.NotNil(err)
 }

@@ -48,7 +48,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 			Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
 			Data: WebhookData{
 				AppName:    "snowbridge",
-				AppVersion: "3.2.3",
+				AppVersion: "3.4.0",
 			},
 		},
 	}
@@ -64,7 +64,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 			Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
 			Data: WebhookData{
 				AppName:    "snowbridge",
-				AppVersion: "3.2.3",
+				AppVersion: "3.4.0",
 				Message:    "failed to connect to target API",
 			},
 		},
@@ -91,7 +91,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 
 		sr := TestWebhookSender{onDo: onDo}
 
-		webhook := NewWebhookMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, nil)
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &sr, "https://test.webhook.com", nil, time.Second, nil)
 		assert.NotNil(webhook)
 		webhook.Start()
 
@@ -123,7 +123,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 		sr := TestWebhookSender{onDo: onDo}
 		alertChan := make(chan error, 1)
 
-		webhook := NewWebhookMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
 		assert.NotNil(webhook)
 
 		webhook.Start()
@@ -175,7 +175,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 		sr := TestWebhookSender{onDo: onDo}
 		alertChan := make(chan error, 1)
 
-		webhook := NewWebhookMonitoring("snowbridge", "3.2.3", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
 		assert.NotNil(webhook)
 
 		webhook.Start()

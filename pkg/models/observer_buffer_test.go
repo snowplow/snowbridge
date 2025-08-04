@@ -21,7 +21,10 @@ import (
 func TestObserverBuffer(t *testing.T) {
 	assert := assert.New(t)
 
-	b := ObserverBuffer{}
+	b := ObserverBuffer{
+		InvalidErrors: make(map[MetadataCodeDescription]int),
+		FailedErrors:  make(map[MetadataCodeDescription]int),
+	}
 	assert.NotNil(b)
 
 	timeNow := time.Now().UTC()
@@ -134,7 +137,10 @@ func TestObserverBuffer(t *testing.T) {
 func TestObserverBuffer_Basic(t *testing.T) {
 	assert := assert.New(t)
 
-	b := ObserverBuffer{}
+	b := ObserverBuffer{
+		InvalidErrors: make(map[MetadataCodeDescription]int),
+		FailedErrors:  make(map[MetadataCodeDescription]int),
+	}
 	assert.NotNil(b)
 
 	timeNow := time.Now().UTC()
@@ -206,7 +212,10 @@ func TestObserverBuffer_Basic(t *testing.T) {
 func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 	assert := assert.New(t)
 
-	b := ObserverBuffer{}
+	b := ObserverBuffer{
+		InvalidErrors: make(map[MetadataCodeDescription]int),
+		FailedErrors:  make(map[MetadataCodeDescription]int),
+	}
 	assert.NotNil(b)
 
 	timeNow := time.Now().UTC()

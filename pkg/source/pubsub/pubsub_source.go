@@ -133,16 +133,16 @@ func newPubSubSource(concurrentWrites int, projectID string, subscriptionID stri
 		return nil, errors.Wrap(err, "Failed to create PubSub client")
 	}
 
-	// This temproary logic allows us to fix suboptimal behaviour without a breaking release.
+	// This temporary logic allows us to fix suboptimal behaviour without a breaking release.
 	// The order of priority is streaming_pull_goroutines > concurrent_writes > previous default
-	// We don't change the default becuase this would cause a major behaviour change in a non-major version bump
+	// We don't change the default because this would cause a major behaviour change in a non-major version bump
 
 	// If streamingPullGoRoutines is not set but concurrentWrites is, use concurrentWrites.
 	if streamingPullGoRoutines == 0 && concurrentWrites != 0 {
 		streamingPullGoRoutines = concurrentWrites
 		log.Warn("For the pubsub source, concurrent_writes is deprecated, and will be removed in the next major version. Use streaming_pull_goroutines instead")
 	}
-	// If neither are set, set it to the new defult, but warn users of this behaviour change
+	// If neither are set, set it to the new default, but warn users of this behaviour change
 	if streamingPullGoRoutines == 0 && concurrentWrites == 0 {
 		streamingPullGoRoutines = 50
 		log.Warn("Neither streaming_pull_goroutines nor concurrent_writes are set. The previous default is preserved, but strongly advise manual configuration of streaming_pull_goroutines, max_outstanding_messages and max_outstanding_bytes")
