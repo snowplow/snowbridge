@@ -51,7 +51,7 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
-	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
 	assert.Nil(err)
 	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
@@ -91,7 +91,7 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
-	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
 	assert.Nil(err)
 	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
@@ -125,7 +125,7 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 	// Write to topic
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
-	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
 	assert.Nil(err)
 	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
@@ -158,7 +158,7 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 		}
 	}()
 
-	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
 	assert.Nil(err)
 	assert.Equal("projects/project-test/topics/test-topic", pubsubTarget.GetID())
@@ -224,7 +224,7 @@ func TestPubSubTarget_WriteFailureWithMocks(t *testing.T) {
 		}
 	}()
 
-	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
 	if err != nil {
 		t.Fatal(err)
@@ -283,7 +283,7 @@ func TestPubSubTarget_WriteFailureRetryableWithMocks(t *testing.T) {
 		}
 	}()
 
-	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
 	if err != nil {
 		t.Fatal(err)
@@ -333,7 +333,7 @@ func TestNewPubSubTarget_Success(t *testing.T) {
 		}
 	}()
 
-	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`)
+	pubsubTarget, err := newPubSubTarget(`project-test`, `test-topic`, "")
 
 	assert.Nil(err)
 	assert.NotNil(pubsubTarget)
@@ -347,10 +347,52 @@ func TestNewPubSubTarget_Success(t *testing.T) {
 func TestnewPubSubTarget_Failure(t *testing.T) {
 	assert := assert.New(t)
 
-	pubsubTarget, err := newPubSubTarget(`nonexistent-project`, `nonexistent-topic`)
+	pubsubTarget, err := newPubSubTarget(`nonexistent-project`, `nonexistent-topic`, "")
 
 	// TODO: Test for the actual error we expect, when we have instrumented failing fast
 	assert.NotNil(err)
 	assert.Nil(pubsubTarget)
 }
 */
+
+// TestPubSubTargetConfigFunction_WithCredentials tests the config function with credentials
+func TestPubSubTargetConfigFunction_WithCredentials(t *testing.T) {
+	assert := assert.New(t)
+
+	// Test config with credentials_json_path
+	config := &PubSubTargetConfig{
+		ProjectID:           "test-project",
+		TopicName:           "test-topic",
+		CredentialsJSONPath: "/path/to/nonexistent-creds.json",
+	}
+
+	// This will fail because the credentials file doesn't exist
+	pubsubTarget, err := PubSubTargetConfigFunction(config)
+
+	assert.Nil(pubsubTarget)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "Failed to create PubSub client")
+}
+
+// TestPubSubTargetConfigFunction_WithoutCredentials tests the config function using default credentials
+func TestPubSubTargetConfigFunction_WithoutCredentials(t *testing.T) {
+	assert := assert.New(t)
+
+	// Test config without credentials_json_path (uses default credentials)
+	config := &PubSubTargetConfig{
+		ProjectID: "test-project",
+		TopicName: "test-topic",
+	}
+
+	// This might succeed or fail depending on the environment's default credentials
+	// We just test that the function runs without panicking
+	pubsubTarget, err := PubSubTargetConfigFunction(config)
+
+	// Either succeeds with default credentials or fails gracefully
+	if err != nil {
+		assert.Nil(pubsubTarget)
+		assert.Contains(err.Error(), "Failed to create PubSub client")
+	} else {
+		assert.NotNil(pubsubTarget)
+	}
+}

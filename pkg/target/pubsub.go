@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/api/option"
 
 	"github.com/snowplow/snowbridge/pkg/models"
 )
@@ -35,8 +36,9 @@ const (
 
 // PubSubTargetConfig configures the destination for records consumed
 type PubSubTargetConfig struct {
-	ProjectID string `hcl:"project_id"`
-	TopicName string `hcl:"topic_name"`
+	ProjectID           string `hcl:"project_id"`
+	TopicName           string `hcl:"topic_name"`
+	CredentialsJSONPath string `hcl:"credentials_json_path,optional"`
 }
 
 // PubSubTarget holds a new client for writing messages to Google PubSub
@@ -57,10 +59,17 @@ type pubSubPublishResult struct {
 }
 
 // newPubSubTarget creates a new client for writing messages to Google PubSub
-func newPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) {
+func newPubSubTarget(projectID string, topicName string, credentialsJSONPath string) (*PubSubTarget, error) {
 	ctx := context.Background()
 
-	client, err := pubsub.NewClient(ctx, projectID)
+	// Build client options based on provided credentials
+	var opts []option.ClientOption
+
+	if credentialsJSONPath != "" {
+		opts = append(opts, option.WithCredentialsFile(credentialsJSONPath))
+	}
+
+	client, err := pubsub.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create PubSub client")
 	}
@@ -75,7 +84,7 @@ func newPubSubTarget(projectID string, topicName string) (*PubSubTarget, error) 
 
 // PubSubTargetConfigFunction creates PubSubTarget from PubSubTargetConfig
 func PubSubTargetConfigFunction(c *PubSubTargetConfig) (*PubSubTarget, error) {
-	return newPubSubTarget(c.ProjectID, c.TopicName)
+	return newPubSubTarget(c.ProjectID, c.TopicName, c.CredentialsJSONPath)
 }
 
 // The PubSubTargetAdapter type is an adapter for functions to be used as
