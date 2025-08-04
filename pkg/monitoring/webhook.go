@@ -51,7 +51,9 @@ type WebhookMonitoring struct {
 
 	exitSignal chan struct{}
 
-	isHealthy bool
+	isHealthy     bool
+	currentError  error
+	lastAlertTime *time.Time
 }
 
 func NewWebhookMonitoring(appName, appVersion string, client WebhookSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *WebhookMonitoring {
@@ -78,6 +80,8 @@ func (m *WebhookMonitoring) Start() {
 		for {
 			select {
 			case <-ticker.C:
+				now := time.Now()
+
 				if m.isHealthy {
 					m.log.Info("Sending heartbeat")
 					event := WebhookEvent{
@@ -98,41 +102,35 @@ func (m *WebhookMonitoring) Start() {
 					if err != nil {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
 					}
+				} else if m.currentError != nil && m.lastAlertTime != nil {
+					// Check if backoff period has passed and we need to send another alert
+					if now.Sub(*m.lastAlertTime) >= m.heartbeatInterval {
+						m.sendAlert(m.currentError)
+						m.lastAlertTime = &now
+					}
 				}
+
 			case err := <-m.alertChan:
-				if m.isHealthy && err != nil {
-					m.log.Info("Sending alert")
-					event := WebhookEvent{
-						Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
-						Data: WebhookData{
-							AppName:    m.appName,
-							AppVersion: m.appVersion,
-							Tags:       m.tags,
-							Message:    err.Error(),
-						},
-					}
-					req, err := m.prepareRequest(event)
-					if err != nil {
-						m.log.Warnf("failed to prepare alert event request: %s", err)
-						continue
-					}
+				now := time.Now()
 
-					_, err = m.client.Do(req)
-					if err != nil {
-						m.log.Warnf("failed to send alert event: %s", err)
+				if err != nil {
+					// First alert gets sent immediatly
+					if m.isHealthy {
+						m.sendAlert(err)
+						m.isHealthy = false
+						m.currentError = err
+						m.lastAlertTime = &now
+					} else {
+						// In case error changes, we need to make sure it would be sent
+						m.currentError = err
 					}
-
-					// Once alert has been successfully sent,
-					// we shouldn't attempt to send anything else (nor alert, nor heartbeat)
-					// until setup error is resolved
-					m.isHealthy = false
-				}
-
-				// If error is nil, it means setup error got resolved
-				// and we should resume monitoring
-				if err == nil {
+				} else {
+					m.log.Debug("setup error resolved, resuming heartbeats")
 					m.isHealthy = true
+					m.currentError = nil
+					m.lastAlertTime = nil
 				}
+
 			case <-m.exitSignal:
 				m.log.Info("WebhookMonitoring is shutting down")
 				break OuterLoop
@@ -143,6 +141,31 @@ func (m *WebhookMonitoring) Start() {
 
 func (m *WebhookMonitoring) Stop() {
 	m.exitSignal <- struct{}{}
+}
+
+func (m *WebhookMonitoring) sendAlert(err error) {
+	m.log.Info("Sending an alert")
+
+	event := WebhookEvent{
+		Schema: "iglu:com.snowplowanalytics.monitoring.loader/alert/jsonschema/1-0-0",
+		Data: WebhookData{
+			AppName:    m.appName,
+			AppVersion: m.appVersion,
+			Tags:       m.tags,
+			Message:    err.Error(),
+		},
+	}
+
+	req, prepErr := m.prepareRequest(event)
+	if prepErr != nil {
+		m.log.Warnf("failed to prepare alert event request: %s", prepErr)
+		return
+	}
+
+	_, sendErr := m.client.Do(req)
+	if sendErr != nil {
+		m.log.Warnf("failed to send alert event: %s", sendErr)
+	}
 }
 
 func (m *WebhookMonitoring) prepareRequest(event WebhookEvent) (*http.Request, error) {
