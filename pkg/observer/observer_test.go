@@ -97,7 +97,7 @@ func TestObserverTargetWrite(t *testing.T) {
 			assert.Equal(int64(1), b.OversizedTargetResults)
 			assert.Equal(int64(1), b.InvalidTargetResults)
 
-			assert.Equal(1, len(b.InvalidErrors))
+			assert.Equal(1, len(b.FailedErrors))
 			for kErr, v := range b.FailedErrors {
 				assert.Equal(failedTempError.SafeMessage, kErr.Description)
 				assert.Equal(1, v)
@@ -138,6 +138,13 @@ func TestObserverTargetWrite(t *testing.T) {
 			TimePulled:          timeNow.Add(time.Duration(-7) * time.Minute),
 			TimeRequestFinished: timeNow,
 		},
+		{
+			Data:                []byte("InvalidFoo"),
+			PartitionKey:        "partition4",
+			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
+			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
+			TimeRequestFinished: timeNow,
+		},
 	}
 	failed := []*models.Message{
 		{
@@ -149,19 +156,9 @@ func TestObserverTargetWrite(t *testing.T) {
 		},
 	}
 	failed[0].SetError(&failedTempError)
+	sent[2].SetError(&invalidTempError)
 
-	invalid := []*models.Message{
-		{
-			Data:                []byte("InvalidFoo"),
-			PartitionKey:        "partition4",
-			TimeCreated:         timeNow.Add(time.Duration(-30) * time.Minute),
-			TimePulled:          timeNow.Add(time.Duration(-10) * time.Minute),
-			TimeRequestFinished: timeNow,
-		},
-	}
-	invalid[0].SetError(&invalidTempError)
-
-	r := models.NewTargetWriteResult(sent, failed, nil, invalid)
+	r := models.NewTargetWriteResult(sent, failed, nil, nil)
 	for range 5 {
 		observer.TargetWrite(r)
 		observer.TargetWriteOversized(r)

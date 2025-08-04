@@ -131,7 +131,7 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	b.InvalidMsgTotal += res.Total()
 
 	b.appendWriteResult(res)
-	b.appendInvalidError(res.Invalid)
+	b.appendInvalidError(res.Sent)
 }
 
 func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
