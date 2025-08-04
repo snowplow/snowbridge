@@ -52,6 +52,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.19
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
+	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/itchyny/gojq v0.12.17
 	github.com/josephburnett/jd/v2 v2.2.3
@@ -99,7 +100,6 @@ require (
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect

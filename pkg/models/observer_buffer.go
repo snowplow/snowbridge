@@ -18,6 +18,12 @@ import (
 	"github.com/snowplow/snowbridge/pkg/common"
 )
 
+// MetadataEvent holds data required for metadata reporter's event
+type MetadataCodeDescription struct {
+	Code        string
+	Description string
+}
+
 // ObserverBuffer contains all the metrics we are processing
 type ObserverBuffer struct {
 	TargetResults int64
@@ -55,6 +61,33 @@ type ObserverBuffer struct {
 	MaxE2ELatency       time.Duration
 	MinE2ELatency       time.Duration
 	SumE2ELatency       time.Duration
+
+	InvalidErrors map[MetadataCodeDescription]int
+	FailedErrors  map[MetadataCodeDescription]int
+}
+
+func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
+	for _, msg := range msgs {
+		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
+			e := MetadataCodeDescription{
+				Code:        sem.Code(),
+				Description: sem.SanitisedError(),
+			}
+			b.InvalidErrors[e] = b.InvalidErrors[e] + 1
+		}
+	}
+}
+
+func (b *ObserverBuffer) appendFailedError(msgs []*Message) {
+	for _, msg := range msgs {
+		if sem, ok := msg.GetError().(SanitisedErrorMetadata); ok {
+			e := MetadataCodeDescription{
+				Code:        sem.Code(),
+				Description: sem.SanitisedError(),
+			}
+			b.FailedErrors[e] = b.FailedErrors[e] + 1
+		}
+	}
 }
 
 // AppendWrite adds a normal TargetWriteResult onto the buffer and stores the result
@@ -69,6 +102,7 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	b.MsgTotal += res.Total()
 
 	b.appendWriteResult(res)
+	b.appendFailedError(res.Failed)
 }
 
 // AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
@@ -97,6 +131,7 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	b.InvalidMsgTotal += res.Total()
 
 	b.appendWriteResult(res)
+	b.appendInvalidError(res.Sent)
 }
 
 func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
