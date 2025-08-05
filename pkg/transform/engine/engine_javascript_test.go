@@ -13,12 +13,15 @@ package engine
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -28,6 +31,7 @@ type JSTestCase struct {
 	Scenario      string
 	Src           string
 	SpMode        bool
+	SpModeV2      bool
 	Input         *models.Message
 	InterState    any
 	Expected      map[string]*models.Message
@@ -51,6 +55,130 @@ func TestJSLayer(t *testing.T) {
 	}, script)
 	assert.NotNil(t, jsEngine)
 	assert.Nil(err)
+}
+
+func TestJSEngineRemoveNulls(t *testing.T) {
+
+	testCases := []JSTestCase{
+		{
+			Scenario: "remove_nulls_struct",
+			Input: &models.Message{
+				Data: []byte(`
+        {
+          "f1": "value1",
+          "f2": 2,
+          "f3": {
+            "f5": null,
+            "f6": "value6",
+            "f7": {
+              "f8": 100,
+              "f9": null
+             }
+           },
+          "f4": null
+        }`),
+				PartitionKey: "some-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"f1":"value1","f2":2,"f3":{"f6":"value6","f7":{"f8":100}}}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+		{
+			Scenario: "remove_nulls_array",
+			Input: &models.Message{
+				Data: []byte(`
+          {
+            "items": [
+              {
+                "f1": "value1",
+                "f2": null,
+                "f3": [
+                  {
+                    "f4": 1,
+                    "f5": null
+                  },
+                  {
+                    "f4": null,
+                    "f5": 20
+                  }
+                ]
+              }
+            ]
+          }`),
+				PartitionKey: "some-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte(`{"items":[{"f1":"value1","f3":[{"f4":1},{"f5":20}]}]}`),
+					PartitionKey: "some-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: nil,
+			Error:         nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Scenario, func(t *testing.T) {
+			assert := assert.New(t)
+
+			jsConfig := &JSEngineConfig{
+				RunTimeout:  5,
+				JsonMode:    false,
+				SpMode:      false,
+				RemoveNulls: true,
+			}
+
+			script := `
+function main(input) {
+   return {
+   		Data: JSON.parse(input.Data)
+   }
+}
+`
+
+			jsEngine, err := NewJSEngine(jsConfig, script)
+			assert.NotNil(jsEngine)
+			if err != nil {
+				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+			}
+
+			if err := jsEngine.SmokeTest("main"); err != nil {
+				t.Fatalf("smoke-test failed with error: %q", err.Error())
+			}
+
+			transFunction := jsEngine.MakeFunction("main")
+			trans, filtered, errored, _ := transFunction(tt.Input, nil)
+
+			if errored != nil {
+				gotErr := errored.GetError()
+				expErr := tt.Error
+				if expErr == nil {
+					t.Fatalf("got unexpected error: %s", gotErr.Error())
+				}
+
+				if !strings.Contains(gotErr.Error(), expErr.Error()) {
+					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
+						gotErr.Error(),
+						expErr.Error())
+				}
+			}
+
+			assertMessagesCompareJs(t, trans, tt.Expected["success"], true)
+			assertMessagesCompareJs(t, filtered, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, errored, tt.Expected["failed"], tt.IsJSON)
+		})
+	}
+
 }
 
 func TestJSEngineMakeFunction_SpModeFalse_IntermediateNil(t *testing.T) {
@@ -413,11 +541,11 @@ function main(x) {
 			Src: `
 function main(x) {
    var now = new Date().getTime();
-   while(new Date().getTime() < now + 10000) {
+   while(new Date().getTime() < now + 5000) {
    }
 }
 `,
-			Scenario: "sleepTenSecs",
+			Scenario: "sleepFiveSecs",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -611,7 +739,7 @@ function main(x) {
 			assert := assert.New(t)
 
 			jsConfig := &JSEngineConfig{
-				RunTimeout:     5,
+				RunTimeout:     4,
 				SpMode:         testSpMode,
 				HashSaltSecret: tt.HashSalt,
 			}
@@ -656,129 +784,6 @@ function main(x) {
 	}
 }
 
-func TestJSEngineRemoveNulls(t *testing.T) {
-
-	testCases := []JSTestCase{
-		{
-			Scenario: "remove_nulls_struct",
-			Input: &models.Message{
-				Data: []byte(`
-        {
-          "f1": "value1",
-          "f2": 2,
-          "f3": {
-            "f5": null,
-            "f6": "value6",
-            "f7": {
-              "f8": 100,
-              "f9": null
-             }
-           },
-          "f4": null
-        }`),
-				PartitionKey: "some-key",
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         []byte(`{"f1":"value1","f2":2,"f3":{"f6":"value6","f7":{"f8":100}}}`),
-					PartitionKey: "some-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: nil,
-			Error:         nil,
-		},
-		{
-			Scenario: "remove_nulls_array",
-			Input: &models.Message{
-				Data: []byte(`
-          {
-            "items": [
-              {
-                "f1": "value1",
-                "f2": null,
-                "f3": [
-                  {
-                    "f4": 1,
-                    "f5": null
-                  },
-                  {
-                    "f4": null,
-                    "f5": 20
-                  }
-                ]
-              }
-            ]
-          }`),
-				PartitionKey: "some-key",
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         []byte(`{"items":[{"f1":"value1","f3":[{"f4":1},{"f5":20}]}]}`),
-					PartitionKey: "some-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: nil,
-			Error:         nil,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.Scenario, func(t *testing.T) {
-			assert := assert.New(t)
-
-			jsConfig := &JSEngineConfig{
-				RunTimeout:  5,
-				SpMode:      false,
-				RemoveNulls: true,
-			}
-
-			script := `
-function main(input) {
-   return {
-   		Data: JSON.parse(input.Data)
-   }
-}
-`
-
-			jsEngine, err := NewJSEngine(jsConfig, script)
-			assert.NotNil(jsEngine)
-			if err != nil {
-				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
-			}
-
-			if err := jsEngine.SmokeTest("main"); err != nil {
-				t.Fatalf("smoke-test failed with error: %q", err.Error())
-			}
-
-			transFunction := jsEngine.MakeFunction("main")
-			s, f, e, _ := transFunction(tt.Input, nil)
-
-			if e != nil {
-				gotErr := e.GetError()
-				expErr := tt.Error
-				if expErr == nil {
-					t.Fatalf("got unexpected error: %s", gotErr.Error())
-				}
-
-				if !strings.Contains(gotErr.Error(), expErr.Error()) {
-					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
-						gotErr.Error(),
-						expErr.Error())
-				}
-			}
-
-			assertMessagesCompareJs(t, s, tt.Expected["success"], true)
-			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
-			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
-		})
-	}
-
-}
-
 func TestJSEngineMakeFunction_SpModeTrue_IntermediateNil(t *testing.T) {
 	var testInterState any = nil
 	var testSpMode = true
@@ -805,7 +810,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -977,7 +982,7 @@ function main(x) {
 			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			Expected: map[string]*models.Message{
 				"success": {
@@ -990,7 +995,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1151,7 +1156,7 @@ function main(x) {
 			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			Expected: map[string]*models.Message{
 				"success": {
@@ -1164,7 +1169,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1248,7 +1253,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1304,6 +1309,349 @@ function main(x) {
 	}
 }
 
+// Only testing for JsonMode set to true; if it is false, then we default to SpMode setting
+func TestJSEngineMakeFunction_JsonModeTrue(t *testing.T) {
+	var testInterState any = nil
+	testCases := []JSTestCase{
+		{
+			Scenario: "for JSON []byte input, we get map[string]any in interstate and JSON []byte in output",
+			Src: `
+		function main(x) {
+		   return x;
+		}
+		`,
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSON,
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
+			},
+			IsJSON: true,
+			Error:  nil,
+		},
+		{
+			Scenario: "for TSV string input, we get nil interstate and failed message (failed to transorm TSV input when were expecting JSON)",
+			Src: `
+		function main(x) {
+		   return x;
+		}
+		`,
+			Input: &models.Message{
+				Data:         testJsTsv,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         testJsTsv,
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			IsJSON:        false,
+			Error:         fmt.Errorf("failed to transform input into JSON"),
+		},
+		{
+			Scenario: "jsonTransformFieldRename - JSON input",
+			Src: `
+		function main(x) {
+		   if (x.Data.hasOwnProperty("app_id")) {
+			   delete Object.assign(x.Data, {['app_id_CHANGED']: x.Data['app_id'] })['app_id'];
+		   }
+
+		   return x;
+		}
+		`,
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         testJsJSONChanged1,
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         mergeMaps(testJsJSONChanged1Map, testJSONTimestampsMap),
+			},
+			IsJSON: true,
+			Error:  nil,
+		},
+		{
+			Scenario: "jsonFilterOut - JSON input",
+			Src: `
+		function main(x) {
+		   if (x.Data.hasOwnProperty("app_id") && x.Data["app_id"] === "filterMeOut") {
+		       x.FilterOut = false;
+		   } else {
+		       x.FilterOut = true;
+		   }
+
+		   return x;
+		}
+		`,
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": nil,
+				"filtered": {
+					Data:         testJsJSON,
+					PartitionKey: "some-test-key",
+				},
+				"failed": nil,
+			},
+			ExpInterState: nil,
+			IsJSON:        true,
+			Error:         nil,
+		},
+		{
+			Scenario: "returnUndefined",
+			Src: `
+		function main(x) {}
+		`,
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         testJsJSON,
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf("invalid return type from JavaScript transformation; got null or undefined"),
+		},
+		{
+			Scenario: "returnNull",
+			Src: `
+		function main(x) {
+		 return null;
+		}
+		`,
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         testJsJSON,
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf("invalid return type from JavaScript transformation; got null or undefined"),
+		},
+		{
+			Scenario: "callError",
+			Src: `
+		function main(x) {
+		   throw("Failed");
+		}
+		`,
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         testJsJSON,
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf(`error running JavaScript function [main]: Failed at main`),
+		},
+		{
+			Scenario: "simulate long running process to trigger deadline exceeded error",
+			Src: `
+		function main(x) {
+		   var now = new Date().getTime();
+		   while(new Date().getTime() < now + 3000) {
+		   }
+		}
+		`,
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         testJsJSON,
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf("runtime deadline exceeded"),
+		},
+		{
+			Scenario: "invalid_JSON_fails",
+			Src: `
+				function main(x) {
+				  return x;
+				}
+				`,
+			Input: &models.Message{
+				Data:         []byte(`{"not": valid "json"`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{"not": valid "json"`),
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf("failed making input"),
+		},
+		{
+			Scenario: "return_wrong_type",
+			Src: `
+				function main(x) {
+				   return 0;
+				}
+				`,
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         testJsJSON,
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf("invalid return type from JavaScript transformation"),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Scenario, func(t *testing.T) {
+			assert := assert.New(t)
+
+			jsConfig := &JSEngineConfig{
+				RunTimeout: 2,
+				JsonMode:   true,
+			}
+
+			jsEngine, err := NewJSEngine(jsConfig, tt.Src)
+			assert.NotNil(jsEngine)
+			if err != nil {
+				t.Fatalf("function NewJSEngine failed with error: %q", err.Error())
+			}
+
+			if err := jsEngine.SmokeTest("main"); err != nil {
+				t.Fatalf("smoke-test failed with error: %q", err.Error())
+			}
+
+			transFunction := jsEngine.MakeFunction("main")
+			s, f, e, i := transFunction(tt.Input, testInterState)
+
+			if e != nil {
+				gotErr := e.GetError()
+				expErr := tt.Error
+				if expErr == nil {
+					t.Fatalf("got unexpected error: %s", gotErr.Error())
+				}
+
+				if !strings.Contains(gotErr.Error(), expErr.Error()) {
+					t.Errorf("GOT_ERROR:\n%s\n does not contain\nEXPECTED_ERROR:\n%s",
+						gotErr.Error(),
+						expErr.Error())
+				}
+			}
+
+			assertMessagesCompareJs(t, s, tt.Expected["success"], tt.IsJSON)
+			assertMessagesCompareJs(t, f, tt.Expected["filtered"], tt.IsJSON)
+			assertMessagesCompareJs(t, e, tt.Expected["failed"], tt.IsJSON)
+
+			// we expect interstate
+			if tt.ExpInterState != nil {
+				expInterState, ok := tt.ExpInterState.(*engineProtocol)
+				if !ok {
+					t.Fatal("expecting interstate as engineProtocol, but got unexpected value")
+				}
+
+				var expInterData map[string]any
+				switch x := expInterState.Data.(type) {
+				case []byte:
+					if err := json.Unmarshal(x, &expInterData); err != nil {
+						t.Fatalf("not expecting error unmarshaling []byte interstate data: %s", err)
+					}
+				case string:
+					if err := json.Unmarshal([]byte(x), &expInterData); err != nil {
+						t.Fatalf("not expecting error unmarshaling string interstate data: %s", err)
+					}
+				case map[string]any:
+					expInterData = x
+				default:
+					t.Fatalf("expecting interstate data as []byte or map[string]any, but got unexpected value: %s", spew.Sdump(expInterState.Data))
+				}
+
+				actualState, ok := i.(*engineProtocol)
+				if !ok {
+					t.Fatalf("expecting actual interstate as engineProtocol, but got unexpected value%s", spew.Sdump(actualState))
+				}
+
+				// while we allow interstate data to be of type any, in test we really want to see
+				// data type to match between expect & actual
+				assert.Equal(reflect.TypeOf(expInterState.Data), reflect.TypeOf(actualState.Data))
+
+				var actualData map[string]any
+				switch x := actualState.Data.(type) {
+				case string:
+					if err := json.Unmarshal([]byte(x), &actualData); err != nil {
+						t.Fatalf("not expecting error unmarshaling interstate data: %s", err)
+					}
+				case map[string]any:
+					actualData = x
+				default:
+					t.Fatalf("expecting actual interstate data as []byte or map[string]any, but got unexpected value: %s", spew.Sdump(actualState.Data))
+				}
+
+				if diff := cmp.Diff(actualState, expInterState, cmpopts.IgnoreFields(engineProtocol{}, "Data")); diff != "" {
+					t.Fatalf("unexpected interstate (-want +got):\n%s", diff)
+				}
+				if diff := cmp.Diff(actualData, expInterData); diff != "" {
+					t.Fatalf("unexpected interstate (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
 func TestJSEngineMakeFunction_SetPK(t *testing.T) {
 	var testInterState any = nil
 	testCases := []JSTestCase{
@@ -1331,7 +1679,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "newPk",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1486,7 +1834,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"foo": "bar",
 				},
@@ -1527,7 +1875,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"foo": "bar",
 				},
@@ -1569,7 +1917,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldVal",
 					"foo":    "bar",
@@ -1597,7 +1945,7 @@ function main(x) {
 				},
 			},
 			InputInterState: &engineProtocol{
-				Data: testJSMap,
+				Data: mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldVal",
 				},
@@ -1617,7 +1965,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"foo": "bar",
 				},
@@ -1647,7 +1995,7 @@ function main(x) {
 				},
 			},
 			InputInterState: &engineProtocol{
-				Data: testJSMap,
+				Data: mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldVal",
 				},
@@ -1668,7 +2016,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldValnewVal",
 					"foo":    "bar",
@@ -1708,7 +2056,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders:  nil,
 			},
 			Error: nil,
@@ -1740,7 +2088,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders:  nil,
 			},
 			Error: nil,
@@ -1777,7 +2125,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders:  nil,
 			},
 			Error: nil,
@@ -1809,7 +2157,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders:  nil,
 			},
 			Error: nil,
@@ -2111,7 +2459,6 @@ function main(x) {
 			ExpInterState: nil,
 			Error:         fmt.Errorf("protocol violation"),
 		},
-
 		{
 			Scenario: "filterOut_ignores_headers",
 			Src: `
@@ -2452,26 +2799,22 @@ var testJsEtlTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40
 var testJsDerivedTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35.972")
 var testJsCollectorTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35.972")
 var testJsDvceSentTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35")
+
 var testJSMap = map[string]any{
-	"event_version":       "1-0-0",
-	"app_id":              "test-data<>",
-	"dvce_created_tstamp": testJsDvceCreatedTstamp,
-	"event":               "unstruct",
-	"v_collector":         "ssc-0.15.0-googlepubsub",
-	"network_userid":      "d26822f5-52cc-4292-8f77-14ef6b7a27e2",
-	"event_name":          "add_to_cart",
-	"event_vendor":        "com.snowplowanalytics.snowplow",
-	"event_format":        "jsonschema",
-	"platform":            "pc",
-	"etl_tstamp":          testJsEtlTstamp,
-	"collector_tstamp":    testJsCollectorTstamp,
-	"user_id":             "user<built-in function input>",
-	"dvce_sent_tstamp":    testJsDvceSentTstamp,
-	"derived_tstamp":      testJsDerivedTstamp,
-	"event_id":            "e9234345-f042-46ad-b1aa-424464066a33",
-	"v_tracker":           "py-0.8.2",
-	"v_etl":               "beam-enrich-0.2.0-common-0.36.0",
-	"user_ipaddress":      "1.2.3.4",
+	"event_version":  "1-0-0",
+	"app_id":         "test-data<>",
+	"event":          "unstruct",
+	"v_collector":    "ssc-0.15.0-googlepubsub",
+	"network_userid": "d26822f5-52cc-4292-8f77-14ef6b7a27e2",
+	"event_name":     "add_to_cart",
+	"event_vendor":   "com.snowplowanalytics.snowplow",
+	"event_format":   "jsonschema",
+	"platform":       "pc",
+	"user_id":        "user<built-in function input>",
+	"event_id":       "e9234345-f042-46ad-b1aa-424464066a33",
+	"v_tracker":      "py-0.8.2",
+	"v_etl":          "beam-enrich-0.2.0-common-0.36.0",
+	"user_ipaddress": "1.2.3.4",
 	"unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1": map[string]any{
 		"quantity":  float64(2),
 		"unitPrice": 32.4,
@@ -2510,3 +2853,72 @@ var testJsJSON = []byte(`{"app_id":"test-data<>","collector_tstamp":"2019-05-10T
 var testJsJSONChanged1 = []byte(`{"app_id_CHANGED":"test-data<>","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"1.2.3.4","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
 var testJsJSONChanged2 = []byte(`{"collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"1.2.3.4","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2","app_id_CHANGED":"test-data<>"}`)
+
+// identical to testJsJSONChanged1 but of map[string]any type
+var testJsJSONChanged1Map = map[string]any{
+	"event_version":  "1-0-0",
+	"app_id_CHANGED": "test-data<>",
+	"event":          "unstruct",
+	"v_collector":    "ssc-0.15.0-googlepubsub",
+	"network_userid": "d26822f5-52cc-4292-8f77-14ef6b7a27e2",
+	"event_name":     "add_to_cart",
+	"event_vendor":   "com.snowplowanalytics.snowplow",
+	"event_format":   "jsonschema",
+	"platform":       "pc",
+	"user_id":        "user<built-in function input>",
+	"event_id":       "e9234345-f042-46ad-b1aa-424464066a33",
+	"v_tracker":      "py-0.8.2",
+	"v_etl":          "beam-enrich-0.2.0-common-0.36.0",
+	"user_ipaddress": "1.2.3.4",
+	"unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1": map[string]any{
+		"quantity":  float64(2),
+		"unitPrice": 32.4,
+		"currency":  "GBP",
+		"sku":       "item41",
+	},
+	"contexts_nl_basjes_yauaa_context_1": []any{
+		map[string]any{
+			"deviceName":               "Unknown",
+			"layoutEngineVersionMajor": "??",
+			"operatingSystemName":      "Unknown",
+			"deviceClass":              "Unknown",
+			"agentVersion":             "2.21.0",
+			"layoutEngineName":         "Unknown",
+			"layoutEngineClass":        "Unknown",
+			"agentName":                "python-requests",
+			"agentNameVersion":         "python-requests 2.21.0",
+			"operatingSystemVersion":   "??",
+			"agentClass":               "Special",
+			"deviceBrand":              "Unknown",
+			"agentVersionMajor":        "2",
+			"agentNameVersionMajor":    "python-requests 2",
+			"operatingSystemClass":     "Unknown",
+			"layoutEngineVersion":      "??",
+		},
+	},
+	"useragent": "python-requests/2.21.0",
+}
+
+var testTSVTimestampsMap = map[string]any{
+	"collector_tstamp":    testJsCollectorTstamp,
+	"derived_tstamp":      testJsDerivedTstamp,
+	"dvce_created_tstamp": testJsDvceCreatedTstamp,
+	"dvce_sent_tstamp":    testJsDvceSentTstamp,
+	"etl_tstamp":          testJsEtlTstamp,
+}
+
+var testJSONTimestampsMap = map[string]any{
+	"collector_tstamp":    "2019-05-10T14:40:35.972Z",
+	"derived_tstamp":      "2019-05-10T14:40:35.972Z",
+	"dvce_created_tstamp": "2019-05-10T14:40:35.551Z",
+	"dvce_sent_tstamp":    "2019-05-10T14:40:35Z",
+	"etl_tstamp":          "2019-05-10T14:40:37.436Z",
+}
+
+func mergeMaps(a, b map[string]any) map[string]any {
+	c := make(map[string]any)
+	maps.Copy(c, a)
+	maps.Copy(c, b)
+
+	return c
+}
