@@ -51,9 +51,8 @@ type WebhookMonitoring struct {
 
 	exitSignal chan struct{}
 
-	isHealthy     bool
-	currentError  error
-	lastAlertTime *time.Time
+	isHealthy    bool
+	currentError error
 }
 
 func NewWebhookMonitoring(appName, appVersion string, client WebhookSender, endpoint string, tags map[string]string, heartbeatInterval time.Duration, alertChan chan error) *WebhookMonitoring {
@@ -80,8 +79,6 @@ func (m *WebhookMonitoring) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				now := time.Now()
-
 				if m.isHealthy {
 					m.log.Info("Sending heartbeat")
 					event := WebhookEvent{
@@ -102,24 +99,17 @@ func (m *WebhookMonitoring) Start() {
 					if err != nil {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
 					}
-				} else if m.currentError != nil && m.lastAlertTime != nil {
-					// Check if backoff period has passed and we need to send another alert
-					if now.Sub(*m.lastAlertTime) >= m.heartbeatInterval {
-						m.sendAlert(m.currentError)
-						m.lastAlertTime = &now
-					}
+				} else if m.currentError != nil {
+					m.sendAlert(m.currentError)
 				}
 
 			case err := <-m.alertChan:
-				now := time.Now()
-
 				if err != nil {
 					// First alert gets sent immediatly
 					if m.isHealthy {
 						m.sendAlert(err)
 						m.isHealthy = false
 						m.currentError = err
-						m.lastAlertTime = &now
 					} else {
 						// In case error changes, we need to make sure it would be sent
 						m.currentError = err
@@ -128,7 +118,6 @@ func (m *WebhookMonitoring) Start() {
 					m.log.Debug("setup error resolved, resuming heartbeats")
 					m.isHealthy = true
 					m.currentError = nil
-					m.lastAlertTime = nil
 				}
 
 			case <-m.exitSignal:
