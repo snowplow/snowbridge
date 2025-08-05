@@ -101,7 +101,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 		webhook.Stop()
 	})
 
-	t.Run("simple alerts", func(t *testing.T) {
+	t.Run("continuous alerts with backoff", func(t *testing.T) {
 		counter := 0
 
 		onDo := func(b *http.Request) (*http.Response, error) {
@@ -123,24 +123,23 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 		sr := TestWebhookSender{onDo: onDo}
 		alertChan := make(chan error, 1)
 
-		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &sr, "https://test.webhook.com", nil, time.Second, alertChan)
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &sr, "https://test.webhook.com", nil, 500*time.Millisecond, alertChan)
 		assert.NotNil(webhook)
 
 		webhook.Start()
 
-		// Sent an error in
+		// Send initial error
 		alertChan <- fmt.Errorf("failed to connect to target API")
 
-		// And expect counter to increase by 1 (along side with expected alert event)
-		time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for webhook to process event
+		// Expect first alert to be sent immediately
+		time.Sleep(50 * time.Millisecond)
 		assert.Equal(counter, 1)
 
-		// Then, we another alert gets sent in, but it is not being sent
-		alertChan <- fmt.Errorf("failed to connect to target API")
+		// Wait for first backoff period to pass (500ms)
+		time.Sleep(550 * time.Millisecond)
 
-		// Here we confirm that nor new alert nor heartbeat were sent
-		time.Sleep(1100 * time.Millisecond)
-		assert.Equal(counter, 1)
+		// Second alert should be sent automatically after backoff
+		assert.GreaterOrEqual(counter, 2)
 
 		webhook.Stop()
 	})
@@ -193,6 +192,61 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 		// Here we confirm that once setup error gets resolved, we can continue with sending heartbeats as before
 		time.Sleep(1100 * time.Millisecond)
 		assert.Equal(counter, 2)
+
+		webhook.Stop()
+	})
+
+	t.Run("continuous alerts stopped when error resolved", func(t *testing.T) {
+		alertCount := 0
+		heartbeatCount := 0
+
+		onDo := func(b *http.Request) (*http.Response, error) {
+			assert.NotNil(b)
+
+			var actualBody WebhookEvent
+			if err := json.NewDecoder(b.Body).Decode(&actualBody); err != nil {
+				t.Fatalf("not expecting error: %s", err)
+			}
+
+			if strings.Contains(actualBody.Schema, "alert") {
+				assert.Equal(expectedAlertRequest.Body, actualBody)
+				alertCount++
+			} else if strings.Contains(actualBody.Schema, "heartbeat") {
+				assert.Equal(expectedHeartbeatRequest.Body, actualBody)
+				heartbeatCount++
+			}
+
+			return nil, nil
+		}
+
+		sr := TestWebhookSender{onDo: onDo}
+		alertChan := make(chan error, 1)
+
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &sr, "https://test.webhook.com", nil, 300*time.Millisecond, alertChan)
+		assert.NotNil(webhook)
+
+		webhook.Start()
+
+		// Send initial error
+		alertChan <- fmt.Errorf("failed to connect to target API")
+
+		// Expect first alert immediately
+		time.Sleep(50 * time.Millisecond)
+		assert.Equal(alertCount, 1)
+		assert.Equal(heartbeatCount, 0)
+
+		// Wait for first backoff period - should send second alert
+		time.Sleep(350 * time.Millisecond)
+		assert.Equal(alertCount, 2)
+		assert.Equal(heartbeatCount, 0)
+
+		// Resolve error before next backoff
+		alertChan <- nil
+
+		// Wait past backoff period - should resume heartbeats instead of alerts
+		time.Sleep(350 * time.Millisecond)
+		assert.Equal(alertCount, 2)     // No more alerts
+		assert.Equal(heartbeatCount, 1) // Heartbeat resumed
 
 		webhook.Stop()
 	})
