@@ -36,9 +36,9 @@ const (
 
 // PubSubTargetConfig configures the destination for records consumed
 type PubSubTargetConfig struct {
-	ProjectID           string `hcl:"project_id"`
-	TopicName           string `hcl:"topic_name"`
-	CredentialsJSONPath string `hcl:"credentials_json_path,optional"`
+	ProjectID       string `hcl:"project_id"`
+	TopicName       string `hcl:"topic_name"`
+	CredentialsPath string `hcl:"credentials_path,optional"`
 }
 
 // PubSubTarget holds a new client for writing messages to Google PubSub
@@ -59,14 +59,14 @@ type pubSubPublishResult struct {
 }
 
 // newPubSubTarget creates a new client for writing messages to Google PubSub
-func newPubSubTarget(projectID string, topicName string, credentialsJSONPath string) (*PubSubTarget, error) {
+func newPubSubTarget(projectID string, topicName string, credentialsPath string) (*PubSubTarget, error) {
 	ctx := context.Background()
 
 	// Build client options based on provided credentials
 	var opts []option.ClientOption
 
-	if credentialsJSONPath != "" {
-		opts = append(opts, option.WithCredentialsFile(credentialsJSONPath))
+	if credentialsPath != "" {
+		opts = append(opts, option.WithCredentialsFile(credentialsPath))
 	}
 
 	client, err := pubsub.NewClient(ctx, projectID, opts...)
@@ -84,7 +84,7 @@ func newPubSubTarget(projectID string, topicName string, credentialsJSONPath str
 
 // PubSubTargetConfigFunction creates PubSubTarget from PubSubTargetConfig
 func PubSubTargetConfigFunction(c *PubSubTargetConfig) (*PubSubTarget, error) {
-	return newPubSubTarget(c.ProjectID, c.TopicName, c.CredentialsJSONPath)
+	return newPubSubTarget(c.ProjectID, c.TopicName, c.CredentialsPath)
 }
 
 // The PubSubTargetAdapter type is an adapter for functions to be used as

@@ -361,9 +361,9 @@ func TestPubSubTargetConfigFunction_WithCredentials(t *testing.T) {
 
 	// Test config with credentials_json_path
 	config := &PubSubTargetConfig{
-		ProjectID:           "test-project",
-		TopicName:           "test-topic",
-		CredentialsJSONPath: "/path/to/nonexistent-creds.json",
+		ProjectID:       "test-project",
+		TopicName:       "test-topic",
+		CredentialsPath: "/path/to/nonexistent-creds.json",
 	}
 
 	// This will fail because the credentials file doesn't exist
