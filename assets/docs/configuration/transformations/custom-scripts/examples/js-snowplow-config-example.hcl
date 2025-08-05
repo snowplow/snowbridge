@@ -7,6 +7,8 @@ transform {
     # For this example, we use an environment variable, to facilitate unit tests. A hardcoded value may also be provided (eg. "/tmp/myscript.js")
     script_path = env.JS_SNOWPLOW_SCRIPT_PATH
 
-    snowplow_mode       = true # Snowplow mode enabled - this transforms the tsv to an object on input
+    # If the data is in JSON format, then it would be converted into an object to use in JS script
+    # If the data is not in JSON format, transformation would fail
+    json_mode = true # If true, then overrides snowplow_mode
   }
 }

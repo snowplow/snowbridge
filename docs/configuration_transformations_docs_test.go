@@ -106,7 +106,6 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 			testJSScriptCompiles(t, file)
 		case ".hcl":
 			isFull := strings.Contains(file, "full-example")
-
 			testTransformationConfig(t, file, isFull)
 		case "":
 			// If there's no extension, fail the test.
@@ -116,7 +115,6 @@ func TestScriptTransformationCustomScripts(t *testing.T) {
 			// Otherwise it's likely a typo or error.
 			assert.Fail("unexpected file extension found: %v", file)
 		}
-
 	}
 }
 
