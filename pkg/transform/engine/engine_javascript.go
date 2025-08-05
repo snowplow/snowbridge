@@ -33,6 +33,7 @@ type JSEngineConfig struct {
 	Script         string `hcl:"script,optional"`
 	RunTimeout     int    `hcl:"timeout_sec,optional"`
 	SpMode         bool   `hcl:"snowplow_mode,optional"`
+	JsonMode       bool   `hcl:"json_mode,optional"`
 	RemoveNulls    bool   `hcl:"remove_nulls,optional"`
 	HashSaltSecret string `hcl:"hash_salt_secret,optional"`
 }
@@ -42,6 +43,7 @@ type JSEngine struct {
 	Code           *goja.Program
 	RunTimeout     time.Duration
 	SpMode         bool
+	JsonMode       bool
 	RemoveNulls    bool
 	HashSaltSecret string
 }
@@ -134,6 +136,7 @@ func NewJSEngine(c *JSEngineConfig, script string) (*JSEngine, error) {
 		Code:           compiledCode,
 		RunTimeout:     time.Duration(c.RunTimeout) * time.Second,
 		SpMode:         c.SpMode,
+		JsonMode:       c.JsonMode,
 		RemoveNulls:    c.RemoveNulls,
 		HashSaltSecret: c.HashSaltSecret,
 	}
@@ -331,10 +334,31 @@ func mkJSEngineInput(e *JSEngine, message *models.Message, interState any) (*eng
 		HTTPHeaders: message.HTTPHeaders,
 	}
 
+	if e.JsonMode {
+		var cInput map[string]any
+		jErr := json.Unmarshal(message.Data, &cInput)
+		if jErr != nil {
+			return nil, fmt.Errorf("failed to transform input into JSON: %w", jErr)
+		}
+
+		candidate.Data = cInput
+		return candidate, nil
+	}
+
 	if !e.SpMode {
 		return candidate, nil
 	}
 
+	spMap, err := parseAsTSV(interState, message)
+	if err != nil {
+		return nil, err
+	}
+
+	candidate.Data = spMap
+	return candidate, nil
+}
+
+func parseAsTSV(interState any, message *models.Message) (map[string]any, error) {
 	parsedEvent, err := transform.IntermediateAsSpEnrichedParsed(interState, message)
 	if err != nil {
 		// if spMode, error for non Snowplow enriched event data
@@ -346,8 +370,7 @@ func mkJSEngineInput(e *JSEngine, message *models.Message, interState any) (*eng
 		return nil, err
 	}
 
-	candidate.Data = spMap
-	return candidate, nil
+	return spMap, nil
 }
 
 // validateJSEngineOut validates the value returned by the js engine.
