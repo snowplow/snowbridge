@@ -143,7 +143,7 @@ func defaultConfigData() *configurationData {
 
 		FailureTarget: &failureConfig{
 			Target: &use{Name: "stdout"},
-			Format: "snowplow",
+			Format: failure.SnowplowFailureTarget,
 		},
 		FilterTarget: &component{&use{Name: "silent"}},
 		Sentry: &sentryConfig{
