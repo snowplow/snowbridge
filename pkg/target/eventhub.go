@@ -115,15 +115,15 @@ func EventHubTargetConfigFunction(cfg *EventHubConfig) (*EventHubTarget, error) 
 
 // The EventHubTargetAdapter type is an adapter for functions to be used as
 // pluggable components for EventHub target. Implements the Pluggable interface.
-type EventHubTargetAdapter func(i interface{}) (interface{}, error)
+type EventHubTargetAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f EventHubTargetAdapter) Create(i interface{}) (interface{}, error) {
+func (f EventHubTargetAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f EventHubTargetAdapter) ProvideDefault() (interface{}, error) {
+func (f EventHubTargetAdapter) ProvideDefault() (any, error) {
 	// Provide defaults for the optional parameters
 	// whose default is not their zero value.
 	cfg := &EventHubConfig{
@@ -141,7 +141,7 @@ func (f EventHubTargetAdapter) ProvideDefault() (interface{}, error) {
 
 // AdaptEventHubTargetFunc returns an EventHubTargetAdapter.
 func AdaptEventHubTargetFunc(f func(c *EventHubConfig) (*EventHubTarget, error)) EventHubTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*EventHubConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected EventHubConfig")

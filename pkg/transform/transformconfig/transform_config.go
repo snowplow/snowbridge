@@ -51,7 +51,7 @@ func GetTransformations(c *config.Config, supportedTransformations []config.Conf
 			Input: useTransf.Body,
 		}
 
-		var component interface{}
+		var component any
 		var err error
 		for _, pair := range supportedTransformations {
 			if pair.Name == useTransf.Name {

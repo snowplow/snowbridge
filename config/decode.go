@@ -25,7 +25,7 @@ import (
 type Decoder interface {
 	// Decode decodes onto target given DecoderOptions.
 	// The target argument must be a pointer to an allocated structure.
-	Decode(opts *DecoderOptions, target interface{}) error
+	Decode(opts *DecoderOptions, target any) error
 }
 
 // DecoderOptions represent the options for a Decoder.
@@ -45,7 +45,7 @@ type hclDecoder struct {
 // The target argument must be a pointer to an allocated structure.
 // If the HCL input is nil, we assume there is nothing to do and the target
 // stays unaffected. If the target is nil, we assume is not decodable.
-func (h *hclDecoder) Decode(opts *DecoderOptions, target interface{}) error {
+func (h *hclDecoder) Decode(opts *DecoderOptions, target any) error {
 	// Decoder Options cannot be missing
 	if opts == nil {
 		return errors.New("missing DecoderOptions for hclDecoder")
@@ -155,6 +155,6 @@ type defaultsDecoder struct{}
 // Decode for defaultsDecoder leaves the target unaffected.
 // The target argument must be a pointer to an allocated structure.
 // If the target is nil, we assume is not decodable.
-func (d *defaultsDecoder) Decode(opts *DecoderOptions, target interface{}) error {
+func (d *defaultsDecoder) Decode(opts *DecoderOptions, target any) error {
 	return nil
 }

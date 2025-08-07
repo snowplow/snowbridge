@@ -141,7 +141,7 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 		use := transformation.Use
 
 		// Pick the config to compare against
-		var configObject interface{}
+		var configObject any
 		switch use.Name {
 		case "spEnrichedFilter":
 			configObject = &filter.AtomicFilterConfig{}

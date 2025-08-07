@@ -33,15 +33,15 @@ type UnstructFilterConfig struct {
 
 // The adapter type is an adapter for functions to be used as
 // pluggable components for spEnrichedFilterUnstructEvent transformation. It implements the Pluggable interface.
-type unstructFilterAdapter func(i interface{}) (interface{}, error)
+type unstructFilterAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f unstructFilterAdapter) Create(i interface{}) (interface{}, error) {
+func (f unstructFilterAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f unstructFilterAdapter) ProvideDefault() (interface{}, error) {
+func (f unstructFilterAdapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &UnstructFilterConfig{
 		UnstructEventVersionRegex: ".*",
@@ -52,7 +52,7 @@ func (f unstructFilterAdapter) ProvideDefault() (interface{}, error) {
 
 // adapterGenerator returns a spEnrichedFilterUnstructEvent transformation adapter.
 func unstructFilterAdapterGenerator(f func(c *UnstructFilterConfig) (transform.TransformationFunction, error)) unstructFilterAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*UnstructFilterConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
@@ -82,8 +82,8 @@ var UnstructFilterConfigPair = config.ConfigurationPair{
 // makeUnstructValueGetter creates a valueGetter for unstruct data.
 // Because the different types of filter require different arguments, we use a constructor to produce a valueGetter.
 // This allows them to be plugged into the createFilterFunction constructor.
-func makeUnstructValueGetter(eventName string, versionRegex *regexp.Regexp, path []interface{}) valueGetter {
-	return func(parsedEvent analytics.ParsedEvent) (value []interface{}, err error) {
+func makeUnstructValueGetter(eventName string, versionRegex *regexp.Regexp, path []any) valueGetter {
+	return func(parsedEvent analytics.ParsedEvent) (value []any, err error) {
 		eventNameFound, err := parsedEvent.GetValue(`event_name`)
 		if err != nil { // This field can't be empty for a valid event, so we return all errors here
 			return nil, err
@@ -111,7 +111,7 @@ func makeUnstructValueGetter(eventName string, versionRegex *regexp.Regexp, path
 			return nil, nil
 		}
 
-		return []interface{}{valueFound}, nil
+		return []any{valueFound}, nil
 	}
 }
 

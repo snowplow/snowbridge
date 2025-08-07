@@ -22,7 +22,7 @@ func TestNewSelfDescribingData(t *testing.T) {
 
 	sdd := NewSelfDescribingData(
 		"iglu:com.acme/test/jsonschema/1-0-0",
-		map[string]interface{}{
+		map[string]any{
 			"hello": "world",
 			"foo":   10,
 			"yes":   true,

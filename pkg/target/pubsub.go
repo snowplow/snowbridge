@@ -89,15 +89,15 @@ func PubSubTargetConfigFunction(c *PubSubTargetConfig) (*PubSubTarget, error) {
 
 // The PubSubTargetAdapter type is an adapter for functions to be used as
 // pluggable components for PubSub Target. It implements the Pluggable interface.
-type PubSubTargetAdapter func(i interface{}) (interface{}, error)
+type PubSubTargetAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f PubSubTargetAdapter) Create(i interface{}) (interface{}, error) {
+func (f PubSubTargetAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f PubSubTargetAdapter) ProvideDefault() (interface{}, error) {
+func (f PubSubTargetAdapter) ProvideDefault() (any, error) {
 	// Provide defaults if any
 	cfg := &PubSubTargetConfig{}
 
@@ -106,7 +106,7 @@ func (f PubSubTargetAdapter) ProvideDefault() (interface{}, error) {
 
 // AdaptPubSubTargetFunc returns a PubSubTargetAdapter.
 func AdaptPubSubTargetFunc(f func(c *PubSubTargetConfig) (*PubSubTarget, error)) PubSubTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*PubSubTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected PubSubTargetConfig")

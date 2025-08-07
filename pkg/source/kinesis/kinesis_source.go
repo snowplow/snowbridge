@@ -110,15 +110,15 @@ func configFunction(c *Configuration) (sourceiface.Source, error) {
 
 // The adapter type is an adapter for functions to be used as
 // pluggable components for Kinesis Source. Implements the Pluggable interface.
-type adapter func(i interface{}) (interface{}, error)
+type adapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f adapter) Create(i interface{}) (interface{}, error) {
+func (f adapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f adapter) ProvideDefault() (interface{}, error) {
+func (f adapter) ProvideDefault() (any, error) {
 	// Ensures as even as possible distribution of UUIDs
 	uuid.EnableRandPool()
 
@@ -136,7 +136,7 @@ func (f adapter) ProvideDefault() (interface{}, error) {
 
 // adapterGenerator returns a Kinesis Source adapter.
 func adapterGenerator(f func(c *Configuration) (sourceiface.Source, error)) adapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected configuration for kinesis source")
@@ -158,7 +158,7 @@ var ConfigPair = config.ConfigurationPair{
 type KinsumerLogrus struct{}
 
 // Log will print all Kinsumer logs as DEBUG lines
-func (kl *KinsumerLogrus) Log(format string, v ...interface{}) {
+func (kl *KinsumerLogrus) Log(format string, v ...any) {
 	log.WithFields(log.Fields{"source": "KinesisSource.Kinsumer"}).Debugf(format, v...)
 }
 

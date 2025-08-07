@@ -30,15 +30,15 @@ type ContextFilterConfig struct {
 
 // The adapter type is an adapter for functions to be used as
 // pluggable components for spEnrichedFilterContext transformation. It implements the Pluggable interface.
-type contextFilterAdapter func(i interface{}) (interface{}, error)
+type contextFilterAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f contextFilterAdapter) Create(i interface{}) (interface{}, error) {
+func (f contextFilterAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f contextFilterAdapter) ProvideDefault() (interface{}, error) {
+func (f contextFilterAdapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &ContextFilterConfig{}
 
@@ -47,7 +47,7 @@ func (f contextFilterAdapter) ProvideDefault() (interface{}, error) {
 
 // contextFilterAdapterGenerator returns a Context Filter adapter.
 func contextFilterAdapterGenerator(f func(c *ContextFilterConfig) (transform.TransformationFunction, error)) contextFilterAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*ContextFilterConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
@@ -76,22 +76,22 @@ var ContextFilterConfigPair = config.ConfigurationPair{
 // makeContextValueGetter creates a valueGetter for context data.
 // Because the different types of filter require different arguments, we use a constructor to produce a valueGetter.
 // This allows them to be plugged into the createFilterFunction constructor.
-func makeContextValueGetter(name string, path []interface{}) valueGetter {
-	return func(parsedEvent analytics.ParsedEvent) ([]interface{}, error) {
+func makeContextValueGetter(name string, path []any) valueGetter {
+	return func(parsedEvent analytics.ParsedEvent) ([]any, error) {
 		value, err := parsedEvent.GetContextValue(name, path...)
 		// We don't return an error for empty field since this just means the value is nil.
 		if err != nil && err.Error() != analytics.EmptyFieldErr {
 			return nil, err
 		}
 		// bug in analytics sdk requires the type casting below. https://github.com/snowplow/snowplow-golang-analytics-sdk/issues/36
-		// GetContextValue should always return []interface{} but instead it returns an interface{} which always contains type []interface{}
+		// GetContextValue should always return []any but instead it returns an any which always contains type []any
 
 		// if it's nil, return nil - we just didn't find any value.
 		if value == nil {
 			return nil, nil
 		}
 		// otherwise, type assertion.
-		valueFound, ok := value.([]interface{})
+		valueFound, ok := value.([]any)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("Context filter encountered unexpected type in getting value for path %v", path))
 		}

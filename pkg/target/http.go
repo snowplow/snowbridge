@@ -151,7 +151,7 @@ func loadRequestTemplate(templateFile string) (int, *template.Template, error) {
 func parseRequestTemplate(templateContent string) (*template.Template, error) {
 	customTemplateFunctions := template.FuncMap{
 		// If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
-		"prettyPrint": func(v interface{}) (string, error) {
+		"prettyPrint": func(v any) (string, error) {
 			bytes, err := json.Marshal(v)
 			if err != nil {
 				return "", err
@@ -266,15 +266,15 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 
 // The HTTPTargetAdapter type is an adapter for functions to be used as
 // pluggable components for HTTP Target. It implements the Pluggable interface.
-type HTTPTargetAdapter func(i interface{}) (interface{}, error)
+type HTTPTargetAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f HTTPTargetAdapter) Create(i interface{}) (interface{}, error) {
+func (f HTTPTargetAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f HTTPTargetAdapter) ProvideDefault() (interface{}, error) {
+func (f HTTPTargetAdapter) ProvideDefault() (any, error) {
 	return defaultConfiguration(), nil
 }
 
@@ -301,7 +301,7 @@ func defaultConfiguration() *HTTPTargetConfig {
 
 // AdaptHTTPTargetFunc returns an HTTPTargetAdapter.
 func AdaptHTTPTargetFunc(f func(c *HTTPTargetConfig) (*HTTPTarget, error)) HTTPTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*HTTPTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected HTTPTargetConfig")
@@ -524,10 +524,10 @@ func (ht *HTTPTarget) retrieveHeaders(msg *models.Message) map[string]string {
 
 // renderBatchUsingTemplate creates a request from a batch of messages based on configured template
 func (ht *HTTPTarget) renderBatchUsingTemplate(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
-	validJsons := []interface{}{}
+	validJsons := []any{}
 
 	for _, msg := range messages {
-		var asJSON interface{}
+		var asJSON any
 
 		if err := json.Unmarshal(msg.Data, &asJSON); err != nil {
 			msg.SetError(&models.TemplatingError{

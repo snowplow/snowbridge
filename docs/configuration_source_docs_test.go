@@ -55,7 +55,7 @@ func testSourceConfig(t *testing.T, filepath string, fullExample bool) {
 
 	use := c.Data.Source.Use
 
-	var configObject interface{}
+	var configObject any
 	switch use.Name {
 	case "kafka":
 		configObject = &kafkasource.Configuration{}

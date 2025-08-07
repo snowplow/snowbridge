@@ -200,7 +200,7 @@ func TestSQSSourceHCL(t *testing.T) {
 	testCases := []struct {
 		File     string
 		Plug     config.Pluggable
-		Expected interface{}
+		Expected any
 	}{
 		{
 			File: "source-sqs.hcl",
@@ -247,7 +247,7 @@ func TestSQSSourceHCL(t *testing.T) {
 
 // Helpers
 func testSQSSourceAdapter(f func(c *Configuration) (*Configuration, error)) adapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected SQSSourceConfig")
