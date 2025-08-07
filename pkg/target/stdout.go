@@ -60,15 +60,15 @@ func StdoutTargetConfigFunction(c *StdoutTargetConfig) (*StdoutTarget, error) {
 
 // The StdoutTargetAdapter type is an adapter for functions to be used as
 // pluggable components for Stdout Target. It implements the Pluggable interface.
-type StdoutTargetAdapter func(i interface{}) (interface{}, error)
+type StdoutTargetAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f StdoutTargetAdapter) Create(i interface{}) (interface{}, error) {
+func (f StdoutTargetAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f StdoutTargetAdapter) ProvideDefault() (interface{}, error) {
+func (f StdoutTargetAdapter) ProvideDefault() (any, error) {
 	cfg := &StdoutTargetConfig{}
 
 	return cfg, nil
@@ -76,7 +76,7 @@ func (f StdoutTargetAdapter) ProvideDefault() (interface{}, error) {
 
 // AdaptStdoutTargetFunc returns StdoutTargetAdapter.
 func AdaptStdoutTargetFunc(f func(c *StdoutTargetConfig) (*StdoutTarget, error)) StdoutTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*StdoutTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected StdoutTargetConfig")

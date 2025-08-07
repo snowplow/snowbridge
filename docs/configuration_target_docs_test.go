@@ -74,7 +74,7 @@ func testFilterTargetConfig(t *testing.T, filepath string, fullExample bool) {
 
 func testTargetComponent(t *testing.T, name string, body hcl.Body, fullExample bool) {
 	assert := assert.New(t)
-	var configObject interface{}
+	var configObject any
 	switch name {
 	case "eventhub":
 		configObject = &target.EventHubConfig{}

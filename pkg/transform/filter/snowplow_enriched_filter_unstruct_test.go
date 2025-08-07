@@ -26,14 +26,14 @@ func TestMakeUnstructValueGetter(t *testing.T) {
 
 	re1 := regexp.MustCompile("1-*-*")
 
-	unstructGetter := makeUnstructValueGetter("add_to_cart", re1, []interface{}{"sku"})
+	unstructGetter := makeUnstructValueGetter("add_to_cart", re1, []any{"sku"})
 
 	res, err := unstructGetter(transform.SpTsv1Parsed)
 
-	assert.Equal([]interface{}{"item41"}, res)
+	assert.Equal([]any{"item41"}, res)
 	assert.Nil(err)
 
-	unstructGetterWrongPath := makeUnstructValueGetter("add_to_cart", re1, []interface{}{"notSku"})
+	unstructGetterWrongPath := makeUnstructValueGetter("add_to_cart", re1, []any{"notSku"})
 
 	// If it's not in the event, both should be nil
 	res2, err2 := unstructGetterWrongPath(transform.SpTsv1Parsed)
@@ -44,7 +44,7 @@ func TestMakeUnstructValueGetter(t *testing.T) {
 	// test that wrong schema version behaves appropriately (return nil nil)
 	re2 := regexp.MustCompile("2-*-*")
 
-	unstructWrongSchemaGetter := makeUnstructValueGetter("add_to_cart", re2, []interface{}{"sku"})
+	unstructWrongSchemaGetter := makeUnstructValueGetter("add_to_cart", re2, []any{"sku"})
 
 	res3, err3 := unstructWrongSchemaGetter(transform.SpTsv1Parsed)
 
@@ -54,16 +54,16 @@ func TestMakeUnstructValueGetter(t *testing.T) {
 	// test that not specifying a version behaves appropriately (accepts all versions)
 	re3 := regexp.MustCompile("")
 
-	unstructAnyVersionGetter := makeUnstructValueGetter("add_to_cart", re3, []interface{}{"sku"})
+	unstructAnyVersionGetter := makeUnstructValueGetter("add_to_cart", re3, []any{"sku"})
 
 	res4, err4 := unstructAnyVersionGetter(transform.SpTsv1Parsed)
 
-	assert.Equal([]interface{}{"item41"}, res4)
+	assert.Equal([]any{"item41"}, res4)
 	assert.Nil(err4)
 
 	// test that wrong event name behaves appropriately (return nil nil)
 
-	unstructWrongEvnetName := makeUnstructValueGetter("not_add_to_cart_at_all", re3, []interface{}{"sku"})
+	unstructWrongEvnetName := makeUnstructValueGetter("not_add_to_cart_at_all", re3, []any{"sku"})
 
 	res5, err5 := unstructWrongEvnetName(transform.SpTsv1Parsed)
 

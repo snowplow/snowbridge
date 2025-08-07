@@ -129,10 +129,10 @@ func TestEvaluateSpEnrichedFilter(t *testing.T) {
 		panic(err)
 	}
 
-	valuesFound := []interface{}{"NO", "maybe", "yes"}
+	valuesFound := []any{"NO", "maybe", "yes"}
 	assert.True(evaluateSpEnrichedFilter(regex, valuesFound))
 
-	valuesFound2 := []interface{}{"NO", "maybe", "nope", nil}
+	valuesFound2 := []any{"NO", "maybe", "nope", nil}
 	assert.False(evaluateSpEnrichedFilter(regex, valuesFound2))
 
 	regexInt, err := regexp.Compile("^123$")
@@ -140,7 +140,7 @@ func TestEvaluateSpEnrichedFilter(t *testing.T) {
 		panic(err)
 	}
 
-	valuesFound3 := []interface{}{123, "maybe", "nope", nil}
+	valuesFound3 := []any{123, "maybe", "nope", nil}
 	assert.True(evaluateSpEnrichedFilter(regexInt, valuesFound3))
 
 	// This asserts that when any element of the input is nil, we assert against empty string.
@@ -150,10 +150,10 @@ func TestEvaluateSpEnrichedFilter(t *testing.T) {
 		panic(err)
 	}
 
-	assert.True(evaluateSpEnrichedFilter(regexNil, []interface{}{nil}))
+	assert.True(evaluateSpEnrichedFilter(regexNil, []any{nil}))
 
 	// just to make sure the regex only matches empty:
-	assert.False(evaluateSpEnrichedFilter(regexNil, []interface{}{"a"}))
+	assert.False(evaluateSpEnrichedFilter(regexNil, []any{"a"}))
 
 	// These tests ensures that when getters return a nil slice, we're still asserting against the empty value.
 	// This is important since we have negative lookaheads.
@@ -166,28 +166,28 @@ func TestParsePathToArguments(t *testing.T) {
 
 	// Common case
 	path1, err1 := parsePathToArguments("test1[123].test2[1].test3")
-	expectedPath1 := []interface{}{"test1", 123, "test2", 1, "test3"}
+	expectedPath1 := []any{"test1", 123, "test2", 1, "test3"}
 
 	assert.Equal(expectedPath1, path1)
 	assert.Nil(err1)
 
 	// Success edge case - field names with different character
 	path2, err2 := parsePathToArguments("test-1.test_2[1].test$3")
-	expectedPath2 := []interface{}{"test-1", "test_2", 1, "test$3"}
+	expectedPath2 := []any{"test-1", "test_2", 1, "test$3"}
 
 	assert.Equal(expectedPath2, path2)
 	assert.Nil(err2)
 
 	// Success edge case - field name is stringified int
 	path3, err3 := parsePathToArguments("123.456[1].789")
-	expectedPath3 := []interface{}{"123", "456", 1, "789"}
+	expectedPath3 := []any{"123", "456", 1, "789"}
 
 	assert.Equal(expectedPath3, path3)
 	assert.Nil(err3)
 
 	// Success edge case - nested arrays
 	path4, err4 := parsePathToArguments("test1.test2[1][2].test3")
-	expectedPath4 := []interface{}{"test1", "test2", 1, 2, "test3"}
+	expectedPath4 := []any{"test1", "test2", 1, 2, "test3"}
 
 	assert.Equal(expectedPath4, path4)
 	assert.Nil(err4)

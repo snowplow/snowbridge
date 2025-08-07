@@ -23,11 +23,11 @@ import (
 func TestMakeContextValueGetter(t *testing.T) {
 	assert := assert.New(t)
 
-	contextGetter := makeContextValueGetter("contexts_nl_basjes_yauaa_context_1", []interface{}{"test1", "test2", 0, "test3"})
+	contextGetter := makeContextValueGetter("contexts_nl_basjes_yauaa_context_1", []any{"test1", "test2", 0, "test3"})
 
 	res, err := contextGetter(transform.SpTsv3Parsed)
 
-	assert.Equal([]interface{}{"testValue"}, res)
+	assert.Equal([]any{"testValue"}, res)
 	assert.Nil(err)
 
 	res2, err2 := contextGetter(transform.SpTsv1Parsed)
@@ -36,11 +36,11 @@ func TestMakeContextValueGetter(t *testing.T) {
 	assert.Nil(res2)
 	assert.Nil(err2)
 
-	contextGetterArray := makeContextValueGetter("contexts_com_acme_just_ints_1", []interface{}{"integerField"})
+	contextGetterArray := makeContextValueGetter("contexts_com_acme_just_ints_1", []any{"integerField"})
 
 	res3, err3 := contextGetterArray(transform.SpTsv1Parsed)
 
-	assert.Equal([]interface{}{float64(0), float64(1), float64(2)}, res3)
+	assert.Equal([]any{float64(0), float64(1), float64(2)}, res3)
 	assert.Nil(err3)
 }
 

@@ -22,7 +22,7 @@ import (
 // This transformation is not like other configurable transformations - it's enabled/disabled based on top-level metric configuration toggle (`metrics.enable_e2e_latency`)
 // It doesn't produce invalid data in case of errors - it logs a warning and proceeds with input data as nothing happened.
 func CollectorTstampTransformation() TransformationFunction {
-	return func(message *models.Message, interState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		parsedEvent, err := IntermediateAsSpEnrichedParsed(interState, message)
 		if err != nil {
 			log.Warnf("Error while extracting 'collector_tstamp': %s", err)

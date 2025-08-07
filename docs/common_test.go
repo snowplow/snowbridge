@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 
 var jsScriptPath = filepath.Join(assets.AssetsRootDir, "docs", "configuration", "transformations", "custom-scripts", "create-a-script-filter-example.js")
 
-func checkComponentForZeros(t *testing.T, component interface{}) {
+func checkComponentForZeros(t *testing.T, component any) {
 	assert := assert.New(t)
 
 	// Indirect dereferences the pointer for us

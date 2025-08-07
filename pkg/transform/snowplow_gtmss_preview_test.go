@@ -34,9 +34,9 @@ func TestGTMSSPreview(t *testing.T) {
 		HeaderKey       string
 		Expiry          time.Duration
 		InputMsg        *models.Message
-		InputInterState interface{}
+		InputInterState any
 		Expected        map[string]*models.Message
-		ExpInterState   interface{}
+		ExpInterState   any
 		Error           error
 	}{
 		{

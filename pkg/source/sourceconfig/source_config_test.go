@@ -48,19 +48,19 @@ func configfunction(c *configuration) (sourceiface.Source, error) {
 	return mockSource{}, nil
 }
 
-type adapter func(i interface{}) (interface{}, error)
+type adapter func(i any) (any, error)
 
 func adapterGenerator(_ func(c *configuration) (sourceiface.Source, error)) adapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		return mockSource{}, nil
 	}
 }
 
-func (f adapter) Create(i interface{}) (interface{}, error) {
+func (f adapter) Create(i any) (any, error) {
 	return f(i)
 }
 
-func (f adapter) ProvideDefault() (interface{}, error) {
+func (f adapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &configuration{}
 
@@ -120,7 +120,7 @@ func TestGetSource_InvalidSource(t *testing.T) {
 
 // Mock a broken adapter generator implementation
 func brokenAdapterGenerator(_ func(c *configuration) (sourceiface.Source, error)) adapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		return nil, nil
 	}
 }

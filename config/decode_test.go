@@ -41,8 +41,8 @@ test_string = "ateststring"
 	testCases := []struct {
 		TestName    string
 		DecoderOpts *DecoderOptions
-		Target      interface{}
-		Expected    interface{}
+		Target      any
+		Expected    any
 	}{
 		{
 			"nil_target",
@@ -114,8 +114,8 @@ test_int = env("TEST_INT")
 	testCases := []struct {
 		TestName    string
 		DecoderOpts *DecoderOptions
-		Target      interface{}
-		Expected    interface{}
+		Target      any
+		Expected    any
 	}{
 		{
 			"Hcl_eval_context_with_env_fun_and_var",
