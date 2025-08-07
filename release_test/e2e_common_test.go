@@ -155,7 +155,7 @@ func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePa
 	expectedWithEids := make(map[string]string)
 
 	for _, row := range foundData {
-		var asMap map[string]interface{}
+		var asMap map[string]any
 		err = json.Unmarshal([]byte(row), &asMap)
 		if err != nil {
 			panic(err)
@@ -168,7 +168,7 @@ func evaluateTestCaseJSONString(t *testing.T, foundData []string, expectedFilePa
 
 	for _, row := range expectedData {
 
-		var asMap map[string]interface{}
+		var asMap map[string]any
 		err = json.Unmarshal([]byte(row), &asMap)
 		if err != nil {
 			panic(err)

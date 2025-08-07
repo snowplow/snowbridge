@@ -102,7 +102,7 @@ func Benchmark_Transform_EnrichToJson(b *testing.B) {
 	}
 }
 
-func testfunc(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+func testfunc(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 	return message, nil, nil, nil
 }
 

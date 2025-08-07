@@ -83,15 +83,15 @@ func NewStatsDReceiverWithTags(tags map[string]string, enableE2ELatency bool) fu
 // The StatsDStatsReceiverAdapter type is an adapter for functions to be used as
 // pluggable components for StatsD Stats Receiver.
 // It implements the Pluggable interface.
-type StatsDStatsReceiverAdapter func(i interface{}) (interface{}, error)
+type StatsDStatsReceiverAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f StatsDStatsReceiverAdapter) Create(i interface{}) (interface{}, error) {
+func (f StatsDStatsReceiverAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f StatsDStatsReceiverAdapter) ProvideDefault() (interface{}, error) {
+func (f StatsDStatsReceiverAdapter) ProvideDefault() (any, error) {
 	// Provide defaults for the optional parameters
 	// whose default is not their zero value.
 	cfg := &StatsDStatsReceiverConfig{
@@ -104,7 +104,7 @@ func (f StatsDStatsReceiverAdapter) ProvideDefault() (interface{}, error) {
 
 // AdaptStatsDStatsReceiverFunc returns a StatsDStatsReceiverAdapter.
 func AdaptStatsDStatsReceiverFunc(f func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error)) StatsDStatsReceiverAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*StatsDStatsReceiverConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected StatsDStatsReceiverConfig")

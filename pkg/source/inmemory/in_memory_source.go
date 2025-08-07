@@ -44,20 +44,20 @@ func configfunction(messages chan []string) func(c *configuration) (sourceiface.
 	}
 }
 
-type adapter func(i interface{}) (interface{}, error)
+type adapter func(i any) (any, error)
 
-func (f adapter) Create(i interface{}) (interface{}, error) {
+func (f adapter) Create(i any) (any, error) {
 	return f(i)
 }
 
-func (f adapter) ProvideDefault() (interface{}, error) {
+func (f adapter) ProvideDefault() (any, error) {
 	cfg := &configuration{}
 
 	return cfg, nil
 }
 
 func adapterGenerator(f func(c *configuration) (sourceiface.Source, error)) adapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*configuration)
 		if !ok {
 			return nil, errors.New("invalid input")

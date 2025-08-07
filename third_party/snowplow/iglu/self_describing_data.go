@@ -19,17 +19,17 @@ import (
 // which encompasses a schema key and a data payload
 type SelfDescribingData struct {
 	schema string
-	data   interface{}
+	data   any
 }
 
 // NewSelfDescribingData creates a new SDJ struct.
-func NewSelfDescribingData(schema string, data interface{}) *SelfDescribingData {
+func NewSelfDescribingData(schema string, data any) *SelfDescribingData {
 	return &SelfDescribingData{schema: schema, data: data}
 }
 
 // Get wraps the schema and data into a map.
-func (s SelfDescribingData) Get() map[string]interface{} {
-	return map[string]interface{}{
+func (s SelfDescribingData) Get() map[string]any {
+	return map[string]any{
 		"schema": s.schema,
 		"data":   s.data,
 	}

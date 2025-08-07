@@ -27,11 +27,11 @@ import (
 // evaluateSpEnrichedfilter takes a regex and a slice of values, and returns whether or not a value has been matched
 // If a value is nil, it matches against the empty string (regardless of type)
 // If the type is not string the value is cast to string using fmt.Sprintf()
-func evaluateSpEnrichedFilter(re *regexp.Regexp, valuesFound []interface{}) bool {
+func evaluateSpEnrichedFilter(re *regexp.Regexp, valuesFound []any) bool {
 	// if valuesFound is nil, we found no value.
 	// Because negative matches are a thing, we still want to match against an empty string
 	if valuesFound == nil {
-		valuesFound = make([]interface{}, 1)
+		valuesFound = make([]any, 1)
 	}
 	for _, v := range valuesFound {
 		if v == nil {
@@ -65,7 +65,7 @@ func createFilterFunction(regex string, getFunc valueGetter, filterAction string
 		return nil, errors.Wrap(err, `error compiling regex for filter`)
 	}
 
-	return func(message *models.Message, intermediateState interface{}) (*models.Message, *models.Message, *models.Message, interface{}) {
+	return func(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 
 		// Evaluate intermediateState to parsedEvent
 		parsedEvent, parseErr := transform.IntermediateAsSpEnrichedParsed(intermediateState, message)
@@ -102,11 +102,11 @@ func createFilterFunction(regex string, getFunc valueGetter, filterAction string
 
 // valueGetter is a function that can hold the logic for getting values in the case of base, context, and unstruct fields,
 // which respecively require different logic.
-type valueGetter func(analytics.ParsedEvent) ([]interface{}, error)
+type valueGetter func(analytics.ParsedEvent) ([]any, error)
 
 // parsePathToArguments parses a string path to custom data (eg. `test1.test2[0].test3`)
 // into the slice of interfaces expected by the analytics SDK's Get() methods.
-func parsePathToArguments(pathToField string) ([]interface{}, error) {
+func parsePathToArguments(pathToField string) ([]any, error) {
 	// validate that an edge case (unmatched opening brace) isn't present
 	if strings.Count(pathToField, "[") != strings.Count(pathToField, "]") {
 		return nil, errors.New(fmt.Sprint("unmatched brace in path: ", pathToField))
@@ -119,7 +119,7 @@ func parsePathToArguments(pathToField string) ([]interface{}, error) {
 	// regex to identify arrays
 	arrayRegex := regexp.MustCompile(`\[\d+\]`)
 
-	convertedPath := make([]interface{}, 0)
+	convertedPath := make([]any, 0)
 	for _, part := range parts {
 
 		if arrayRegex.MatchString(part) { // handle arrays first
