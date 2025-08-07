@@ -403,7 +403,7 @@ func TestKinesisSourceHCL(t *testing.T) {
 
 // Helpers
 func testKinesisSourceAdapter(f func(c *Configuration) (*Configuration, error)) adapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected KinesisSourceConfig")

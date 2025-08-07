@@ -30,7 +30,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 	testCases := []struct {
 		File     string
 		Plug     Pluggable
-		Expected interface{}
+		Expected any
 	}{
 		{
 			File: "targets/sqs-minimal-example.hcl",
@@ -263,7 +263,7 @@ func TestCreateObserverComponentHCL(t *testing.T) {
 	testCases := []struct {
 		File     string
 		Plug     Pluggable
-		Expected interface{}
+		Expected any
 	}{
 		{
 			File: "observer.hcl",
@@ -313,7 +313,7 @@ func TestCreateObserverComponentHCL(t *testing.T) {
 // Test Helpers
 // SQS
 func testSQSTargetAdapter(f func(c *target.SQSTargetConfig) (*target.SQSTargetConfig, error)) target.SQSTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*target.SQSTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected SQSTargetConfig")
@@ -331,7 +331,7 @@ func testSQSTargetFunc(c *target.SQSTargetConfig) (*target.SQSTargetConfig, erro
 
 // EventHub
 func testEventHubTargetAdapter(f func(c *target.EventHubConfig) (*target.EventHubConfig, error)) target.EventHubTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*target.EventHubConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected EventHubTargetConfig")
@@ -349,7 +349,7 @@ func testEventHubTargetFunc(c *target.EventHubConfig) (*target.EventHubConfig, e
 
 // HTTP
 func testHTTPTargetAdapter(f func(c *target.HTTPTargetConfig) (*target.HTTPTargetConfig, error)) target.HTTPTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*target.HTTPTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected HTTPTargetConfig")
@@ -367,7 +367,7 @@ func testHTTPTargetFunc(c *target.HTTPTargetConfig) (*target.HTTPTargetConfig, e
 
 // Kafka
 func testKafkaTargetAdapter(f func(c *target.KafkaConfig) (*target.KafkaConfig, error)) target.KafkaTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*target.KafkaConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected KafkaTargetConfig")
@@ -385,7 +385,7 @@ func testKafkaTargetFunc(c *target.KafkaConfig) (*target.KafkaConfig, error) {
 
 // Kinesis
 func testKinesisTargetAdapter(f func(c *target.KinesisTargetConfig) (*target.KinesisTargetConfig, error)) target.KinesisTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*target.KinesisTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected KinesisTargetConfig")
@@ -403,7 +403,7 @@ func testKinesisTargetFunc(c *target.KinesisTargetConfig) (*target.KinesisTarget
 
 // PubSub
 func testPubSubTargetAdapter(f func(c *target.PubSubTargetConfig) (*target.PubSubTargetConfig, error)) target.PubSubTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*target.PubSubTargetConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected PubSubTargetConfig")
@@ -421,7 +421,7 @@ func testPubSubTargetFunc(c *target.PubSubTargetConfig) (*target.PubSubTargetCon
 
 // StatsD
 func testStatsDAdapter(f func(c *statsreceiver.StatsDStatsReceiverConfig) (*statsreceiver.StatsDStatsReceiverConfig, error)) statsreceiver.StatsDStatsReceiverAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*statsreceiver.StatsDStatsReceiverConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected StatsDStatsReceiverConfig")

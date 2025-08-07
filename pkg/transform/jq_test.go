@@ -28,9 +28,9 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 		Scenario        string
 		JQCommand       string
 		InputMsg        *models.Message
-		InputInterState interface{}
+		InputInterState any
 		Expected        map[string]*models.Message
-		ExpInterState   interface{}
+		ExpInterState   any
 		Error           error
 	}{
 		{
@@ -336,9 +336,9 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 		Scenario        string
 		JQCommand       string
 		InputMsg        *models.Message
-		InputInterState interface{}
+		InputInterState any
 		Expected        map[string]*models.Message
-		ExpInterState   interface{}
+		ExpInterState   any
 		Error           error
 	}{
 		{
@@ -595,9 +595,9 @@ func TestJQRunFunction_errors(t *testing.T) {
 		Scenario        string
 		JQConfig        *JQMapperConfig
 		InputMsg        *models.Message
-		InputInterState interface{}
+		InputInterState any
 		Expected        map[string]*models.Message
-		ExpInterState   interface{}
+		ExpInterState   any
 		Error           error
 	}{
 		{

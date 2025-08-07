@@ -29,21 +29,21 @@ func SilentTargetConfigFunction() (*SilentTarget, error) {
 
 // The SilentTargetAdapter type is an adapter for functions to be used as
 // pluggable components for Silent Target. It implements the Pluggable interface.
-type SilentTargetAdapter func(i interface{}) (interface{}, error)
+type SilentTargetAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f SilentTargetAdapter) Create(i interface{}) (interface{}, error) {
+func (f SilentTargetAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface.
-func (f SilentTargetAdapter) ProvideDefault() (interface{}, error) {
+func (f SilentTargetAdapter) ProvideDefault() (any, error) {
 	return nil, nil
 }
 
 // AdaptSilentTargetFunc returns SilentTargetAdapter.
 func AdaptSilentTargetFunc(f func() (*SilentTarget, error)) SilentTargetAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		if i != nil {
 			return nil, errors.New("unexpected configuration input for Silent target")
 		}

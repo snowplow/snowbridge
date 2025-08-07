@@ -27,15 +27,15 @@ type AtomicFilterConfig struct {
 
 // The adapter type is an adapter for functions to be used as
 // pluggable components for spEnrichedFilter transformation. It implements the Pluggable interface.
-type atomicFilterAdapter func(i interface{}) (interface{}, error)
+type atomicFilterAdapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f atomicFilterAdapter) Create(i interface{}) (interface{}, error) {
+func (f atomicFilterAdapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f atomicFilterAdapter) ProvideDefault() (interface{}, error) {
+func (f atomicFilterAdapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &AtomicFilterConfig{}
 
@@ -44,7 +44,7 @@ func (f atomicFilterAdapter) ProvideDefault() (interface{}, error) {
 
 // adapterGenerator returns a spEnrichedFilter transformation adapter.
 func atomicFilterAdapterGenerator(f func(c *AtomicFilterConfig) (transform.TransformationFunction, error)) atomicFilterAdapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*AtomicFilterConfig)
 		if !ok {
 			return nil, errors.New("invalid input, expected spEnrichedFilterConfig")
@@ -73,14 +73,14 @@ var AtomicFilterConfigPair = config.ConfigurationPair{
 // Because the different types of filter require different arguments, we use a constructor to produce a valueGetter.
 // This allows them to be plugged into the createFilterFunction constructor.
 func makeBaseValueGetter(field string) valueGetter {
-	return func(parsedEvent analytics.ParsedEvent) (value []interface{}, err error) {
+	return func(parsedEvent analytics.ParsedEvent) (value []any, err error) {
 		// find the value in the event
 		valueFound, err := parsedEvent.GetValue(field)
 		// We don't return an error for empty field since this just means the value is nil.
 		if err != nil && err.Error() != analytics.EmptyFieldErr {
 			return nil, err
 		}
-		return []interface{}{valueFound}, nil
+		return []any{valueFound}, nil
 	}
 }
 

@@ -164,7 +164,7 @@ func (ks *kafkaSource) Stop() {
 
 // adapterGenerator returns a Kafka Source adapter.
 func adapterGenerator(f func(c *Configuration) (sourceiface.Source, error)) adapter {
-	return func(i interface{}) (interface{}, error) {
+	return func(i any) (any, error) {
 		cfg, ok := i.(*Configuration)
 		if !ok {
 			return nil, errors.New("invalid input, expected KafkaSourceConfig")
@@ -187,15 +187,15 @@ func configFunction(c *Configuration) (sourceiface.Source, error) {
 
 // The adapter type is an adapter for functions to be used as
 // pluggable components for Kafka Source. It implements the Pluggable interface.
-type adapter func(i interface{}) (interface{}, error)
+type adapter func(i any) (any, error)
 
 // Create implements the ComponentCreator interface.
-func (f adapter) Create(i interface{}) (interface{}, error) {
+func (f adapter) Create(i any) (any, error) {
 	return f(i)
 }
 
 // ProvideDefault implements the ComponentConfigurable interface
-func (f adapter) ProvideDefault() (interface{}, error) {
+func (f adapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &Configuration{
 		Assignor:         "range",

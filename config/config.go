@@ -235,7 +235,7 @@ func NewHclConfig(fileContents []byte, filename string) (*Config, error) {
 }
 
 // CreateComponent creates a pluggable component given the Decoder options.
-func (c *Config) CreateComponent(p Pluggable, opts *DecoderOptions) (interface{}, error) {
+func (c *Config) CreateComponent(p Pluggable, opts *DecoderOptions) (any, error) {
 	componentConfigure := withDecoderOptions(opts)
 
 	decodedConfig, err := componentConfigure(p, c.Decoder)
