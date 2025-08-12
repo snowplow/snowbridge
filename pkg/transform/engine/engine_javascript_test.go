@@ -13,12 +13,14 @@ package engine
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/pkg/models"
@@ -79,15 +81,15 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "asdf",
+				Data:         map[string]any{"Data": "asdf"},
 			},
 			Error: nil,
 		},
 		{
 			Src: `
 function main(x) {
-   let newVal = "Hello:" + x.Data;
-   x.Data = newVal;
+   let newVal = "Hello:" + x.Data['Data'];
+   x.Data['Data'] = newVal;
    return x;
 }
 `,
@@ -107,7 +109,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "Hello:asdf",
+				Data:         map[string]any{"Data": "Hello:asdf"},
 			},
 			Error: nil,
 		},
@@ -134,14 +136,14 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "asdf",
+				Data:         map[string]any{"Data": "asdf"},
 			},
 			Error: nil,
 		},
 		{
 			Src: `
 function main(x) {
-   if (Object.prototype.toString.call(x.Data) === '[object String]') {
+   if (Object.prototype.toString.call(x.Data['Data']) === '[object String]') {
        return {
            FilterOut: true,
        };
@@ -170,17 +172,12 @@ function main(x) {
 			Error:         nil,
 		},
 		{
+			Scenario: "for JSON []byte input, we get map[string]any in interstate and JSON []byte in output",
 			Src: `
-function main(x) {
-   var jsonObj = JSON.parse(x.Data);
-   var result = JSON.stringify(jsonObj);
-
-   return {
-       Data: result
-   };
-}
-`,
-			Scenario: "jsonIdentity",
+			function main(x) {
+				return x;
+			}
+			`,
 			Input: &models.Message{
 				Data:         testJsJSON,
 				PartitionKey: "some-test-key",
@@ -196,23 +193,20 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         string(testJsJSON),
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
 		},
 		{
 			Src: `
-function main(x) {
-   var jsonObj = JSON.parse(x.Data);
-
-   if (jsonObj.hasOwnProperty("app_id")) {
-       x.Data = x.Data.replace(/app_id/, 'app_id_CHANGED');
-   }
-
-   return x;
-}
-`,
+				function main(x) {
+					if (x.Data.hasOwnProperty("app_id")) {
+						delete Object.assign(x.Data, {['app_id_CHANGED']: x.Data['app_id'] })['app_id'];
+					}
+					return x;
+				}
+			`,
 			Scenario: "jsonTransformFieldNameRegex",
 			Input: &models.Message{
 				Data:         testJsJSON,
@@ -229,26 +223,20 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         string(testJsJSONChanged1),
+				Data:         mergeMaps(testJsJSONChanged1Map, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
 		},
 		{
 			Src: `
-function main(x) {
-
-   var jsonObj = JSON.parse(x.Data);
-
-   var descriptor = Object.getOwnPropertyDescriptor(jsonObj, "app_id");
-   Object.defineProperty(jsonObj, "app_id_CHANGED", descriptor);
-   delete jsonObj["app_id"];
-
-   return {
-       Data: JSON.stringify(jsonObj)
-   };
-}
-`,
+			function main(x) {
+				if (x.Data.hasOwnProperty("app_id")) {
+					delete Object.assign(x.Data, {['app_id_CHANGED']: x.Data['app_id'] })['app_id'];
+				}
+				return x;
+			}
+			`,
 			Scenario: "jsonTransformFieldNameObj",
 			Input: &models.Message{
 				Data:         testJsJSON,
@@ -265,7 +253,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         string(testJsJSONChanged2),
+				Data:         mergeMaps(testJsJSONChanged1Map, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -273,15 +261,12 @@ function main(x) {
 		{
 			Src: `
 function main(x) {
-   var jsonObj = JSON.parse(x.Data);
-
-   if (jsonObj.hasOwnProperty("app_id") && jsonObj["app_id"] === "filterMeOut") {
-       x.FilterOut = false;
-   } else {
-       x.FilterOut = true;
-   }
-
-   return x;
+	if (x.Data.hasOwnProperty("app_id") && x.Data["app_id"] === "filterMeOut") {
+		x.FilterOut = false;
+	} else {
+		x.FilterOut = true;
+	}
+	return x;
 }
 `,
 			Scenario: "jsonFilterOut",
@@ -413,11 +398,11 @@ function main(x) {
 			Src: `
 function main(x) {
    var now = new Date().getTime();
-   while(new Date().getTime() < now + 10000) {
+   while(new Date().getTime() < now + 3000) {
    }
 }
 `,
-			Scenario: "sleepTenSecs",
+			Scenario: "simulateLongRunningProcess",
 			Input: &models.Message{
 				Data:         []byte("asdf"),
 				PartitionKey: "some-test-key",
@@ -436,8 +421,8 @@ function main(x) {
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "sha1");
-   x.Data = newVal;
+   let newVal = hash(x.Data['Data'], "sha1");
+   x.Data['Data'] = newVal;
    return x;
 }
 `,
@@ -457,15 +442,15 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3",
+				Data:         map[string]any{"Data": "3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"},
 			},
 			Error: nil,
 		},
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "sha1");
-   x.Data = newVal;
+   let newVal = hash(x.Data['Data'], "sha1");
+   x.Data['Data'] = newVal;
    return x;
 }
 `,
@@ -485,7 +470,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "5841e55de6c4486fa092f044a5189570dec421cb06652829",
+				Data:         map[string]any{"Data": "5841e55de6c4486fa092f044a5189570dec421cb06652829"},
 			},
 			Error:    nil,
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
@@ -493,8 +478,8 @@ function main(x) {
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "sha256");
-   x.Data = newVal;
+   let newVal = hash(x.Data['Data'], "sha256");
+   x.Data['Data'] = newVal;
    return x;
 }
 `,
@@ -514,15 +499,15 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "262ca08d9db38199ac487454bd4accb795a33297516b3cec",
+				Data:         map[string]any{"Data": "262ca08d9db38199ac487454bd4accb795a33297516b3cec"},
 			},
 			Error: nil,
 		},
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "sha256");
-   x.Data = newVal;
+   let newVal = hash(x.Data['Data'], "sha256");
+   x.Data['Data'] = newVal;
    return x;
 }
 `,
@@ -542,7 +527,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "23e37c9c9aaed4e592b306b291deb43fd197551048704d57",
+				Data:         map[string]any{"Data": "23e37c9c9aaed4e592b306b291deb43fd197551048704d57"},
 			},
 			Error:    nil,
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
@@ -550,8 +535,8 @@ function main(x) {
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "md5");
-   x.Data = newVal;
+   let newVal = hash(x.Data['Data'], "md5");
+   x.Data['Data'] = newVal;
    return x;
 }
 `,
@@ -571,15 +556,15 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "30368c83ff2751652f501b62d6b965794d3512177f301db1",
+				Data:         map[string]any{"Data": "30368c83ff2751652f501b62d6b965794d3512177f301db1"},
 			},
 			Error: nil,
 		},
 		{
 			Src: `
 function main(x) {
-   let newVal = hash(x.Data, "md5");
-   x.Data = newVal;
+   let newVal = hash(x.Data['Data'], "md5");
+   x.Data['Data'] = newVal;
    return x;
 }
 `,
@@ -599,7 +584,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508",
+				Data:         map[string]any{"Data": "8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508"},
 			},
 			Error:    nil,
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
@@ -611,7 +596,7 @@ function main(x) {
 			assert := assert.New(t)
 
 			jsConfig := &JSEngineConfig{
-				RunTimeout:     5,
+				RunTimeout:     2,
 				SpMode:         testSpMode,
 				HashSaltSecret: tt.HashSalt,
 			}
@@ -629,10 +614,8 @@ function main(x) {
 			transFunction := jsEngine.MakeFunction("main")
 			s, f, e, i := transFunction(tt.Input, testInterState)
 
-			if !reflect.DeepEqual(i, tt.ExpInterState) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(i),
-					spew.Sdump(tt.ExpInterState))
+			if diff := cmp.Diff(i, tt.ExpInterState); diff != "" {
+				t.Fatalf("unexpected interstate (-want +got):\n%s", diff)
 			}
 
 			if e != nil {
@@ -738,9 +721,7 @@ func TestJSEngineRemoveNulls(t *testing.T) {
 
 			script := `
 function main(input) {
-   return {
-   		Data: JSON.parse(input.Data)
-   }
+   return input
 }
 `
 
@@ -805,7 +786,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -845,7 +826,7 @@ function main(input) {
 function main(x) {
    return {
        FilterOut: true,
-       Data: "shouldNotAppear",
+       Data: {"key": "shouldNotAppear"},
        PartitionKey: "notThis"
    };
 }
@@ -977,7 +958,7 @@ function main(x) {
 			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			Expected: map[string]*models.Message{
 				"success": {
@@ -990,39 +971,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-		{
-			Scenario: "intermediateState_EngineProtocol_String",
-			Src: `
-function main(x) {
-   return x;
-}
-`,
-			Input: &models.Message{
-				Data:         testJsJSON,
-				PartitionKey: "some-test-key",
-			},
-			InterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testJsJSON),
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testJsJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testJsJSON),
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1050,7 +999,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         string(testJsJSON),
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1078,7 +1027,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         string(testJsJSON),
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1151,7 +1100,7 @@ function main(x) {
 			InterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			Expected: map[string]*models.Message{
 				"success": {
@@ -1164,39 +1113,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
-			},
-			IsJSON: true,
-			Error:  nil,
-		},
-		{
-			Scenario: "intermediateState_EngineProtocol_String",
-			Src: `
-function main(x) {
-   return x;
-}
-`,
-			Input: &models.Message{
-				Data:         testJsJSON,
-				PartitionKey: "some-test-key",
-			},
-			InterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testJsJSON),
-			},
-			Expected: map[string]*models.Message{
-				"success": {
-					Data:         testJsJSON,
-					PartitionKey: "some-test-key",
-				},
-				"filtered": nil,
-				"failed":   nil,
-			},
-			ExpInterState: &engineProtocol{
-				FilterOut:    false,
-				PartitionKey: "",
-				Data:         string(testJsJSON),
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1248,7 +1165,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1331,7 +1248,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "newPk",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 			},
 			IsJSON: true,
 			Error:  nil,
@@ -1360,7 +1277,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "newPk",
-				Data:         string(testJsTsv),
+				Data:         map[string]any{"Data": string(testJsTsv)},
 			},
 			Error: nil,
 		},
@@ -1370,7 +1287,7 @@ function main(x) {
 function main(x) {
    return {
        FilterOut: true,
-       Data: "shouldNotAppear",
+       Data: {"key": "shouldNotAppear"},
        PartitionKey: "notThis"
    };
 }
@@ -1486,7 +1403,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"foo": "bar",
 				},
@@ -1527,7 +1444,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"foo": "bar",
 				},
@@ -1569,7 +1486,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldVal",
 					"foo":    "bar",
@@ -1597,7 +1514,7 @@ function main(x) {
 				},
 			},
 			InputInterState: &engineProtocol{
-				Data: testJSMap,
+				Data: mergeMaps(testJSMap, testJSONTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldVal",
 				},
@@ -1617,7 +1534,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"foo": "bar",
 				},
@@ -1647,7 +1564,7 @@ function main(x) {
 				},
 			},
 			InputInterState: &engineProtocol{
-				Data: testJSMap,
+				Data: mergeMaps(testJSMap, testJSONTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldVal",
 				},
@@ -1668,7 +1585,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testJSONTimestampsMap),
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldValnewVal",
 					"foo":    "bar",
@@ -1708,7 +1625,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders:  nil,
 			},
 			Error: nil,
@@ -1740,7 +1657,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders:  nil,
 			},
 			Error: nil,
@@ -1777,7 +1694,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders:  nil,
 			},
 			Error: nil,
@@ -1809,7 +1726,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         testJSMap,
+				Data:         mergeMaps(testJSMap, testTSVTimestampsMap),
 				HTTPHeaders:  nil,
 			},
 			Error: nil,
@@ -1846,7 +1763,7 @@ function main(x) {
 			IsJSON: false,
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
-				Data:         "asdf",
+				Data:         map[string]any{"Data": "asdf"},
 				PartitionKey: "",
 				HTTPHeaders:  map[string]string{},
 			},
@@ -1879,7 +1796,7 @@ function main(x) {
 			IsJSON: false,
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
-				Data:         "asdf",
+				Data:         map[string]any{"Data": "asdf"},
 				PartitionKey: "",
 				HTTPHeaders:  map[string]string{},
 			},
@@ -1902,7 +1819,7 @@ function main(x) {
 				},
 			},
 			InputInterState: &engineProtocol{
-				Data: []byte("asdf"),
+				Data: map[string]any{"Data": "asdf"},
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldVal",
 				},
@@ -1942,7 +1859,7 @@ function main(x) {
 				},
 			},
 			InputInterState: &engineProtocol{
-				Data: []byte("asdf"),
+				Data: map[string]any{"Data": "asdf"},
 				HTTPHeaders: map[string]string{
 					"oldKey": "oldVal",
 				},
@@ -1994,7 +1911,7 @@ function main(x) {
 			IsJSON: false,
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
-				Data:         "asdf",
+				Data:         map[string]any{"Data": "asdf"},
 				PartitionKey: "",
 				HTTPHeaders:  map[string]string{},
 			},
@@ -2033,7 +1950,7 @@ function main(x) {
 			IsJSON: false,
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
-				Data:         "asdf",
+				Data:         map[string]any{"Data": "asdf"},
 				PartitionKey: "",
 				HTTPHeaders: map[string]string{
 					"0": "10",
@@ -2070,7 +1987,7 @@ function main(x) {
 			},
 			IsJSON: false,
 			ExpInterState: &engineProtocol{
-				Data:         "asdf",
+				Data:         map[string]any{"Data": "asdf"},
 				PartitionKey: "",
 				HTTPHeaders: map[string]string{
 					"invalid": "[object Object]",
@@ -2111,7 +2028,6 @@ function main(x) {
 			ExpInterState: nil,
 			Error:         fmt.Errorf("protocol violation"),
 		},
-
 		{
 			Scenario: "filterOut_ignores_headers",
 			Src: `
@@ -2164,10 +2080,8 @@ function main(x) {
 			transFunction := jsEngine.MakeFunction("main")
 			s, f, e, i := transFunction(tt.InputMsg, tt.InputInterState)
 
-			if !reflect.DeepEqual(i, tt.ExpInterState) {
-				t.Errorf("\nINTERMEDIATE_STATE:\nGOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(i),
-					spew.Sdump(tt.ExpInterState))
+			if diff := cmp.Diff(i, tt.ExpInterState); diff != "" {
+				t.Fatalf("unexpected interstate (-want +got):\n%s", diff)
 			}
 
 			if e == nil && tt.Error != nil {
@@ -2452,26 +2366,22 @@ var testJsEtlTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40
 var testJsDerivedTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35.972")
 var testJsCollectorTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35.972")
 var testJsDvceSentTstamp, _ = time.Parse("2006-01-02 15:04:05.999", "2019-05-10 14:40:35")
+
 var testJSMap = map[string]any{
-	"event_version":       "1-0-0",
-	"app_id":              "test-data<>",
-	"dvce_created_tstamp": testJsDvceCreatedTstamp,
-	"event":               "unstruct",
-	"v_collector":         "ssc-0.15.0-googlepubsub",
-	"network_userid":      "d26822f5-52cc-4292-8f77-14ef6b7a27e2",
-	"event_name":          "add_to_cart",
-	"event_vendor":        "com.snowplowanalytics.snowplow",
-	"event_format":        "jsonschema",
-	"platform":            "pc",
-	"etl_tstamp":          testJsEtlTstamp,
-	"collector_tstamp":    testJsCollectorTstamp,
-	"user_id":             "user<built-in function input>",
-	"dvce_sent_tstamp":    testJsDvceSentTstamp,
-	"derived_tstamp":      testJsDerivedTstamp,
-	"event_id":            "e9234345-f042-46ad-b1aa-424464066a33",
-	"v_tracker":           "py-0.8.2",
-	"v_etl":               "beam-enrich-0.2.0-common-0.36.0",
-	"user_ipaddress":      "1.2.3.4",
+	"event_version":  "1-0-0",
+	"app_id":         "test-data<>",
+	"event":          "unstruct",
+	"v_collector":    "ssc-0.15.0-googlepubsub",
+	"network_userid": "d26822f5-52cc-4292-8f77-14ef6b7a27e2",
+	"event_name":     "add_to_cart",
+	"event_vendor":   "com.snowplowanalytics.snowplow",
+	"event_format":   "jsonschema",
+	"platform":       "pc",
+	"user_id":        "user<built-in function input>",
+	"event_id":       "e9234345-f042-46ad-b1aa-424464066a33",
+	"v_tracker":      "py-0.8.2",
+	"v_etl":          "beam-enrich-0.2.0-common-0.36.0",
+	"user_ipaddress": "1.2.3.4",
 	"unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1": map[string]any{
 		"quantity":  float64(2),
 		"unitPrice": 32.4,
@@ -2510,3 +2420,72 @@ var testJsJSON = []byte(`{"app_id":"test-data<>","collector_tstamp":"2019-05-10T
 var testJsJSONChanged1 = []byte(`{"app_id_CHANGED":"test-data<>","collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"1.2.3.4","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2"}`)
 
 var testJsJSONChanged2 = []byte(`{"collector_tstamp":"2019-05-10T14:40:35.972Z","contexts_nl_basjes_yauaa_context_1":[{"agentClass":"Special","agentName":"python-requests","agentNameVersion":"python-requests 2.21.0","agentNameVersionMajor":"python-requests 2","agentVersion":"2.21.0","agentVersionMajor":"2","deviceBrand":"Unknown","deviceClass":"Unknown","deviceName":"Unknown","layoutEngineClass":"Unknown","layoutEngineName":"Unknown","layoutEngineVersion":"??","layoutEngineVersionMajor":"??","operatingSystemClass":"Unknown","operatingSystemName":"Unknown","operatingSystemVersion":"??"}],"derived_tstamp":"2019-05-10T14:40:35.972Z","dvce_created_tstamp":"2019-05-10T14:40:35.551Z","dvce_sent_tstamp":"2019-05-10T14:40:35Z","etl_tstamp":"2019-05-10T14:40:37.436Z","event":"unstruct","event_format":"jsonschema","event_id":"e9234345-f042-46ad-b1aa-424464066a33","event_name":"add_to_cart","event_vendor":"com.snowplowanalytics.snowplow","event_version":"1-0-0","network_userid":"d26822f5-52cc-4292-8f77-14ef6b7a27e2","platform":"pc","unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1":{"currency":"GBP","quantity":2,"sku":"item41","unitPrice":32.4},"user_id":"user<built-in function input>","user_ipaddress":"1.2.3.4","useragent":"python-requests/2.21.0","v_collector":"ssc-0.15.0-googlepubsub","v_etl":"beam-enrich-0.2.0-common-0.36.0","v_tracker":"py-0.8.2","app_id_CHANGED":"test-data<>"}`)
+
+// identical to testJsJSONChanged1 but of map[string]any type
+var testJsJSONChanged1Map = map[string]any{
+	"event_version":  "1-0-0",
+	"app_id_CHANGED": "test-data<>",
+	"event":          "unstruct",
+	"v_collector":    "ssc-0.15.0-googlepubsub",
+	"network_userid": "d26822f5-52cc-4292-8f77-14ef6b7a27e2",
+	"event_name":     "add_to_cart",
+	"event_vendor":   "com.snowplowanalytics.snowplow",
+	"event_format":   "jsonschema",
+	"platform":       "pc",
+	"user_id":        "user<built-in function input>",
+	"event_id":       "e9234345-f042-46ad-b1aa-424464066a33",
+	"v_tracker":      "py-0.8.2",
+	"v_etl":          "beam-enrich-0.2.0-common-0.36.0",
+	"user_ipaddress": "1.2.3.4",
+	"unstruct_event_com_snowplowanalytics_snowplow_add_to_cart_1": map[string]any{
+		"quantity":  float64(2),
+		"unitPrice": 32.4,
+		"currency":  "GBP",
+		"sku":       "item41",
+	},
+	"contexts_nl_basjes_yauaa_context_1": []any{
+		map[string]any{
+			"deviceName":               "Unknown",
+			"layoutEngineVersionMajor": "??",
+			"operatingSystemName":      "Unknown",
+			"deviceClass":              "Unknown",
+			"agentVersion":             "2.21.0",
+			"layoutEngineName":         "Unknown",
+			"layoutEngineClass":        "Unknown",
+			"agentName":                "python-requests",
+			"agentNameVersion":         "python-requests 2.21.0",
+			"operatingSystemVersion":   "??",
+			"agentClass":               "Special",
+			"deviceBrand":              "Unknown",
+			"agentVersionMajor":        "2",
+			"agentNameVersionMajor":    "python-requests 2",
+			"operatingSystemClass":     "Unknown",
+			"layoutEngineVersion":      "??",
+		},
+	},
+	"useragent": "python-requests/2.21.0",
+}
+
+var testJSONTimestampsMap = map[string]any{
+	"collector_tstamp":    "2019-05-10T14:40:35.972Z",
+	"derived_tstamp":      "2019-05-10T14:40:35.972Z",
+	"dvce_created_tstamp": "2019-05-10T14:40:35.551Z",
+	"dvce_sent_tstamp":    "2019-05-10T14:40:35Z",
+	"etl_tstamp":          "2019-05-10T14:40:37.436Z",
+}
+
+var testTSVTimestampsMap = map[string]any{
+	"collector_tstamp":    testJsCollectorTstamp,
+	"derived_tstamp":      testJsDerivedTstamp,
+	"dvce_created_tstamp": testJsDvceCreatedTstamp,
+	"dvce_sent_tstamp":    testJsDvceSentTstamp,
+	"etl_tstamp":          testJsEtlTstamp,
+}
+
+func mergeMaps(a, b map[string]any) map[string]any {
+	c := make(map[string]any)
+	maps.Copy(c, a)
+	maps.Copy(c, b)
+
+	return c
+}
