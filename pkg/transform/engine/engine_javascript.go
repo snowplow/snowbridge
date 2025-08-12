@@ -213,16 +213,25 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		}
 
 		// handling data
-		switch protoData := protocol.Data.(type) {
-		case string:
-			message.Data = []byte(protoData)
-		case map[string]any:
-
+		// protocol.Data is now always of type map[string]any, however
+		// if the original input was an arbitrary string, we manually created map object,
+		// and user want be expecting to data be transformed in this way, so we need to translate map object
+		// back into string manually
+		if strData, ok := protocol.Data["Data"]; ok {
+			d, ok := strData.(string)
+			if !ok {
+				message.SetError(&models.TransformationError{
+					SafeMessage: "failed to type assert data as string",
+				})
+				return nil, nil, message, nil
+			}
+			message.Data = []byte(d)
+		} else {
 			if e.RemoveNulls {
-				protoData = transform.RemoveNullFromMap(protoData)
+				protocol.Data = transform.RemoveNullFromMap(protocol.Data)
 			}
 			// encode
-			encoded, err := json.Marshal(protoData)
+			encoded, err := json.Marshal(protocol.Data)
 			if err != nil {
 				message.SetError(&models.TransformationError{
 					SafeMessage: "error encoding message data",
@@ -231,11 +240,6 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 				return nil, nil, message, nil
 			}
 			message.Data = encoded
-		default:
-			message.SetError(&models.TransformationError{
-				SafeMessage: "invalid return type from JavaScript transformation; expected string or object",
-			})
-			return nil, nil, message, nil
 		}
 
 		// setting pk if needed
@@ -327,11 +331,23 @@ func mkJSEngineInput(e *JSEngine, message *models.Message, interState any) (*eng
 	}
 
 	candidate := &engineProtocol{
-		Data:        string(message.Data),
 		HTTPHeaders: message.HTTPHeaders,
 	}
 
 	if !e.SpMode {
+		// For JS transformation we allow []byte input to be one of: [TSV string, Json string or arbitrary string]
+		// At this stage input can either be Json string or arbitrary string,
+		// so first try to JSON unmarshal it, but if fails, than it is a string and so manually create the input to JS
+		var cInput map[string]any
+		err := json.Unmarshal(message.Data, &cInput)
+		if err == nil {
+			candidate.Data = cInput
+			return candidate, nil
+			// return nil, fmt.Errorf("failed to transform input into JSON: %w", jErr)
+		}
+		cInput = make(map[string]any)
+		cInput["Data"] = string(message.Data)
+		candidate.Data = cInput
 		return candidate, nil
 	}
 
