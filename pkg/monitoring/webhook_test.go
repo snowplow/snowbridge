@@ -96,13 +96,14 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 		webhook.Start()
 
 		time.Sleep(2200 * time.Millisecond)
-		assert.Equal(counter, 2)
+		assert.Equal(counter, 3)
 
 		webhook.Stop()
 	})
 
 	t.Run("continuous alerts with backoff", func(t *testing.T) {
-		counter := 0
+		alertCounter := 0
+		heartbeatCounter := 0
 
 		onDo := func(b *http.Request) (*http.Response, error) {
 			assert.NotNil(b)
@@ -112,11 +113,23 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 				t.Fatalf("not expecting error: %s", err)
 			}
 
-			assert.Equal(expectedAlertRequest.Body, actualBody)
-			assert.Equal(expectedAlertRequest.Method, b.Method)
-			assert.Equal(expectedAlertRequest.URL, b.URL.String())
+			// We get a heartbeat on boot, then expect an alert. Check each in turn
+			if strings.Contains(actualBody.Schema, "alert") {
 
-			counter++
+				assert.Equal(expectedAlertRequest.Body, actualBody)
+				assert.Equal(expectedAlertRequest.Method, b.Method)
+				assert.Equal(expectedAlertRequest.URL, b.URL.String())
+
+				alertCounter++
+			} else if strings.Contains(actualBody.Schema, "heartbeat") {
+				assert.Equal(expectedHeartbeatRequest.Body, actualBody)
+				assert.Equal(expectedHeartbeatRequest.Method, b.Method)
+				assert.Equal(expectedHeartbeatRequest.URL, b.URL.String())
+
+				heartbeatCounter++
+			} else {
+				assert.Fail("Unexpected schema: " + actualBody.Schema)
+			}
 			return nil, nil
 		}
 
@@ -133,19 +146,22 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 
 		// Expect first alert to be sent immediately
 		time.Sleep(50 * time.Millisecond)
-		assert.Equal(counter, 1)
+		assert.Equal(alertCounter, 1)
+		assert.Equal(heartbeatCounter, 1)
 
 		// Wait for first backoff period to pass (500ms)
 		time.Sleep(550 * time.Millisecond)
 
 		// Second alert should be sent automatically after backoff
-		assert.GreaterOrEqual(counter, 2)
+		assert.GreaterOrEqual(alertCounter, 2)
+		assert.Equal(heartbeatCounter, 1)
 
 		webhook.Stop()
 	})
 
 	t.Run("alert, then reset, then heartbeat", func(t *testing.T) {
-		counter := 0
+		alertCounter := 0
+		heartbeatCounter := 0
 
 		onDo := func(b *http.Request) (*http.Response, error) {
 			assert.NotNil(b)
@@ -159,13 +175,15 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 				assert.Equal(expectedHeartbeatRequest.Method, b.Method)
 				assert.Equal(expectedHeartbeatRequest.URL, b.URL.String())
 
-				counter++
+				heartbeatCounter++
 			} else if strings.Contains(actualBody.Schema, "alert") {
 				assert.Equal(expectedAlertRequest.Body, actualBody)
 				assert.Equal(expectedAlertRequest.Method, b.Method)
 				assert.Equal(expectedAlertRequest.URL, b.URL.String())
 
-				counter++
+				alertCounter++
+			} else {
+				assert.Fail("Unexpected schema: " + actualBody.Schema)
 			}
 
 			return nil, nil
@@ -184,14 +202,15 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 
 		// And expect counter to increase by 1 (along side with expected alert event)
 		time.Sleep(50 * time.Millisecond) // barely needed to allow enough time for webhook to process event
-		assert.Equal(counter, 1)
+		assert.Equal(alertCounter, 1)
+		assert.Equal(heartbeatCounter, 1)
 
 		// Then, setup error gets resolved
 		alertChan <- nil
 
 		// Here we confirm that once setup error gets resolved, we can continue with sending heartbeats as before
 		time.Sleep(1100 * time.Millisecond)
-		assert.Equal(counter, 2)
+		assert.Greater(heartbeatCounter, 1)
 
 		webhook.Stop()
 	})
@@ -233,20 +252,20 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 		// Expect first alert immediately
 		time.Sleep(50 * time.Millisecond)
 		assert.Equal(alertCount, 1)
-		assert.Equal(heartbeatCount, 0)
+		assert.Equal(heartbeatCount, 1)
 
 		// Wait for first backoff period - should send second alert
 		time.Sleep(350 * time.Millisecond)
 		assert.Equal(alertCount, 2)
-		assert.Equal(heartbeatCount, 0)
+		assert.Equal(heartbeatCount, 1)
 
 		// Resolve error before next backoff
 		alertChan <- nil
 
 		// Wait past backoff period - should resume heartbeats instead of alerts
 		time.Sleep(350 * time.Millisecond)
-		assert.Equal(alertCount, 2)     // No more alerts
-		assert.Equal(heartbeatCount, 1) // Heartbeat resumed
+		assert.Equal(alertCount, 2)       // No more alerts
+		assert.Greater(heartbeatCount, 1) // Heartbeat resumed
 
 		webhook.Stop()
 	})

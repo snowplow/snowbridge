@@ -73,6 +73,13 @@ func NewWebhookMonitoring(appName, appVersion string, client WebhookSender, endp
 func (m *WebhookMonitoring) Start() {
 	ticker := time.NewTicker(m.heartbeatInterval)
 
+	// First, let the webhook know we've booted up
+	err := m.sendHeartbeat()
+	if err != nil {
+		m.log.Warnf("failed to send heartbeat event: %s", err)
+	}
+
+	// Then start webhook monitoring proper
 	go func() {
 
 	OuterLoop:
@@ -80,22 +87,7 @@ func (m *WebhookMonitoring) Start() {
 			select {
 			case <-ticker.C:
 				if m.isHealthy {
-					m.log.Info("Sending heartbeat")
-					event := WebhookEvent{
-						Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
-						Data: WebhookData{
-							AppName:    m.appName,
-							AppVersion: m.appVersion,
-							Tags:       m.tags,
-						},
-					}
-					req, err := m.prepareRequest(event)
-					if err != nil {
-						m.log.Warnf("failed to prepare heartbeat event request: %s", err)
-						continue
-					}
-
-					_, err = m.client.Do(req)
+					err := m.sendHeartbeat()
 					if err != nil {
 						m.log.Warnf("failed to send heartbeat event: %s", err)
 					}
@@ -155,6 +147,29 @@ func (m *WebhookMonitoring) sendAlert(err error) {
 	if sendErr != nil {
 		m.log.Warnf("failed to send alert event: %s", sendErr)
 	}
+}
+
+func (m *WebhookMonitoring) sendHeartbeat() error {
+	m.log.Info("Sending heartbeat")
+	event := WebhookEvent{
+		Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
+		Data: WebhookData{
+			AppName:    m.appName,
+			AppVersion: m.appVersion,
+			Tags:       m.tags,
+		},
+	}
+	req, err := m.prepareRequest(event)
+	if err != nil {
+		return err
+	}
+
+	_, err = m.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *WebhookMonitoring) prepareRequest(event WebhookEvent) (*http.Request, error) {

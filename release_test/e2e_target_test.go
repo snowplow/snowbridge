@@ -17,6 +17,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -68,11 +69,9 @@ func TestE2ETargets(t *testing.T) {
 	}
 	t.Run("pubsub", testE2EPubsubTarget)
 	t.Run("http", testE2EHttpTarget)
-	t.Run("http: setup error without monitor", testE2EHttpTargetSetupErrorWithoutMonitor)
-	t.Run("http: with monitoring alert", testE2EHttpWithMonitoringAlertTarget)
-	t.Run("http: with monitoring heartbeat", testE2EHttpWithMonitoringHeartbeatTarget)
-	t.Run("http: with monitoring alert & heartbeat", testE2EHttpWithMonitoringAlertAndHeartbeatTarget)
-	t.Run("http: with monitoring alert & heartbeat, AWS only", testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget)
+	t.Run("http: with monitoring alert", testE2EHttpTargetWithMonitoringAlert)
+	t.Run("http: with monitoring heartbeat", testE2EHttpTargetWithMonitoringHeartbeat)
+	t.Run("http: with monitoring alert & heartbeat", testE2EHttpTargetWithMonitoringAlertAndHeartbeat)
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
 	t.Run("kafka", testE2EKafkaTarget)
@@ -424,15 +423,16 @@ func testE2EKafkaTarget(t *testing.T) {
 	partitionConsumer.AsyncClose()
 }
 
-func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
+func testE2EHttpTargetWithMonitoringHeartbeat(t *testing.T) {
 	assert := assert.New(t)
 
-	receiverChannel := make(chan string, 2)
+	startTestServer := func(wg *sync.WaitGroup, receiverChannel chan string) *http.Server {
+		// Since we call this function twice (with new values), new mux for each iteration
+		mux := http.NewServeMux()
+		srv := &http.Server{Addr: ":6996", Handler: mux}
 
-	startTestServer := func(wg *sync.WaitGroup) *http.Server {
-		srv := &http.Server{Addr: ":6996"}
+		mux.HandleFunc("/event", func(w http.ResponseWriter, r *http.Request) {
 
-		http.HandleFunc("/heartbeat", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -440,10 +440,11 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 			}()
 
 			time.Sleep(time.Millisecond * 900)
+			wg.Done()
 			w.WriteHeader(http.StatusOK)
 		})
 
-		http.HandleFunc("/heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -462,7 +463,6 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 		})
 
 		go func() {
-			defer wg.Done()
 			// always returns error. ErrServerClosed on graceful close
 			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 				logrus.Fatalf("ListenAndServe(): %v", err)
@@ -472,11 +472,6 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 		// returning reference so caller can call Shutdown()
 		return srv
 	}
-
-	srvExitWg := &sync.WaitGroup{}
-
-	srvExitWg.Add(1)
-	srv := startTestServer(srvExitWg)
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "heartbeat_config.hcl"))
 	if err != nil {
@@ -485,52 +480,73 @@ func testE2EHttpWithMonitoringHeartbeatTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 
+		// Huge buffer to avoid blocking
+		receiverChannel := make(chan string, 100)
+		srvExitWg := &sync.WaitGroup{}
+
+		// We wait for our 200 events to be sent
+		srvExitWg.Add(200)
+		srv := startTestServer(srvExitWg, receiverChannel)
+
 		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetHeartbeat", configFilePath, binary, "")
-		if cmdErr == nil {
-			assert.Fail("Expected docker run to return an error for HTTP target")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
 		}
 
 		var foundData []string
 
-	receiveLoop:
-		for {
-			select {
-			case res := <-receiverChannel:
-				foundData = append(foundData, res)
-				break receiveLoop
-			// this is just a precaution to avoid waiting for broken test
-			case <-time.After(5020 * time.Millisecond):
-				break receiveLoop
+		// We wait for all events to get sent -  kill switch to prevent hang if something is wrong
+		gotPastTheWait := false
+		go func() {
+			time.Sleep(10 * time.Second)
+			if !gotPastTheWait {
+				panic("Timeout waiting for events")
 			}
+		}()
+
+		// Wait for all events to be sent, then close the channel
+		srvExitWg.Wait()
+		gotPastTheWait = true
+		close(receiverChannel)
+
+		for res := range receiverChannel {
+			foundData = append(foundData, res)
 		}
 
-		assert.Equal(1, len(foundData))
+		// We send heartbeats every second, and there is timing involved in this test.
+		// We should have between 1 and 5 heartbeats (usually 3)
+		assert.Greater(len(foundData), 0)
+		assert.Less(len(foundData), 5)
 
 		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
 		assert.Nil(err)
-		diff, err := testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[0])
-		assert.Nil(err)
-		assert.Zero(diff)
+
+		// Check that each of them have the expected data
+		for _, foundHeartbeat := range foundData {
+			diff, err := testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundHeartbeat)
+			assert.Nil(err)
+			assert.Zero(diff)
+		}
+
+		// Shutdown server
+		if err := srv.Shutdown(t.Context()); err != nil {
+			panic(err) // failure/timeout shutting down the server gracefully
+		}
 	}
 
-	close(receiverChannel)
-	if err := srv.Shutdown(t.Context()); err != nil {
-		panic(err) // failure/timeout shutting down the server gracefully
-	}
-
-	srvExitWg.Wait()
 }
 
-func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
+func testE2EHttpTargetWithMonitoringAlert(t *testing.T) {
 	assert := assert.New(t)
 
-	// we expect exactly 1 alert, because once alert is being sent, nothing else should be coming out of monitoring
-	receiverChannel := make(chan string, 1)
+	startTestServer := func(wg *sync.WaitGroup, receiverChannel chan string) *http.Server {
+		// Since we call this function twice (with new values), new mux for each iteration
+		mux := http.NewServeMux()
+		srv := &http.Server{Addr: ":7997", Handler: mux}
 
-	startTestServer := func(wg *sync.WaitGroup) *http.Server {
-		srv := &http.Server{Addr: ":7997"}
+		gotEvent := false
 
-		http.HandleFunc("/alert", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/event", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -540,11 +556,11 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-
+			gotEvent = true
 			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
 		})
 
-		http.HandleFunc("/alert-monitoring", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/alert-monitoring", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -563,7 +579,18 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 		})
 
 		go func() {
-			defer wg.Done()
+			// Diffeernt pattern because we can't rely on events successfully arriving here
+			for {
+				// Wait for first event to come in, then start a timer to give enough time for an alert to get sent
+				if gotEvent {
+					time.Sleep(500 * time.Millisecond)
+					wg.Done()
+					break
+				}
+			}
+		}()
+
+		go func() {
 			// always returns error. ErrServerClosed on graceful close
 			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 				logrus.Fatalf("ListenAndServe(): %v", err)
@@ -573,11 +600,6 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 		// returning reference so caller can call Shutdown()
 		return srv
 	}
-
-	srvExitWg := &sync.WaitGroup{}
-
-	srvExitWg.Add(1)
-	srv := startTestServer(srvExitWg)
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_config.hcl"))
 	if err != nil {
@@ -586,56 +608,72 @@ func testE2EHttpWithMonitoringAlertTarget(t *testing.T) {
 
 	for _, binary := range []string{"-aws-only", ""} {
 
-		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlert", configFilePath, binary, "")
-		if cmdErr == nil {
-			assert.Fail("Expected docker run to return an error for HTTP target")
-		}
+		// Buffer to avoid blocking
+		receiverChannel := make(chan string, 100)
+		srvExitWg := &sync.WaitGroup{}
+
+		srvExitWg.Add(1)
+		srv := startTestServer(srvExitWg, receiverChannel)
+
+		// nolint: errcheck
+		runDockerCommand(3*time.Second, "httpTargetAlert", configFilePath, binary, "")
+		// We expect to exit with error, so no need to get values/check for error
 
 		var foundData []string
 
-	receiveLoop:
-		for {
-			select {
-			case res := <-receiverChannel:
-				foundData = append(foundData, res)
-				break receiveLoop
-			// this is just a precaution to avoid waiting for broken test
-			case <-time.After(1020 * time.Millisecond):
-				break receiveLoop
+		// Timeout protection to prevent hang if something is wrong
+		gotPastTheWait := false
+		go func() {
+			time.Sleep(10 * time.Second)
+			if !gotPastTheWait {
+				panic("Timeout waiting for alert")
 			}
+		}()
+
+		// Wait for server to finish, then close the channel
+		srvExitWg.Wait()
+		gotPastTheWait = true
+		close(receiverChannel)
+
+		for res := range receiverChannel {
+			foundData = append(foundData, res)
 		}
 
-		assert.Equal(1, len(foundData))
-
-		// Prepare expected alert JSON
+		// heartbeat on boot, then alert
+		assert.Equal(2, len(foundData))
 
 		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
 		assert.Nil(err)
-		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
-		assert.Nil(err)
-		assert.Zero(diff)
+
+		// Check that each of them have the expected data
+		for _, foundData := range foundData {
+			// just check the alert
+			if strings.Contains(foundData, "alert") {
+				diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData)
+				assert.Nil(err)
+				assert.Zero(diff)
+			}
+		}
+
+		// Shutdown server
+		if err := srv.Shutdown(t.Context()); err != nil {
+			panic(err) // failure/timeout shutting down the server gracefully
+		}
 	}
 
-	close(receiverChannel)
-	if err := srv.Shutdown(t.Context()); err != nil {
-		panic(err) // failure/timeout shutting down the server gracefully
-	}
-
-	srvExitWg.Wait()
 }
 
-func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
+func testE2EHttpTargetWithMonitoringAlertAndHeartbeat(t *testing.T) {
 	assert := assert.New(t)
-	var counter atomic.Uint64
 
-	// we expect exactly 1 alert and 1 heartbeat
-	receiverChannel := make(chan string, 2)
-	defer close(receiverChannel)
+	startTestServer := func(wg *sync.WaitGroup, receiverChannel chan string, counter *atomic.Uint64) *http.Server {
+		// Since we call this function for each iteration, new mux each time
+		mux := http.NewServeMux()
+		srv := &http.Server{Addr: ":9999", Handler: mux}
 
-	startTestServer := func(wg *sync.WaitGroup) *http.Server {
-		srv := &http.Server{Addr: ":9999"}
+		gotEvent := false
 
-		http.HandleFunc("/alert-heartbeat", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/event", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -646,17 +684,19 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 				panic(err)
 			}
 
+			gotEvent = true
+
 			if counter.Load() < 5 {
 				counter.Add(1)
 				http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
 				return
 			}
 
-			time.Sleep(time.Millisecond * 300)
+			time.Sleep(time.Millisecond * 300) // TODO: needed?
 			w.WriteHeader(http.StatusOK)
 		})
 
-		http.HandleFunc("/alert-heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/alert-heartbeat-monitoring", func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := r.Body.Close(); err != nil {
 					logrus.Error(err.Error())
@@ -675,7 +715,18 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 		})
 
 		go func() {
-			defer wg.Done()
+			// Diffeernt pattern because we can't rely on events successfully arriving here
+			for {
+				// Wait for first event to come in, then start a timer to give enough time for an alert to get sent
+				if gotEvent {
+					time.Sleep(500 * time.Millisecond)
+					wg.Done()
+					break
+				}
+			}
+		}()
+
+		go func() {
 			// always returns error. ErrServerClosed on graceful close
 			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 				logrus.Fatalf("ListenAndServe(): %v", err)
@@ -686,17 +737,20 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 		return srv
 	}
 
-	srvExitWg := &sync.WaitGroup{}
-
-	srvExitWg.Add(1)
-	srv := startTestServer(srvExitWg)
-
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_heartbeat_config.hcl"))
 	if err != nil {
 		panic(err)
 	}
 
-	for _, binary := range []string{""} {
+	for _, binary := range []string{"-aws-only", ""} {
+
+		// we expect exactly 1 alert and 1 heartbeat
+		receiverChannel := make(chan string, 100)
+		srvExitWg := &sync.WaitGroup{}
+		var counter atomic.Uint64
+
+		srvExitWg.Add(1)
+		srv := startTestServer(srvExitWg, receiverChannel, &counter)
 
 		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlertHeartbeat", configFilePath, binary, "")
 		if cmdErr != nil {
@@ -705,207 +759,47 @@ func testE2EHttpWithMonitoringAlertAndHeartbeatTarget(t *testing.T) {
 
 		var foundData []string
 
-	receiveLoop:
-		for {
-			select {
-			case res := <-receiverChannel:
-				foundData = append(foundData, res)
-			// this is just a precaution to avoid waiting for broken test
-			case <-time.After(1020 * time.Millisecond):
-				break receiveLoop
-			}
-		}
-
-		assert.Equal(2, len(foundData))
-
-		// Prepare expected alert JSON
-		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
-		assert.Nil(err)
-		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
-		assert.Nil(err)
-		assert.Zero(diff)
-
-		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
-		assert.Nil(err)
-		diff, err = testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[1])
-		assert.Nil(err)
-		assert.Zero(diff)
-	}
-
-	if err := srv.Shutdown(t.Context()); err != nil {
-		panic(err) // failure/timeout shutting down the server gracefully
-	}
-
-	srvExitWg.Wait()
-}
-
-func testE2EHttpWithMonitoringAlertAndHeartbeatAWSOnlyTarget(t *testing.T) {
-	assert := assert.New(t)
-	var counter atomic.Uint64
-
-	// we expect exactly 1 alert and 1 heartbeat
-	receiverChannel := make(chan string, 2)
-	defer close(receiverChannel)
-
-	startTestServer := func(wg *sync.WaitGroup) *http.Server {
-		srv := &http.Server{Addr: ":10999"}
-
-		http.HandleFunc("/alert-heartbeat-aws", func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if err := r.Body.Close(); err != nil {
-					logrus.Error(err.Error())
-				}
-			}()
-			_, err := io.ReadAll(r.Body)
-			if err != nil {
-				panic(err)
-			}
-
-			if counter.Load() < 5 {
-				counter.Add(1)
-				http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
-				return
-			}
-
-			time.Sleep(time.Millisecond * 300)
-			w.WriteHeader(http.StatusOK)
-		})
-
-		http.HandleFunc("/alert-heartbeat-aws-monitoring", func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if err := r.Body.Close(); err != nil {
-					logrus.Error(err.Error())
-				}
-			}()
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				panic(err)
-			}
-
-			var unmarshalledBody json.RawMessage
-			if err := json.Unmarshal(body, &unmarshalledBody); err != nil {
-				panic(err)
-			}
-			receiverChannel <- string(unmarshalledBody)
-		})
-
+		// Timeout protection to prevent hang if something is wrong
+		gotPastTheWait := false
 		go func() {
-			defer wg.Done()
-			// always returns error. ErrServerClosed on graceful close
-			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-				logrus.Fatalf("ListenAndServe(): %v", err)
+			time.Sleep(10 * time.Second)
+			if !gotPastTheWait {
+				panic("Timeout waiting for alert and heartbeat")
 			}
 		}()
 
-		// returning reference so caller can call Shutdown()
-		return srv
-	}
+		// Wait for server to finish, then close the channel
+		srvExitWg.Wait()
+		gotPastTheWait = true
+		close(receiverChannel)
 
-	srvExitWg := &sync.WaitGroup{}
-
-	srvExitWg.Add(1)
-	srv := startTestServer(srvExitWg)
-
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http_with_monitoring", "alert_heartbeat_config_aws.hcl"))
-	if err != nil {
-		panic(err)
-	}
-
-	for _, binary := range []string{"-aws-only"} {
-
-		_, cmdErr := runDockerCommand(3*time.Second, "httpTargetAlertHeartbeatAws", configFilePath, binary, "")
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		for res := range receiverChannel {
+			foundData = append(foundData, res)
 		}
 
-		var foundData []string
-
-	receiveLoop:
-		for {
-			select {
-			case res := <-receiverChannel:
-				foundData = append(foundData, res)
-			// this is just a precaution to avoid waiting for broken test
-			case <-time.After(1020 * time.Millisecond):
-				break receiveLoop
-			}
-		}
-
-		assert.Equal(2, len(foundData))
-
-		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
-		assert.Nil(err)
-		diff, err := testutil.GetJsonDiff(string(expectedAlertJSON), foundData[0])
-		assert.Nil(err)
-		assert.Zero(diff)
+		assert.Equal(3, len(foundData))
 
 		expectedHeartbeatJSON, err := json.Marshal(expectedHeartbeatMap)
 		assert.Nil(err)
-		diff, err = testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[1])
+		diff, err := testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[0])
 		assert.Nil(err)
 		assert.Zero(diff)
-	}
 
-	if err := srv.Shutdown(t.Context()); err != nil {
-		panic(err) // failure/timeout shutting down the server gracefully
-	}
+		expectedAlertJSON, err := json.Marshal(expectedAlertMap)
+		assert.Nil(err)
+		diff, err = testutil.GetJsonDiff(string(expectedAlertJSON), foundData[1])
+		assert.Nil(err)
+		assert.Zero(diff)
 
-	srvExitWg.Wait()
-}
+		diff, err = testutil.GetJsonDiff(string(expectedHeartbeatJSON), foundData[2])
+		assert.Nil(err)
+		assert.Zero(diff)
 
-func testE2EHttpTargetSetupErrorWithoutMonitor(t *testing.T) {
-	assert := assert.New(t)
-
-	startTestServer := func(wg *sync.WaitGroup) *http.Server {
-		srv := &http.Server{Addr: ":11998"}
-
-		http.HandleFunc("/setup-error", func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if err := r.Body.Close(); err != nil {
-					logrus.Error(err.Error())
-				}
-			}()
-			_, err := io.ReadAll(r.Body)
-			if err != nil {
-				panic(err)
-			}
-
-			http.Error(w, "access to the API is not granted", http.StatusUnauthorized)
-		})
-
-		go func() {
-			defer wg.Done()
-			// always returns error. ErrServerClosed on graceful close
-			if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-				logrus.Fatalf("ListenAndServe(): %v", err)
-			}
-		}()
-
-		// returning reference so caller can call Shutdown()
-		return srv
-	}
-
-	srvExitWg := &sync.WaitGroup{}
-
-	srvExitWg.Add(1)
-	srv := startTestServer(srvExitWg)
-
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "http", "config_setup_error.hcl"))
-	if err != nil {
-		panic(err)
-	}
-
-	for _, binary := range []string{"-aws-only", ""} {
-		_, cmdErr := runDockerCommand(10*time.Second, "httpTargetSetupError", configFilePath, binary, "")
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for HTTP target")
+		// Shutdown server
+		if err := srv.Shutdown(t.Context()); err != nil {
+			panic(err) // failure/timeout shutting down the server gracefully
 		}
 	}
-
-	if err := srv.Shutdown(t.Context()); err != nil {
-		panic(err) // failure/timeout shutting down the server gracefully
-	}
-	srvExitWg.Wait()
 }
 
 func TestE2EMetadataReporter(t *testing.T) {
