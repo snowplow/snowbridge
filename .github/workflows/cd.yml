@@ -34,16 +34,30 @@ jobs:
       with:
         version: v2.0
 
-    - name: Extract tag version from ref, and project version from file
+    - name: Extract and validate version
       id: version
       run: |
-          echo ::set-output name=VERSION_FILE::"refs/tags/$(cat VERSION)"
+          # Get the version from VERSION file
+          VERSION_FILE=$(cat VERSION)
+          echo "VERSION_FILE=$VERSION_FILE" >> $GITHUB_OUTPUT
+          
+          # Ensure tag is v-prefixed, then strip refs/tags/v in one operation
+          if [[ ! "$GITHUB_REF" =~ ^refs/tags/v ]]; then
+            echo "ERROR: Git tag must be prefixed with 'v' (e.g., v3.5.0)"
+            echo "Got: $GITHUB_REF"
+            exit 1
+          fi
+          
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Fail if version mismatch
-      id: check_version
-      if: ${{ github.ref != steps.version.outputs.VERSION_FILE }}
+      if: ${{ steps.version.outputs.VERSION_FILE != steps.version.outputs.VERSION }}
       run: |
-        echo "VERSION file ${{steps.version.outputs.VERSION_FILE}} does not match tagged version ${{ github.ref }}"
+        echo "VERSION file: '${{steps.version.outputs.VERSION_FILE}}'"
+        echo "Git ref: '${{ github.ref }}'"
+        echo "Normalized version: '${{ steps.version.outputs.VERSION }}'"
+        echo "ERROR: Versions do not match!"
         exit 1
 
     - name: Install ngrok
