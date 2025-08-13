@@ -22,9 +22,9 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 )
 
 // JSEngineConfig configures the JavaScript Engine.

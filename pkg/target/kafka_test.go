@@ -19,7 +19,7 @@ import (
 	"github.com/IBM/sarama/mocks"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/pkg/testutil"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 

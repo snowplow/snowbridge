@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 )
 
 // TODO: Refactor to provide a means to test errors without panicking

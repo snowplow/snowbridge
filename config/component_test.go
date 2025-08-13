@@ -21,9 +21,9 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/assets"
-	"github.com/snowplow/snowbridge/pkg/statsreceiver"
-	"github.com/snowplow/snowbridge/pkg/target"
+	"github.com/snowplow/snowbridge/v3/assets"
+	"github.com/snowplow/snowbridge/v3/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/v3/pkg/target"
 )
 
 func TestCreateTargetComponentHCL(t *testing.T) {

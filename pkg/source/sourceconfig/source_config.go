@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"strings"
 
-	config "github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
+	config "github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 )
 
 // GetSource creates and returns the source that is configured.

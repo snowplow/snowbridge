@@ -14,7 +14,7 @@ package models
 import (
 	"time"
 
-	"github.com/snowplow/snowbridge/pkg/common"
+	"github.com/snowplow/snowbridge/v3/pkg/common"
 )
 
 // TargetWriteResult contains the results from a target write operation

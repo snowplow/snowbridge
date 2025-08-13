@@ -22,10 +22,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/common"
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/common"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 )
 
 // Configuration configures the source for records

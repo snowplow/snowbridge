@@ -19,7 +19,7 @@ import (
 
 	"github.com/itchyny/gojq"
 
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 

@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/snowplow/snowbridge/assets"
+	"github.com/snowplow/snowbridge/v3/assets"
 )
 
 func TestConfigurationOverview(t *testing.T) {

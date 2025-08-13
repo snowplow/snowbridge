@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/failure"
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/observer"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/failure"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/observer"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/snowplow/snowbridge/pkg/common"
+	"github.com/snowplow/snowbridge/v3/pkg/common"
 )
 
 // MetadataEvent holds data required for metadata reporter's event

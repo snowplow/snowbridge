@@ -15,8 +15,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // SetPkConfig is a configuration object for the spEnrichedSetPk transformation

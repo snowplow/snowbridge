@@ -18,9 +18,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/assets"
-	config "github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/v3/assets"
+	config "github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 )
 
 func TestMain(m *testing.M) {

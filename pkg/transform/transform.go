@@ -14,7 +14,7 @@ package transform
 import (
 	"time"
 
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // TransformationFunction takes a message and intermediateState, and returns a transformed message, a filtered message or an errored message, along with an intermediateState

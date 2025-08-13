@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 const (

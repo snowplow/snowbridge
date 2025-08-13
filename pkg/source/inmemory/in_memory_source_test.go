@@ -15,8 +15,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 	"github.com/stretchr/testify/assert"
 )
 
