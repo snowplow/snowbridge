@@ -14,7 +14,6 @@ package releasetest
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -827,8 +826,6 @@ func TestE2EMetadataReporter(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 				t.Errorf("Failed to decode metadata payload: %v", err)
 			}
-
-			fmt.Println(payload)
 
 			metadataChan <- payload
 			w.WriteHeader(http.StatusOK)
