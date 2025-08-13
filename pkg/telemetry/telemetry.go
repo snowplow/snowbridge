@@ -18,7 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	conf "github.com/snowplow/snowbridge/config"
+	conf "github.com/snowplow/snowbridge/v3/config"
 	gt "github.com/snowplow/snowplow-golang-tracker/v2/tracker"
 )
 

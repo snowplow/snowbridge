@@ -28,8 +28,8 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/pkg/common"
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/common"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 
 	"golang.org/x/oauth2"
 )

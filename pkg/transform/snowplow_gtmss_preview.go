@@ -16,8 +16,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )

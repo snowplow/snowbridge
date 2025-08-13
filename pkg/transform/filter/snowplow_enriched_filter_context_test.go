@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 	"github.com/stretchr/testify/assert"
 )
 

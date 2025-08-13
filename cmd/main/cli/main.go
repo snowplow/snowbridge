@@ -12,13 +12,13 @@
 package main
 
 import (
-	"github.com/snowplow/snowbridge/cmd/cli"
-	"github.com/snowplow/snowbridge/config"
-	kafkasource "github.com/snowplow/snowbridge/pkg/source/kafka"
-	pubsubsource "github.com/snowplow/snowbridge/pkg/source/pubsub"
-	sqssource "github.com/snowplow/snowbridge/pkg/source/sqs"
-	stdinsource "github.com/snowplow/snowbridge/pkg/source/stdin"
-	"github.com/snowplow/snowbridge/pkg/transform/transformconfig"
+	"github.com/snowplow/snowbridge/v3/cmd/cli"
+	"github.com/snowplow/snowbridge/v3/config"
+	kafkasource "github.com/snowplow/snowbridge/v3/pkg/source/kafka"
+	pubsubsource "github.com/snowplow/snowbridge/v3/pkg/source/pubsub"
+	sqssource "github.com/snowplow/snowbridge/v3/pkg/source/sqs"
+	stdinsource "github.com/snowplow/snowbridge/v3/pkg/source/stdin"
+	"github.com/snowplow/snowbridge/v3/pkg/transform/transformconfig"
 )
 
 func main() {

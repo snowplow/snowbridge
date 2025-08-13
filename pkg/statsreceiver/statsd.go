@@ -19,7 +19,7 @@ import (
 	"github.com/pkg/errors"
 	statsd "github.com/smira/go-statsd"
 
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // StatsDStatsReceiverConfig configures the stats metrics receiver
