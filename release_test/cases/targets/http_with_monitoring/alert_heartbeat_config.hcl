@@ -7,7 +7,7 @@ transform {
 target {
   use "http" {
 
-    url = "http://host.docker.internal:9999/alert-heartbeat"
+    url = "http://host.docker.internal:9999/event"
 
     response_rules {
       setup {
