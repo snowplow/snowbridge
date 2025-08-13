@@ -7,7 +7,7 @@ transform {
 target {
   use "http" {
 
-    url = "http://host.docker.internal:7997/alert"
+    url = "http://host.docker.internal:7997/event"
 
     response_rules {
       setup {
@@ -38,5 +38,7 @@ monitoring {
     heartbeat_interval_seconds = 60
   }
 }
+
+log_level = "error"
 
 disable_telemetry = true

@@ -7,7 +7,7 @@ transform {
 target {
   use "http" {
 
-    url = "http://host.docker.internal:6996/heartbeat"
+    url = "http://host.docker.internal:6996/event"
   }
 }
 
