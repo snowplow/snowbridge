@@ -41,21 +41,22 @@ jobs:
           VERSION_FILE=$(cat VERSION)
           echo "VERSION_FILE=$VERSION_FILE" >> $GITHUB_OUTPUT
           
-          # Ensure tag is v-prefixed, then strip refs/tags/v in one operation
-          if [[ ! "$GITHUB_REF" =~ ^refs/tags/v ]]; then
+          # Ensure tag is v-prefixed, then strip v in one operation
+          if [[ ! "${{ github.ref_name }}" =~ ^v ]]; then
             echo "ERROR: Git tag must be prefixed with 'v' (e.g., v3.5.0)"
-            echo "Got: $GITHUB_REF"
+            echo "Got: ${{ github.ref_name }}"
             exit 1
           fi
           
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Fail if version mismatch
       if: ${{ steps.version.outputs.VERSION_FILE != steps.version.outputs.VERSION }}
       run: |
         echo "VERSION file: '${{steps.version.outputs.VERSION_FILE}}'"
-        echo "Git ref: '${{ github.ref }}'"
+        echo "Git ref: '${{ github.ref_name }}'"
         echo "Normalized version: '${{ steps.version.outputs.VERSION }}'"
         echo "ERROR: Versions do not match!"
         exit 1
@@ -85,12 +86,12 @@ jobs:
       uses: snyk/actions/setup@master
 
     - name: Run Snyk to check for vulnerabilities in main Docker image
-      run: snyk container test snowplow/snowbridge:${{ github.ref_name }} --severity-threshold=high
+      run: snyk container test snowplow/snowbridge:${{ steps.version.outputs.VERSION }} --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     - name: Run Snyk to check for vulnerabilities in aws-only Docker image
-      run: snyk container test snowplow/snowbridge:${{ github.ref_name }}-aws-only --severity-threshold=high
+      run: snyk container test snowplow/snowbridge:${{ steps.version.outputs.VERSION }}-aws-only --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -98,7 +99,7 @@ jobs:
       uses: snyk/actions/docker@master
       if: ${{ !contains(github.ref, 'rc') }}
       with:
-        image: "snowplow/snowbridge:${{ github.ref_name }}"
+        image: "snowplow/snowbridge:${{ steps.version.outputs.VERSION }}"
         args: "--app-vulns --org=data-processing-new --project-name=snowbridge-main"
         command: monitor
       env:
@@ -108,7 +109,7 @@ jobs:
       uses: snyk/actions/docker@master
       if: ${{ !contains(github.ref, 'rc') }}
       with:
-        image: "snowplow/snowbridge:${{ github.ref_name }}-aws-only"
+        image: "snowplow/snowbridge:${{ steps.version.outputs.VERSION }}-aws-only"
         args: "--app-vulns --org=data-processing-new --project-name=snowbridge-aws-only"
         command: monitor
       env:
@@ -121,19 +122,19 @@ jobs:
       with:
         draft: true
         prerelease: ${{ contains(github.ref , '-') }}
-        name: Release ${{ github.ref_name }}
-        tag_name: ${{ github.ref_name }}
+        name: Release ${{ steps.version.outputs.VERSION }}
+        tag_name: ${{ steps.version.outputs.VERSION }}
         files: |
-          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_darwin_amd64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_darwin_arm64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_linux_amd64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_linux_arm64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}-aws-only_windows_amd64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}_darwin_amd64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}_darwin_arm64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}_linux_amd64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}_linux_arm64.zip
-          build/compiled/snowbridge_${{ github.ref_name }}_windows_amd64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_darwin_amd64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_darwin_arm64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_linux_amd64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_linux_arm64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_windows_amd64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_darwin_amd64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_darwin_arm64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_linux_amd64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_linux_arm64.zip
+          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_windows_amd64.zip
 
     - name: Publish to DockerHub
       run: make container-release
