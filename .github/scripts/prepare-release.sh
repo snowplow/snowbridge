@@ -43,8 +43,8 @@ echo "$VERSION" > VERSION
 
 echo "Updating CHANGELOG"
 
-# Get all commits in the current branch, excluding prepare release commits
-COMMITS=$(git log --oneline --no-merges --pretty=format:"%s" | grep -v "^Prepare for .* release$")
+# Get commits since the last release (stop at first "Prepare for X.Y.Z release" commit)
+COMMITS=$(git log --oneline --no-merges --pretty=format:"%s" | awk '/^Prepare for .* release$/ {exit} {print}' || true)
 
 # Create the new changelog entry
 TEMP_CHANGELOG=$(mktemp)
