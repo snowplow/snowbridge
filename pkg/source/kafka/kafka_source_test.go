@@ -23,10 +23,10 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/assets"
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
-	"github.com/snowplow/snowbridge/pkg/testutil"
+	"github.com/snowplow/snowbridge/v3/assets"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 
 	"github.com/stretchr/testify/assert"
 )

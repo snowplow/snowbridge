@@ -12,7 +12,7 @@
 package targetiface
 
 import (
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // Target describes the interface for how to push the data pulled from the source

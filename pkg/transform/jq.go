@@ -15,8 +15,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // JQMapperConfig represents the configuration for the JQ transformation

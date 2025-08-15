@@ -18,7 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/pkg/testutil"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
 func TestSQSTarget_WriteFailure(t *testing.T) {

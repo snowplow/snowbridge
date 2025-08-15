@@ -12,7 +12,7 @@
 package sourceiface
 
 import (
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // SourceFunctions contain the callback functions required by each source

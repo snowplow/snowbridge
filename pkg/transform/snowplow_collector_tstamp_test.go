@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/stretchr/testify/assert"
 )
 

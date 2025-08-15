@@ -19,7 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/josephburnett/jd/v2"
 
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 const charset = "abcdefghijklmnopqrstuvwxyz" +

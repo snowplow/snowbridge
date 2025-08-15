@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/snowplow/snowbridge/cmd"
+	"github.com/snowplow/snowbridge/v3/cmd"
 
 	"github.com/IBM/sarama"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -31,8 +31,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/pkg/monitoring"
-	"github.com/snowplow/snowbridge/pkg/testutil"
+	"github.com/snowplow/snowbridge/v3/pkg/monitoring"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/stretchr/testify/assert"

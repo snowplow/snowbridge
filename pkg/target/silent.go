@@ -14,7 +14,7 @@ package target
 import (
 	"errors"
 
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 const SupportedTargetSilent = "silent"

@@ -15,9 +15,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 )
 
 // JQFilterConfig represents the configuration for the JQ filter transformation
