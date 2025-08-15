@@ -43,8 +43,8 @@ echo "$VERSION" > VERSION
 
 echo "Updating CHANGELOG"
 
-# Get all commits in this branch since it diverged from master
-COMMITS=$(git log --oneline --no-merges --pretty=format:"%s" master..HEAD | grep -v "^Prepare for .* release$")
+# Get all commits in the current branch, excluding prepare release commits
+COMMITS=$(git log --oneline --no-merges --pretty=format:"%s" | grep -v "^Prepare for .* release$")
 
 # Create the new changelog entry
 TEMP_CHANGELOG=$(mktemp)
