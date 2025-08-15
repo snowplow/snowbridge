@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/pkg/testutil"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 
 	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"

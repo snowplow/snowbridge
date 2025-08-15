@@ -1,4 +1,4 @@
-module github.com/snowplow/snowbridge
+module github.com/snowplow/snowbridge/v3
 
 go 1.24.0
 

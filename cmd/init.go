@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	sentryhook "github.com/snowplow-devops/go-sentryhook"
 
-	config "github.com/snowplow/snowbridge/config"
+	config "github.com/snowplow/snowbridge/v3/config"
 )
 
 var (

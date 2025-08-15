@@ -26,17 +26,17 @@ import (
 	_ "net/http/pprof"
 
 	retry "github.com/avast/retry-go/v4"
-	"github.com/snowplow/snowbridge/cmd"
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/failure/failureiface"
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/observer"
-	"github.com/snowplow/snowbridge/pkg/source/sourceconfig"
-	"github.com/snowplow/snowbridge/pkg/source/sourceiface"
-	"github.com/snowplow/snowbridge/pkg/target/targetiface"
-	"github.com/snowplow/snowbridge/pkg/telemetry"
-	"github.com/snowplow/snowbridge/pkg/transform"
-	"github.com/snowplow/snowbridge/pkg/transform/transformconfig"
+	"github.com/snowplow/snowbridge/v3/cmd"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/failure/failureiface"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/observer"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v3/pkg/telemetry"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	"github.com/snowplow/snowbridge/v3/pkg/transform/transformconfig"
 )
 
 const (

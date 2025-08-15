@@ -15,7 +15,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // CollectorTstampTransformation returns a transformation function attaching collector timestamp to the input message

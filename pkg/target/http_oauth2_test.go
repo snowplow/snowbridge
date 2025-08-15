@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/pkg/models"
-	"github.com/snowplow/snowbridge/pkg/testutil"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 

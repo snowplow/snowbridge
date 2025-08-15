@@ -15,8 +15,8 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/snowplow/snowbridge/config"
-	"github.com/snowplow/snowbridge/pkg/transform"
+	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 )
 

@@ -12,7 +12,7 @@
 package statsreceiveriface
 
 import (
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // StatsReceiver describes the interface for how to push observed statistics

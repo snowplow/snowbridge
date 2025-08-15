@@ -12,7 +12,7 @@
 package failureiface
 
 import (
-	"github.com/snowplow/snowbridge/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 )
 
 // Failure describes the interface for where to push data that

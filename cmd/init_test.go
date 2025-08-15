@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/assets"
+	"github.com/snowplow/snowbridge/v3/assets"
 )
 
 func TestMain(m *testing.M) {
