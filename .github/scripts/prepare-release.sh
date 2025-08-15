@@ -43,17 +43,17 @@ echo "$VERSION" > VERSION
 
 echo "Updating CHANGELOG"
 
-# Find the most recent "Prepare for release" commit to get commits since last release
-LAST_RELEASE_COMMIT=$(git log --oneline --grep="^Prepare for release$" --grep="^Prepare for [0-9]" --max-count=1 --pretty=format:"%H" 2>/dev/null || echo "")
+# Find the most recent "Prepare for X.Y.Z release" commit to get commits since last release
+LAST_RELEASE_COMMIT=$(git log --oneline --grep="^Prepare for .* release$" --max-count=1 --pretty=format:"%H" 2>/dev/null || echo "")
 
 if [[ -n "$LAST_RELEASE_COMMIT" ]]; then
     echo "Found last release commit: $LAST_RELEASE_COMMIT"
     # Get commits since the last release, excluding merge commits and prepare commits
-    COMMITS=$(git log --oneline --no-merges --pretty=format:"%s" "$LAST_RELEASE_COMMIT..HEAD" | grep -v "^Prepare for release" | grep -v "^Prepare for [0-9]")
+    COMMITS=$(git log --oneline --no-merges --pretty=format:"%s" "$LAST_RELEASE_COMMIT..HEAD" | grep -v "^Prepare for .* release$")
 else
     echo "No previous release found, getting all commits"
     # If no previous release, get all commits (for first release)
-    COMMITS=$(git log --oneline --no-merges --pretty=format:"%s" | grep -v "^Prepare for release" | grep -v "^Prepare for [0-9]")
+    COMMITS=$(git log --oneline --no-merges --pretty=format:"%s" | grep -v "^Prepare for .* release$")
 fi
 
 # Create the new changelog entry

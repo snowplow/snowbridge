@@ -39,10 +39,18 @@ jobs:
     - name: Check if prepare release commit already exists
       id: check_commit
       run: |
-        if git log -1 --pretty=%B | grep -q "^Prepare for release$"; then
+        VERSION="${{ steps.extract_version.outputs.version }}"
+        
+        # Check if a prepare release commit for this version already exists
+        if git log --oneline --grep="^Prepare for $VERSION release$" --max-count=1 | grep -q "Prepare for $VERSION release"; then
+          echo "Found existing 'Prepare for $VERSION release' commit in branch history"
           echo "already_prepared=true" >> $GITHUB_OUTPUT
-          echo "Prepare for release commit already exists on this branch"
+        # Also check if this specific version already exists in CHANGELOG
+        elif grep -q "^Version $VERSION " CHANGELOG 2>/dev/null; then
+          echo "Version $VERSION already exists in CHANGELOG"
+          echo "already_prepared=true" >> $GITHUB_OUTPUT
         else
+          echo "No prepare for $VERSION release commit found, proceeding with release preparation"
           echo "already_prepared=false" >> $GITHUB_OUTPUT
         fi
     
@@ -55,7 +63,7 @@ jobs:
       if: steps.check_commit.outputs.already_prepared == 'false'
       run: |
         git add VERSION CHANGELOG README.md cmd/constants.go
-        git commit -m "Prepare for release"
+        git commit -m "Prepare for ${{ steps.extract_version.outputs.version }} release"
         git push origin ${{ github.ref_name }}
     
     - name: Skip commit creation
