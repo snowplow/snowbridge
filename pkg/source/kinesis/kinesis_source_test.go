@@ -70,7 +70,7 @@ func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
 		}
 	}()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 250, 10, 10, "test_client_name")
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 250, 10, 10, "test_client_name", 10000, 0)
 
 	assert.IsType(&kinesisSource{}, source)
 	assert.Nil(err)
@@ -86,7 +86,7 @@ func TestNewKinesisSourceWithInterfaces_Failure(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "nonexistent-stream", "test", nil)
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "nonexistent-stream", "test", nil, 250, 10, 10, "test_client_name", 10000, 0)
 
 	assert.Nil(&kinesisSource{}, source)
 	assert.NotNil(err)
@@ -105,7 +105,7 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil, 250, 10, 10, "test_client_name")
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil, 250, 10, 10, "test_client_name", 10000, 0)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", source.GetID())
@@ -160,7 +160,7 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Create the source and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 250, 10, 10, "test_client_name")
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 250, 10, 10, "test_client_name", 10000, 0)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-2", source.GetID())
@@ -221,7 +221,7 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	}
 
 	// Create the source (with start timestamp) and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart, 250, 10, 10, "test_client_name")
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart, 250, 10, 10, "test_client_name", 10000, 0)
 	assert.Nil(err)
 	assert.NotNil(source)
 	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-3", source.GetID())
@@ -331,6 +331,8 @@ func TestKinesisSourceHCL(t *testing.T) {
 				ReadThrottleDelayMs:     250,
 				ShardCheckFreqSeconds:   10,
 				LeaderActionFreqSeconds: 60,
+				GetRecordsLimit:         10000,
+				MaxConcurrentShards:     0,
 			},
 			ClientNameUUID: true,
 		},
@@ -348,6 +350,8 @@ func TestKinesisSourceHCL(t *testing.T) {
 				ShardCheckFreqSeconds:   10,
 				LeaderActionFreqSeconds: 60,
 				ClientName:              "test_client_name",
+				GetRecordsLimit:         10000,
+				MaxConcurrentShards:     0,
 			},
 			ClientNameUUID: false,
 		},
@@ -389,6 +393,8 @@ func TestKinesisSourceHCL(t *testing.T) {
 			assert.Equal(resultConf.ReadThrottleDelayMs, tt.Expected.ReadThrottleDelayMs)
 			assert.Equal(resultConf.ShardCheckFreqSeconds, tt.Expected.ShardCheckFreqSeconds)
 			assert.Equal(resultConf.LeaderActionFreqSeconds, tt.Expected.LeaderActionFreqSeconds)
+			assert.Equal(resultConf.GetRecordsLimit, tt.Expected.GetRecordsLimit)
+			assert.Equal(resultConf.MaxConcurrentShards, tt.Expected.MaxConcurrentShards)
 
 			if !tt.ClientNameUUID {
 				assert.Equal(resultConf.ClientName, tt.Expected.ClientName)

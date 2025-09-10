@@ -39,5 +39,11 @@ source {
 
     # The name of the Kinesis client that is used to allocate shards. It must be unique per instance of Snowbridge.
     client_name = env.HOSTNAME
+
+    # Maximum number of records to retrieve in a single GetRecords call (default: 10000 for backwards compatibility)
+    get_records_limit = 1000
+
+    # Maximum number of concurrent shards to process. 0 means no limit (default: 0 for backwards compatibility)
+    max_concurrent_shards = 20
   }
 }
