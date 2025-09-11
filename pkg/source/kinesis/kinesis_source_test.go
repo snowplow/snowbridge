@@ -26,7 +26,10 @@ import (
 
 	"github.com/snowplow/snowbridge/v3/assets"
 	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/observer"
 	"github.com/snowplow/snowbridge/v3/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
@@ -34,6 +37,31 @@ func TestMain(m *testing.M) {
 	os.Clearenv()
 	exitVal := m.Run()
 	os.Exit(exitVal)
+}
+
+// --- Test StatsReceiver for testing kinsumer metrics
+
+type TestStatsReceiver struct {
+	onSend func(b *models.ObserverBuffer)
+}
+
+func (s *TestStatsReceiver) Send(b *models.ObserverBuffer) {
+	s.onSend(b)
+}
+
+// DelayedTestWriteBuilder sleeps before processing messages to allow kinsumer metrics to be captured
+func DelayedTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Message, additionalOpts any) func(messages []*models.Message) error {
+	return func(messages []*models.Message) error {
+		// Sleep to allow kinsumer to accumulate records in memory while observer flushes metrics
+		time.Sleep(2 * time.Second)
+
+		// Then process messages normally like DefaultTestWriteBuilder
+		for _, msg := range messages {
+			msgChan <- msg
+			msg.AckFunc()
+		}
+		return nil
+	}
 }
 
 func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
@@ -169,6 +197,93 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
 
 	assert.Equal(10, len(successfulReads))
+}
+
+func TestKinesisSource_KinsumerMetrics(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	assert := assert.New(t)
+
+	// Set up localstack resources
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+	streamName := "kinesis-source-metrics-integration"
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
+	if createErr != nil {
+		t.Fatal(createErr)
+	}
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	appName := "integration-metrics"
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	if ddbErr != nil {
+		t.Fatal(ddbErr)
+	}
+	defer func() {
+		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	// Put ten records into kinesis stream
+	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "Test")
+	if putErr != nil {
+		t.Fatal(putErr)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	// Create the source and assert that it's there
+	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, streamName, appName, nil, 250, 10, 10, "test_client_name", 10000, 0)
+	assert.Nil(err)
+	assert.NotNil(source)
+	assert.Equal(fmt.Sprintf("arn:aws:kinesis:us-east-1:00000000000:stream/%s", streamName), source.GetID())
+
+	// Set up observer with mock stats receiver to capture kinsumer metrics
+	var capturedBuffers []*models.ObserverBuffer
+	mockStatsReceiver := &TestStatsReceiver{
+		onSend: func(b *models.ObserverBuffer) {
+			capturedBuffers = append(capturedBuffers, b)
+		},
+	}
+
+	obs := observer.New(mockStatsReceiver, 1*time.Second, 1500*time.Millisecond, nil)
+	obs.Start()
+	defer obs.Stop()
+
+	// Set observer on kinesis source to enable kinsumer metrics
+	source.SetObserver(obs)
+
+	// Read data from stream and check that we got it all
+	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, DelayedTestWriteBuilder, nil)
+
+	assert.Equal(10, len(successfulReads))
+
+	// Verify that kinsumer metrics were captured in observer buffer
+	assert.NotEmpty(capturedBuffers, "Observer buffers should have been captured during processing")
+
+	// Find any buffer with non-zero kinsumer metrics
+	foundNonZeroRecords := false
+	foundNonZeroBytes := false
+	for _, buffer := range capturedBuffers {
+		fmt.Println("KinsumerRecordsInMemory:", buffer.KinsumerRecordsInMemory)
+		if buffer.KinsumerRecordsInMemory > 0 {
+			foundNonZeroRecords = true
+		}
+		fmt.Println("KinsumerRecordsInMemoryBytes:", buffer.KinsumerRecordsInMemoryBytes)
+		if buffer.KinsumerRecordsInMemoryBytes > 0 {
+			foundNonZeroBytes = true
+		}
+	}
+	assert.True(foundNonZeroRecords, "Should have captured non-zero KinsumerRecordsInMemory during processing")
+	assert.True(foundNonZeroBytes, "Should have captured non-zero KinsumerRecordsInMemoryBytes during processing")
 }
 
 func TestKinesisSource_StartTimestamp(t *testing.T) {
