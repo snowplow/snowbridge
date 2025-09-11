@@ -276,11 +276,9 @@ func TestKinesisSource_KinsumerMetrics(t *testing.T) {
 	foundNonZeroRecords := false
 	foundNonZeroBytes := false
 	for _, buffer := range capturedBuffers {
-		fmt.Println("KinsumerRecordsInMemory:", buffer.KinsumerRecordsInMemory)
 		if buffer.KinsumerRecordsInMemory > 0 {
 			foundNonZeroRecords = true
 		}
-		fmt.Println("KinsumerRecordsInMemoryBytes:", buffer.KinsumerRecordsInMemoryBytes)
 		if buffer.KinsumerRecordsInMemoryBytes > 0 {
 			foundNonZeroBytes = true
 		}
