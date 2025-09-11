@@ -36,6 +36,10 @@ type Observer struct {
 	reportInterval           time.Duration
 	isRunning                bool
 
+	// Kinsumer metrics (gauge values - current state)
+	kinsumerRecordsInMemory      int64
+	kinsumerRecordsInMemoryBytes int64
+
 	log *log.Entry
 }
 
@@ -57,6 +61,7 @@ func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval t
 		isRunning:                false,
 	}
 }
+
 
 // Start launches a goroutine which processes results from target writes
 func (o *Observer) Start() {
@@ -112,6 +117,10 @@ func (o *Observer) Start() {
 }
 
 func (o *Observer) flushStats(buffer *models.ObserverBuffer, reportTime time.Time) {
+	// Copy current kinsumer gauge values to buffer before sending
+	buffer.KinsumerRecordsInMemory = o.kinsumerRecordsInMemory
+	buffer.KinsumerRecordsInMemoryBytes = o.kinsumerRecordsInMemoryBytes
+
 	o.log.Info(buffer.String())
 	if o.statsClient != nil {
 		o.statsClient.Send(buffer)
@@ -155,4 +164,14 @@ func (o *Observer) TargetWriteOversized(r *models.TargetWriteResult) {
 // by the observer
 func (o *Observer) TargetWriteInvalid(r *models.TargetWriteResult) {
 	o.targetWriteInvalidChan <- r
+}
+
+// UpdateKinsumerRecordsInMemory updates the current count of records in memory
+func (o *Observer) UpdateKinsumerRecordsInMemory(count int64) {
+	o.kinsumerRecordsInMemory = count
+}
+
+// UpdateKinsumerRecordsInMemoryBytes updates the current bytes of records in memory
+func (o *Observer) UpdateKinsumerRecordsInMemoryBytes(bytes int64) {
+	o.kinsumerRecordsInMemoryBytes = bytes
 }

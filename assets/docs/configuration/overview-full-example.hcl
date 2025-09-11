@@ -117,6 +117,9 @@ retry {
 metrics {
   # Optional toggle for E2E latency (difference between Snowplow collector timestamp and target write timestamp)
   enable_e2e_latency = true
+  
+  # Optional toggle for kinsumer memory metrics (records in memory count and bytes)
+  enable_kinsumer_memory_metrics = true
 }
 
 monitoring {

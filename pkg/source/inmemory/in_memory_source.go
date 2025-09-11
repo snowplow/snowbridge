@@ -33,6 +33,7 @@ func ConfigPair(messages chan []string) config.ConfigurationPair {
 type configuration struct{}
 
 type inMemorySource struct {
+	sourceiface.NoOpObserver
 	messages   chan []string
 	log        *log.Entry
 	exitSignal chan struct{}

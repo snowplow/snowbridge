@@ -11,9 +11,19 @@
 
 package sourceiface
 
+import "github.com/snowplow/snowbridge/v3/pkg/observer"
+
 // Source describes the interface for how to read the data pulled from the source
 type Source interface {
 	Read(sf *SourceFunctions) error
 	Stop()
 	GetID() string
+	SetObserver(*observer.Observer)
 }
+
+// NoOpObserver provides a default no-op implementation of SetObserver
+// for sources that don't need observer functionality
+type NoOpObserver struct{}
+
+// SetObserver does nothing - no-op implementation
+func (NoOpObserver) SetObserver(*observer.Observer) {}

@@ -41,6 +41,7 @@ type Configuration struct {
 
 // pubSubSource holds a new client for reading messages from PubSub
 type pubSubSource struct {
+	sourceiface.NoOpObserver
 	projectID                 string
 	client                    *pubsub.Client
 	subscriptionID            string

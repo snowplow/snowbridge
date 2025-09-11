@@ -33,6 +33,7 @@ type Configuration struct {
 
 // stdinSource holds a new client for reading messages from stdin
 type stdinSource struct {
+	sourceiface.NoOpObserver
 	concurrentWrites int
 
 	log *log.Entry

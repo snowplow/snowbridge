@@ -107,7 +107,8 @@ type retryConfig struct {
 }
 
 type metricsConfig struct {
-	E2ELatencyEnabled bool `hcl:"enable_e2e_latency,optional"`
+	E2ELatencyEnabled           bool `hcl:"enable_e2e_latency,optional"`
+	KinsumerMemoryMetricsEnabled bool `hcl:"enable_kinsumer_memory_metrics,optional"`
 }
 
 type monitoringConfig struct {
@@ -170,7 +171,8 @@ func defaultConfigData() *configurationData {
 			},
 		},
 		Metrics: &metricsConfig{
-			E2ELatencyEnabled: false,
+			E2ELatencyEnabled:           false,
+			KinsumerMemoryMetricsEnabled: false,
 		},
 		Monitoring: &monitoringConfig{
 			Webhook: &webhookConfig{
@@ -483,7 +485,7 @@ func (c *Config) getStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	switch useReceiver.Name {
 	case "statsd":
 		plug := statsreceiver.AdaptStatsDStatsReceiverFunc(
-			statsreceiver.NewStatsDReceiverWithTags(tags, c.Data.Metrics.E2ELatencyEnabled),
+			statsreceiver.NewStatsDReceiverWithTags(tags, c.Data.Metrics.E2ELatencyEnabled, c.Data.Metrics.KinsumerMemoryMetricsEnabled),
 		)
 		component, err := c.CreateComponent(plug, decoderOpts)
 		if err != nil {

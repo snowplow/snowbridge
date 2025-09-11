@@ -27,6 +27,7 @@ import (
 	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/common"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/observer"
 	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 )
 
@@ -56,6 +57,14 @@ type kinesisSource struct {
 	concurrentWrites int
 	region           string
 	accountID        string
+	observer         *observer.Observer
+
+	// Kinsumer initialization parameters (for lazy creation)
+	kinesisClient  common.KinesisV2API
+	dynamodbClient common.DynamoDBV2API
+	appName        string
+	clientName     string
+	kinsumerConfig kinsumer.Config
 
 	log *log.Entry
 }
@@ -168,6 +177,43 @@ func (kl *KinsumerLogrus) Log(format string, v ...any) {
 	log.WithFields(log.Fields{"source": "KinesisSource.Kinsumer"}).Debugf(format, v...)
 }
 
+// kinsumerStatsWrapper wraps an observer to implement kinsumer's stats interface
+type kinsumerStatsWrapper struct {
+	observer *observer.Observer
+}
+
+// newKinsumerStatsWrapper creates a wrapper that provides kinsumer-specific metrics
+func newKinsumerStatsWrapper(obs *observer.Observer) *kinsumerStatsWrapper {
+	return &kinsumerStatsWrapper{
+		observer: obs,
+	}
+}
+
+// Kinsumer stats interface implementation
+func (w *kinsumerStatsWrapper) Checkpoint() {
+	// No-op: not necessary for now
+}
+
+func (w *kinsumerStatsWrapper) EventToClient(inserted, retrieved time.Time) {
+	// No-op: not necessary for now
+}
+
+func (w *kinsumerStatsWrapper) EventsFromKinesis(num int, shardID string, lag time.Duration) {
+	// No-op: not necessary for now
+}
+
+func (w *kinsumerStatsWrapper) RecordsInMemory(count int64) {
+	if w.observer != nil {
+		w.observer.UpdateKinsumerRecordsInMemory(count)
+	}
+}
+
+func (w *kinsumerStatsWrapper) RecordsInMemoryBytes(bytes int64) {
+	if w.observer != nil {
+		w.observer.UpdateKinsumerRecordsInMemoryBytes(bytes)
+	}
+}
+
 // newKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
 // for mocking and localstack usage
 func newKinesisSourceWithInterfaces(
@@ -186,6 +232,7 @@ func newKinesisSourceWithInterfaces(
 	getRecordsLimit int,
 	maxConcurrentShards int) (*kinesisSource, error) {
 
+	// Build base kinsumer config with available parameters
 	config := kinsumer.NewConfig().
 		WithShardCheckFrequency(time.Duration(shardCheckFreq) * time.Second).
 		WithLeaderActionFrequency(time.Duration(leaderActionFreq) * time.Second).
@@ -196,18 +243,20 @@ func newKinesisSourceWithInterfaces(
 		WithGetRecordsLimit(getRecordsLimit).
 		WithMaxConcurrentShards(maxConcurrentShards)
 
-	k, err := kinsumer.NewWithInterfaces(kinesisClient, dynamodbClient, streamName, appName, clientName, clientName, config)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create Kinsumer client")
-	}
-
 	return &kinesisSource{
-		client:           k,
 		streamName:       streamName,
 		concurrentWrites: concurrentWrites,
 		region:           region,
 		accountID:        awsAccountID,
-		log:              log.WithFields(log.Fields{"source": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
+
+		// Store AWS clients and config for lazy kinsumer initialization
+		kinesisClient:  kinesisClient,
+		dynamodbClient: dynamodbClient,
+		appName:        appName,
+		clientName:     clientName,
+		kinsumerConfig: config,
+
+		log: log.WithFields(log.Fields{"source": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
 	}, nil
 }
 
@@ -215,7 +264,31 @@ func newKinesisSourceWithInterfaces(
 func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 	ks.log.Infof("Reading messages from stream ...")
 
-	err := ks.client.Run()
+	config := ks.kinsumerConfig
+	if ks.observer != nil {
+		// If we have an observer, use it for kinsumer metrics
+		kinsumerStats := newKinsumerStatsWrapper(ks.observer)
+		config.WithStats(kinsumerStats)
+	}
+
+	// Create kinsumer client
+	client, err := kinsumer.NewWithInterfaces(
+		ks.kinesisClient,
+		ks.dynamodbClient,
+		ks.streamName,
+		ks.appName,
+		ks.clientName,
+		ks.clientName,
+		config,
+	)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create Kinsumer client")
+	}
+
+	ks.client = client
+	ks.log.Debug("Kinsumer client initialized successfully")
+
+	err = ks.client.Run()
 	if err != nil {
 		return errors.Wrap(err, "Failed to start Kinsumer client")
 	}
@@ -298,10 +371,18 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 // Stop will halt the reader processing more events
 func (ks *kinesisSource) Stop() {
 	ks.log.Warn("Cancelling Kinesis receive ...")
-	ks.client.Stop()
+	if ks.client != nil {
+		ks.client.Stop()
+	}
 }
 
 // GetID returns the identifier for this source
 func (ks *kinesisSource) GetID() string {
 	return fmt.Sprintf("arn:aws:kinesis:%s:%s:stream/%s", ks.region, ks.accountID, ks.streamName)
+}
+
+// SetObserver injects the observer into the kinesis source for metrics reporting
+func (ks *kinesisSource) SetObserver(obs *observer.Observer) {
+	ks.observer = obs
+	ks.log.Debug("Observer set for kinesis source")
 }
