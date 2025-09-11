@@ -268,7 +268,7 @@ func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
 	if ks.observer != nil {
 		// If we have an observer, use it for kinsumer metrics
 		kinsumerStats := newKinsumerStatsWrapper(ks.observer)
-		config.WithStats(kinsumerStats)
+		config = config.WithStats(kinsumerStats)
 	}
 
 	// Create kinsumer client
