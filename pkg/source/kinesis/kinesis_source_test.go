@@ -204,6 +204,9 @@ func TestKinesisSource_KinsumerMetrics(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
+	// Set log level to reduce noise
+	logrus.SetLevel(logrus.WarnLevel)
+
 	assert := assert.New(t)
 
 	// Set up localstack resources
@@ -254,7 +257,7 @@ func TestKinesisSource_KinsumerMetrics(t *testing.T) {
 		},
 	}
 
-	obs := observer.New(mockStatsReceiver, 1*time.Second, 1500*time.Millisecond, nil)
+	obs := observer.New(mockStatsReceiver, 1*time.Second, 500*time.Millisecond, nil)
 	obs.Start()
 	defer obs.Stop()
 
