@@ -36,9 +36,9 @@ type Observer struct {
 	reportInterval           time.Duration
 	isRunning                bool
 
-	// Kinsumer metrics (gauge values - current state)
-	kinsumerRecordsInMemory      int64
-	kinsumerRecordsInMemoryBytes int64
+	// Kinsumer metrics channels
+	kinsumerRecordsChan      chan int64
+	kinsumerRecordsBytesChan chan int64
 
 	log *log.Entry
 }
@@ -55,13 +55,14 @@ func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval t
 		targetWriteChan:          make(chan *models.TargetWriteResult, 1000),
 		targetWriteOversizedChan: make(chan *models.TargetWriteResult, 1000),
 		targetWriteInvalidChan:   make(chan *models.TargetWriteResult, 1000),
+		kinsumerRecordsChan:      make(chan int64, 1000),
+		kinsumerRecordsBytesChan: make(chan int64, 1000),
 		timeout:                  timeout,
 		reportInterval:           reportInterval,
 		log:                      log.WithFields(log.Fields{"name": "Observer"}),
 		isRunning:                false,
 	}
 }
-
 
 // Start launches a goroutine which processes results from target writes
 func (o *Observer) Start() {
@@ -97,6 +98,10 @@ func (o *Observer) Start() {
 				buffer.AppendWriteOversized(res)
 			case res := <-o.targetWriteInvalidChan:
 				buffer.AppendWriteInvalid(res)
+			case count := <-o.kinsumerRecordsChan:
+				buffer.KinsumerRecordsInMemory = count
+			case bytes := <-o.kinsumerRecordsBytesChan:
+				buffer.KinsumerRecordsInMemoryBytes = bytes
 			case <-time.After(o.timeout):
 				o.log.Debugf("Observer timed out after (%v) waiting for result", o.timeout)
 			}
@@ -109,6 +114,9 @@ func (o *Observer) Start() {
 				buffer = models.ObserverBuffer{
 					InvalidErrors: make(map[models.MetadataCodeDescription]int),
 					FailedErrors:  make(map[models.MetadataCodeDescription]int),
+
+					KinsumerRecordsInMemory:      buffer.KinsumerRecordsInMemory,
+					KinsumerRecordsInMemoryBytes: buffer.KinsumerRecordsInMemoryBytes,
 				}
 			}
 		}
@@ -117,10 +125,6 @@ func (o *Observer) Start() {
 }
 
 func (o *Observer) flushStats(buffer *models.ObserverBuffer, reportTime time.Time) {
-	// Copy current kinsumer gauge values to buffer before sending
-	buffer.KinsumerRecordsInMemory = o.kinsumerRecordsInMemory
-	buffer.KinsumerRecordsInMemoryBytes = o.kinsumerRecordsInMemoryBytes
-
 	o.log.Info(buffer.String())
 	if o.statsClient != nil {
 		o.statsClient.Send(buffer)
@@ -168,10 +172,20 @@ func (o *Observer) TargetWriteInvalid(r *models.TargetWriteResult) {
 
 // UpdateKinsumerRecordsInMemory updates the current count of records in memory
 func (o *Observer) UpdateKinsumerRecordsInMemory(count int64) {
-	o.kinsumerRecordsInMemory = count
+	select {
+	case o.kinsumerRecordsChan <- count:
+	default:
+		// Channel full, skip
+		log.Warn("KinsumerRecordsInMemory channel full, metric dropped")
+	}
 }
 
 // UpdateKinsumerRecordsInMemoryBytes updates the current bytes of records in memory
 func (o *Observer) UpdateKinsumerRecordsInMemoryBytes(bytes int64) {
-	o.kinsumerRecordsInMemoryBytes = bytes
+	select {
+	case o.kinsumerRecordsBytesChan <- bytes:
+	default:
+		// Channel full, skip
+		log.Warn("KinsumerRecordsInMemoryBytes channel full, metric dropped")
+	}
 }
