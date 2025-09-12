@@ -36,6 +36,10 @@ type Observer struct {
 	reportInterval           time.Duration
 	isRunning                bool
 
+	// Kinsumer metrics channels
+	kinsumerRecordsChan      chan int64
+	kinsumerRecordsBytesChan chan int64
+
 	log *log.Entry
 }
 
@@ -51,6 +55,8 @@ func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval t
 		targetWriteChan:          make(chan *models.TargetWriteResult, 1000),
 		targetWriteOversizedChan: make(chan *models.TargetWriteResult, 1000),
 		targetWriteInvalidChan:   make(chan *models.TargetWriteResult, 1000),
+		kinsumerRecordsChan:      make(chan int64, 1000),
+		kinsumerRecordsBytesChan: make(chan int64, 1000),
 		timeout:                  timeout,
 		reportInterval:           reportInterval,
 		log:                      log.WithFields(log.Fields{"name": "Observer"}),
@@ -92,6 +98,10 @@ func (o *Observer) Start() {
 				buffer.AppendWriteOversized(res)
 			case res := <-o.targetWriteInvalidChan:
 				buffer.AppendWriteInvalid(res)
+			case count := <-o.kinsumerRecordsChan:
+				buffer.KinsumerRecordsInMemory = count
+			case bytes := <-o.kinsumerRecordsBytesChan:
+				buffer.KinsumerRecordsInMemoryBytes = bytes
 			case <-time.After(o.timeout):
 				o.log.Debugf("Observer timed out after (%v) waiting for result", o.timeout)
 			}
@@ -104,6 +114,9 @@ func (o *Observer) Start() {
 				buffer = models.ObserverBuffer{
 					InvalidErrors: make(map[models.MetadataCodeDescription]int),
 					FailedErrors:  make(map[models.MetadataCodeDescription]int),
+
+					KinsumerRecordsInMemory:      buffer.KinsumerRecordsInMemory,
+					KinsumerRecordsInMemoryBytes: buffer.KinsumerRecordsInMemoryBytes,
 				}
 			}
 		}
@@ -155,4 +168,24 @@ func (o *Observer) TargetWriteOversized(r *models.TargetWriteResult) {
 // by the observer
 func (o *Observer) TargetWriteInvalid(r *models.TargetWriteResult) {
 	o.targetWriteInvalidChan <- r
+}
+
+// UpdateKinsumerRecordsInMemory updates the current count of records in memory
+func (o *Observer) UpdateKinsumerRecordsInMemory(count int64) {
+	select {
+	case o.kinsumerRecordsChan <- count:
+	default:
+		// Channel full, skip
+		log.Warn("KinsumerRecordsInMemory channel full, metric dropped")
+	}
+}
+
+// UpdateKinsumerRecordsInMemoryBytes updates the current bytes of records in memory
+func (o *Observer) UpdateKinsumerRecordsInMemoryBytes(bytes int64) {
+	select {
+	case o.kinsumerRecordsBytesChan <- bytes:
+	default:
+		// Channel full, skip
+		log.Warn("KinsumerRecordsInMemoryBytes channel full, metric dropped")
+	}
 }

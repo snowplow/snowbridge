@@ -30,7 +30,9 @@ func TestMain(m *testing.M) {
 }
 
 // Mock a Source and configuration
-type mockSource struct{}
+type mockSource struct {
+	sourceiface.NoOpObserver
+}
 
 func (m mockSource) Read(sf *sourceiface.SourceFunctions) error {
 	return nil

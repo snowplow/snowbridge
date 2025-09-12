@@ -64,6 +64,10 @@ type ObserverBuffer struct {
 
 	InvalidErrors map[MetadataCodeDescription]int
 	FailedErrors  map[MetadataCodeDescription]int
+
+	// Kinsumer metrics
+	KinsumerRecordsInMemory      int64 // Current count of records in memory
+	KinsumerRecordsInMemoryBytes int64 // Current bytes of records in memory
 }
 
 func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {

@@ -145,11 +145,14 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 		return err
 	}
 
-	observer, err := cfg.GetObserver(cmd.AppName, cmd.AppVersion, tags)
+	obs, err := cfg.GetObserver(cmd.AppName, cmd.AppVersion, tags)
 	if err != nil {
 		return err
 	}
-	observer.Start()
+	obs.Start()
+
+	// Add observer to source, so source metrics can be configured
+	source.SetObserver(obs)
 
 	stopTelemetry := telemetry.InitTelemetryWithCollector(cfg)
 
@@ -182,7 +185,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 			target.Close()
 			failureTarget.Close()
 			filterTarget.Close()
-			observer.Stop()
+			obs.Stop()
 			stopTelemetry()
 
 			if err != nil {
@@ -195,7 +198,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	// Callback functions for the source to leverage when writing data
 	sf := sourceiface.SourceFunctions{
-		WriteToTarget: sourceWriteFunc(target, failureTarget, filterTarget, transformations, observer, cfg, alertChan),
+		WriteToTarget: sourceWriteFunc(target, failureTarget, filterTarget, transformations, obs, cfg, alertChan),
 	}
 
 	// Read is a long running process and will only return when the source
@@ -208,7 +211,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	target.Close()
 	failureTarget.Close()
 	filterTarget.Close()
-	observer.Stop()
+	obs.Stop()
 	return nil
 }
 

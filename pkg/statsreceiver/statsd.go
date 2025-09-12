@@ -31,12 +31,13 @@ type StatsDStatsReceiverConfig struct {
 
 // statsDStatsReceiver holds a new client for writing statistics to a StatsD server
 type statsDStatsReceiver struct {
-	client           *statsd.Client
-	enableE2ELatency bool
+	client                      *statsd.Client
+	enableE2ELatency            bool
+	enableKinsumerMemoryMetrics bool
 }
 
 // newStatsDStatsReceiver creates a new client for writing metrics to StatsD
-func newStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsMapClient map[string]string, enableE2ELatency bool) (*statsDStatsReceiver, error) {
+func newStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsMapClient map[string]string, enableE2ELatency bool, enableKinsumerMemoryMetrics bool) (*statsDStatsReceiver, error) {
 
 	tagsMap := map[string]string{}
 	err := json.Unmarshal([]byte(tagsRaw), &tagsMap)
@@ -61,14 +62,15 @@ func newStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsM
 	)
 
 	return &statsDStatsReceiver{
-		client:           client,
-		enableE2ELatency: enableE2ELatency,
+		client:                      client,
+		enableE2ELatency:            enableE2ELatency,
+		enableKinsumerMemoryMetrics: enableKinsumerMemoryMetrics,
 	}, nil
 }
 
 // NewStatsDReceiverWithTags closes over a given tags map and returns a function
-// that creates a statsDStatsReceiver given a StatsDStatsReceiverConfig.
-func NewStatsDReceiverWithTags(tags map[string]string, enableE2ELatency bool) func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error) {
+// that creates a StatsDStatsReceiver given a StatsDStatsReceiverConfig.
+func NewStatsDReceiverWithTags(tags map[string]string, enableE2ELatency bool, enableKinsumerMemoryMetrics bool) func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error) {
 	return func(c *StatsDStatsReceiverConfig) (*statsDStatsReceiver, error) {
 		return newStatsDStatsReceiver(
 			c.Address,
@@ -76,6 +78,7 @@ func NewStatsDReceiverWithTags(tags map[string]string, enableE2ELatency bool) fu
 			c.Tags,
 			tags,
 			enableE2ELatency,
+			enableKinsumerMemoryMetrics,
 		)
 	}
 }
@@ -150,5 +153,11 @@ func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
 		s.client.PrecisionTiming("min_e2e_latency", b.MinE2ELatency)
 		s.client.PrecisionTiming("max_e2e_latency", b.MaxE2ELatency)
 		s.client.PrecisionTiming("avg_e2e_latency", b.GetAvgE2ELatency())
+	}
+
+	// kinsumer metrics (only if enabled)
+	if s.enableKinsumerMemoryMetrics {
+		s.client.Gauge("kinsumer_records_in_memory", b.KinsumerRecordsInMemory)
+		s.client.Gauge("kinsumer_records_in_memory_bytes", b.KinsumerRecordsInMemoryBytes)
 	}
 }

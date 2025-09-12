@@ -42,6 +42,7 @@ type Configuration struct {
 
 // sqsSource holds a new client for reading messages from SQS
 type sqsSource struct {
+	sourceiface.NoOpObserver
 	client           common.SqsV2API
 	queueURL         string
 	queueName        string

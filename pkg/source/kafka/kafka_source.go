@@ -51,6 +51,7 @@ type Configuration struct {
 
 // kafkaSource holds a new client for reading messages from Apache Kafka
 type kafkaSource struct {
+	sourceiface.NoOpObserver
 	concurrentWrites int
 	topic            string
 	brokers          string
