@@ -8,7 +8,6 @@ on:
 jobs:
   ci:
     name: Run CI Tests
-    needs: [prepare-release]
     uses: ./.github/workflows/ci-steps.yml
     secrets:
       NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
@@ -16,6 +15,7 @@ jobs:
 
   prepare-release:
     name: Prepare Release Commit
+    needs: [ci]
     runs-on: ubuntu-latest
     
     steps:
