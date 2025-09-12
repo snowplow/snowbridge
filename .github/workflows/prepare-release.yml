@@ -1,4 +1,4 @@
-name: prepare-release
+name: prepare-release-pr
 
 on:
   push:
@@ -6,16 +6,8 @@ on:
       - 'release/*'
 
 jobs:
-  ci:
-    name: Run CI Tests
-    uses: ./.github/workflows/ci-steps.yml
-    secrets:
-      NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
   prepare-release:
     name: Prepare Release Commit
-    needs: [ci]
     runs-on: ubuntu-latest
     
     steps:
@@ -79,3 +71,12 @@ jobs:
       if: steps.check_commit.outputs.already_prepared == 'true'
       run: |
         echo "Skipping commit creation - prepare for release commit already exists"
+
+
+  ci:
+    name: Run CI Tests
+    needs: [prepare-release]
+    uses: ./.github/workflows/ci-steps.yml
+    secrets:
+      NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
