@@ -1,3 +1,13 @@
+Version 3.6.0 (2025-09-12)
+--------------------------
+Disable prepare-release action until access issue can be resolved
+Use latest localstack for tests
+Update go to 1.25.1
+Update dependencies
+Add kinsumer memory metrics (#452)
+Add memory control options to kinesis source
+Automate prepare for release
+
 Version 3.5.0 (2025-08-18)
 --------------------------
 Update to distribute as go module (#448)
