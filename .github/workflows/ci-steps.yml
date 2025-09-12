@@ -1,0 +1,88 @@
+name: ci-steps
+
+on:
+  workflow_call:
+    secrets:
+      NGROK_TOKEN:
+        required: false
+      SNYK_TOKEN:
+        required: false
+
+jobs:
+  test:
+    name: Compile & Test
+    strategy:
+      matrix:
+        # Quotes are required: https://github.com/actions/setup-go/issues/326#issuecomment-1415719692
+        go-version: ['1.25']
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        check-latest: true
+        cache: true
+
+    - name: Check if go mod tidy should be run
+      uses: katexochen/go-tidy-check@v2
+
+    - name: Extract project version from file
+      id: version
+      run: |
+          echo ::set-output name=VERSION::"$(cat VERSION)"
+
+    - name: Block Concurrent Executions of Integration Tests
+      if: ${{ env.NGROK_TOKEN != '' }} 
+      uses: softprops/turnstyle@v1
+      with:
+        poll-interval-seconds: 10
+        same-branch-only: false
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Install ngrok
+      run: |
+          mkdir -p $GITHUB_WORKSPACE/bin
+          wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip && unzip ngrok-stable-linux-amd64.zip -d $GITHUB_WORKSPACE/bin/
+          $GITHUB_WORKSPACE/bin/ngrok authtoken ${{ secrets.NGROK_TOKEN }}
+
+    - name: Setup integration resources
+      run: export NGROK_DIR=$GITHUB_WORKSPACE/bin/ && make integration-up
+
+    - name: Run integration & unit tests
+      run: make integration-test
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v7
+      with:
+        version: v2.4
+
+    - name: Compile all targets
+      run: make all
+
+    - name: Snyk Setup
+      uses: snyk/actions/setup@master
+
+    - name: Run Snyk to check for vulnerabilities in main Docker image
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}} --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Run Snyk to check for vulnerabilities in aws-only Docker image
+      run: snyk container test snowplow/snowbridge:${{steps.version.outputs.VERSION}}-aws-only --severity-threshold=high
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Setup e2e resources
+      run: make e2e-up
+
+    - name: Run e2e tests
+      run: make e2e-test
