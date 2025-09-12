@@ -21,6 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	// nolint: govet,staticcheck
 	pubsubV1 "cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"google.golang.org/grpc/codes"
 
@@ -180,6 +181,7 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert.Nil(twres.Invalid)
 	assert.Nil(err)
 
+	// nolint: staticcheck
 	res, pullErr := srv.GServer.Pull(t.Context(), &pubsubV1.PullRequest{
 		Subscription: "projects/project-test/subscriptions/test-sub",
 		MaxMessages:  15, // 15 max messages to ensure we don't miss dupes

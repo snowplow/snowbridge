@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"time"
 
+	// nolint: staticcheck
 	"cloud.google.com/go/pubsub"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"

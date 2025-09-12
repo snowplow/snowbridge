@@ -20,10 +20,12 @@ import (
 	"testing"
 	"time"
 
+	// nolint: staticcheck
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/pubsub/pstest"
 	"github.com/pkg/errors"
 
+	// nolint: staticcheck
 	pubsubV1 "cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -41,11 +43,13 @@ func InitMockPubsubServer(port int, opts []pstest.ServerReactorOption, t *testin
 		t.Fatal(err)
 	}
 
+	// nolint: staticcheck
 	_, err = srv.GServer.CreateTopic(ctx, &pubsubV1.Topic{Name: `projects/project-test/topics/test-topic`})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// nolint: staticcheck
 	_, err = srv.GServer.CreateSubscription(ctx, &pubsubV1.Subscription{
 		Name:               "projects/project-test/subscriptions/test-sub",
 		Topic:              "projects/project-test/topics/test-topic",
