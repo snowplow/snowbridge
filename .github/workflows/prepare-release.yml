@@ -72,7 +72,6 @@ jobs:
       run: |
         echo "Skipping commit creation - prepare for release commit already exists"
 
-
   ci:
     name: Run CI Tests
     needs: [prepare-release]
