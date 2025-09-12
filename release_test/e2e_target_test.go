@@ -34,6 +34,7 @@ import (
 	"github.com/snowplow/snowbridge/v3/pkg/monitoring"
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 
+	// nolint: staticcheck
 	"cloud.google.com/go/pubsub"
 	"github.com/stretchr/testify/assert"
 )

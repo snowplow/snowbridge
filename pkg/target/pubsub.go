@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"time"
 
+	// nolint: staticcheck
 	"cloud.google.com/go/pubsub"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
