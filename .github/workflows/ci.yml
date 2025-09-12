@@ -2,10 +2,6 @@ name: ci
 
 on:
   push:
-    branches:
-    - '*'
-    - '*/*'
-    - '**'
     branches-ignore:
     - 'release/*'
 
