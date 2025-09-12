@@ -31,8 +31,8 @@ type StatsDStatsReceiverConfig struct {
 
 // statsDStatsReceiver holds a new client for writing statistics to a StatsD server
 type statsDStatsReceiver struct {
-	client                     *statsd.Client
-	enableE2ELatency           bool
+	client                      *statsd.Client
+	enableE2ELatency            bool
 	enableKinsumerMemoryMetrics bool
 }
 
@@ -62,8 +62,8 @@ func newStatsDStatsReceiver(address string, prefix string, tagsRaw string, tagsM
 	)
 
 	return &statsDStatsReceiver{
-		client:                     client,
-		enableE2ELatency:           enableE2ELatency,
+		client:                      client,
+		enableE2ELatency:            enableE2ELatency,
 		enableKinsumerMemoryMetrics: enableKinsumerMemoryMetrics,
 	}, nil
 }
@@ -157,9 +157,7 @@ func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
 
 	// kinsumer metrics (only if enabled)
 	if s.enableKinsumerMemoryMetrics {
-		s.client.Gauge("kinsumer.records_in_memory", b.KinsumerRecordsInMemory)
-		s.client.Gauge("kinsumer.records_in_memory_bytes", b.KinsumerRecordsInMemoryBytes)
+		s.client.Gauge("kinsumer_records_in_memory", b.KinsumerRecordsInMemory)
+		s.client.Gauge("kinsumer_records_in_memory_bytes", b.KinsumerRecordsInMemoryBytes)
 	}
 }
-
-
