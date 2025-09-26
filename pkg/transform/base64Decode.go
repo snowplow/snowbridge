@@ -68,7 +68,8 @@ var Base64DecodeConfigPair = config.ConfigurationPair{
 func Base64Decode(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 
 	b64DecodedData := make([]byte, base64.StdEncoding.DecodedLen(len(message.Data)))
-	_, err := base64.StdEncoding.Decode(b64DecodedData, message.Data)
+	nWrittenBytes, err := base64.StdEncoding.Decode(b64DecodedData, message.Data)
+	b64DecodedData = b64DecodedData[:nWrittenBytes]
 	if err != nil {
 		message.SetError(&models.TransformationError{
 			SafeMessage: "failed to decode data as base64",
