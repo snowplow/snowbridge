@@ -1,3 +1,7 @@
+Version 3.6.1 (2025-09-30)
+--------------------------
+Fix/b64 decode bug (#458)
+
 Version 3.6.0 (2025-09-19)
 --------------------------
 Skip staticcheck for pubsub
