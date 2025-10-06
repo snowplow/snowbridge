@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/snowplow/snowbridge/v3/assets"
 	"github.com/snowplow/snowbridge/v3/config"
+	httpsource "github.com/snowplow/snowbridge/v3/pkg/source/http"
 	kafkasource "github.com/snowplow/snowbridge/v3/pkg/source/kafka"
 	kinesissource "github.com/snowplow/snowbridge/v3/pkg/source/kinesis"
 	pubsubsource "github.com/snowplow/snowbridge/v3/pkg/source/pubsub"
@@ -33,7 +34,7 @@ func TestSourceDocumentation(t *testing.T) {
 	t.Setenv("SASL_PASSWORD", "test")
 	t.Setenv("HOSTNAME", "hostname")
 
-	sourcesToTest := []string{"kafka", "kinesis", "pubsub", "sqs", "stdin"}
+	sourcesToTest := []string{"http", "kafka", "kinesis", "pubsub", "sqs", "stdin"}
 
 	for _, src := range sourcesToTest {
 
@@ -57,6 +58,8 @@ func testSourceConfig(t *testing.T, filepath string, fullExample bool) {
 
 	var configObject any
 	switch use.Name {
+	case "http":
+		configObject = &httpsource.Configuration{}
 	case "kafka":
 		configObject = &kafkasource.Configuration{}
 	case "kinesis":
