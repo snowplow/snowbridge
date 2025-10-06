@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -94,7 +95,9 @@ func TestHttpSource_MethodNotAllowed(t *testing.T) {
 	}
 
 	go func() {
-		source.Read(&sf)
+		if err := source.Read(&sf); err != nil {
+			logrus.Error(err.Error())
+		}
 	}()
 
 	time.Sleep(200 * time.Millisecond)
@@ -102,11 +105,12 @@ func TestHttpSource_MethodNotAllowed(t *testing.T) {
 	// Test GET request (should fail)
 	resp, err := http.Get("http://" + source.url + source.path)
 	if err != nil {
-		t.Skipf("Could not connect to server, skipping method test: %v", err)
-		return
+		t.Errorf("could not connect to server, skipping method test: %s", err)
 	}
 	assert.Equal(http.StatusMethodNotAllowed, resp.StatusCode)
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %s", err)
+	}
 
 	source.Stop()
 }
@@ -148,7 +152,9 @@ func TestHttpSource_EmptyBody(t *testing.T) {
 	}
 
 	go func() {
-		source.Read(&sf)
+		if err := source.Read(&sf); err != nil {
+			logrus.Error(err.Error())
+		}
 	}()
 
 	time.Sleep(200 * time.Millisecond)
@@ -156,17 +162,20 @@ func TestHttpSource_EmptyBody(t *testing.T) {
 	// Test empty body
 	resp, err := http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString(""))
 	if err != nil {
-		t.Skipf("Could not connect to server, skipping empty body test: %v", err)
-		return
+		t.Errorf("could not connect to server, skipping empty body test: %s", err)
 	}
 	assert.Equal(http.StatusOK, resp.StatusCode)
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %s", err)
+	}
 
 	// Test body with only empty lines
 	resp, err = http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString("\n\n\n"))
 	require.NoError(t, err)
 	assert.Equal(http.StatusOK, resp.StatusCode)
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %s", err)
+	}
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -212,7 +221,9 @@ func TestHttpSource_SingleLineRequest(t *testing.T) {
 
 	// Start server in goroutine
 	go func() {
-		source.Read(&sf)
+		if err := source.Read(&sf); err != nil {
+			logrus.Error(err.Error())
+		}
 	}()
 
 	// Give server time to start
@@ -222,11 +233,12 @@ func TestHttpSource_SingleLineRequest(t *testing.T) {
 	testPayload := "test message 1"
 	resp, err := http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString(testPayload))
 	if err != nil {
-		t.Skipf("Could not connect to server, skipping integration test: %v", err)
-		return
+		t.Errorf("could not connect to server, skipping integration test: %s", err)
 	}
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %s", err)
+	}
 
 	// Wait for message to be processed
 	select {
@@ -240,7 +252,9 @@ func TestHttpSource_SingleLineRequest(t *testing.T) {
 	resp, err = http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString(multiLinePayload))
 	require.NoError(t, err)
 	assert.Equal(http.StatusOK, resp.StatusCode)
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %s", err)
+	}
 
 	// Wait for all 3 messages to be processed
 	for range 3 {
@@ -300,7 +314,9 @@ func TestHttpSource_MultipleLinesRequest(t *testing.T) {
 	}
 
 	go func() {
-		source.Read(&sf)
+		if err := source.Read(&sf); err != nil {
+			logrus.Error(err.Error())
+		}
 	}()
 
 	time.Sleep(200 * time.Millisecond)
@@ -309,14 +325,15 @@ func TestHttpSource_MultipleLinesRequest(t *testing.T) {
 	payload := "line1\n\nline2\n\n\nline3\n"
 	resp, err := http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString(payload))
 	if err != nil {
-		t.Skipf("Could not connect to server, skipping multiline test: %v", err)
-		return
+		t.Errorf("could not connect to server, skipping multiline test: %s", err)
 	}
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %s", err)
+	}
 
 	// Wait for messages (should get 3 non-empty lines)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		select {
 		case <-messageReceived:
 		case <-time.After(2 * time.Second):
@@ -363,7 +380,9 @@ func TestHttpSource_ConcurrentRequests(t *testing.T) {
 	}
 
 	go func() {
-		source.Read(&sf)
+		if err := source.Read(&sf); err != nil {
+			logrus.Error(err.Error())
+		}
 	}()
 
 	time.Sleep(200 * time.Millisecond)
@@ -372,28 +391,29 @@ func TestHttpSource_ConcurrentRequests(t *testing.T) {
 	var wg sync.WaitGroup
 	numRequests := 5
 	for i := range numRequests {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
+		wg.Go(func() {
 			payload := fmt.Sprintf("message_%d", i)
 			resp, err := http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString(payload))
 			if err != nil {
 				return // Skip if connection fails
 			}
-			resp.Body.Close()
-		}(i)
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("failed to close response body: %s", err)
+			}
+		})
 	}
 	wg.Wait()
 
 	// Wait for all messages to be processed
 	receivedCount := 0
 	timeout := time.After(3 * time.Second)
+Outer:
 	for receivedCount < numRequests {
 		select {
 		case <-messageReceived:
 			receivedCount++
 		case <-timeout:
-			break // Exit if timeout
+			break Outer // Exit if timeout
 		}
 	}
 
@@ -422,7 +442,9 @@ func TestHttpSource_Stop(t *testing.T) {
 	}
 
 	go func() {
-		source.Read(&sf)
+		if err := source.Read(&sf); err != nil {
+			logrus.Error(err.Error())
+		}
 	}()
 
 	time.Sleep(100 * time.Millisecond)
