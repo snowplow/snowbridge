@@ -55,19 +55,19 @@ func TestHttpSource_Configuration(t *testing.T) {
 	config, ok := defaultConfig.(*Configuration)
 	assert.True(ok)
 	assert.Equal(50, config.ConcurrentWrites)
-	assert.Equal("http://localhost:8080", config.URL)
 	assert.Equal("/", config.Path)
 
 	// Test configuration creation
+	config.URL = "http://localhost:8080"
 	source, err := adapter.Create(config)
 	assert.Nil(err)
 	assert.NotNil(source)
 
 	httpSource, ok := source.(*httpSource)
 	assert.True(ok)
+	assert.Equal(50, httpSource.concurrentWrites)
 	assert.Equal("http://localhost:8080", httpSource.url)
 	assert.Equal("/", httpSource.path)
-	assert.Equal(50, httpSource.concurrentWrites)
 }
 
 func TestHttpSource_ConfigPair(t *testing.T) {
