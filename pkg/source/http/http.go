@@ -172,7 +172,7 @@ func (hs *httpSource) Read(sf *sourceiface.SourceFunctions) error {
 			})
 		}
 
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 	})
 
 	hs.server = &http.Server{
@@ -184,6 +184,7 @@ func (hs *httpSource) Read(sf *sourceiface.SourceFunctions) error {
 	go func() {
 		if err := hs.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			hs.log.WithError(err).Error("HTTP server error")
+			hs.cancel()
 		}
 	}()
 
