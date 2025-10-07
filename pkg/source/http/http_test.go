@@ -164,7 +164,7 @@ func TestHttpSource_EmptyBody(t *testing.T) {
 	if err != nil {
 		t.Errorf("could not connect to server, skipping empty body test: %s", err)
 	}
-	assert.Equal(http.StatusOK, resp.StatusCode)
+	assert.Equal(http.StatusAccepted, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
 		t.Logf("failed to close response body: %s", err)
 	}
@@ -172,7 +172,7 @@ func TestHttpSource_EmptyBody(t *testing.T) {
 	// Test body with only empty lines
 	resp, err = http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString("\n\n\n"))
 	require.NoError(t, err)
-	assert.Equal(http.StatusOK, resp.StatusCode)
+	assert.Equal(http.StatusAccepted, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
 		t.Logf("failed to close response body: %s", err)
 	}
@@ -235,7 +235,7 @@ func TestHttpSource_SingleLineRequest(t *testing.T) {
 	if err != nil {
 		t.Errorf("could not connect to server, skipping integration test: %s", err)
 	}
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, http.StatusAccepted, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
 		t.Logf("failed to close response body: %s", err)
 	}
@@ -251,7 +251,7 @@ func TestHttpSource_SingleLineRequest(t *testing.T) {
 	multiLinePayload := "line1\nline2\nline3"
 	resp, err = http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString(multiLinePayload))
 	require.NoError(t, err)
-	assert.Equal(http.StatusOK, resp.StatusCode)
+	assert.Equal(http.StatusAccepted, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
 		t.Logf("failed to close response body: %s", err)
 	}
@@ -327,7 +327,7 @@ func TestHttpSource_MultipleLinesRequest(t *testing.T) {
 	if err != nil {
 		t.Errorf("could not connect to server, skipping multiline test: %s", err)
 	}
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, http.StatusAccepted, resp.StatusCode)
 	if err := resp.Body.Close(); err != nil {
 		t.Logf("failed to close response body: %s", err)
 	}
