@@ -32,19 +32,21 @@ const SupportedSourceHTTP = "http"
 
 // Configuration configures the source for records
 type Configuration struct {
-	ConcurrentWrites int    `hcl:"concurrent_writes,optional"`
-	Path             string `hcl:"path,optional"`
-	URL              string `hcl:"url"`
+	ConcurrentWrites  int    `hcl:"concurrent_writes,optional"`
+	RequestBatchLimit int    `hcl:"request_batch_limit,optional"`
+	Path              string `hcl:"path,optional"`
+	URL               string `hcl:"url"`
 }
 
 // httpSource holds a new HTTP server for accepting messages
 type httpSource struct {
 	sourceiface.NoOpObserver
-	concurrentWrites int
-	url              string
-	path             string
-	server           *http.Server
-	cancel           context.CancelFunc
+	concurrentWrites  int
+	requestBatchLimit int
+	url               string
+	path              string
+	server            *http.Server
+	cancel            context.CancelFunc
 
 	log *log.Entry
 }
@@ -67,8 +69,9 @@ func (f adapter) Create(i any) (any, error) {
 func (f adapter) ProvideDefault() (any, error) {
 	// Provide defaults
 	cfg := &Configuration{
-		ConcurrentWrites: 50,
-		Path:             "/",
+		ConcurrentWrites:  50,
+		RequestBatchLimit: 50,
+		Path:              "/",
 	}
 
 	return cfg, nil
@@ -98,10 +101,11 @@ func newHttpSource(c *Configuration) (*httpSource, error) {
 	uuid.EnableRandPool()
 
 	return &httpSource{
-		concurrentWrites: c.ConcurrentWrites,
-		url:              c.URL,
-		path:             c.Path,
-		log:              log.WithFields(log.Fields{"source": SupportedSourceHTTP}),
+		concurrentWrites:  c.ConcurrentWrites,
+		requestBatchLimit: c.RequestBatchLimit,
+		url:               c.URL,
+		path:              c.Path,
+		log:               log.WithFields(log.Fields{"source": SupportedSourceHTTP}),
 	}, nil
 }
 
@@ -140,10 +144,17 @@ func (hs *httpSource) Read(sf *sourceiface.SourceFunctions) error {
 		var messages []*models.Message
 		timeNow := time.Now().UTC()
 
+		processedCounter := 0
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
 				continue
+			}
+
+			if processedCounter > hs.requestBatchLimit {
+				hs.log.WithError(err).Errorf("request batch limit is breached: [%d], limit is: [%d]", len(messages), hs.requestBatchLimit)
+				http.Error(w, "request batch limit is reached", http.StatusBadRequest)
+				return
 			}
 
 			message := &models.Message{
@@ -153,6 +164,7 @@ func (hs *httpSource) Read(sf *sourceiface.SourceFunctions) error {
 				TimePulled:   timeNow,
 			}
 			messages = append(messages, message)
+			processedCounter++
 		}
 
 		if err := scanner.Err(); err != nil {

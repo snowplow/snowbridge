@@ -14,6 +14,7 @@ package httpsource
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"testing"
@@ -31,9 +32,10 @@ func TestHttpSource_NewHttpSource(t *testing.T) {
 	assert := assert.New(t)
 
 	config := &Configuration{
-		ConcurrentWrites: 10,
-		URL:              "localhost:8080",
-		Path:             "/test",
+		ConcurrentWrites:  10,
+		RequestBatchLimit: 10,
+		URL:               "localhost:8080",
+		Path:              "/test",
 	}
 
 	source, err := newHttpSource(config)
@@ -41,6 +43,7 @@ func TestHttpSource_NewHttpSource(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal("http", source.GetID())
 	assert.Equal(10, source.concurrentWrites)
+	assert.Equal(10, source.requestBatchLimit)
 	assert.Equal("localhost:8080", source.url)
 	assert.Equal("/test", source.path)
 }
@@ -56,6 +59,7 @@ func TestHttpSource_Configuration(t *testing.T) {
 	config, ok := defaultConfig.(*Configuration)
 	assert.True(ok)
 	assert.Equal(50, config.ConcurrentWrites)
+	assert.Equal(50, config.RequestBatchLimit)
 	assert.Equal("/", config.Path)
 
 	// Test configuration creation
@@ -67,6 +71,7 @@ func TestHttpSource_Configuration(t *testing.T) {
 	httpSource, ok := source.(*httpSource)
 	assert.True(ok)
 	assert.Equal(50, httpSource.concurrentWrites)
+	assert.Equal(50, httpSource.requestBatchLimit)
 	assert.Equal("http://localhost:8080", httpSource.url)
 	assert.Equal("/", httpSource.path)
 }
@@ -191,9 +196,10 @@ func TestHttpSource_SingleLineRequest(t *testing.T) {
 
 	// Use an available port
 	config := &Configuration{
-		ConcurrentWrites: 2,
-		URL:              "localhost:18080",
-		Path:             "/webhook",
+		ConcurrentWrites:  2,
+		RequestBatchLimit: 2,
+		URL:               "localhost:18080",
+		Path:              "/webhook",
 	}
 
 	source, err := newHttpSource(config)
@@ -247,35 +253,14 @@ func TestHttpSource_SingleLineRequest(t *testing.T) {
 		t.Fatal("Timeout waiting for message")
 	}
 
-	// Test multi-line message
-	multiLinePayload := "line1\nline2\nline3"
-	resp, err = http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString(multiLinePayload))
-	require.NoError(t, err)
-	assert.Equal(http.StatusAccepted, resp.StatusCode)
-	if err := resp.Body.Close(); err != nil {
-		t.Logf("failed to close response body: %s", err)
-	}
-
-	// Wait for all 3 messages to be processed
-	for range 3 {
-		select {
-		case <-messageReceived:
-		case <-time.After(2 * time.Second):
-			t.Fatal("Timeout waiting for multiline messages")
-		}
-	}
-
 	// Stop server
 	source.Stop()
 
 	// Verify messages
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Len(receivedMessages, 4) // 1 from first request, 3 from second request
+	assert.Len(receivedMessages, 1)
 	assert.Equal("test message 1", string(receivedMessages[0].Data))
-	assert.Equal("line1", string(receivedMessages[1].Data))
-	assert.Equal("line2", string(receivedMessages[2].Data))
-	assert.Equal("line3", string(receivedMessages[3].Data))
 
 	// Verify all messages have required fields
 	for _, msg := range receivedMessages {
@@ -289,9 +274,10 @@ func TestHttpSource_MultipleLinesRequest(t *testing.T) {
 	assert := assert.New(t)
 
 	config := &Configuration{
-		ConcurrentWrites: 1,
-		URL:              "localhost:18086",
-		Path:             "/webhook",
+		ConcurrentWrites:  1,
+		RequestBatchLimit: 3,
+		URL:               "localhost:18086",
+		Path:              "/webhook",
 	}
 
 	source, err := newHttpSource(config)
@@ -423,6 +409,61 @@ Outer:
 	// At least some messages should have been received
 	assert.True(totalMessages >= 0, "Should have processed messages")
 	mu.Unlock()
+}
+
+func TestHttpSource_RequestLimitBreach(t *testing.T) {
+	// Use an available port
+	config := &Configuration{
+		ConcurrentWrites:  2,
+		RequestBatchLimit: 1,
+		URL:               "localhost:18080",
+		Path:              "/webhook",
+	}
+
+	source, err := newHttpSource(config)
+	require.NoError(t, err)
+
+	var messages []*models.Message
+	mu := sync.Mutex{}
+	messageReceived := make(chan bool, 10)
+
+	sf := sourceiface.SourceFunctions{
+		WriteToTarget: func(msgs []*models.Message) error {
+			mu.Lock()
+			messages = append(messages, msgs...)
+			mu.Unlock()
+			for range msgs {
+				messageReceived <- true
+			}
+			return nil
+		},
+	}
+
+	go func() {
+		if err := source.Read(&sf); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+
+	// Test payload with mixed empty lines
+	payload := "line1\n\nline2\n\n\nline3\n"
+	resp, err := http.Post("http://"+source.url+source.path, "text/plain", bytes.NewBufferString(payload))
+	if err != nil {
+		t.Errorf("could not connect to server, skipping multiline test: %s", err)
+	}
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	respError, err := io.ReadAll(resp.Body)
+	require.Nil(t, err)
+	require.Equal(t, "request batch limit is reached\n", string(respError))
+
+	if err := resp.Body.Close(); err != nil {
+		t.Logf("failed to close response body: %s", err)
+	}
+
+	source.Stop()
 }
 
 func TestHttpSource_Stop(t *testing.T) {
