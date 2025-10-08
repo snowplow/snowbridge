@@ -28,6 +28,11 @@ import (
 	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 )
 
+// Note: This is an experimental source
+//
+// For now it is agreed that we allow a risk of a potential data loss
+// of which user won't be acknowledged of.
+
 const SupportedSourceHTTP = "http"
 
 // Configuration configures the source for records
