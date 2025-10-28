@@ -12,6 +12,8 @@
 package inmemory
 
 import (
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -79,6 +81,15 @@ func newInMemorySource(messages chan []string) (*inMemorySource, error) {
 func (ss *inMemorySource) Read(sf *sourceiface.SourceFunctions) error {
 	ss.log.Infof("Reading messages from in memory buffer")
 
+	cwString := os.Getenv("CONCURRENT_WRITES")
+
+	concurrentWrites, err := strconv.Atoi(cwString)
+	if err != nil {
+		panic(err)
+	}
+
+	throttle := make(chan struct{}, concurrentWrites)
+
 processing:
 	for {
 		select {
@@ -97,10 +108,15 @@ processing:
 				messages = append(messages, &message)
 			}
 
-			err := sf.WriteToTarget(messages)
-			if err != nil {
-				ss.log.WithFields(log.Fields{"error": err}).Error(err)
-			}
+			throttle <- struct{}{}
+			go func() {
+
+				err := sf.WriteToTarget(messages)
+				if err != nil {
+					ss.log.WithFields(log.Fields{"error": err}).Error(err)
+				}
+				<-throttle
+			}()
 		}
 	}
 
