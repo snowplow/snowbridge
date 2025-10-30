@@ -12,6 +12,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -78,8 +79,10 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 
 	app.Action = func(c *cli.Context) error {
 		profile := c.Bool("profile")
-		if profile {
+		profileEnv := os.Getenv("PROFILE")
+		if profile || profileEnv == "true" {
 			go func() {
+				fmt.Println("Starting profile server on port 8080")
 				if err := http.ListenAndServe("localhost:8080", nil); err != nil {
 					log.WithError(err).Fatal("failed to start up the server")
 				}
