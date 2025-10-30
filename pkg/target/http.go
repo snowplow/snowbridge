@@ -356,7 +356,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 			request.Header.Add("Content-Type", ht.contentType)                        // Add content type
 			addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(goodMsgs[0])) // Add headers if there are any - because they're grouped by header, we just need to pick the header from one message
-			if ht.basicAuthUsername != "" && ht.basicAuthPassword != "" {             // Add basic auth if set
+			if ht.basicAuthUsername != "" || ht.basicAuthPassword != "" {             // Add basic auth if either username or password is set
 				request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
 			}
 
