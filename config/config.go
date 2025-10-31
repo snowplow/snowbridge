@@ -134,7 +134,7 @@ type transientRetryConfig struct {
 
 type setupRetryConfig struct {
 	Delay       int `hcl:"delay_ms,optional"`
-	MaxAttempts int `hcl:"delay_ms,optional"`
+	MaxAttempts int `hcl:"max_attempts,optional"`
 }
 
 // defaultConfigData returns the initial main configuration target.
