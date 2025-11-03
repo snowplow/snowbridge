@@ -107,7 +107,7 @@ type retryConfig struct {
 }
 
 type metricsConfig struct {
-	E2ELatencyEnabled           bool `hcl:"enable_e2e_latency,optional"`
+	E2ELatencyEnabled            bool `hcl:"enable_e2e_latency,optional"`
 	KinsumerMemoryMetricsEnabled bool `hcl:"enable_kinsumer_memory_metrics,optional"`
 }
 
@@ -133,7 +133,8 @@ type transientRetryConfig struct {
 }
 
 type setupRetryConfig struct {
-	Delay int `hcl:"delay_ms,optional"`
+	Delay       int `hcl:"delay_ms,optional"`
+	MaxAttempts int `hcl:"max_attempts,optional"`
 }
 
 // defaultConfigData returns the initial main configuration target.
@@ -167,11 +168,12 @@ func defaultConfigData() *configurationData {
 				MaxAttempts: 5,
 			},
 			Setup: &setupRetryConfig{
-				Delay: 20000,
+				Delay:       20000,
+				MaxAttempts: 5,
 			},
 		},
 		Metrics: &metricsConfig{
-			E2ELatencyEnabled:           false,
+			E2ELatencyEnabled:            false,
 			KinsumerMemoryMetricsEnabled: false,
 		},
 		Monitoring: &monitoringConfig{

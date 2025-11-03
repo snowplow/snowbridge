@@ -345,8 +345,7 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 		retryOnlySetupErrors,
 		onSetupError,
 		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay)*time.Millisecond),
-		// for now let's limit attempts to 5 for setup errors, because we don't have health check which would allow app to be killed externally
-		retry.Attempts(5),
+		retry.Attempts(uint(cfg.Data.Retry.Setup.MaxAttempts)),
 		retry.LastErrorOnly(true),
 		// enable when health probe is implemented
 		// retry.Attempts(0), //unlimited
