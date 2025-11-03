@@ -102,15 +102,18 @@ log_level = "info"
 # Specifies how failed writes to the target should be retried, depending on an error type 
 retry {
   transient {
-    # Initial delay (before first retry) for transient errors
-    delay_ms = 1000 
+    # Initial delay (before first retry) for transient errors (default: 1000)
+    delay_ms = 2000
 
-    # Maximum number of retries for transient errors
-    max_attempts = 5 
+    # Maximum number of retries for transient errors (default: 5)
+    max_attempts = 3
   }
   setup {
-    # Initial delay (before first retry) for setup errors
-    delay_ms = 20000
+    # Initial delay (before first retry) for setup errors (default: 20000)
+    delay_ms = 10000
+
+    # Maximum number of retries for transient errors (default: 5)
+    max_attempts = 3
   }
 }
 
