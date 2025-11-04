@@ -1,3 +1,10 @@
+Version 3.6.2 (2025-11-04)
+--------------------------
+feat: make setup retries configurable (#463)
+fix: JS transformation example for snowplow_mode (#462)
+feat: allow either basic auth username or password to be empty for basic auth header to be added (#461)
+feat: Add generic HTTP source (#460)
+
 Version 3.6.1 (2025-09-30)
 --------------------------
 Fix/b64 decode bug (#458)
