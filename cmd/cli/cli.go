@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -199,23 +201,219 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 		}
 	}()
 
-	// Callback functions for the source to leverage when writing data
-	sf := sourceiface.SourceFunctions{
-		WriteToTarget: sourceWriteFunc(target, failureTarget, filterTarget, transformations, obs, cfg, alertChan),
+	// In this hacky implementation I'm using an env var for concurrrent writes.
+	cwString := os.Getenv("CONCURRENT_WRITES")
+	concurrentWrites, err := strconv.Atoi(cwString)
+	if err != nil {
+		panic(err)
 	}
 
+	// For this implementation, setting the channel buffer size to concurrentWrites.
+	// With no batching, this means our new non-blocking pattern can queue up double the amount of data vs previously before blocking occurs.
+	// Just seems a relatively intuitive heuristic way to benchmark the effects of this new model.
+	batchingChannel := make(chan *models.TransformationResult, concurrentWrites)
+
+	// For this hacky test implementation, I'm simply replacing the existing sourceWriteFunc with a function
+	// that carries out transformation and sticks that data into a channel.
+	sourceChannelWrite := func(messages []*models.Message) error {
+		copyOriginalData(messages)
+
+		// Apply transformations
+		transformed := transformations(messages)
+		batchingChannel <- transformed
+		return nil
+	}
+
+	// Callback functions for the source to leverage when writing data
+	sf := sourceiface.SourceFunctions{
+		WriteToTarget: sourceChannelWrite, //sourceWriteFunc(target, failureTarget, filterTarget, transformations, obs, cfg, alertChan),
+	}
+
+	// Now this shouldn't be long-running any more. We'll need a good pattern to handle errors appropriately. Throwing something janky in here.
 	// Read is a long running process and will only return when the source
 	// is exhausted or if an error occurs
-	err = source.Read(&sf)
+
+	targetWrite := TargetWriteFunc(target, failureTarget, filterTarget, transformations, obs, cfg, alertChan)
+
+	errChannel := make(chan error, 1)
+	go func() {
+
+		// This is a bit jank we should probably have an error channel in or select below.
+		err := source.Read(&sf)
+		if err != nil {
+			errChannel <- err
+		}
+		close(batchingChannel)
+		close(errChannel)
+		log.Info("Read exited")
+
+		// TODO: This can exit _wihtout_ error I think. So we need to handle that I think
+	}()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// Channel to throttle on write, so we keep backpressure.
+
+	// New env var for tweaking and testing
+	concurrentAPICallsString := os.Getenv("CONCURRENT_API_CALLS")
+	concurrentAPICalls, err := strconv.Atoi(concurrentAPICallsString)
 	if err != nil {
-		return err
+		panic(err)
 	}
+
+	// Let's see what double the writes does to CPU. Should releive some of the backpressure.
+	throttleWrites := make(chan struct{}, concurrentAPICalls)
+
+	// Wait group for when we're exiting.
+	writeWaitGroup := sync.WaitGroup{}
+
+	var batchingClosed, errClosed bool
+
+	// Once the two channels close, we will exit the loop
+	for !batchingClosed || !errClosed {
+		select {
+		case transformed, ok := <-batchingChannel:
+			if !ok {
+				batchingClosed = true
+			}
+			// TODO: Add some batching logic here for that test.
+			// For a first spike, let's _not_ batch. Let's see how this model changes the existing pattern of behaviour first.
+
+			// Check if we're throttled before spawning the goroutine
+			// This provides backpressure
+			throttleWrites <- struct{}{}
+
+			writeWaitGroup.Add(1)
+			go func() {
+
+				err := targetWrite(transformed)
+				if err != nil {
+
+					// TODO: Not actually sure how to deal with error here. I think it means we should exit, since all the retry behaviour is in there?
+					// For now, let's just log it and continue.
+					log.WithFields(log.Fields{"error": err}).Error(err)
+				}
+				writeWaitGroup.Done()
+				<-throttleWrites
+			}()
+		case readErr, ok := <-errChannel:
+			if !ok {
+				errClosed = true
+			}
+			// Not sure of this but I think it means we only exit with error after processing data that has already arrived.
+			// Probably has a race but for this test it'll do.
+			if readErr != nil {
+				log.WithFields(log.Fields{"error": readErr}).Error(readErr)
+				writeWaitGroup.Wait()
+				return readErr
+			}
+		}
+
+	}
+
+	log.Info("Batching loop exited")
+
+	// Again not sure if this is a good pattern but just janking it in for now.
+	// Wait for any ongoing writes before we exit.
+	writeWaitGroup.Wait()
 
 	target.Close()
 	failureTarget.Close()
 	filterTarget.Close()
 	obs.Stop()
 	return nil
+}
+
+// This does exactly what the sourceWriteFunc does, but starting after transformation.
+// For batching, we'll probably need to change the interface. But for comparing heaviours for single events, this should be fine.
+func TargetWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targetiface.Target, tr transform.TransformationApplyFunction, o *observer.Observer, cfg *config.Config, alertChan chan error) func(transformed *models.TransformationResult) error {
+	return func(transformed *models.TransformationResult) error {
+		// Send message buffer
+		invalid := transformed.Invalid
+		var messagesToSend []*models.Message
+		var oversized []*models.Message
+
+		if len(transformed.Result) > 0 {
+			messagesToSend = transformed.Result
+			writeTransformed := func() error {
+				result, err := t.Write(messagesToSend)
+
+				o.TargetWrite(result)
+				messagesToSend = result.Failed
+				oversized = append(oversized, result.Oversized...)
+				invalid = append(invalid, result.Invalid...)
+				return err
+			}
+
+			err := handleWrite(cfg, writeTransformed, alertChan)
+			if err != nil {
+				return err
+			}
+		}
+
+		if len(transformed.Filtered) > 0 {
+			messagesToSend = transformed.Filtered
+			writeFiltered := func() error {
+				result, err := filter.Write(messagesToSend)
+				filterRes := models.NewFilterResult(result.Sent)
+				o.Filtered(filterRes)
+
+				messagesToSend = result.Failed
+				oversized = append(oversized, result.Oversized...)
+				invalid = append(invalid, result.Invalid...)
+				return err
+			}
+
+			err := handleWrite(cfg, writeFiltered, nil)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Send oversized message buffer
+		if len(oversized) > 0 {
+			messagesToSend = oversized
+			writeOversized := func() error {
+				result, err := ft.WriteOversized(t.MaximumAllowedMessageSizeBytes(), messagesToSend)
+				if len(result.Oversized) != 0 || len(result.Invalid) != 0 {
+					log.Fatal("Oversized message transformation resulted in new oversized / invalid messages")
+				}
+
+				o.TargetWriteOversized(result)
+				messagesToSend = result.Failed
+				return err
+			}
+
+			err := handleWrite(cfg, writeOversized, nil)
+
+			if err != nil {
+				return err
+			}
+		}
+
+		// Send invalid message buffer
+		if len(invalid) > 0 {
+			messagesToSend = invalid
+			writeInvalid := func() error {
+				result, err := ft.WriteInvalid(messagesToSend)
+				if len(result.Oversized) != 0 || len(result.Invalid) != 0 {
+					log.Fatal("Invalid message transformation resulted in new invalid / oversized messages")
+				}
+
+				o.TargetWriteInvalid(result)
+				messagesToSend = result.Failed
+				return err
+			}
+
+			err := handleWrite(cfg, writeInvalid, nil)
+
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 // sourceWriteFunc builds the function which wraps the different objects together to handle:
