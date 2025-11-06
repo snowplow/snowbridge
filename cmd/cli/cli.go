@@ -202,8 +202,11 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	}()
 
 	// In this hacky implementation I'm using an env var for concurrrent writes.
-	cwString := os.Getenv("CONCURRENT_WRITES")
-	concurrentWrites, err := strconv.Atoi(cwString)
+	batchingBufferSize := os.Getenv("BATCHING_BUFFER_SIZE")
+	if batchingBufferSize == "" {
+		batchingBufferSize = "75"
+	}
+	batchingBufferSizeInt, err := strconv.Atoi(batchingBufferSize)
 	if err != nil {
 		panic(err)
 	}
@@ -211,7 +214,7 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 	// For this implementation, setting the channel buffer size to concurrentWrites.
 	// With no batching, this means our new non-blocking pattern can queue up double the amount of data vs previously before blocking occurs.
 	// Just seems a relatively intuitive heuristic way to benchmark the effects of this new model.
-	batchingChannel := make(chan *models.TransformationResult, concurrentWrites)
+	batchingChannel := make(chan *models.TransformationResult, batchingBufferSizeInt)
 
 	// For this hacky test implementation, I'm simply replacing the existing sourceWriteFunc with a function
 	// that carries out transformation and sticks that data into a channel.
@@ -270,33 +273,70 @@ func RunApp(cfg *config.Config, supportedSources []config.ConfigurationPair, sup
 
 	var batchingClosed, errClosed bool
 
+	batchSize := os.Getenv("BATCH_SIZE")
+	if batchSize == "" {
+		batchSize = "75"
+	}
+	batchSizeInt, err := strconv.Atoi(batchSize)
+	if err != nil {
+		panic(err)
+	}
+
+	thisBatch := models.TransformationResult{}
+
 	// Once the two channels close, we will exit the loop
 	for !batchingClosed || !errClosed {
 		select {
 		case transformed, ok := <-batchingChannel:
 			if !ok {
 				batchingClosed = true
+				// We'd wanna flush the batch here
 			}
-			// TODO: Add some batching logic here for that test.
-			// For a first spike, let's _not_ batch. Let's see how this model changes the existing pattern of behaviour first.
 
-			// Check if we're throttled before spawning the goroutine
-			// This provides backpressure
-			throttleWrites <- struct{}{}
+			// BATCHING LOGIC:
+			// Just dealing with single event inputs for now.
+			thisBatch.ResultCount += transformed.ResultCount
+			thisBatch.FilteredCount += transformed.FilteredCount
+			thisBatch.InvalidCount += transformed.InvalidCount
+			thisBatch.Result = append(thisBatch.Result, transformed.Result...)
+			thisBatch.Filtered = append(thisBatch.Filtered, transformed.Filtered...)
+			thisBatch.Invalid = append(thisBatch.Invalid, transformed.Invalid...)
 
-			writeWaitGroup.Add(1)
-			go func() {
+			// We'll want to also have a time based send. For now let's not worry about that.
+			if len(thisBatch.Result) >= batchSizeInt {
+				// Check if we're throttled before spawning the goroutine
+				// This provides backpressure
+				throttleWrites <- struct{}{}
+				writeWaitGroup.Add(1)
 
-				err := targetWrite(transformed)
-				if err != nil {
-
-					// TODO: Not actually sure how to deal with error here. I think it means we should exit, since all the retry behaviour is in there?
-					// For now, let's just log it and continue.
-					log.WithFields(log.Fields{"error": err}).Error(err)
+				// Deep copy batch to avoid a race
+				batchToSend := models.TransformationResult{
+					ResultCount:   thisBatch.ResultCount,
+					FilteredCount: thisBatch.FilteredCount,
+					InvalidCount:  thisBatch.InvalidCount,
+					Result:        append([]*models.Message(nil), thisBatch.Result...),
+					Filtered:      append([]*models.Message(nil), thisBatch.Filtered...),
+					Invalid:       append([]*models.Message(nil), thisBatch.Invalid...),
 				}
-				writeWaitGroup.Done()
-				<-throttleWrites
-			}()
+				go func() {
+					err := targetWrite(&batchToSend)
+					if err != nil {
+
+						// TODO: Not actually sure how to deal with error here. I think it means we should exit, since all the retry behaviour is in there?
+						// For now, let's just log it and continue.
+						log.WithFields(log.Fields{"error": err}).Error(err)
+					}
+					writeWaitGroup.Done()
+					<-throttleWrites
+				}()
+
+				// Force new memoty space for the slices with make to avoid a race
+				thisBatch = models.TransformationResult{
+					Result:   make([]*models.Message, 0, batchSizeInt),
+					Filtered: make([]*models.Message, 0),
+					Invalid:  make([]*models.Message, 0),
+				}
+			}
 		case readErr, ok := <-errChannel:
 			if !ok {
 				errClosed = true
