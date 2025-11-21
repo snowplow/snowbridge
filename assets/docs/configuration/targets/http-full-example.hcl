@@ -78,24 +78,23 @@ target {
     rejection_threshold_in_millis = 100
 
     # Optional HTTP response rules which are used to match HTTP response code/body and categorize it as either invalid data or target setup error.
-    # For example, we can have 2 invalid + 1 setup error rules:
+    # Rules are evaluated in order as declared. First matching rule determines the error type.
     response_rules {
-      # This one is a match when... 
-      invalid {
-          # ...HTTP statuses match...
+      # Invalid rule for purchase field validation error
+      rule {
+          type = "invalid"
           http_codes = [400]
-          # AND this string exists in a response body
           body =  "Invalid value for 'purchase' field"
         }
-      # If no match yet, we can check the next one... 
-      invalid {
-          # again 400 status...
+      # Invalid rule for attributes field validation error
+      rule {
+          type = "invalid"
           http_codes = [400]
-          # BUT we expect different error message in the response body
           body =  "Invalid value for 'attributes' field"
         }
-      # Same for 'setup' rules..  
-      setup {
+      # Setup rule for authentication errors
+      rule {
+          type = "setup"
           http_codes =  [401, 403]
         }
     }
