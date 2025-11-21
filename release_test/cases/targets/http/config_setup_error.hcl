@@ -10,7 +10,8 @@ target {
     url = "http://host.docker.internal:11998/setup-error"
 
     response_rules {
-      setup {
+      rule {
+          type = "setup"
           http_codes =  [401]
         }
     }
