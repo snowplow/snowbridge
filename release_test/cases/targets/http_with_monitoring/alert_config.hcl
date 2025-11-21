@@ -10,7 +10,8 @@ target {
     url = "http://host.docker.internal:7997/event"
 
     response_rules {
-      setup {
+      rule {
+          type = "setup"
           http_codes =  [401, 403]
         }
     }

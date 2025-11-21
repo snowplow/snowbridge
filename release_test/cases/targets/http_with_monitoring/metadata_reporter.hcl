@@ -9,10 +9,12 @@ target {
         url = "http://host.docker.internal:12080/target"
 
         response_rules {
-            invalid {
+            rule {
+                type = "invalid"
                 http_codes = [400]
             }
-            setup {
+            rule {
+                type = "setup"
                 http_codes =  [401, 403]
             }
         }

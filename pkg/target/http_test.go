@@ -766,8 +766,8 @@ func TestHTTP_Write_Invalid(t *testing.T) {
 	defer server.Close()
 
 	responseRules := ResponseRules{
-		Invalid: []Rule{
-			{MatchingHTTPCodes: []int{400, 401}, MatchingBodyPart: "Invalid value for field 'attribute'"},
+		Rules: []Rule{
+			{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{400, 401}, MatchingBodyPart: "Invalid value for field 'attribute'"},
 		},
 	}
 
@@ -801,8 +801,8 @@ func TestHTTP_Write_Setup(t *testing.T) {
 	defer server.Close()
 
 	responseRules := ResponseRules{
-		SetupError: []Rule{
-			{MatchingHTTPCodes: []int{401}, MatchingBodyPart: "Invalid token"},
+		Rules: []Rule{
+			{Type: ResponseRuleTypeSetup, MatchingHTTPCodes: []int{401}, MatchingBodyPart: "Invalid token"},
 		},
 	}
 

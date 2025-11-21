@@ -92,8 +92,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				IncludeTimingHeaders:       false,
 				RejectionThresholdInMillis: 150,
 				ResponseRules: &target.ResponseRules{
-					Invalid:    []target.Rule{},
-					SetupError: []target.Rule{},
+					Rules: []target.Rule{},
 				},
 			},
 		},
@@ -125,18 +124,19 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				IncludeTimingHeaders:       true,
 				RejectionThresholdInMillis: 100,
 				ResponseRules: &target.ResponseRules{
-					Invalid: []target.Rule{
+					Rules: []target.Rule{
 						{
+							Type:              target.ResponseRuleTypeInvalid,
 							MatchingHTTPCodes: []int{400},
 							MatchingBodyPart:  "Invalid value for 'purchase' field",
 						},
 						{
+							Type:              target.ResponseRuleTypeInvalid,
 							MatchingHTTPCodes: []int{400},
 							MatchingBodyPart:  "Invalid value for 'attributes' field",
 						},
-					},
-					SetupError: []target.Rule{
 						{
+							Type:              target.ResponseRuleTypeSetup,
 							MatchingHTTPCodes: []int{401, 403},
 						},
 					},
