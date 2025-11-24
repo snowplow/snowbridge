@@ -84,6 +84,15 @@ const (
 	ResponseRuleTypeSetup   ResponseRuleType = "setup"
 )
 
+func isValidResponseRuleType(ruleType ResponseRuleType) bool {
+	switch ruleType {
+	case ResponseRuleTypeInvalid, ResponseRuleTypeSetup:
+		return true
+	default:
+		return false
+	}
+}
+
 // Rule configuration defines what kind of values are expected to exist in HTTP response, like status code or message in the body.
 type Rule struct {
 	Type              ResponseRuleType `hcl:"type,optional"`
@@ -252,6 +261,15 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 	}
 	if approxTmplSize >= c.RequestByteLimit || approxTmplSize >= c.MessageByteLimit {
 		return nil, errors.New("target error: Byte limit must be larger than template size")
+	}
+
+	// validating response rules from config
+	if c.ResponseRules != nil {
+		for _, rule := range c.ResponseRules.Rules {
+			if !isValidResponseRuleType(rule.Type) {
+				return nil, fmt.Errorf("target error: Invalid response rule type '%s'. Valid types are: 'invalid', 'setup'", rule.Type)
+			}
+		}
 	}
 
 	return &HTTPTarget{

@@ -134,3 +134,59 @@ func TestHTTP_ResponseRules_OrderedEvaluation(t *testing.T) {
 	assert.Equal(ResponseRuleTypeSetup, matchedRule.Type)
 	assert.Equal("", matchedRule.MatchingBodyPart)
 }
+
+func TestHTTP_ResponseRules_ValidateRuleTypes(t *testing.T) {
+	assert := assert.New(t)
+
+	// Test valid rule types
+	validConfig := &HTTPTargetConfig{
+		URL:              "https://example.com",
+		RequestByteLimit: 1048576,
+		MessageByteLimit: 1048576,
+		ResponseRules: &ResponseRules{
+			Rules: []Rule{
+				{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{400}},
+				{Type: ResponseRuleTypeSetup, MatchingHTTPCodes: []int{500}},
+			},
+		},
+	}
+
+	target, err := HTTPTargetConfigFunction(validConfig)
+	assert.NoError(err)
+	assert.NotNil(target)
+
+	// Test invalid rule type
+	invalidConfig := &HTTPTargetConfig{
+		URL:              "https://example.com",
+		RequestByteLimit: 1048576,
+		MessageByteLimit: 1048576,
+		ResponseRules: &ResponseRules{
+			Rules: []Rule{
+				{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{400}},
+				{Type: ResponseRuleType("unknown"), MatchingHTTPCodes: []int{500}}, // Invalid type
+			},
+		},
+	}
+
+	target, err = HTTPTargetConfigFunction(invalidConfig)
+	assert.Error(err)
+	assert.Nil(target)
+	assert.Contains(err.Error(), "Invalid response rule type 'unknown'")
+
+	// Test empty rule type should be invalid
+	emptyTypeConfig := &HTTPTargetConfig{
+		URL:              "https://example.com",
+		RequestByteLimit: 1048576,
+		MessageByteLimit: 1048576,
+		ResponseRules: &ResponseRules{
+			Rules: []Rule{
+				{Type: ResponseRuleType(""), MatchingHTTPCodes: []int{400}}, // Empty type
+			},
+		},
+	}
+
+	target, err = HTTPTargetConfigFunction(emptyTypeConfig)
+	assert.Error(err)
+	assert.Nil(target)
+	assert.Contains(err.Error(), "Invalid response rule type ''")
+}
