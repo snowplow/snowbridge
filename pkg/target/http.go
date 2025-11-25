@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -71,14 +72,32 @@ type HTTPTargetConfig struct {
 
 // ResponseRules is part of HTTP target configuration. It provides rules how HTTP respones should be handled. Response can be categerized as 'invalid' (bad data), as setup error or (if none of the rules matches) as a transient error.
 type ResponseRules struct {
-	Invalid    []Rule `hcl:"invalid,block"`
-	SetupError []Rule `hcl:"setup,block"`
+	Rules []Rule `hcl:"rule,block"`
+	// Invalid    []Rule `hcl:"invalid,block"`
+	// SetupError []Rule `hcl:"setup,block"`
+}
+
+type ResponseRuleType string
+
+const (
+	ResponseRuleTypeInvalid ResponseRuleType = "invalid"
+	ResponseRuleTypeSetup   ResponseRuleType = "setup"
+)
+
+func isValidResponseRuleType(ruleType ResponseRuleType) bool {
+	switch ruleType {
+	case ResponseRuleTypeInvalid, ResponseRuleTypeSetup:
+		return true
+	default:
+		return false
+	}
 }
 
 // Rule configuration defines what kind of values are expected to exist in HTTP response, like status code or message in the body.
 type Rule struct {
-	MatchingHTTPCodes []int  `hcl:"http_codes,optional"`
-	MatchingBodyPart  string `hcl:"body,optional"`
+	Type              ResponseRuleType `hcl:"type,optional"`
+	MatchingHTTPCodes []int            `hcl:"http_codes,optional"`
+	MatchingBodyPart  string           `hcl:"body,optional"`
 }
 
 // Helper struct storing response HTTP status code and parsed response body
@@ -244,6 +263,15 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		return nil, errors.New("target error: Byte limit must be larger than template size")
 	}
 
+	// validating response rules from config
+	if c.ResponseRules != nil {
+		for _, rule := range c.ResponseRules.Rules {
+			if !isValidResponseRuleType(rule.Type) {
+				return nil, fmt.Errorf("target error: Invalid response rule type '%s'. Valid types are: 'invalid', 'setup'", rule.Type)
+			}
+		}
+	}
+
 	return &HTTPTarget{
 		client:               client,
 		httpURL:              c.URL,
@@ -289,8 +317,7 @@ func defaultConfiguration() *HTTPTargetConfig {
 
 		ContentType: "application/json",
 		ResponseRules: &ResponseRules{
-			Invalid:    []Rule{},
-			SetupError: []Rule{},
+			Rules: []Rule{},
 		},
 		IncludeTimingHeaders:       false,
 		RejectionThresholdInMillis: 150,
@@ -420,42 +447,53 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 				})
 			}
 
-			if matchedRule := findMatchingRule(response, ht.responseRules.Invalid); matchedRule != nil {
-				for _, msg := range goodMsgs {
-					msg.SetError(&models.ApiError{
-						StatusCode:   resp.Status,
-						ResponseBody: response.Body,
-						SafeMessage:  "Invalid error",
-					})
+			// Find first matching rule in order
+			var matchedRule *Rule
+			for _, rule := range ht.responseRules.Rules {
+				if ruleMatches(response, rule) {
+					matchedRule = &rule
+					break
 				}
-
-				invalid = append(invalid, goodMsgs...)
-				continue
 			}
 
-			var errorDetails error
-			if rule := findMatchingRule(response, ht.responseRules.SetupError); rule != nil {
-				hitSetupError = true
+			if matchedRule != nil {
+				switch matchedRule.Type {
+				case ResponseRuleTypeInvalid:
+					for _, msg := range goodMsgs {
+						msg.SetError(&models.ApiError{
+							StatusCode:   resp.Status,
+							ResponseBody: response.Body,
+							SafeMessage:  "Invalid error",
+						})
+					}
+					invalid = append(invalid, goodMsgs...)
+					continue
 
-				if rule.MatchingBodyPart != "" {
-					errorDetails = fmt.Errorf("got setup error, response status: '%s' with error details: '%s'", resp.Status, rule.MatchingBodyPart)
-				} else {
-					errorDetails = fmt.Errorf("got setup error, response status: '%s'", resp.Status)
+				case ResponseRuleTypeSetup:
+					hitSetupError = true
+					var errorDetails error
+					if matchedRule.MatchingBodyPart != "" {
+						errorDetails = fmt.Errorf("got setup error, response status: '%s' with error details: '%s'", resp.Status, matchedRule.MatchingBodyPart)
+					} else {
+						errorDetails = fmt.Errorf("got setup error, response status: '%s'", resp.Status)
+					}
+
+					for _, msg := range goodMsgs {
+						msg.SetError(&models.ApiError{
+							StatusCode:   resp.Status,
+							ResponseBody: response.Body,
+							SafeMessage:  "Setup error",
+						})
+					}
+					errResult = multierror.Append(errResult, errorDetails)
+					failed = append(failed, goodMsgs...)
 				}
-
-				for _, msg := range goodMsgs {
-					msg.SetError(&models.ApiError{
-						StatusCode:   resp.Status,
-						ResponseBody: response.Body,
-						SafeMessage:  "Setup error",
-					})
-				}
-
 			} else {
-				errorDetails = fmt.Errorf("got transient error, response status: '%s'", resp.Status)
+				// No rule matched - transient error
+				errorDetails := fmt.Errorf("got transient error, response status: '%s'", resp.Status)
+				errResult = multierror.Append(errResult, errorDetails)
+				failed = append(failed, goodMsgs...)
 			}
-			errResult = multierror.Append(errResult, errorDetails)
-			failed = append(failed, goodMsgs...)
 		}
 	}
 
@@ -467,15 +505,6 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	return models.NewTargetWriteResult(sent, failed, oversized, invalid), errResult
 }
 
-func findMatchingRule(res response, rules []Rule) *Rule {
-	for _, rule := range rules {
-		if ruleMatches(res, rule) {
-			return &rule
-		}
-	}
-	return nil
-}
-
 func ruleMatches(res response, rule Rule) bool {
 	codeMatch := httpStatusMatches(res.Status, rule.MatchingHTTPCodes)
 	if rule.MatchingBodyPart != "" {
@@ -485,12 +514,7 @@ func ruleMatches(res response, rule Rule) bool {
 }
 
 func httpStatusMatches(actual int, expectedCodes []int) bool {
-	for _, expected := range expectedCodes {
-		if expected == actual {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(expectedCodes, actual)
 }
 
 func responseBodyMatches(actual string, bodyPattern string) bool {
