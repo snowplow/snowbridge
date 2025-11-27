@@ -91,9 +91,6 @@ func TestNewConfig_GetTags(t *testing.T) {
 	processID, ok := tags["process_id"]
 	assert.NotEqual("", processID)
 	assert.True(ok)
-	hostname, ok := tags["host"]
-	assert.NotEqual("", hostname)
-	assert.True(ok)
 }
 
 func TestNewConfig_Hcl_invalids(t *testing.T) {

@@ -423,19 +423,11 @@ func (c *Config) GetFilterTarget() (targetiface.Target, error) {
 	return nil, fmt.Errorf("could not interpret filter target configuration for %q", useTarget.Name)
 }
 
-// GetTags returns a list of tags to use in identifying this instance of snowbridge with enough
-// entropy so as to avoid collisions as it should not be possible to have both the host and process_id be
-// the same.
+// GetTags returns a list of tags to use in identifying this instance of snowbridge.
 func (c *Config) GetTags() (map[string]string, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get server hostname as tag")
-	}
-
 	processID := os.Getpid()
 
 	tags := map[string]string{
-		"host":       hostname,
 		"process_id": strconv.Itoa(processID),
 	}
 
