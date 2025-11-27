@@ -131,9 +131,8 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 							MatchingBodyPart:  "Invalid value for 'purchase' field",
 						},
 						{
-							Type:              target.ResponseRuleTypeInvalid,
-							MatchingHTTPCodes: []int{400},
-							MatchingBodyPart:  "Invalid value for 'attributes' field",
+							Type:              target.ResponseRuleTypeThrottle,
+							MatchingHTTPCodes: []int{429},
 						},
 						{
 							Type:              target.ResponseRuleTypeSetup,

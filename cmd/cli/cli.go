@@ -85,7 +85,6 @@ func RunCli(supportedSources []config.ConfigurationPair, supportedTransformation
 				}
 			}()
 		}
-
 		return RunApp(config, supportedSources, supportedTransformations)
 	}
 
@@ -351,8 +350,8 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 		// retry.Attempts(0), //unlimited
 	)
 
-	// If after retries we still have setup error, there is no reason to retry it further as transient
-	// So error early
+	// If after retries we still have setup error
+	// there is no reason to retry it further, so error early
 	if _, isSetup := err.(models.SetupWriteError); isSetup {
 		return err
 	}
@@ -367,10 +366,45 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 		return err
 	}
 
-	// If no setup, then handle as transient.
-	log.Warnf("Transient target write error. Starting retrying. error: %s\n", err)
+	// If no setup, then check if it is throttle
+	if _, isThrottle := err.(models.ThrottleWriteError); isThrottle {
+		log.Warnf("Throttle target write error. Starting retrying. error: %s\n", err)
+		// We already had at least 1 attempt from above 'setup' retrying section,
+		// so before we start throttle retrying we need to add 'manual' initial delay.
+		time.Sleep(time.Duration(cfg.Data.Retry.Throttle.Delay) * time.Millisecond)
 
-	// We already had at least 1 attempt from above 'setup' retrying section, so before we start transient retrying we need add 'manual' initial delay.
+		retryOnlyThrottleErrors := retry.RetryIf(func(err error) bool {
+			_, isThrottle := err.(models.ThrottleWriteError)
+			return isThrottle
+		})
+		onThrottleError := retry.OnRetry(func(retry uint, err error) {
+			log.Warnf("Retry failed with throttle error. Retry counter: %d, error: %s\n", retry+1, err)
+		})
+
+		err = retry.Do(
+			write,
+			retryOnlyThrottleErrors,
+			onThrottleError,
+			retry.Delay(time.Duration(cfg.Data.Retry.Throttle.Delay)*time.Millisecond),
+			retry.Attempts(uint(cfg.Data.Retry.Throttle.MaxAttempts)),
+			retry.LastErrorOnly(true),
+		)
+	}
+
+	// If after retries we still have throttle error
+	// there is no reason to retry it further, so error early
+	if _, isThrottle := err.(models.ThrottleWriteError); isThrottle {
+		return err
+	}
+
+	if err == nil {
+		return err
+	}
+
+	// If no throttle, then handle as transient.
+	log.Warnf("Transient target write error. Starting retrying. error: %s\n", err)
+	// We already had at least 1 attempt from above 'throttle' retrying section,
+	// so before we start transient retrying we need to add 'manual' initial delay.
 	time.Sleep(time.Duration(cfg.Data.Retry.Transient.Delay) * time.Millisecond)
 
 	onTransientError := retry.OnRetry(func(retry uint, err error) {

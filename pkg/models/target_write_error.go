@@ -19,3 +19,12 @@ type SetupWriteError struct {
 func (err SetupWriteError) Error() string {
 	return err.Err.Error()
 }
+
+// ThrottleWriteError is a wrapper for target write error. It is used by any target as a signal for a caller that this kind of error should be retried using 'throttle-like' retry strategy.
+type ThrottleWriteError struct {
+	Err error
+}
+
+func (err ThrottleWriteError) Error() string {
+	return err.Err.Error()
+}

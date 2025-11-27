@@ -828,6 +828,43 @@ func TestHTTP_Write_Setup(t *testing.T) {
 	assert.Regexp(".*got setup error, response status: '401 Unauthorized' with error details: 'Invalid token'", err.Error())
 }
 
+func TestHTTP_Write_Throttle(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	var headers http.Header
+
+	server := createTestServerWithResponseCode(&results, &headers, 429, "Rate limit exceeded")
+	defer server.Close()
+
+	responseRules := ResponseRules{
+		Rules: []Rule{
+			{Type: ResponseRuleTypeThrottle, MatchingHTTPCodes: []int{429}, MatchingBodyPart: "Rate limit"},
+		},
+	}
+
+	config := defaultConfiguration()
+	config.URL = server.URL
+	config.TemplateFile = string(`../../integration/http/template`)
+	config.ResponseRules = &responseRules
+
+	target, err := HTTPTargetConfigFunction(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{ "attribute": "value"}`)}}
+	writeResult, err := target.Write(input)
+
+	assert.Equal(0, len(writeResult.Sent))
+	assert.Equal(0, len(writeResult.Invalid))
+	assert.Equal(1, len(writeResult.Failed))
+
+	_, isThrottle := err.(models.ThrottleWriteError)
+	assert.True(isThrottle)
+	assert.Regexp(".*got throttle error, response status: '429.*' with error details: 'Rate limit'", err.Error())
+}
+
 func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
 	assert := assert.New(t)
 

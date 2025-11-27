@@ -271,6 +271,125 @@ func TestWrite_RunOutOfAttempts(t *testing.T) {
 	assert.Equal(t, "Error 6", output.err.Error())
 }
 
+func TestRetryLogic_SetupError(t *testing.T) {
+	inputMessages := []*models.Message{
+		message("m1", "data 1"),
+	}
+
+	mocks := targetMocks{
+		goodTarget: []mockResult{
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+			{sent: []string{"m1"}}, // finally succeed
+		},
+	}
+
+	transformation := noopTransformation()
+	output := run(inputMessages, mocks, transformation)
+
+	assert.Equal(t, []string{"m1"}, output.sentToGood)
+	assert.Empty(t, output.sentToFailed)
+	assert.Empty(t, output.filtered)
+	assert.Empty(t, output.err)
+}
+
+func TestRetryLogic_ThrottleError(t *testing.T) {
+	inputMessages := []*models.Message{
+		message("m1", "data 1"),
+	}
+
+	mocks := targetMocks{
+		goodTarget: []mockResult{
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+			{sent: []string{"m1"}}, // finally succeed
+		},
+	}
+
+	transformation := noopTransformation()
+	output := run(inputMessages, mocks, transformation)
+
+	assert.Equal(t, []string{"m1"}, output.sentToGood)
+	assert.Empty(t, output.sentToFailed)
+	assert.Empty(t, output.filtered)
+	assert.Empty(t, output.err)
+}
+
+func TestRetryLogic_SetupErrorExhaustion(t *testing.T) {
+	inputMessages := []*models.Message{
+		message("m1", "data 1"),
+	}
+
+	mocks := targetMocks{
+		goodTarget: []mockResult{
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+		},
+	}
+
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
+	assert.Empty(t, output.sentToGood)
+	assert.NotNil(t, output.err)
+	// Should be wrapped as SetupWriteError
+	_, isSetupError := output.err.(models.SetupWriteError)
+	assert.True(t, isSetupError)
+}
+
+func TestRetryLogic_ThrottleErrorExhaustion(t *testing.T) {
+	inputMessages := []*models.Message{
+		message("m1", "data 1"),
+	}
+
+	mocks := targetMocks{
+		goodTarget: []mockResult{
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+		},
+	}
+
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
+	assert.Empty(t, output.sentToGood)
+	assert.NotNil(t, output.err)
+	// Should be wrapped as ThrottleWriteError
+	_, isThrottleError := output.err.(models.ThrottleWriteError)
+	assert.True(t, isThrottleError)
+}
+
+func TestRetryLogic_RetryChainOrder(t *testing.T) {
+	inputMessages := []*models.Message{
+		message("m1", "data 1"),
+	}
+
+	// Test that setup errors are handled first, then throttle, then transient
+	// Start with setup error, then throttle, then generic error
+	mocks := targetMocks{
+		goodTarget: []mockResult{
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+			{failed: []string{"m1"}, err: "setup error", wrapError: models.SetupWriteError{Err: errors.New("setup error")}},
+			{failed: []string{"m1"}, err: "throttle error", wrapError: models.ThrottleWriteError{Err: errors.New("throttle error")}},
+			{failed: []string{"m1"}, err: "transient error"}, // No wrapping = transient
+			{sent: []string{"m1"}},
+		},
+	}
+
+	transformation := noopTransformation()
+
+	output := run(inputMessages, mocks, transformation)
+	assert.Equal(t, []string{"m1"}, output.sentToGood)
+	assert.Empty(t, output.err)
+}
+
 func TestWrite_OriginalDataCheck(t *testing.T) {
 	inputMessages := []*models.Message{
 		message("m1", "data 1"),
@@ -302,6 +421,10 @@ func TestWrite_OriginalDataCheck(t *testing.T) {
 
 func run(input []*models.Message, targetMocks targetMocks, transformation transform.TransformationApplyFunction) testOutput {
 	config, _ := config.NewConfig()
+
+	config.Data.Retry.Transient.Delay = 100
+	config.Data.Retry.Setup.Delay = 100
+	config.Data.Retry.Throttle.Delay = 100
 
 	goodTarget := testTarget{results: targetMocks.goodTarget}
 	failureTarget := testTarget{results: targetMocks.failureTarget}
@@ -358,6 +481,10 @@ func (t *testTarget) Write(messages []*models.Message) (*models.TargetWriteResul
 
 	if nextResponse.err != "" {
 		err = errors.New(nextResponse.err)
+		// Wrap with specific error type if specified
+		if nextResponse.wrapError != nil {
+			err = nextResponse.wrapError
+		}
 	}
 
 	for _, m := range sent {
@@ -409,6 +536,7 @@ type mockResult struct {
 	invalid   []string
 	oversized []string
 	err       string
+	wrapError error // Allows wrapping with specific error types
 }
 
 func (t *testTarget) Open()  {}

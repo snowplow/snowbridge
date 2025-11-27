@@ -80,13 +80,14 @@ type ResponseRules struct {
 type ResponseRuleType string
 
 const (
-	ResponseRuleTypeInvalid ResponseRuleType = "invalid"
-	ResponseRuleTypeSetup   ResponseRuleType = "setup"
+	ResponseRuleTypeInvalid  ResponseRuleType = "invalid"
+	ResponseRuleTypeSetup    ResponseRuleType = "setup"
+	ResponseRuleTypeThrottle ResponseRuleType = "throttle"
 )
 
 func isValidResponseRuleType(ruleType ResponseRuleType) bool {
 	switch ruleType {
-	case ResponseRuleTypeInvalid, ResponseRuleTypeSetup:
+	case ResponseRuleTypeInvalid, ResponseRuleTypeSetup, ResponseRuleTypeThrottle:
 		return true
 	default:
 		return false
@@ -353,6 +354,7 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 	invalid := []*models.Message{}
 	var errResult error
 	var hitSetupError bool
+	var hitThrottleError bool
 
 	for _, chunk := range chunks {
 		grouped := ht.groupByDynamicHeaders(chunk)
@@ -469,6 +471,25 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 					invalid = append(invalid, goodMsgs...)
 					continue
 
+				case ResponseRuleTypeThrottle:
+					hitThrottleError = true
+					var errorDetails error
+					if matchedRule.MatchingBodyPart != "" {
+						errorDetails = fmt.Errorf("got throttle error, response status: '%s' with error details: '%s'", resp.Status, matchedRule.MatchingBodyPart)
+					} else {
+						errorDetails = fmt.Errorf("got throttle error, response status: '%s'", resp.Status)
+					}
+
+					for _, msg := range goodMsgs {
+						msg.SetError(&models.ApiError{
+							StatusCode:   resp.Status,
+							ResponseBody: response.Body,
+							SafeMessage:  "Throttle error",
+						})
+					}
+					errResult = multierror.Append(errResult, errorDetails)
+					failed = append(failed, goodMsgs...)
+
 				case ResponseRuleTypeSetup:
 					hitSetupError = true
 					var errorDetails error
@@ -499,6 +520,8 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 	if hitSetupError {
 		errResult = models.SetupWriteError{Err: errResult}
+	} else if hitThrottleError {
+		errResult = models.ThrottleWriteError{Err: errResult}
 	}
 
 	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))

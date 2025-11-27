@@ -86,11 +86,10 @@ target {
           http_codes = [400]
           body =  "Invalid value for 'purchase' field"
         }
-      # Invalid rule for attributes field validation error
+      # Throttle rule for 429 throttle response
       rule {
-          type = "invalid"
-          http_codes = [400]
-          body =  "Invalid value for 'attributes' field"
+          type = "throttle"
+          http_codes = [429]
         }
       # Setup rule for authentication errors
       rule {

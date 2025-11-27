@@ -10,7 +10,14 @@ retry {
     # Initial delay (before first retry) for setup errors (default: 20000)
     delay_ms = 30000
 
-    # Maximum number of retries for transient errors (default: 5)
+    # Maximum number of retries for setup errors (default: 5)
+    max_attempts = 3
+  }
+  throttle {
+    # Initial delay (before first retry) for throttle errors (default: 20000)
+    delay_ms = 30000
+
+    # Maximum number of retries for throttle errors (default: 5)
     max_attempts = 3
   }
 }

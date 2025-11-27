@@ -104,6 +104,7 @@ type licenseConfig struct {
 type retryConfig struct {
 	Transient *transientRetryConfig `hcl:"transient,block"`
 	Setup     *setupRetryConfig     `hcl:"setup,block"`
+	Throttle  *throttleRetryConfig  `hcl:"throttle,block"`
 }
 
 type metricsConfig struct {
@@ -133,6 +134,11 @@ type transientRetryConfig struct {
 }
 
 type setupRetryConfig struct {
+	Delay       int `hcl:"delay_ms,optional"`
+	MaxAttempts int `hcl:"max_attempts,optional"`
+}
+
+type throttleRetryConfig struct {
 	Delay       int `hcl:"delay_ms,optional"`
 	MaxAttempts int `hcl:"max_attempts,optional"`
 }
@@ -169,6 +175,10 @@ func defaultConfigData() *configurationData {
 			},
 			Setup: &setupRetryConfig{
 				Delay:       20000,
+				MaxAttempts: 5,
+			},
+			Throttle: &throttleRetryConfig{
+				Delay:       10000,
 				MaxAttempts: 5,
 			},
 		},

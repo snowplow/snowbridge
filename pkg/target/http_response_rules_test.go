@@ -87,6 +87,11 @@ func TestHTTP_ResponseRules_OrderedEvaluation(t *testing.T) {
 				Type:              ResponseRuleTypeSetup,
 				MatchingHTTPCodes: []int{500},
 			}, // no body requirement
+			{
+				Type:              ResponseRuleTypeThrottle,
+				MatchingHTTPCodes: []int{429},
+				MatchingBodyPart:  "rate limit",
+			},
 		},
 	}
 
@@ -133,6 +138,20 @@ func TestHTTP_ResponseRules_OrderedEvaluation(t *testing.T) {
 	assert.NotNil(matchedRule)
 	assert.Equal(ResponseRuleTypeSetup, matchedRule.Type)
 	assert.Equal("", matchedRule.MatchingBodyPart)
+
+	// Test that throttle rule matches as expected
+	resp = response{Status: 429, Body: "rate limit exceeded"}
+	matchedRule = nil
+	for _, rule := range ht.responseRules.Rules {
+		if ruleMatches(resp, rule) {
+			matchedRule = &rule
+			break
+		}
+	}
+
+	assert.NotNil(matchedRule)
+	assert.Equal(ResponseRuleTypeThrottle, matchedRule.Type)
+	assert.Equal("rate limit", matchedRule.MatchingBodyPart)
 }
 
 func TestHTTP_ResponseRules_ValidateRuleTypes(t *testing.T) {
@@ -147,6 +166,7 @@ func TestHTTP_ResponseRules_ValidateRuleTypes(t *testing.T) {
 			Rules: []Rule{
 				{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{400}},
 				{Type: ResponseRuleTypeSetup, MatchingHTTPCodes: []int{500}},
+				{Type: ResponseRuleTypeThrottle, MatchingHTTPCodes: []int{429}},
 			},
 		},
 	}
