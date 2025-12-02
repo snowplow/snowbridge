@@ -7,6 +7,7 @@ on:
 
 jobs:
   release:
+    if: ${{ github.event.repository.private == true }}
     name: Release
     strategy:
       matrix:
@@ -97,7 +98,7 @@ jobs:
 
     - name: Run Snyk to monitor for vulnerabilities in main Docker image
       uses: snyk/actions/docker@master
-      if: ${{ !contains(github.ref, 'rc') }}
+      if: ${{ !contains(github.ref, '-') }}
       with:
         image: "snowplow/snowbridge:${{ steps.version.outputs.VERSION }}"
         args: "--app-vulns --org=data-processing-new --project-name=snowbridge-main"
@@ -107,7 +108,7 @@ jobs:
 
     - name: Run Snyk to monitor for vulnerabilities in aws-only Docker image
       uses: snyk/actions/docker@master
-      if: ${{ !contains(github.ref, 'rc') }}
+      if: ${{ !contains(github.ref, '-') }}
       with:
         image: "snowplow/snowbridge:${{ steps.version.outputs.VERSION }}-aws-only"
         args: "--app-vulns --org=data-processing-new --project-name=snowbridge-aws-only"
@@ -139,3 +140,4 @@ jobs:
     - name: Publish to DockerHub
       run: make container-release
       shell: bash
+
