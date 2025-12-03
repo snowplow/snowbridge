@@ -5,6 +5,9 @@ retry {
 
     # Maximum number of retries for transient errors (default: 5)
     max_attempts = 10 
+
+    # Whether to send the data to invalid after max retries (default: false)
+    invalid_after_max = true
   }
   setup {
     # Initial delay (before first retry) for setup errors (default: 20000)

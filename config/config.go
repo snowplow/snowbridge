@@ -129,18 +129,21 @@ type metadataReporterConfig struct {
 }
 
 type transientRetryConfig struct {
-	Delay       int `hcl:"delay_ms,optional"`
-	MaxAttempts int `hcl:"max_attempts,optional"`
+	Delay           int  `hcl:"delay_ms,optional"`
+	MaxAttempts     int  `hcl:"max_attempts,optional"`
+	InvalidAfterMax bool `hcl:"invalid_after_max,optional"` // default: false
 }
 
 type setupRetryConfig struct {
-	Delay       int `hcl:"delay_ms,optional"`
-	MaxAttempts int `hcl:"max_attempts,optional"`
+	Delay           int  `hcl:"delay_ms,optional"`
+	MaxAttempts     int  `hcl:"max_attempts,optional"`
+	InvalidAfterMax bool `hcl:"invalid_after_max,optional"` // default: false
 }
 
 type throttleRetryConfig struct {
-	Delay       int `hcl:"delay_ms,optional"`
-	MaxAttempts int `hcl:"max_attempts,optional"`
+	Delay           int  `hcl:"delay_ms,optional"`
+	MaxAttempts     int  `hcl:"max_attempts,optional"`
+	InvalidAfterMax bool `hcl:"invalid_after_max,optional"` // default: false
 }
 
 // defaultConfigData returns the initial main configuration target.

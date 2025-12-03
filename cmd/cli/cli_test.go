@@ -37,7 +37,9 @@ func TestWrite_AllOK(t *testing.T) {
 
 	transformation := noopTransformation()
 
-	output := run(inputMessages, mocks, transformation)
+	config, _ := config.NewConfig()
+
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
 	assert.Empty(t, output.filtered)
@@ -58,8 +60,9 @@ func TestWrite_OKAfterFailed(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
 	assert.Empty(t, output.filtered)
@@ -82,8 +85,9 @@ func TestWrite_AllInvalid(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToFailed)
 	assert.Empty(t, output.sentToGood)
 	assert.Empty(t, output.filtered)
@@ -108,8 +112,9 @@ func TestWrite_InvalidRetried(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToFailed)
 	assert.Empty(t, output.sentToGood)
 	assert.Empty(t, output.filtered)
@@ -132,8 +137,9 @@ func TestWrite_SomeOKSomeInvalid(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1"}, output.sentToGood) // but good data is in good target
 	assert.Equal(t, []string{"m2"}, output.sentToFailed)
 	assert.Empty(t, output.filtered)
@@ -155,8 +161,9 @@ func TestWrite_OKAfterPartialFailure(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
 	assert.Empty(t, output.filtered)
@@ -179,8 +186,9 @@ func TestWrite_AllOversized(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToFailed)
 	assert.Empty(t, output.sentToGood)
 	assert.Empty(t, output.filtered)
@@ -200,8 +208,9 @@ func TestWrite_AllFiltered(t *testing.T) {
 	}
 
 	transformation := filteringTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.filtered)
 	assert.Empty(t, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
@@ -237,8 +246,9 @@ func TestWrite_Combo(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Equal(t, []string{"m3", "m4"}, output.sentToFailed)
 	assert.Empty(t, output.filtered)
@@ -263,12 +273,44 @@ func TestWrite_RunOutOfAttempts(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Empty(t, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
 	assert.Empty(t, output.filtered)
 	assert.Equal(t, "Error 6", output.err.Error())
+}
+
+func TestWrite_RunOutOfAttemptsInvalidAfterMax(t *testing.T) {
+	inputMessages := []*models.Message{
+		message("m1", "data 1"),
+		message("m2", "data 2"),
+	}
+
+	mocks := targetMocks{
+		goodTarget: []mockResult{
+			{failed: []string{"m1", "m2"}, err: "Error 1"},
+			{failed: []string{"m1", "m2"}, err: "Error 2"},
+			{failed: []string{"m1", "m2"}, err: "Error 3"},
+			{failed: []string{"m1", "m2"}, err: "Error 4"},
+			{failed: []string{"m1", "m2"}, err: "Error 5"},
+			{failed: []string{"m1", "m2"}, err: "Error 6"},
+		},
+		failureTarget: []mockResult{
+			{sent: []string{"m1", "m2"}},
+		},
+	}
+
+	transformation := noopTransformation()
+	config, _ := config.NewConfig()
+	config.Data.Retry.Transient.InvalidAfterMax = true
+
+	output := run(inputMessages, mocks, transformation, config)
+	assert.Empty(t, output.sentToGood)
+	assert.Equal(t, []string{"m1", "m2"}, output.sentToFailed)
+	assert.Empty(t, output.filtered)
+	assert.Nil(t, output.err)
 }
 
 func TestRetryLogic_SetupError(t *testing.T) {
@@ -285,8 +327,9 @@ func TestRetryLogic_SetupError(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
-	output := run(inputMessages, mocks, transformation)
+	config, _ := config.NewConfig()
 
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
 	assert.Empty(t, output.filtered)
@@ -307,8 +350,9 @@ func TestRetryLogic_ThrottleError(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
-	output := run(inputMessages, mocks, transformation)
+	config, _ := config.NewConfig()
 
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
 	assert.Empty(t, output.filtered)
@@ -331,8 +375,9 @@ func TestRetryLogic_SetupErrorExhaustion(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Empty(t, output.sentToGood)
 	assert.NotNil(t, output.err)
 	// Should be wrapped as SetupWriteError
@@ -357,8 +402,9 @@ func TestRetryLogic_ThrottleErrorExhaustion(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Empty(t, output.sentToGood)
 	assert.NotNil(t, output.err)
 	// Should be wrapped as ThrottleWriteError
@@ -384,8 +430,9 @@ func TestRetryLogic_RetryChainOrder(t *testing.T) {
 	}
 
 	transformation := noopTransformation()
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1"}, output.sentToGood)
 	assert.Empty(t, output.err)
 }
@@ -403,8 +450,9 @@ func TestWrite_OriginalDataCheck(t *testing.T) {
 	}
 
 	transformation := addingSuffixTransformation("lol")
+	config, _ := config.NewConfig()
 
-	output := run(inputMessages, mocks, transformation)
+	output := run(inputMessages, mocks, transformation, config)
 	assert.Equal(t, []string{"m1", "m2"}, output.sentToGood)
 	assert.Empty(t, output.sentToFailed)
 	assert.Empty(t, output.filtered)
@@ -419,12 +467,11 @@ func TestWrite_OriginalDataCheck(t *testing.T) {
 	assert.Equal(t, "data 2-lol", string(inputMessages[1].Data))
 }
 
-func run(input []*models.Message, targetMocks targetMocks, transformation transform.TransformationApplyFunction) testOutput {
-	config, _ := config.NewConfig()
+func run(input []*models.Message, targetMocks targetMocks, transformation transform.TransformationApplyFunction, cfg *config.Config) testOutput {
 
-	config.Data.Retry.Transient.Delay = 100
-	config.Data.Retry.Setup.Delay = 100
-	config.Data.Retry.Throttle.Delay = 100
+	cfg.Data.Retry.Transient.Delay = 100
+	cfg.Data.Retry.Setup.Delay = 100
+	cfg.Data.Retry.Throttle.Delay = 100
 
 	goodTarget := testTarget{results: targetMocks.goodTarget}
 	failureTarget := testTarget{results: targetMocks.failureTarget}
@@ -433,7 +480,7 @@ func run(input []*models.Message, targetMocks targetMocks, transformation transf
 	failure, _ := failure.NewSnowplowFailure(&failureTarget, "test-processor", "test-version")
 	obs := observer.New(&testStatsReceiver{}, time.Minute, time.Second, &testMetadataReporter{})
 
-	f := sourceWriteFunc(&goodTarget, failure, &filterTarget, transformation, obs, config, nil)
+	f := sourceWriteFunc(&goodTarget, failure, &filterTarget, transformation, obs, cfg, nil)
 	err := f(input)
 
 	return testOutput{

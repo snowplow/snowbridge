@@ -248,10 +248,15 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeTransformed, alertChan)
-			if err != nil {
+			err, sendToInvalid := handleWrite(cfg, writeTransformed, alertChan)
+			if err != nil && !sendToInvalid {
+				// Return error and crash if configured to do so.
 				return err
 			}
+			// If we get here, we either have empty messagesToSend (as all successful),
+			// or we have configured to send the data to invalid after max retries.
+			// (the write function overwrites messagesToSend with failed on each iteration)
+			invalid = append(invalid, messagesToSend...)
 		}
 
 		if len(transformed.Filtered) > 0 {
@@ -267,8 +272,9 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeFiltered, nil)
+			err, _ := handleWrite(cfg, writeFiltered, nil)
 			if err != nil {
+				// There's no retry config for filtered at present, just return error and crash.
 				return err
 			}
 		}
@@ -287,8 +293,8 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeOversized, nil)
-
+			err, _ := handleWrite(cfg, writeOversized, nil)
+			// Failure here should always be handled as an exception.
 			if err != nil {
 				return err
 			}
@@ -308,8 +314,8 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 				return err
 			}
 
-			err := handleWrite(cfg, writeInvalid, nil)
-
+			err, _ := handleWrite(cfg, writeInvalid, nil)
+			// Failure here should always be handled as an exception.
 			if err != nil {
 				return err
 			}
@@ -322,7 +328,7 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 // - setup errors: long delay, unlimited attempts, unhealthy state + alerts
 // - transient errors: short delay, limited attempts
 // If it's setup/transient error is decided based on a response returned by the target.
-func handleWrite(cfg *config.Config, write func() error, alertChan chan error) error {
+func handleWrite(cfg *config.Config, write func() error, alertChan chan error) (err error, sendToInvalid bool) {
 	setupErrored := false
 
 	retryOnlySetupErrors := retry.RetryIf(func(err error) bool {
@@ -339,21 +345,20 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 	})
 
 	//First try to handle error as setup...
-	err := retry.Do(
+	err = retry.Do(
 		write,
 		retryOnlySetupErrors,
 		onSetupError,
 		retry.Delay(time.Duration(cfg.Data.Retry.Setup.Delay)*time.Millisecond),
 		retry.Attempts(uint(cfg.Data.Retry.Setup.MaxAttempts)),
 		retry.LastErrorOnly(true),
-		// enable when health probe is implemented
-		// retry.Attempts(0), //unlimited
 	)
 
 	// If after retries we still have setup error
 	// there is no reason to retry it further, so error early
 	if _, isSetup := err.(models.SetupWriteError); isSetup {
-		return err
+
+		return err, cfg.Data.Retry.Setup.InvalidAfterMax
 	}
 
 	// Now, `err` is either nil or no longer setup-related
@@ -363,7 +368,7 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 	}
 
 	if err == nil {
-		return err
+		return err, false
 	}
 
 	// If no setup, then check if it is throttle
@@ -394,11 +399,12 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 	// If after retries we still have throttle error
 	// there is no reason to retry it further, so error early
 	if _, isThrottle := err.(models.ThrottleWriteError); isThrottle {
-		return err
+
+		return err, cfg.Data.Retry.Throttle.InvalidAfterMax
 	}
 
 	if err == nil {
-		return err
+		return err, false
 	}
 
 	// If no throttle, then handle as transient.
@@ -419,7 +425,8 @@ func handleWrite(cfg *config.Config, write func() error, alertChan chan error) e
 		retry.Attempts(uint(cfg.Data.Retry.Transient.MaxAttempts)),
 		retry.LastErrorOnly(true),
 	)
-	return err
+
+	return err, cfg.Data.Retry.Transient.InvalidAfterMax
 }
 
 // exitWithError will ensure we log the error and leave time for Sentry to flush
