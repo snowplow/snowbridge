@@ -8,10 +8,12 @@ target {
     use "http" {
         url = "http://host.docker.internal:12080/target"
 
+        request_timeout_in_millis = 3 // manufacture timeouts
+
         response_rules {
             rule {
                 type = "invalid"
-                http_codes = [400]
+                http_codes = [0] // client error
             }
             rule {
                 type = "setup"
@@ -19,6 +21,18 @@ target {
             }
         }
     }
+}
+
+failure_target {
+    use "http" {
+        url = "http://host.docker.internal:12080/invalid"
+    }
+}
+
+stats_receiver {
+  # This determines the flushing behaviour for metadata reporter too
+  buffer_sec = 1
+  timeout_sec = 1
 }
 
 monitoring {

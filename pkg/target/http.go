@@ -63,8 +63,9 @@ type HTTPTargetConfig struct {
 	RequestByteLimit   int `hcl:"request_byte_limit,optional"` // note: breaking change here
 	MessageByteLimit   int `hcl:"message_byte_limit,optional"`
 
-	TemplateFile  string         `hcl:"template_file,optional"`
-	ResponseRules *ResponseRules `hcl:"response_rules,block"`
+	TemplateFile     string         `hcl:"template_file,optional"`
+	ResponseRules    *ResponseRules `hcl:"response_rules,block"`
+	MetadataSafeMode bool           `hcl:"metadata_safe_mode,optional"`
 
 	IncludeTimingHeaders       bool `hcl:"include_timing_headers,optional"`
 	RejectionThresholdInMillis int  `hcl:"rejection_threshold_in_millis,optional"`
@@ -103,8 +104,9 @@ type Rule struct {
 
 // Helper struct storing response HTTP status code and parsed response body
 type response struct {
-	Status int
-	Body   string
+	Status       int
+	StringStatus string
+	Body         string
 }
 
 // HTTPTarget holds a new client for writing messages to HTTP endpoints
@@ -122,9 +124,10 @@ type HTTPTarget struct {
 	requestByteLimit   int
 	messageByteLimit   int
 
-	requestTemplate *template.Template
-	approxTmplSize  int
-	responseRules   *ResponseRules
+	requestTemplate  *template.Template
+	approxTmplSize   int
+	responseRules    *ResponseRules
+	metadataSafeMode bool // If enabled, we don't put response content into metadata reporting
 
 	includeTimingHeaders bool
 	rejectionThreshold   int
@@ -288,6 +291,7 @@ func HTTPTargetConfigFunction(c *HTTPTargetConfig) (*HTTPTarget, error) {
 		requestTemplate:      requestTemplate,
 		approxTmplSize:       approxTmplSize,
 		responseRules:        c.ResponseRules,
+		metadataSafeMode:     c.MetadataSafeMode,
 		includeTimingHeaders: c.IncludeTimingHeaders,
 		rejectionThreshold:   c.RejectionThresholdInMillis,
 	}, nil
@@ -320,6 +324,7 @@ func defaultConfiguration() *HTTPTargetConfig {
 		ResponseRules: &ResponseRules{
 			Rules: []Rule{},
 		},
+		MetadataSafeMode:           true,
 		IncludeTimingHeaders:       false,
 		RejectionThresholdInMillis: 150,
 	}
@@ -405,8 +410,17 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			}
 
 			if err != nil {
-				failed = append(failed, goodMsgs...)
-				errResult = multierror.Append(errResult, errors.New("Error sending request: "+err.Error()))
+				response := response{Body: err.Error(), Status: 0, StringStatus: "Client failed to complete request"}
+				newInvalid, newFailed, newThrottleError, newSetupError, newErrResult := handleResponseRules(response, ht.responseRules, goodMsgs, false)
+
+				invalid = append(invalid, newInvalid...)
+				failed = append(failed, newFailed...)
+				hitThrottleError = hitThrottleError || newThrottleError
+				hitSetupError = hitSetupError || newSetupError
+				if newErrResult != nil {
+					// Invalids produce nil newErrResult, appending it results in non-nil error.
+					errResult = multierror.Append(errResult, newErrResult)
+				}
 				continue
 			}
 
@@ -433,87 +447,29 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 			responseBody, err := io.ReadAll(resp.Body)
 
 			if err != nil {
-				failed = append(failed, goodMsgs...)
-				errResult = multierror.Append(errResult, errors.New("Error reading response body: "+err.Error()))
+				response := response{Body: err.Error(), Status: 0, StringStatus: "Error reading response body"}
+				newInvalid, newFailed, newThrottleError, newSetupError, newErrResult := handleResponseRules(response, ht.responseRules, goodMsgs, false)
+				invalid = append(invalid, newInvalid...)
+				failed = append(failed, newFailed...)
+				hitThrottleError = hitThrottleError || newThrottleError
+				hitSetupError = hitSetupError || newSetupError
+				if newErrResult != nil {
+					// Invalids produce nil newErrResult, appending it results in non-nil error.
+					errResult = multierror.Append(errResult, newErrResult)
+				}
 				continue
 			}
 
-			response := response{Body: string(responseBody), Status: resp.StatusCode}
+			response := response{Body: string(responseBody), Status: resp.StatusCode, StringStatus: resp.Status}
 
-			// Set errors with code and body for metadata reporting
-			for _, msg := range goodMsgs {
-				msg.SetError(&models.ApiError{
-					StatusCode:   resp.Status,
-					ResponseBody: response.Body,
-					SafeMessage:  "Transient error",
-				})
-			}
-
-			// Find first matching rule in order
-			var matchedRule *Rule
-			for _, rule := range ht.responseRules.Rules {
-				if ruleMatches(response, rule) {
-					matchedRule = &rule
-					break
-				}
-			}
-
-			if matchedRule != nil {
-				switch matchedRule.Type {
-				case ResponseRuleTypeInvalid:
-					for _, msg := range goodMsgs {
-						msg.SetError(&models.ApiError{
-							StatusCode:   resp.Status,
-							ResponseBody: response.Body,
-							SafeMessage:  "Invalid error",
-						})
-					}
-					invalid = append(invalid, goodMsgs...)
-					continue
-
-				case ResponseRuleTypeThrottle:
-					hitThrottleError = true
-					var errorDetails error
-					if matchedRule.MatchingBodyPart != "" {
-						errorDetails = fmt.Errorf("got throttle error, response status: '%s' with error details: '%s'", resp.Status, matchedRule.MatchingBodyPart)
-					} else {
-						errorDetails = fmt.Errorf("got throttle error, response status: '%s'", resp.Status)
-					}
-
-					for _, msg := range goodMsgs {
-						msg.SetError(&models.ApiError{
-							StatusCode:   resp.Status,
-							ResponseBody: response.Body,
-							SafeMessage:  "Throttle error",
-						})
-					}
-					errResult = multierror.Append(errResult, errorDetails)
-					failed = append(failed, goodMsgs...)
-
-				case ResponseRuleTypeSetup:
-					hitSetupError = true
-					var errorDetails error
-					if matchedRule.MatchingBodyPart != "" {
-						errorDetails = fmt.Errorf("got setup error, response status: '%s' with error details: '%s'", resp.Status, matchedRule.MatchingBodyPart)
-					} else {
-						errorDetails = fmt.Errorf("got setup error, response status: '%s'", resp.Status)
-					}
-
-					for _, msg := range goodMsgs {
-						msg.SetError(&models.ApiError{
-							StatusCode:   resp.Status,
-							ResponseBody: response.Body,
-							SafeMessage:  "Setup error",
-						})
-					}
-					errResult = multierror.Append(errResult, errorDetails)
-					failed = append(failed, goodMsgs...)
-				}
-			} else {
-				// No rule matched - transient error
-				errorDetails := fmt.Errorf("got transient error, response status: '%s'", resp.Status)
-				errResult = multierror.Append(errResult, errorDetails)
-				failed = append(failed, goodMsgs...)
+			newInvalid, newFailed, newThrottleError, newSetupError, newErrResult := handleResponseRules(response, ht.responseRules, goodMsgs, ht.metadataSafeMode)
+			invalid = append(invalid, newInvalid...)
+			failed = append(failed, newFailed...)
+			hitThrottleError = hitThrottleError || newThrottleError
+			hitSetupError = hitSetupError || newSetupError
+			if newErrResult != nil {
+				// Invalids produce nil newErrResult, appending it results in non-nil error.
+				errResult = multierror.Append(errResult, newErrResult)
 			}
 		}
 	}
@@ -526,6 +482,100 @@ func (ht *HTTPTarget) Write(messages []*models.Message) (*models.TargetWriteResu
 
 	ht.log.Debugf("Successfully wrote %d/%d messages", len(sent), len(messages))
 	return models.NewTargetWriteResult(sent, failed, oversized, invalid), errResult
+}
+
+func handleResponseRules(response response, rules *ResponseRules, messages []*models.Message, safeMode bool) (invalid, failed []*models.Message, hitThrottleError bool, hitSetupError bool, errResult error) {
+
+	// Find first matching rule in order
+	var matchedRule *Rule
+	for _, rule := range rules.Rules {
+		if ruleMatches(response, rule) {
+			matchedRule = &rule
+			break
+		}
+	}
+
+	message := response.Body
+
+	if matchedRule != nil {
+		switch matchedRule.Type {
+		case ResponseRuleTypeInvalid:
+			if safeMode {
+				message = "Invalid error"
+			}
+			for _, msg := range messages {
+				msg.SetError(&models.ApiError{
+					StatusCode:   response.StringStatus,
+					ResponseBody: response.Body,
+					SafeMessage:  message,
+				})
+			}
+			invalid = append(invalid, messages...)
+
+		case ResponseRuleTypeThrottle:
+			hitThrottleError = true
+			var errorDetails error
+			if matchedRule.MatchingBodyPart != "" {
+				errorDetails = fmt.Errorf("got throttle error, response status: '%s' with error details: '%s'", response.StringStatus, matchedRule.MatchingBodyPart)
+			} else {
+				errorDetails = fmt.Errorf("got throttle error, response status: '%s'", response.StringStatus)
+			}
+			if safeMode {
+				message = "Throttle error"
+			}
+
+			for _, msg := range messages {
+				msg.SetError(&models.ApiError{
+					StatusCode:   response.StringStatus,
+					ResponseBody: response.Body,
+					SafeMessage:  message,
+				})
+			}
+			errResult = multierror.Append(errResult, errorDetails)
+			failed = append(failed, messages...)
+
+		case ResponseRuleTypeSetup:
+			hitSetupError = true
+			var errorDetails error
+			if matchedRule.MatchingBodyPart != "" {
+				errorDetails = fmt.Errorf("got setup error, response status: '%s' with error details: '%s'", response.StringStatus, matchedRule.MatchingBodyPart)
+			} else {
+				errorDetails = fmt.Errorf("got setup error, response status: '%s'", response.StringStatus)
+			}
+			if safeMode {
+				message = "Setup error"
+			}
+
+			for _, msg := range messages {
+				msg.SetError(&models.ApiError{
+					StatusCode:   response.StringStatus,
+					ResponseBody: response.Body,
+					SafeMessage:  message,
+				})
+			}
+			errResult = multierror.Append(errResult, errorDetails)
+			failed = append(failed, messages...)
+		}
+	} else {
+		if safeMode {
+			message = "Transient error"
+		}
+		// Set errors with code and body for metadata reporting
+		for _, msg := range messages {
+
+			msg.SetError(&models.ApiError{
+				StatusCode:   response.StringStatus,
+				ResponseBody: response.Body,
+				SafeMessage:  message,
+			})
+
+		}
+		// No rule matched - transient error
+		errorDetails := fmt.Errorf("got transient error, response status: '%s'", response.StringStatus)
+		errResult = multierror.Append(errResult, errorDetails)
+		failed = append(failed, messages...)
+	}
+	return invalid, failed, hitThrottleError, hitSetupError, errResult
 }
 
 func ruleMatches(res response, rule Rule) bool {

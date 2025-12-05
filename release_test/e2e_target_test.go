@@ -809,11 +809,14 @@ func TestE2EMetadataReporter(t *testing.T) {
 	// Channel to receive metadata reporter payloads
 	metadataChan := make(chan monitoring.MetadataEvent, 2)
 
+	invalids := atomic.Int64{}
+
 	// Start a mock metadata reporter server
 	startMetadataServer := func(wg *sync.WaitGroup) *http.Server {
 		srv := &http.Server{Addr: ":12080"}
 		http.HandleFunc("/target", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
+			time.Sleep(time.Millisecond * 100)
+			w.WriteHeader(http.StatusOK)
 		})
 
 		http.HandleFunc("/metadata", func(w http.ResponseWriter, r *http.Request) {
@@ -829,6 +832,11 @@ func TestE2EMetadataReporter(t *testing.T) {
 			}
 
 			metadataChan <- payload
+			w.WriteHeader(http.StatusOK)
+		})
+
+		http.HandleFunc("/invalid", func(w http.ResponseWriter, r *http.Request) {
+			invalids.Add(1)
 			w.WriteHeader(http.StatusOK)
 		})
 
@@ -853,6 +861,9 @@ func TestE2EMetadataReporter(t *testing.T) {
 		panic(err)
 	}
 
+	// Wait for at least one flush interval
+	ticker := time.NewTicker(1000 * time.Millisecond)
+
 	// Run Snowbridge (simulate or use Docker as in other E2E tests)
 	_, cmdErr := runDockerCommand(5*time.Second, "httpTargetMetadata", configFilePath, "", "")
 	assert.NoError(cmdErr, "Docker run returned error for HTTP target with metadata reporter")
@@ -864,10 +875,7 @@ receiveLoop:
 		select {
 		case payload := <-metadataChan:
 			received = append(received, payload)
-			if len(received) >= 1 { // Expect at least one flush
-				break receiveLoop
-			}
-		case <-time.After(5 * time.Second):
+		case <-ticker.C:
 			break receiveLoop
 		}
 	}
@@ -877,7 +885,13 @@ receiveLoop:
 	// Validate the payload contains expected error metadata
 	for _, payload := range received {
 		assert.Equal(200, payload.Data.InvalidErrors[0].Count)
+		// Check we get the expected error metadata info in the right places
+		assert.Equal(`Post "http://host.docker.internal:12080/target": context deadline exceeded (Client.Timeout exceeded while awaiting headers)`, payload.Data.InvalidErrors[0].Description)
+		assert.Equal(`Client failed to complete request`, payload.Data.InvalidErrors[0].Code)
 	}
+
+	// Check that we got 200 invalids to the actual failure target (mostly helps debug flakiness)
+	assert.Equal(int64(200), invalids.Load())
 
 	// Cleanup
 	if err := srv.Shutdown(context.Background()); err != nil {

@@ -94,6 +94,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				ResponseRules: &target.ResponseRules{
 					Rules: []target.Rule{},
 				},
+				MetadataSafeMode: true,
 			},
 		},
 		{
@@ -138,8 +139,14 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 							Type:              target.ResponseRuleTypeSetup,
 							MatchingHTTPCodes: []int{401, 403},
 						},
+						{
+							Type:              target.ResponseRuleTypeThrottle,
+							MatchingHTTPCodes: []int{0},
+							MatchingBodyPart:  "context deadline exceeded",
+						},
 					},
 				},
+				MetadataSafeMode: true,
 			},
 		},
 		{

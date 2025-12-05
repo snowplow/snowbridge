@@ -96,6 +96,16 @@ target {
           type = "setup"
           http_codes =  [401, 403]
         }
+      # Example rule to treat client timeouts as throttling
+      rule {
+        type = "throttle"
+        http_codes = [0]
+        body = "context deadline exceeded"
+      }
     }
+    
+  # Optional. When enabled, safe strings are used for metadata error reporting. If disabled, response bodies are used. (default: true)
+  # Used where API responses may contain sensitive data, which shouldn't pass through the metadata reporter.
+  metadata_safe_mode = true
   }
 }

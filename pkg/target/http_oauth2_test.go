@@ -99,9 +99,10 @@ func TestHTTP_OAuth2_CanNotFetchToken(t *testing.T) {
 			writeResult, err := runTest(t, tt.InputClientID, tt.InputClientSecret, tt.InputRefreshToken)
 
 			assert.NotNil(err)
-			assert.Contains(err.Error(), `{"error":"invalid_client"}`)
+			assert.Contains(err.Error(), `Client failed to complete request`)
 			assert.Equal(0, len(writeResult.Sent))
 			assert.Equal(1, len(writeResult.Failed))
+			assert.Contains(writeResult.Failed[0].GetError().Error(), `{"error":"invalid_client"}`)
 		})
 	}
 }

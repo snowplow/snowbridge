@@ -33,7 +33,7 @@ import (
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
-func createTestServerWithResponseCode(results *[][]byte, headers *http.Header, responseCode int, responseBody string) *httptest.Server {
+func createTestServerWithResponseCode(results *[][]byte, headers *http.Header, responseCode int, responseBody string, responseDelayMs int) *httptest.Server {
 	mutex := &sync.Mutex{}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer func() {
@@ -41,6 +41,7 @@ func createTestServerWithResponseCode(results *[][]byte, headers *http.Header, r
 				logrus.Error(err.Error())
 			}
 		}()
+		time.Sleep(time.Duration(responseDelayMs) * time.Millisecond)
 		data, err := io.ReadAll(req.Body)
 		*headers = req.Header
 		if err != nil {
@@ -58,7 +59,7 @@ func createTestServerWithResponseCode(results *[][]byte, headers *http.Header, r
 
 func createTestServer(results *[][]byte) *httptest.Server {
 	var headers http.Header
-	return createTestServerWithResponseCode(results, &headers, 200, "")
+	return createTestServerWithResponseCode(results, &headers, 200, "", 0)
 }
 
 func TestHTTP_GetHeaders(t *testing.T) {
@@ -393,7 +394,7 @@ func TestHTTP_Write_Simple(t *testing.T) {
 			var results [][]byte
 			var headers http.Header
 			wg := sync.WaitGroup{}
-			server := createTestServerWithResponseCode(&results, &headers, tt.ResponseCode, "")
+			server := createTestServerWithResponseCode(&results, &headers, tt.ResponseCode, "", 0)
 			defer server.Close()
 
 			config := defaultConfiguration()
@@ -464,7 +465,7 @@ func TestHTTP_Write_Batched(t *testing.T) {
 			var results [][]byte
 			var headers http.Header
 			wg := sync.WaitGroup{}
-			server := createTestServerWithResponseCode(&results, &headers, 200, "")
+			server := createTestServerWithResponseCode(&results, &headers, 200, "", 0)
 			defer server.Close()
 
 			config := defaultConfiguration()
@@ -620,7 +621,7 @@ func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 
 			var results [][]byte
 			var headers http.Header
-			server := createTestServerWithResponseCode(&results, &headers, tt.ResponseCode, "")
+			server := createTestServerWithResponseCode(&results, &headers, tt.ResponseCode, "", 0)
 			defer server.Close()
 
 			config := defaultConfiguration()
@@ -762,7 +763,7 @@ func TestHTTP_Write_Invalid(t *testing.T) {
 	var results [][]byte
 	var headers http.Header
 
-	server := createTestServerWithResponseCode(&results, &headers, 400, "Request is invalid. Invalid value for field 'attribute'")
+	server := createTestServerWithResponseCode(&results, &headers, 400, "Request is invalid. Invalid value for field 'attribute'", 0)
 	defer server.Close()
 
 	responseRules := ResponseRules{
@@ -797,7 +798,7 @@ func TestHTTP_Write_Setup(t *testing.T) {
 	var results [][]byte
 	var headers http.Header
 
-	server := createTestServerWithResponseCode(&results, &headers, 401, "Authentication issue. Invalid token")
+	server := createTestServerWithResponseCode(&results, &headers, 401, "Authentication issue. Invalid token", 0)
 	defer server.Close()
 
 	responseRules := ResponseRules{
@@ -834,7 +835,7 @@ func TestHTTP_Write_Throttle(t *testing.T) {
 	var results [][]byte
 	var headers http.Header
 
-	server := createTestServerWithResponseCode(&results, &headers, 429, "Rate limit exceeded")
+	server := createTestServerWithResponseCode(&results, &headers, 429, "Rate limit exceeded", 0)
 	defer server.Close()
 
 	responseRules := ResponseRules{
@@ -865,13 +866,52 @@ func TestHTTP_Write_Throttle(t *testing.T) {
 	assert.Regexp(".*got throttle error, response status: '429.*' with error details: 'Rate limit'", err.Error())
 }
 
+func TestHTTP_Write_ClientTimeoutResponseRule(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	var headers http.Header
+
+	server := createTestServerWithResponseCode(&results, &headers, 200, "ok", 10)
+	defer server.Close()
+
+	responseRules := ResponseRules{
+		Rules: []Rule{
+			{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{0}, MatchingBodyPart: "context deadline exceeded"},
+		},
+	}
+
+	config := defaultConfiguration()
+	config.URL = server.URL
+	config.TemplateFile = string(`../../integration/http/template`)
+	config.ResponseRules = &responseRules
+	config.RequestTimeoutInMillis = 1
+	target, err := HTTPTargetConfigFunction(config)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{ "attribute": "value"}`)}}
+
+	writeResult, err1 := target.Write(input)
+
+	assert.Nil(err1)
+	assert.Equal(0, len(writeResult.Sent), "Sent count should be 0")
+	assert.Equal(0, len(writeResult.Failed), "Failed count should be 0")
+	// fmt.Println(writeResult.Failed[0].GetError().Error())
+	assert.Equal(1, len(writeResult.Invalid), "Invalid count should be 1")
+	assert.Contains(writeResult.Invalid[0].GetError().Error(), "Client failed to complete request")
+	assert.Contains(writeResult.Invalid[0].GetError().Error(), "context deadline exceeded")
+}
+
 func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
 	assert := assert.New(t)
 
 	var results [][]byte
 	var headers http.Header
 
-	server := createTestServerWithResponseCode(&results, &headers, 200, "ok")
+	server := createTestServerWithResponseCode(&results, &headers, 200, "ok", 0)
 	defer server.Close()
 
 	config := defaultConfiguration()
