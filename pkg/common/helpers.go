@@ -32,6 +32,17 @@ import (
 	"github.com/xdg/scram"
 )
 
+const UA_STRING = "APN/1.1 (ak035lu2m8ge2f9qx90duo3ww)"
+
+type UASetTransport struct {
+	Transport http.RoundTripper
+}
+
+func (t *UASetTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", UA_STRING)
+	return t.Transport.RoundTrip(req)
+}
+
 // GetAWSConfig is a general tool to handle generating an AWS config
 // using the standard auth flow.
 // We also have the ability to pass a role ARN to allow for roles
@@ -41,8 +52,11 @@ func GetAWSConfig(region, roleARN, endpoint string) (*aws.Config, string, error)
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
-	httpClient := &http.Client{
+	UASetTransport := &UASetTransport{
 		Transport: transport,
+	}
+	httpClient := &http.Client{
+		Transport: UASetTransport,
 		Timeout:   15 * time.Second,
 	}
 
