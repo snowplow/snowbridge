@@ -62,7 +62,7 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 
 	result, err := pubsubTarget.Write(messages)
 
-	assert.Equal(int64(10), result.Total())
+	assert.Equal(10, len(result.Sent))
 	assert.Equal([]*models.Message(nil), result.Failed)
 	assert.Equal([]*models.Message(nil), result.Oversized)
 
@@ -137,7 +137,7 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 
 	result, err := pubsubTarget.Write(messages)
 
-	assert.Equal(int64(1), result.Total())
+	assert.Equal(1, len(result.Sent))
 	assert.Equal(1, len(result.Invalid))
 
 	assert.Nil(err)
@@ -174,7 +174,7 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 
 	twres, err := pubsubTarget.Write(messages)
 	// Check that the TargetWriteResult is correct
-	assert.Equal(int64(10), twres.SentCount)
+	assert.Equal(10, len(twres.Sent))
 	assert.Equal(10, len(twres.Sent))
 	assert.Nil(twres.Failed)
 	assert.Nil(twres.Oversized)
@@ -244,8 +244,7 @@ func TestPubSubTarget_WriteFailureWithMocks(t *testing.T) {
 	twres, err := pubsubTarget.Write(messages)
 
 	// Check that the TargetWriteResult is correct
-	assert.Equal(int64(0), twres.SentCount)
-	assert.Equal(int64(10), twres.FailedCount)
+	assert.Equal(0, len(twres.Sent))
 	assert.Equal(10, len(twres.Failed))
 	assert.Nil(twres.Sent)
 	assert.Nil(twres.Oversized)
@@ -303,8 +302,7 @@ func TestPubSubTarget_WriteFailureRetryableWithMocks(t *testing.T) {
 	twres, err := pubsubTarget.Write(messages)
 
 	// Check that the TargetWriteResult is correct
-	assert.Equal(int64(0), twres.SentCount)
-	assert.Equal(int64(10), twres.FailedCount)
+	assert.Equal(0, len(twres.Sent))
 	assert.Equal(10, len(twres.Failed))
 	assert.Nil(twres.Sent)
 	assert.Nil(twres.Oversized)

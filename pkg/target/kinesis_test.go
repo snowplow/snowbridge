@@ -48,8 +48,8 @@ func TestKinesisTarget_WriteFailure(t *testing.T) {
 	assert.NotNil(writeRes)
 
 	// Check results
-	assert.Equal(int64(0), writeRes.SentCount)
-	assert.Equal(int64(1), writeRes.FailedCount)
+	assert.Equal(0, len(writeRes.Sent))
+	assert.Equal(1, len(writeRes.Failed))
 }
 
 func TestKinesisTarget_WriteSuccess(t *testing.T) {
@@ -94,8 +94,8 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 	assert.Equal(int64(501), ackOps)
 
 	// Check results
-	assert.Equal(int64(501), writeRes.SentCount)
-	assert.Equal(int64(0), writeRes.FailedCount)
+	assert.Equal(501, len(writeRes.Sent))
+	assert.Equal(0, len(writeRes.Failed))
 }
 
 func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
@@ -141,8 +141,8 @@ func TestKinesisTarget_WriteSuccess_OversizeBatch(t *testing.T) {
 	assert.Equal(int64(20), ackOps)
 
 	// Check results
-	assert.Equal(int64(20), writeRes.SentCount)
-	assert.Equal(int64(0), writeRes.FailedCount)
+	assert.Equal(20, len(writeRes.Sent))
+	assert.Equal(0, len(writeRes.Failed))
 }
 
 func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
@@ -188,7 +188,7 @@ func TestKinesisTarget_WriteSuccess_OversizeRecord(t *testing.T) {
 	assert.Equal(int64(10), ackOps)
 
 	// Check results
-	assert.Equal(int64(10), writeRes.SentCount)
-	assert.Equal(int64(0), writeRes.FailedCount)
+	assert.Equal(10, len(writeRes.Sent))
+	assert.Equal(0, len(writeRes.Failed))
 	assert.Equal(1, len(writeRes.Oversized))
 }

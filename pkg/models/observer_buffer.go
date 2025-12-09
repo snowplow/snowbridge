@@ -14,8 +14,6 @@ package models
 import (
 	"fmt"
 	"time"
-
-	"github.com/snowplow/snowbridge/v3/pkg/common"
 )
 
 // MetadataEvent holds data required for metadata reporter's event
@@ -29,32 +27,26 @@ type ObserverBuffer struct {
 	TargetResults int64
 	MsgSent       int64
 	MsgFailed     int64
-	MsgTotal      int64
-
-	MsgFiltered int64
+	MsgFiltered   int64
+	RequestCount  int64
 
 	OversizedTargetResults int64
 	OversizedMsgSent       int64
 	OversizedMsgFailed     int64
-	OversizedMsgTotal      int64
 
 	InvalidTargetResults int64
 	InvalidMsgSent       int64
 	InvalidMsgFailed     int64
-	InvalidMsgTotal      int64
 
 	MaxProcLatency      time.Duration
 	MinProcLatency      time.Duration
-	SumProcLatency      time.Duration
 	MaxMsgLatency       time.Duration
 	MinMsgLatency       time.Duration
 	SumMsgLatency       time.Duration
 	MaxTransformLatency time.Duration
 	MinTransformLatency time.Duration
-	SumTransformLatency time.Duration
 	MaxFilterLatency    time.Duration
 	MinFilterLatency    time.Duration
-	SumFilterLatency    time.Duration
 	MaxRequestLatency   time.Duration
 	MinRequestLatency   time.Duration
 	SumRequestLatency   time.Duration
@@ -101,12 +93,60 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	}
 
 	b.TargetResults++
-	b.MsgSent += res.SentCount
-	b.MsgFailed += res.FailedCount
-	b.MsgTotal += res.Total()
+	b.MsgSent += int64(len(res.Sent))
+	b.MsgFailed += int64(len(res.Failed))
 
-	b.appendWriteResult(res)
+	// Appending errors metadata
 	b.appendFailedError(res.Failed)
+
+	// Calculate processing, message, and E2E latencies only for successfully sent messages
+	for _, msg := range res.Sent {
+		procLatency := msg.TimeRequestFinished.Sub(msg.TimePulled)
+		if b.MaxProcLatency < procLatency {
+			b.MaxProcLatency = procLatency
+		}
+		if b.MinProcLatency > procLatency || b.MinProcLatency == time.Duration(0) {
+			b.MinProcLatency = procLatency
+		}
+
+		messageLatency := msg.TimeRequestFinished.Sub(msg.TimeCreated)
+		b.SumMsgLatency += messageLatency
+		if b.MaxMsgLatency < messageLatency {
+			b.MaxMsgLatency = messageLatency
+		}
+		if b.MinMsgLatency > messageLatency || b.MinMsgLatency == time.Duration(0) {
+			b.MinMsgLatency = messageLatency
+		}
+
+		if !msg.CollectorTstamp.IsZero() {
+			e2eLatency := msg.TimeRequestFinished.Sub(msg.CollectorTstamp)
+			b.SumE2ELatency += e2eLatency
+			if b.MaxE2ELatency < e2eLatency {
+				b.MaxE2ELatency = e2eLatency
+			}
+			if b.MinE2ELatency > e2eLatency || b.MinE2ELatency == time.Duration(0) {
+				b.MinE2ELatency = e2eLatency
+			}
+		}
+	}
+
+	// Calculate request latency for all messages (sent, failed, invalid)
+	allMessages := append(append(res.Sent, res.Failed...), res.Invalid...)
+	for _, msg := range allMessages {
+		if !msg.TimeRequestStarted.IsZero() && !msg.TimeRequestFinished.IsZero() {
+			b.RequestCount++
+
+			requestLatency := msg.TimeRequestFinished.Sub(msg.TimeRequestStarted)
+			b.SumRequestLatency += requestLatency
+
+			if b.MaxRequestLatency < requestLatency {
+				b.MaxRequestLatency = requestLatency
+			}
+			if b.MinRequestLatency > requestLatency || b.MinRequestLatency == time.Duration(0) {
+				b.MinRequestLatency = requestLatency
+			}
+		}
+	}
 }
 
 // AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
@@ -116,11 +156,8 @@ func (b *ObserverBuffer) AppendWriteOversized(res *TargetWriteResult) {
 	}
 
 	b.OversizedTargetResults++
-	b.OversizedMsgSent += res.SentCount
-	b.OversizedMsgFailed += res.FailedCount
-	b.OversizedMsgTotal += res.Total()
-
-	b.appendWriteResult(res)
+	b.OversizedMsgSent += int64(len(res.Sent))
+	b.OversizedMsgFailed += int64(len(res.Failed))
 }
 
 // AppendWriteInvalid adds an invalid TargetWriteResult onto the buffer and stores the result
@@ -130,54 +167,11 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	}
 
 	b.InvalidTargetResults++
-	b.InvalidMsgSent += res.SentCount
-	b.InvalidMsgFailed += res.FailedCount
-	b.InvalidMsgTotal += res.Total()
+	b.InvalidMsgSent += int64(len(res.Sent))
+	b.InvalidMsgFailed += int64(len(res.Failed))
 
-	b.appendWriteResult(res)
+	// Appending errors metadata
 	b.appendInvalidError(res.Sent)
-}
-
-func (b *ObserverBuffer) appendWriteResult(res *TargetWriteResult) {
-	if b.MaxProcLatency < res.MaxProcLatency {
-		b.MaxProcLatency = res.MaxProcLatency
-	}
-	if b.MinProcLatency > res.MinProcLatency || b.MinProcLatency == time.Duration(0) {
-		b.MinProcLatency = res.MinProcLatency
-	}
-	b.SumProcLatency += res.AvgProcLatency
-
-	if b.MaxMsgLatency < res.MaxMsgLatency {
-		b.MaxMsgLatency = res.MaxMsgLatency
-	}
-	if b.MinMsgLatency > res.MinMsgLatency || b.MinMsgLatency == time.Duration(0) {
-		b.MinMsgLatency = res.MinMsgLatency
-	}
-	b.SumMsgLatency += res.AvgMsgLatency
-
-	if b.MaxTransformLatency < res.MaxTransformLatency {
-		b.MaxTransformLatency = res.MaxTransformLatency
-	}
-	if b.MinTransformLatency > res.MinTransformLatency || b.MinTransformLatency == time.Duration(0) {
-		b.MinTransformLatency = res.MinTransformLatency
-	}
-	b.SumTransformLatency += res.AvgTransformLatency
-
-	if b.MaxRequestLatency < res.MaxRequestLatency {
-		b.MaxRequestLatency = res.MaxRequestLatency
-	}
-	if b.MinRequestLatency > res.MinRequestLatency || b.MinRequestLatency == time.Duration(0) {
-		b.MinRequestLatency = res.MinRequestLatency
-	}
-	b.SumRequestLatency += res.AvgRequestLatency
-
-	if b.MaxE2ELatency < res.MaxE2ELatency {
-		b.MaxE2ELatency = res.MaxE2ELatency
-	}
-	if b.MinE2ELatency > res.MinE2ELatency || b.MinE2ELatency == time.Duration(0) {
-		b.MinE2ELatency = res.MinE2ELatency
-	}
-	b.SumE2ELatency += res.AvgE2ELatency
 }
 
 // AppendFiltered adds a FilterResult onto the buffer and stores the result
@@ -187,74 +181,55 @@ func (b *ObserverBuffer) AppendFiltered(res *FilterResult) {
 	}
 
 	b.MsgFiltered += res.FilteredCount
-	b.appendFilterResult(res)
-}
-
-func (b *ObserverBuffer) appendFilterResult(res *FilterResult) {
 	if b.MaxFilterLatency < res.MaxFilterLatency {
 		b.MaxFilterLatency = res.MaxFilterLatency
 	}
 	if b.MinFilterLatency > res.MinFilterLatency || b.MinFilterLatency == time.Duration(0) {
 		b.MinFilterLatency = res.MinFilterLatency
 	}
-	b.SumFilterLatency += res.AvgFilterLatency
 }
 
-// GetSumResults returns the total number of results logged in the buffer
-func (b *ObserverBuffer) GetSumResults() int64 {
-	return b.TargetResults + b.OversizedTargetResults + b.InvalidTargetResults
-}
+func (b *ObserverBuffer) AppendTransformed(res *TransformationResult) {
+	if res == nil {
+		return
+	}
 
-// GetAvgProcLatency calculates average processing latency
-func (b *ObserverBuffer) GetAvgProcLatency() time.Duration {
-	return common.GetAverageFromDuration(b.SumProcLatency, b.GetSumResults())
-}
-
-// GetAvgMsgLatency calculates average message latency
-func (b *ObserverBuffer) GetAvgMsgLatency() time.Duration {
-	return common.GetAverageFromDuration(b.SumMsgLatency, b.GetSumResults())
-}
-
-// GetAvgTransformLatency calculates average transformation latency
-func (b *ObserverBuffer) GetAvgTransformLatency() time.Duration {
-	return common.GetAverageFromDuration(b.SumTransformLatency, b.MsgTotal)
-}
-
-// GetAvgFilterLatency calculates average filter latency
-func (b *ObserverBuffer) GetAvgFilterLatency() time.Duration {
-	return common.GetAverageFromDuration(b.SumFilterLatency, b.MsgFiltered)
-}
-
-// GetAvgRequestLatency calculates average request latency
-func (b *ObserverBuffer) GetAvgRequestLatency() time.Duration {
-	return common.GetAverageFromDuration(b.SumRequestLatency, b.MsgTotal)
-}
-
-// GetAvgE2ELatency calculates average E2E latency
-func (b *ObserverBuffer) GetAvgE2ELatency() time.Duration {
-	return common.GetAverageFromDuration(b.SumE2ELatency, b.MsgTotal)
+	for _, msg := range res.Result {
+		if !msg.TimeTransformationStarted.IsZero() && !msg.TimeTransformed.IsZero() {
+			transformLatency := msg.TimeTransformed.Sub(msg.TimeTransformationStarted)
+			if b.MaxTransformLatency < transformLatency {
+				b.MaxTransformLatency = transformLatency
+			}
+			if b.MinTransformLatency > transformLatency || b.MinTransformLatency == time.Duration(0) {
+				b.MinTransformLatency = transformLatency
+			}
+		}
+	}
 }
 
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MaxProcLatency:%d,MaxMsgLatency:%d,MaxFilterLatency:%d,MaxTransformLatency:%d,SumTransformLatency:%d,SumProcLatency:%d,SumMsgLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d,SumE2ELatency:%d",
+		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,RequestCount:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MinProcLatency:%d,MaxProcLatency:%d,MinMsgLatency:%d,MaxMsgLatency:%d,SumMsgLatency:%d,MinFilterLatency:%d,MaxFilterLatency:%d,MinTransformLatency:%d,MaxTransformLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d,SumE2ELatency:%d",
 		b.TargetResults,
 		b.MsgFiltered,
 		b.MsgSent,
 		b.MsgFailed,
+		b.RequestCount,
 		b.OversizedTargetResults,
 		b.OversizedMsgSent,
 		b.OversizedMsgFailed,
 		b.InvalidTargetResults,
 		b.InvalidMsgSent,
 		b.InvalidMsgFailed,
+		b.MinProcLatency.Milliseconds(),
 		b.MaxProcLatency.Milliseconds(),
+		b.MinMsgLatency.Milliseconds(),
 		b.MaxMsgLatency.Milliseconds(),
-		b.MaxFilterLatency.Milliseconds(),
-		b.MaxTransformLatency.Milliseconds(),
-		b.SumTransformLatency.Milliseconds(), // Sums are reported to allow us to compute averages across multi-instance deployments
-		b.SumProcLatency.Milliseconds(),
 		b.SumMsgLatency.Milliseconds(),
+		b.MinFilterLatency.Milliseconds(),
+		b.MaxFilterLatency.Milliseconds(),
+		b.MinTransformLatency.Milliseconds(),
+		b.MaxTransformLatency.Milliseconds(),
 		b.MinRequestLatency.Milliseconds(),
 		b.MaxRequestLatency.Milliseconds(),
 		b.SumRequestLatency.Milliseconds(),

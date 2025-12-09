@@ -83,8 +83,8 @@ func TestSQSTarget_WriteSuccess(t *testing.T) {
 	assert.Equal(int64(100), ackOps)
 
 	// Check results
-	assert.Equal(int64(100), writeRes.SentCount)
-	assert.Equal(int64(0), writeRes.FailedCount)
+	assert.Equal(100, len(writeRes.Sent))
+	assert.Equal(0, len(writeRes.Failed))
 }
 
 func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
@@ -131,7 +131,7 @@ func TestSQSTarget_WritePartialFailure_OversizeRecord(t *testing.T) {
 	assert.Equal(int64(100), ackOps)
 
 	// Check results
-	assert.Equal(int64(100), writeRes.SentCount)
-	assert.Equal(int64(0), writeRes.FailedCount)
+	assert.Equal(100, len(writeRes.Sent))
+	assert.Equal(0, len(writeRes.Failed))
 	assert.Equal(1, len(writeRes.Oversized))
 }

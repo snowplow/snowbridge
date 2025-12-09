@@ -230,6 +230,8 @@ func sourceWriteFunc(t targetiface.Target, ft failureiface.Failure, filter targe
 		// Apply transformations
 		transformed := tr(messages)
 		// no error as errors should be returned in the failures array of TransformationResult
+		
+		o.Transformed(transformed)
 
 		// Send message buffer
 		invalid := transformed.Invalid

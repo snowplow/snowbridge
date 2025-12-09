@@ -180,7 +180,7 @@ func (eht *EventHubTarget) Write(messages []*models.Message) (*models.TargetWrit
 		errResult = errors.Wrap(errResult, "Error writing messages to EventHub")
 	}
 
-	eht.log.Debugf("Successfully wrote %d/%d messages", writeResult.SentCount, writeResult.Total())
+	eht.log.Debugf("Successfully wrote %d/%d messages", len(writeResult.Sent), len(messages))
 	return writeResult, errResult
 }
 

@@ -32,6 +32,9 @@ type Message struct {
 	// TimePulled is when the message was pulled from the source
 	TimePulled time.Time
 
+	// TimeTransformationStarted is when the message has started its first transformation
+	TimeTransformationStarted time.Time
+	
 	// TimeTransformed is when the message has completed its last successful transform function
 	TimeTransformed time.Time
 

@@ -32,6 +32,7 @@ type Observer struct {
 	targetWriteChan          chan *models.TargetWriteResult
 	targetWriteOversizedChan chan *models.TargetWriteResult
 	targetWriteInvalidChan   chan *models.TargetWriteResult
+	transformedChan          chan *models.TransformationResult
 	timeout                  time.Duration
 	reportInterval           time.Duration
 	isRunning                bool
@@ -55,6 +56,7 @@ func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval t
 		targetWriteChan:          make(chan *models.TargetWriteResult, 1000),
 		targetWriteOversizedChan: make(chan *models.TargetWriteResult, 1000),
 		targetWriteInvalidChan:   make(chan *models.TargetWriteResult, 1000),
+		transformedChan:          make(chan *models.TransformationResult, 1000),
 		kinsumerRecordsChan:      make(chan int64, 1000),
 		kinsumerRecordsBytesChan: make(chan int64, 1000),
 		timeout:                  timeout,
@@ -98,6 +100,8 @@ func (o *Observer) Start() {
 				buffer.AppendWriteOversized(res)
 			case res := <-o.targetWriteInvalidChan:
 				buffer.AppendWriteInvalid(res)
+			case res := <-o.transformedChan:
+				buffer.AppendTransformed(res)
 			case count := <-o.kinsumerRecordsChan:
 				buffer.KinsumerRecordsInMemory = count
 			case bytes := <-o.kinsumerRecordsBytesChan:
@@ -150,6 +154,10 @@ func (o *Observer) Stop() {
 // by the observer
 func (o *Observer) Filtered(r *models.FilterResult) {
 	o.filteredChan <- r
+}
+
+func (o *Observer) Transformed(r *models.TransformationResult) {
+	o.transformedChan <- r
 }
 
 // TargetWrite pushes normal targets write result onto a channel for processing

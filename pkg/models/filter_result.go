@@ -13,8 +13,6 @@ package models
 
 import (
 	"time"
-
-	"github.com/snowplow/snowbridge/v3/pkg/common"
 )
 
 // FilterResult contains the results from a target write operation
@@ -28,7 +26,6 @@ type FilterResult struct {
 	// application is at processing filtered data internally
 	MaxFilterLatency time.Duration
 	MinFilterLatency time.Duration
-	AvgFilterLatency time.Duration
 }
 
 // NewFilterResult uses the current time as the timeOfFilter and calls newFilterResultWithTime
@@ -44,10 +41,6 @@ func newFilterResultWithTime(filtered []*Message, timeOfFilter time.Time) *Filte
 		FilteredCount: int64(len(filtered)),
 	}
 
-	filteredLen := int64(len(filtered))
-
-	var sumFilterLatency time.Duration
-
 	for _, msg := range filtered {
 		filterLatency := timeOfFilter.Sub(msg.TimePulled)
 		if r.MaxFilterLatency < filterLatency {
@@ -56,11 +49,6 @@ func newFilterResultWithTime(filtered []*Message, timeOfFilter time.Time) *Filte
 		if r.MinFilterLatency > filterLatency || r.MinFilterLatency == time.Duration(0) {
 			r.MinFilterLatency = filterLatency
 		}
-		sumFilterLatency += filterLatency
-	}
-
-	if filteredLen > 0 {
-		r.AvgFilterLatency = common.GetAverageFromDuration(sumFilterLatency, filteredLen)
 	}
 
 	return &r

@@ -25,25 +25,8 @@ func TestNewTargetWriteResult_EmptyWithoutTime(t *testing.T) {
 	r := NewTargetWriteResult(nil, nil, nil, nil)
 	assert.NotNil(r)
 
-	assert.Equal(int64(0), r.SentCount)
-	assert.Equal(int64(0), r.FailedCount)
-	assert.Equal(int64(0), r.Total())
-
-	assert.Equal(time.Duration(0), r.MaxProcLatency)
-	assert.Equal(time.Duration(0), r.MinProcLatency)
-	assert.Equal(time.Duration(0), r.AvgProcLatency)
-
-	assert.Equal(time.Duration(0), r.MaxMsgLatency)
-	assert.Equal(time.Duration(0), r.MinMsgLatency)
-	assert.Equal(time.Duration(0), r.AvgMsgLatency)
-
-	assert.Equal(time.Duration(0), r.MaxTransformLatency)
-	assert.Equal(time.Duration(0), r.MinTransformLatency)
-	assert.Equal(time.Duration(0), r.AvgTransformLatency)
-
-	assert.Equal(time.Duration(0), r.MaxE2ELatency)
-	assert.Equal(time.Duration(0), r.MinE2ELatency)
-	assert.Equal(time.Duration(0), r.AvgE2ELatency)
+	assert.Equal(0, len(r.Sent))
+	assert.Equal(0, len(r.Failed))
 }
 
 // TestNewTargetWriteResult_WithMessages tests that reporting of statistics is as it should be when we have all data
@@ -87,21 +70,8 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	r := NewTargetWriteResult(sent, failed, nil, nil)
 	assert.NotNil(r)
 
-	assert.Equal(int64(2), r.SentCount)
-	assert.Equal(int64(1), r.FailedCount)
-	assert.Equal(int64(3), r.Total())
-	assert.Equal(time.Duration(10)*time.Minute, r.MaxProcLatency)
-	assert.Equal(time.Duration(4)*time.Minute, r.MinProcLatency)
-	assert.Equal(time.Duration(7)*time.Minute, r.AvgProcLatency)
-	assert.Equal(time.Duration(70)*time.Minute, r.MaxMsgLatency)
-	assert.Equal(time.Duration(30)*time.Minute, r.MinMsgLatency)
-	assert.Equal(time.Duration(50)*time.Minute, r.AvgMsgLatency)
-	assert.Equal(time.Duration(3)*time.Minute, r.MaxTransformLatency)
-	assert.Equal(time.Duration(1)*time.Minute, r.MinTransformLatency)
-	assert.Equal(time.Duration(2)*time.Minute, r.AvgTransformLatency)
-	assert.Equal(time.Duration(80)*time.Minute, r.MaxE2ELatency)
-	assert.Equal(time.Duration(40)*time.Minute, r.MinE2ELatency)
-	assert.Equal(time.Duration(60)*time.Minute, r.AvgE2ELatency)
+	assert.Equal(2, len(r.Sent))
+	assert.Equal(1, len(r.Failed))
 
 	sent1 := []*Message{
 		{
@@ -144,26 +114,12 @@ func TestNewTargetWriteResult_WithMessages(t *testing.T) {
 	r3 := r2.Append(nil)
 
 	// Check that the result has not been mutated
-	assert.Equal(int64(2), r.SentCount)
-	assert.Equal(int64(1), r.FailedCount)
-	assert.Equal(int64(3), r.Total())
+	assert.Equal(2, len(r.Sent))
+	assert.Equal(1, len(r.Failed))
 
 	// Check appended result
-	assert.Equal(int64(3), r3.SentCount)
-	assert.Equal(int64(3), r3.FailedCount)
-	assert.Equal(int64(6), r3.Total())
-	assert.Equal(time.Duration(15)*time.Minute, r3.MaxProcLatency)
-	assert.Equal(time.Duration(2)*time.Minute, r3.MinProcLatency)
-	assert.Equal(time.Duration(450)*time.Second, r3.AvgProcLatency)
-	assert.Equal(time.Duration(75)*time.Minute, r3.MaxMsgLatency)
-	assert.Equal(time.Duration(25)*time.Minute, r3.MinMsgLatency)
-	assert.Equal(time.Duration(3050)*time.Second, r3.AvgMsgLatency)
-	assert.Equal(time.Duration(8)*time.Minute, r3.MaxTransformLatency)
-	assert.Equal(time.Duration(1)*time.Minute, r3.MinTransformLatency)
-	assert.Equal(time.Duration(3)*time.Minute, r3.AvgTransformLatency)
-	assert.Equal(time.Duration(120)*time.Minute, r3.MaxE2ELatency)
-	assert.Equal(time.Duration(30)*time.Minute, r3.MinE2ELatency)
-	assert.Equal(time.Duration(65)*time.Minute, r3.AvgE2ELatency)
+	assert.Equal(3, len(r3.Sent))
+	assert.Equal(3, len(r3.Failed))
 }
 
 // TestNewTargetWriteResult_NoTransformation_NoE2E tests that reporting of statistics is as it should be when we don't have a timeTransformed and no collector timestamp
@@ -201,19 +157,6 @@ func TestNewTargetWriteResult_NoTransformation_NoE2E(t *testing.T) {
 	r := NewTargetWriteResult(sent, failed, nil, nil)
 	assert.NotNil(r)
 
-	assert.Equal(int64(2), r.SentCount)
-	assert.Equal(int64(1), r.FailedCount)
-	assert.Equal(int64(3), r.Total())
-	assert.Equal(time.Duration(10)*time.Minute, r.MaxProcLatency)
-	assert.Equal(time.Duration(4)*time.Minute, r.MinProcLatency)
-	assert.Equal(time.Duration(7)*time.Minute, r.AvgProcLatency)
-	assert.Equal(time.Duration(70)*time.Minute, r.MaxMsgLatency)
-	assert.Equal(time.Duration(30)*time.Minute, r.MinMsgLatency)
-	assert.Equal(time.Duration(50)*time.Minute, r.AvgMsgLatency)
-	assert.Equal(time.Duration(0), r.MaxTransformLatency)
-	assert.Equal(time.Duration(0), r.MinTransformLatency)
-	assert.Equal(time.Duration(0), r.AvgTransformLatency)
-	assert.Equal(time.Duration(0), r.MaxE2ELatency)
-	assert.Equal(time.Duration(0), r.MinE2ELatency)
-	assert.Equal(time.Duration(0), r.AvgE2ELatency)
+	assert.Equal(2, len(r.Sent))
+	assert.Equal(1, len(r.Failed))
 }

@@ -28,7 +28,6 @@ func TestNewFilterResult_EmptyWithoutTime(t *testing.T) {
 
 	assert.Equal(time.Duration(0), r.MaxFilterLatency)
 	assert.Equal(time.Duration(0), r.MinFilterLatency)
-	assert.Equal(time.Duration(0), r.AvgFilterLatency)
 }
 
 func TestNewFilterResult_EmptyWithTime(t *testing.T) {
@@ -41,7 +40,6 @@ func TestNewFilterResult_EmptyWithTime(t *testing.T) {
 
 	assert.Equal(time.Duration(0), r.MaxFilterLatency)
 	assert.Equal(time.Duration(0), r.MinFilterLatency)
-	assert.Equal(time.Duration(0), r.AvgFilterLatency)
 }
 
 func TestNewFilterResult_WithMessages(t *testing.T) {
@@ -73,5 +71,4 @@ func TestNewFilterResult_WithMessages(t *testing.T) {
 
 	assert.Equal(time.Duration(8)*time.Minute, r.MaxFilterLatency)
 	assert.Equal(time.Duration(4)*time.Minute, r.MinFilterLatency)
-	assert.Equal(time.Duration(6)*time.Minute, r.AvgFilterLatency)
 }

@@ -114,7 +114,6 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 			TargetResults: 10,
 			MsgSent:       7,
 			MsgFailed:     3,
-			MsgTotal:      10,
 			InvalidErrors: map[models.MetadataCodeDescription]int{},
 			FailedErrors: map[models.MetadataCodeDescription]int{
 				{

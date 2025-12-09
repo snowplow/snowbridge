@@ -41,6 +41,8 @@ func NewTransformation(tranformFunctions ...TransformationFunction) Transformati
 			// We dereference here in order to avoid copying the input - when a transformation fails, we want the failure we create to contain the original input data
 			msg := *message // dereference to avoid amending input
 			success := &msg // success must be both input and output to a TransformationFunction, so we make this pointer.
+			success.TimeTransformationStarted = time.Now().UTC()
+
 			var failure *models.Message
 			var filtered *models.Message
 			var intermediate any

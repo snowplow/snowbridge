@@ -152,7 +152,7 @@ func (st *SQSTarget) Write(messages []*models.Message) (*models.TargetWriteResul
 		errResult = errors.Wrap(errResult, "Error writing messages to SQS queue")
 	}
 
-	st.log.Debugf("Successfully wrote %d/%d messages", writeResult.SentCount, writeResult.Total())
+	st.log.Debugf("Successfully wrote %d/%d messages", len(writeResult.Sent), len(messages))
 	return writeResult, errResult
 }
 

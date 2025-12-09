@@ -160,7 +160,7 @@ func (kt *KinesisTarget) Write(messages []*models.Message) (*models.TargetWriteR
 		errResult = errors.Wrap(errResult, "Error writing messages to Kinesis stream")
 	}
 
-	kt.log.Debugf("Successfully wrote %d/%d messages", writeResult.SentCount, writeResult.Total())
+	kt.log.Debugf("Successfully wrote %d/%d messages", len(writeResult.Sent), len(messages))
 	return writeResult, errResult
 }
 
