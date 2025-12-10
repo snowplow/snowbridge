@@ -1,3 +1,15 @@
+Version 4.0.0 (2025-12-17)
+--------------------------
+Update dependencies
+Add metrics reporting improvements (#11 #15)
+Set UA in AWS client transport (#12)
+Feat/Add http target metadata safe mode (#10)
+Feat/Add invalid after max to retry config (#9)
+Restricted CD workflow for use on private repo only (#3)
+Add sync workflow for snowbridge (#8)
+feat: new response rule with retry logic - `throttle` (#4)
+feat: ordered evaluation of `response_rules`  (#466)
+
 Version 3.6.2 (2025-11-04)
 --------------------------
 feat: make setup retries configurable (#463)
