@@ -89,7 +89,7 @@ func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	assert.Equal(int64(1), enrichJSONRes.InvalidCount)
 	assert.NotNil(enrichJSONRes.Invalid[0].GetError())
 	if enrichJSONRes.Invalid[0].GetError() != nil {
-		assert.Equal("intermediate state cannot be parsed as parsedEvent: Cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+		assert.Equal("intermediate state cannot be parsed as parsedEvent: cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
 	}
 	assert.Equal([]byte("not	a	snowplow	event"), enrichJSONRes.Invalid[0].Data)
 	assert.Equal("some-key4", enrichJSONRes.Invalid[0].PartitionKey)
@@ -154,7 +154,7 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	assert.Equal(int64(1), enrichJSONRes.InvalidCount)
 	assert.NotNil(enrichJSONRes.Invalid[0].GetError())
 	if enrichJSONRes.Invalid[0].GetError() != nil {
-		assert.Equal("intermediate state cannot be parsed as parsedEvent: Cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+		assert.Equal("intermediate state cannot be parsed as parsedEvent: cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
 	}
 
 	assert.Equal([]byte("not	a	snowplow	event"), enrichJSONRes.Invalid[0].Data)

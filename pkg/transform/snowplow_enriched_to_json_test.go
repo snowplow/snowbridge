@@ -51,7 +51,7 @@ func TestSpEnrichedToJson(t *testing.T) {
 	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
 	assert.NotNil(transformFailure.GetError())
 	if transformFailure.GetError() != nil {
-		assert.Equal("intermediate state cannot be parsed as parsedEvent: Cannot parse tsv event - wrong number of fields provided: 4", transformFailure.GetError().Error())
+		assert.Equal("intermediate state cannot be parsed as parsedEvent: cannot parse tsv event - wrong number of fields provided: 4", transformFailure.GetError().Error())
 	}
 	assert.Equal([]byte("not	a	snowplow	event"), transformFailure.Data)
 	assert.Equal("some-key4", transformFailure.PartitionKey)

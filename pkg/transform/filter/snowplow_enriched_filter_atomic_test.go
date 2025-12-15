@@ -41,7 +41,7 @@ func TestMakeBaseValueGetter(t *testing.T) {
 	assert.Nil(res2)
 	assert.NotNil(err2)
 	if err2 != nil {
-		assert.Equal("Key nope not a valid atomic field", err2.Error())
+		assert.Equal("key nope not a valid atomic field", err2.Error())
 	}
 }
 

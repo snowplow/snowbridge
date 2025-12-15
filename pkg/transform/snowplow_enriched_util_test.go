@@ -48,6 +48,6 @@ func TestIntermediateAsSpEnrichedParsed(t *testing.T) {
 	assert.Nil(res4)
 	assert.NotNil(err4)
 	if err4 != nil {
-		assert.Equal("Cannot parse tsv event - wrong number of fields provided: 1", err4.Error())
+		assert.Equal("cannot parse tsv event - wrong number of fields provided: 1", err4.Error())
 	}
 }

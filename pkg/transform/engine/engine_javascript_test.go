@@ -890,7 +890,7 @@ function main(x) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         fmt.Errorf("Cannot parse"),
+			Error:         fmt.Errorf("cannot parse"),
 		},
 		{
 			Scenario: "return_wrong_type",
@@ -1228,7 +1228,7 @@ function main(x) {
 			},
 			ExpInterState: nil,
 			IsJSON:        true,
-			Error:         fmt.Errorf("Cannot parse"),
+			Error:         fmt.Errorf("cannot parse"),
 		},
 		{
 			Scenario: "intermediateState_notEngineProtocol_SpEnriched",

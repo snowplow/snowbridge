@@ -667,7 +667,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 				},
 			},
 			ExpInterState: nil,
-			Error:         errors.New("Cannot parse tsv event"),
+			Error:         errors.New("cannot parse tsv event"),
 		},
 		{
 			Scenario: "deadline_exceeded",
