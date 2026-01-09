@@ -40,6 +40,7 @@ type KafkaConfig struct {
 	SASLUsername   string `hcl:"sasl_username,optional"`
 	SASLPassword   string `hcl:"sasl_password,optional"`
 	SASLAlgorithm  string `hcl:"sasl_algorithm,optional"`
+	SASLVersion    int16  `hcl:"sasl_version,optional"`
 	EnableTLS      bool   `hcl:"enable_tls,optional"`
 	CertFile       string `hcl:"cert_file,optional"`
 	KeyFile        string `hcl:"key_file,optional"`
@@ -108,9 +109,15 @@ func NewKafkaTarget(cfg *KafkaConfig) (*KafkaTarget, error) {
 			cfg.SASLAlgorithm,
 			cfg.SASLUsername,
 			cfg.SASLPassword,
+			cfg.SASLVersion,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to configure SASL, %w", err)
+		}
+
+		// Disable ApiVersionsRequest if using SASL v0 (incompatible)
+		if cfg.SASLVersion == 0 {
+			saramaConfig.ApiVersionsRequest = false
 		}
 	}
 

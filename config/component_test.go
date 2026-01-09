@@ -192,6 +192,7 @@ func TestCreateTargetComponentHCL(t *testing.T) {
 				SASLUsername:   "mySaslUsername",
 				SASLPassword:   "mySASLPassword",
 				SASLAlgorithm:  "sha256",
+				SASLVersion:    1,
 				EnableTLS:      true,
 				CertFile:       "myLocalhost.crt",
 				KeyFile:        "myLocalhost.key",

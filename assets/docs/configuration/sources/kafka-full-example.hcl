@@ -34,6 +34,10 @@ source {
     # The SASL Algorithm to use: "plaintext", "sha512" or "sha256" (default: "sha512")
     sasl_algorithm = "sha256"
 
+    # The SASL version to use: 0 or 1 (default: 0)
+    # 1 recommended for compatible systems
+    sasl_version = 1
+
     # Whether to enable TLS
     enable_tls = true
 

@@ -163,12 +163,13 @@ func GetKafkaVersion(targetVersion string) (sarama.KafkaVersion, error) {
 }
 
 // ConfigureSASL returns an SASL config
-func ConfigureSASL(saslAlgo, saslUser, saslPassword string) (SASL, error) {
+func ConfigureSASL(saslAlgo, saslUser, saslPassword string, saslVersion int16) (SASL, error) {
 	sasl := SASL{
 		Enable:    true,
 		User:      saslUser,
 		Password:  saslPassword,
 		Handshake: true,
+		Version:   saslVersion,
 	}
 
 	switch saslAlgo {

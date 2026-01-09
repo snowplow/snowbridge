@@ -76,6 +76,7 @@ func TestE2ETargets(t *testing.T) {
 	t.Run("kinesis", testE2EKinesisTarget)
 	t.Run("sqs", testE2ESQSTarget)
 	t.Run("kafka", testE2EKafkaTarget)
+	t.Run("kafka-sasl", testE2EKafkaTargetSASL)
 }
 
 func testE2EPubsubTarget(t *testing.T) {
@@ -898,4 +899,86 @@ receiveLoop:
 		t.Errorf("Failed to shutdown metadata server: %v", err)
 	}
 	srvExitWg.Wait()
+}
+
+func testE2EKafkaTargetSASL(t *testing.T) {
+	assert := assert.New(t)
+
+	// Create SASL config for admin client
+	saslConfig := sarama.NewConfig()
+	saslConfig.Net.SASL.Enable = true
+	saslConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	saslConfig.Net.SASL.User = "testuser"
+	saslConfig.Net.SASL.Password = "testuser-password"
+	saslConfig.Net.SASL.Version = 0
+	saslConfig.ApiVersionsRequest = false
+
+	adminClient, err := sarama.NewClusterAdmin([]string{"localhost:9093"}, saslConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	topicName := "e2e-kafka-sasl-target"
+
+	err2 := adminClient.CreateTopic(topicName, &sarama.TopicDetail{NumPartitions: 1, ReplicationFactor: 1}, false)
+	if err2 != nil {
+		panic(err2)
+	}
+	defer func() {
+		if err := adminClient.DeleteTopic(topicName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "kafka-sasl", "config.hcl"))
+	if err != nil {
+		panic(err)
+	}
+
+	// Set up consumer with SASL
+	consumerConfig := sarama.NewConfig()
+	consumerConfig.Net.SASL.Enable = true
+	consumerConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	consumerConfig.Net.SASL.User = "testuser"
+	consumerConfig.Net.SASL.Password = "testuser-password"
+	consumerConfig.Net.SASL.Version = 0
+	consumerConfig.ApiVersionsRequest = false
+
+	consumer, err := sarama.NewConsumer([]string{"localhost:9093"}, consumerConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	partitions, err := consumer.Partitions(topicName)
+	if err != nil {
+		panic(err)
+	}
+
+	partitionConsumer, err := consumer.ConsumePartition(topicName, partitions[0], 0)
+	if err != nil {
+		panic(err)
+	}
+
+	msgChan := partitionConsumer.Messages()
+
+	for _, binary := range []string{"-aws-only", ""} {
+		_, cmdErr := runDockerCommand(3*time.Second, "kafkaTargetSASL", configFilePath, binary, "")
+		if cmdErr != nil {
+			assert.Fail(cmdErr.Error())
+		}
+
+		var foundData []string
+	receiveLoop:
+		for {
+			select {
+			case res := <-msgChan:
+				foundData = append(foundData, string(res.Value))
+			case <-time.After(1 * time.Second):
+				break receiveLoop
+			}
+		}
+
+		evaluateTestCaseString(t, foundData, inputFilePath, "Kafka SASL target "+binary)
+	}
+	partitionConsumer.AsyncClose()
 }

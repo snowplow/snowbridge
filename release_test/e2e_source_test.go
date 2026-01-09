@@ -33,6 +33,7 @@ func TestE2ESources(t *testing.T) {
 	t.Run("sqs", testE2ESQSSource)
 	t.Run("kinesis", testE2EKinesisSource)
 	t.Run("kafka", testE2EKafkaSource)
+	t.Run("kafka-sasl", testE2EKafkaSourceSASL)
 }
 
 func getSliceFromInput(filepath string) []string {
@@ -236,6 +237,91 @@ func testE2EKafkaSource(t *testing.T) {
 			}
 			data := getDataFromStdoutResult(stdOut)
 			evaluateTestCaseString(t, data, inputFilePath, "Kafka source "+testCase.binary)
+		})
+	}
+}
+
+func testE2EKafkaSourceSASL(t *testing.T) {
+	testCases := []struct {
+		name       string
+		binary     string
+		topic      string
+		configFile string
+	}{
+		{name: "default", binary: "", topic: "e2e-kafka-sasl-source", configFile: "config.hcl"},
+		{name: "aws-only", binary: "-aws-only", topic: "e2e-kafka-sasl-source-aws-only", configFile: "config-aws-only.hcl"},
+	}
+
+	// Create SASL config for admin client
+	saslConfig := sarama.NewConfig()
+	saslConfig.Net.SASL.Enable = true
+	saslConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	saslConfig.Net.SASL.User = "testuser"
+	saslConfig.Net.SASL.Password = "testuser-password"
+	saslConfig.Net.SASL.Version = 0
+	saslConfig.ApiVersionsRequest = false
+
+	adminClient, err := sarama.NewClusterAdmin([]string{"localhost:9093"}, saslConfig)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := adminClient.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			err2 := adminClient.CreateTopic(testCase.topic, &sarama.TopicDetail{NumPartitions: 1, ReplicationFactor: 1}, false)
+			if err2 != nil {
+				panic(err2)
+			}
+			defer func() {
+				if err := adminClient.DeleteTopic(testCase.topic); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+
+			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kafka-sasl", testCase.configFile))
+			if err != nil {
+				panic(err)
+			}
+
+			// Create producer with SASL
+			producerConfig := sarama.NewConfig()
+			producerConfig.Net.SASL.Enable = true
+			producerConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+			producerConfig.Net.SASL.User = "testuser"
+			producerConfig.Net.SASL.Password = "testuser-password"
+			producerConfig.Net.SASL.Version = 0
+			producerConfig.ApiVersionsRequest = false
+			producerConfig.Producer.Return.Successes = true
+			producerConfig.Producer.Return.Errors = true
+
+			producer, producerError := sarama.NewSyncProducer(strings.Split("localhost:9093", ","), producerConfig)
+			if producerError != nil {
+				panic(producerError)
+			}
+
+			for _, data := range dataToSend {
+				_, _, sendMessageErr := producer.SendMessage(&sarama.ProducerMessage{
+					Topic: testCase.topic,
+					Value: sarama.StringEncoder(data),
+				})
+				if sendMessageErr != nil {
+					panic(sendMessageErr)
+				}
+			}
+
+			stdOut, cmdErr := runDockerCommand(5*time.Second, "kafkaSourceSASL", configFilePath, testCase.binary, "")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error(), "Docker run returned error for Kafka SASL source")
+			}
+			data := getDataFromStdoutResult(stdOut)
+			evaluateTestCaseString(t, data, inputFilePath, "Kafka SASL source "+testCase.binary)
 		})
 	}
 }
