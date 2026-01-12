@@ -1,3 +1,7 @@
+Version 4.1.0 (2026-01-12)
+--------------------------
+Feat/Add kafka sasl version (#29)
+
 Version 4.0.0 (2025-12-17)
 --------------------------
 Update dependencies
