@@ -14,6 +14,7 @@ package badrows
 import (
 	"encoding/json"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pkg/errors"
 
@@ -66,27 +67,56 @@ func newBadRow(schema string, data map[string]any, payload []byte, targetByteLim
 
 	// Add the payload into the data map
 	if payloadLength > bytesForPayload {
-		data[dataKeyPayload] = string(payload[:bytesForPayload])
+		// We need to use utf8 rune to correctly trim not standard characters which may be in the input,
+		// ie Japanese characters.
+		truncateAt := bytesForPayload
+		for truncateAt > 0 && !utf8.RuneStart(payload[truncateAt]) {
+			truncateAt--
+		}
+		data[dataKeyPayload] = string(payload[:truncateAt])
 	} else {
 		data[dataKeyPayload] = string(payload)
 	}
 
-	return &BadRow{
-		schema: schema,
-		selfDescribingData: iglu.NewSelfDescribingData(
-			schema,
-			data,
-		),
-	}, nil
+	// Verify that the final JSON output fits within the target byte limit
+	// If not, iteratively reduce payload size until it fits
+	for {
+		testBadRow := &BadRow{
+			schema:             schema,
+			selfDescribingData: iglu.NewSelfDescribingData(schema, data),
+		}
+
+		compact, err := testBadRow.Compact()
+		if err != nil {
+			return nil, errors.Wrap(err, "Could not compact bad-row for size validation")
+		}
+
+		// If it fits within the limit, we're done
+		if len(compact) <= targetByteLimit {
+			return testBadRow, nil
+		}
+
+		// If JSON is oversized, we need to reduce the payload by further 10%
+		currentPayload := data[dataKeyPayload].(string)
+		newLength := len(currentPayload) * 9 / 10
+
+		// Truncate at UTF-8 boundary
+		payloadBytes := []byte(currentPayload)
+		truncateAt := newLength
+		for truncateAt > 0 && !utf8.RuneStart(payloadBytes[truncateAt]) {
+			truncateAt--
+		}
+
+		data[dataKeyPayload] = string(payloadBytes[:truncateAt])
+	}
 }
 
-// newBadRowEventForwardingError first handles oversized latestState, then calls newBadRow to handle oversized payload and create the bad-row.
+// newBadRowEventForwardingError handles oversized payloads and latestState using JSON-aware truncation
 func newBadRowEventForwardingError(schema string, data map[string]any, payload []byte, latestState []byte, targetByteLimit int) (*BadRow, error) {
-
-	latestStateLength := len(latestState)
-
 	// Ensure data map does not contain anything for payload or latest state
 	data[dataKeyPayload] = ""
+
+	// Ensure data map contains failure data
 	if data[dataKeyFailure] == nil {
 		return nil, errors.New("Error creating bad data - failure data is nil")
 	}
@@ -94,41 +124,63 @@ func newBadRowEventForwardingError(schema string, data map[string]any, payload [
 	if !ok {
 		return nil, errors.New("Error creating bad data - failure data is not a map[string]string")
 	}
-	failureMap[dataKeyLatestState] = ""
+
+	// Add latestState and payload to the data
+	failureMap[dataKeyLatestState] = string(latestState)
 	data[dataKeyFailure] = failureMap
+	data[dataKeyPayload] = string(payload)
 
-	// Check bytes allocated to data map (without payload)
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not unmarshall bad-row data blob to JSON")
+	// Use JSON-aware iterative truncation to ensure final result fits within target limit
+	for {
+		testBadRow := &BadRow{
+			schema:             schema,
+			selfDescribingData: iglu.NewSelfDescribingData(schema, data),
+		}
+
+		compact, err := testBadRow.Compact()
+		if err != nil {
+			return nil, errors.Wrap(err, "Could not compact bad-row for size validation")
+		}
+
+		// If it fits within the limit, we're done
+		if len(compact) <= targetByteLimit {
+			return testBadRow, nil
+		}
+
+		// If JSON is oversized, prioritize truncating latestState first, then payload
+		currentLatestState := failureMap[dataKeyLatestState]
+		currentPayload := data[dataKeyPayload].(string)
+
+		if len(currentLatestState) > 0 {
+			// Reduce latestState size by 10%
+			newLength := len(currentLatestState) * 9 / 10
+
+			// Truncate at UTF-8 boundary
+			latestStateBytes := []byte(currentLatestState)
+			truncateAt := newLength
+			for truncateAt > 0 && !utf8.RuneStart(latestStateBytes[truncateAt]) {
+				truncateAt--
+			}
+
+			failureMap[dataKeyLatestState] = string(latestStateBytes[:truncateAt])
+			data[dataKeyFailure] = failureMap
+		} else if len(currentPayload) > 0 {
+			// If latestState is empty, reduce payload size by 10%
+			newLength := len(currentPayload) * 9 / 10
+
+			// Truncate at UTF-8 boundary
+			payloadBytes := []byte(currentPayload)
+			truncateAt := newLength
+			for truncateAt > 0 && !utf8.RuneStart(payloadBytes[truncateAt]) {
+				truncateAt--
+			}
+
+			data[dataKeyPayload] = string(payloadBytes[:truncateAt])
+		} else {
+			// Both payload and latestState are empty but still doesn't fit
+			return nil, errors.New("Failed to create bad-row as resultant payload will exceed the targets byte limit")
+		}
 	}
-
-	currentByteCount := len(schema) + badRowWrapperBytes + len(dataBytes)
-
-	// Figure out if we have enough bytes left to include the latestState (or a truncated latestState)
-	// We include the length of the payload in this calculation, because we'd rather truncate the latestState if one of them needs it.
-	bytesForLatestState := targetByteLimit - currentByteCount - len(payload)
-	if bytesForLatestState <= 0 {
-		// Unlike in newBadRow, we might have enough room for a payload or truncated payload in this case.
-		// So we'll allocate 0 bytes to latestState and proceed with the payload.
-		bytesForLatestState = 0
-	}
-
-	// First provide latestState
-	if latestStateLength > bytesForLatestState {
-		failureMap[dataKeyLatestState] = string(latestState[:bytesForLatestState])
-	} else {
-		failureMap[dataKeyLatestState] = string(latestState)
-	}
-
-	data[dataKeyFailure] = failureMap
-
-	// Now we can let the previous function handle the rest
-	return newBadRow(
-		schema,
-		data,
-		payload,
-		targetByteLimit)
 }
 
 // Compact returns a compacted version of this badrow

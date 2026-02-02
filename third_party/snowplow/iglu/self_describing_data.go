@@ -35,7 +35,7 @@ func (s SelfDescribingData) Get() map[string]any {
 	}
 }
 
-// Get wraps the schema and data into a map.
+// String wraps the schema and data into a JSON string with minimal backslash escaping.
 func (s SelfDescribingData) String() (string, error) {
 	b, err := json.Marshal(s.Get())
 	if err != nil {
