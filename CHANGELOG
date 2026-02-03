@@ -1,3 +1,8 @@
+Version 4.1.1 (2026-02-03)
+--------------------------
+Fix Bug in invalid data handling (#50)
+Bump docker base alpine image to 3.23.3
+
 Version 4.1.0 (2026-01-12)
 --------------------------
 Feat/Add kafka sasl version (#29)
