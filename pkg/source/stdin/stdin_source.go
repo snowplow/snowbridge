@@ -13,130 +13,97 @@ package stdinsource
 
 import (
 	"bufio"
+	"context"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 )
 
+const SupportedSourceStdin = "stdin"
+
 // Configuration configures the source for records pulled
-type Configuration struct {
-	ConcurrentWrites int `hcl:"concurrent_writes,optional"`
+type Configuration struct{}
+
+// DefaultConfiguration returns the default configuration for stdin source
+func DefaultConfiguration() Configuration {
+	return Configuration{}
 }
 
-// stdinSource holds a new client for reading messages from stdin
-type stdinSource struct {
-	sourceiface.NoOpObserver
-	concurrentWrites int
+// BuildFromConfig creates a stdin source from decoded configuration
+func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
+	// Ensures as even as possible distribution of UUIDs
+	uuid.EnableRandPool()
+
+	return &stdinSourceDriver{
+		log: log.WithFields(log.Fields{"source": SupportedSourceStdin}),
+	}, nil
+}
+
+// stdinSourceDriver holds a new client for reading messages from stdin
+type stdinSourceDriver struct {
+	sourceiface.SourceChannels
 
 	log *log.Entry
 }
 
-// configFunction returns an stdin source from a config
-func configfunction(c *Configuration) (sourceiface.Source, error) {
-	return newStdinSource(
-		c.ConcurrentWrites,
-	)
-}
+// NewStdinSourceDriver creates a new client for reading messages from stdin
+func NewStdinSourceDriver() (sourceiface.Source, error) {
 
-// The adapter type is an adapter for functions to be used as
-// pluggable components for Stdin Source. It implements the Pluggable interface.
-type adapter func(i any) (any, error)
-
-// Create implements the ComponentCreator interface.
-func (f adapter) Create(i any) (any, error) {
-	return f(i)
-}
-
-// ProvideDefault implements the ComponentConfigurable interface.
-func (f adapter) ProvideDefault() (any, error) {
-	// Provide defaults
-	cfg := &Configuration{
-		ConcurrentWrites: 50,
-	}
-
-	return cfg, nil
-}
-
-// adapterGenerator returns a StdinSource adapter.
-func adapterGenerator(f func(c *Configuration) (sourceiface.Source, error)) adapter {
-	return func(i any) (any, error) {
-		cfg, ok := i.(*Configuration)
-		if !ok {
-			return nil, errors.New("invalid input, expected StdinSourceConfig")
-		}
-
-		return f(cfg)
-	}
-}
-
-// ConfigPair is passed to configuration to determine when to build an stdin source.
-var ConfigPair = config.ConfigurationPair{
-	Name:   "stdin",
-	Handle: adapterGenerator(configfunction),
-}
-
-// newStdinSource creates a new client for reading messages from stdin
-func newStdinSource(concurrentWrites int) (*stdinSource, error) {
 	// Ensures as even as possible distribution of UUIDs
 	uuid.EnableRandPool()
-	return &stdinSource{
-		concurrentWrites: concurrentWrites,
-		log:              log.WithFields(log.Fields{"source": "stdin"}),
+	return &stdinSourceDriver{
+		log: log.WithFields(log.Fields{"source": SupportedSourceStdin}),
 	}, nil
 }
 
-// Read will execute until CTRL + D is pressed or until EOF is passed
-func (ss *stdinSource) Read(sf *sourceiface.SourceFunctions) error {
-	ss.log.Infof("Reading messages from 'stdin', scanning until EOF detected (Note: Press 'CTRL + D' to exit)")
+// Read will execute until CTRL + D is pressed, until EOF is passed, or until context is cancelled
+func (ss *stdinSourceDriver) Start(ctx context.Context) {
+	defer close(ss.MessageChannel)
+	ss.log.Infof("Reading messages from 'stdin', scanning until EOF detected or context cancelled (Note: Press 'CTRL + D' to exit)")
 
-	throttle := make(chan struct{}, ss.concurrentWrites)
-	wg := sync.WaitGroup{}
+	lineChan := make(chan string)
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		timeNow := time.Now().UTC()
-		messages := []*models.Message{
-			{
-				Data:         []byte(scanner.Text()),
+	// Read from stdin in a goroutine
+	go ss.consumeFromStdin(ctx, lineChan)
+
+	// Process lines with context awareness
+	for {
+		select {
+		case <-ctx.Done():
+			ss.log.Info("Context cancelled, stopping stdin reader")
+			return
+		case line, ok := <-lineChan:
+			if !ok {
+				return
+			}
+			timeNow := time.Now().UTC()
+			message := &models.Message{
+				Data:         []byte(line),
 				PartitionKey: uuid.New().String(),
 				TimeCreated:  timeNow,
 				TimePulled:   timeNow,
-			},
-		}
-
-		throttle <- struct{}{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := sf.WriteToTarget(messages)
-			if err != nil {
-				ss.log.WithFields(log.Fields{"error": err}).Error(err)
 			}
-			<-throttle
-		}()
+			ss.MessageChannel <- message
+		}
 	}
-	wg.Wait()
+}
 
+func (ss *stdinSourceDriver) consumeFromStdin(ctx context.Context, lineChan chan string) {
+	defer close(lineChan)
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		select {
+		case lineChan <- scanner.Text():
+		case <-ctx.Done():
+			return
+		}
+	}
 	if scanner.Err() != nil {
-		return errors.Wrap(scanner.Err(), "Failed to read from stdin scanner")
+		ss.log.WithError(scanner.Err()).Error("Failed to read from stdin scanner")
 	}
-	return nil
-}
-
-// Stop will halt the reader processing more events
-func (ss *stdinSource) Stop() {
-	ss.log.Warn("Press CTRL + D to exit!")
-}
-
-// GetID returns the identifier for this source
-func (ss *stdinSource) GetID() string {
-	return "stdin"
 }

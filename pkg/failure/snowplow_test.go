@@ -18,35 +18,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
-// --- Test FailureTarget
-
-type TestFailureTarget struct {
-	onWrite func(messages []*models.Message) (*models.TargetWriteResult, error)
-}
-
-func (t *TestFailureTarget) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
-	return t.onWrite(messages)
-}
-
-func (t *TestFailureTarget) Open() {}
-
-func (t *TestFailureTarget) Close() {}
-
-func (t *TestFailureTarget) MaximumAllowedMessageSizeBytes() int {
-	return 5000
-}
-
-func (t *TestFailureTarget) GetID() string {
-	return "empty"
-}
-
 // --- Tests
 
-func TestSnowplowFailure_WriteOversized(t *testing.T) {
+func TestSnowplowFailure_MakeOversizedPayloads(t *testing.T) {
 	assert := assert.New(t)
 
 	expectedJSON := map[string]any{
@@ -69,34 +46,22 @@ func TestSnowplowFailure_WriteOversized(t *testing.T) {
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
-		assert.Equal(5, len(messages))
-		for _, msg := range messages {
-			assert.Equal(string(expectedJSONString), string(msg.Data))
-		}
-
-		return nil, nil
-	}
-	tft := TestFailureTarget{
-		onWrite: onWrite,
-	}
-
-	sf, err := NewSnowplowFailure(&tft, "test", "0.1.0")
+	sf, err := NewSnowplowFailure(5000, "test", "0.1.0")
 	assert.Nil(err)
 	assert.NotNil(sf)
-	assert.Equal("empty", sf.GetID())
-
-	defer sf.Close()
-	sf.Open()
 
 	messages := testutil.GetTestMessages(5, "Hello Snowplow!!", nil)
 
-	r, err := sf.WriteOversized(5000, messages)
-	assert.Nil(r)
+	result, err := sf.MakeOversizedPayloads(5000, messages)
 	assert.Nil(err)
+	assert.Equal(5, len(result))
+
+	for _, msg := range result {
+		assert.Equal(string(expectedJSONString), string(msg.Data))
+	}
 }
 
-func TestSnowplowFailure_WriteInvalid(t *testing.T) {
+func TestSnowplowFailure_MakeInvalidPayloads(t *testing.T) {
 	assert := assert.New(t)
 
 	expectedJSON := map[string]any{
@@ -117,31 +82,20 @@ func TestSnowplowFailure_WriteInvalid(t *testing.T) {
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
-		assert.Equal(5, len(messages))
-		for _, msg := range messages {
-			assert.Equal(string(expectedJSONString), string(msg.Data))
-		}
-
-		return nil, nil
-	}
-	tft := TestFailureTarget{
-		onWrite: onWrite,
-	}
-
-	sf, err := NewSnowplowFailure(&tft, "test", "0.1.0")
+	sf, err := NewSnowplowFailure(5000, "test", "0.1.0")
 	assert.Nil(err)
 	assert.NotNil(sf)
-
-	defer sf.Close()
-	sf.Open()
 
 	messages := testutil.GetTestMessages(5, "Hello Snowplow!!", nil)
 	for _, msg := range messages {
 		msg.SetError(errors.New("failure"))
 	}
 
-	r, err := sf.WriteInvalid(messages)
-	assert.Nil(r)
+	result, err := sf.MakeInvalidPayloads(messages)
 	assert.Nil(err)
+	assert.Equal(5, len(result))
+
+	for _, msg := range result {
+		assert.Equal(string(expectedJSONString), string(msg.Data))
+	}
 }

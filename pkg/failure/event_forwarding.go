@@ -16,40 +16,35 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
 	"github.com/snowplow/snowbridge/v3/third_party/snowplow/badrows"
 )
 
 const EventForwardingFailureTarget = "event_forwarding"
 
-// EventForwardingFailure holds a new client for transforming failed messages and emitting
-// them to a target
+// EventForwardingFailure holds a client for transforming failed messages into failure payloads
 type EventForwardingFailure struct {
-	processorArtifact string
-	processorVersion  string
-	target            targetiface.Target
-	log               *log.Entry
+	processorArtifact           string
+	processorVersion            string
+	failureTargetMessageMaxSize int
+	log                         *log.Entry
 }
 
 // NewEventForwardingFailure will create a new client for handling failed events
-// by converting them into EventForwarding compatible bad events and pushing them to
-// a stream
-func NewEventForwardingFailure(target targetiface.Target, processorArtifact string, processorVersion string) (*EventForwardingFailure, error) {
+// by converting them into EventForwarding compatible bad events
+func NewEventForwardingFailure(failureTargetMessageMaxSize int, processorArtifact string, processorVersion string) (*EventForwardingFailure, error) {
 	return &EventForwardingFailure{
-		processorArtifact: processorArtifact,
-		processorVersion:  processorVersion,
-		target:            target,
-		log:               log.WithFields(log.Fields{"failed": EventForwardingFailureTarget}),
+		processorArtifact:           processorArtifact,
+		processorVersion:            processorVersion,
+		failureTargetMessageMaxSize: failureTargetMessageMaxSize,
+		log:                         log.WithFields(log.Fields{"failed": EventForwardingFailureTarget}),
 	}, nil
 }
 
-// WriteInvalid will handle the conversion of invalid messages into failure
-// messages that will then pushed to the specified target
-func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*models.TargetWriteResult, error) {
+// MakeInvalidPayloads transforms invalid messages into Event Forwarding error format
+func (ef *EventForwardingFailure) MakeInvalidPayloads(messages []*models.Message) ([]*models.Message, error) {
 	var transformed []*models.Message
 
-	for _, msg := range invalid {
-
+	for _, msg := range messages {
 		err := msg.GetError()
 
 		var sv *badrows.BadRow
@@ -66,7 +61,7 @@ func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*mode
 					ErrorCode:         reportableError.Code(),
 					FailureTimestamp:  msg.TimePulled,
 				},
-				ef.target.MaximumAllowedMessageSizeBytes(),
+				ef.failureTargetMessageMaxSize,
 			)
 		} else {
 			sv, err = badrows.NewEventForwardingError(
@@ -78,7 +73,7 @@ func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*mode
 					ErrorMessage:      err.Error(),
 					FailureTimestamp:  msg.TimePulled,
 				},
-				ef.target.MaximumAllowedMessageSizeBytes(),
+				ef.failureTargetMessageMaxSize,
 			)
 		}
 
@@ -93,19 +88,17 @@ func (ef *EventForwardingFailure) WriteInvalid(invalid []*models.Message) (*mode
 
 		tMsg := msg
 		tMsg.Data = []byte(svCompact)
-
 		transformed = append(transformed, tMsg)
 	}
 
-	return ef.target.Write(transformed)
+	return transformed, nil
 }
 
-// WriteOversized will handle the conversion of oversized messages into failure
-// messages that will then pushed to the specified target
-func (ef *EventForwardingFailure) WriteOversized(maximumAllowedSizeBytes int, oversized []*models.Message) (*models.TargetWriteResult, error) {
+// MakeOversizedPayloads transforms oversized messages into Event Forwarding size_violation format
+func (ef *EventForwardingFailure) MakeOversizedPayloads(maximumAllowedSizeBytes int, messages []*models.Message) ([]*models.Message, error) {
 	var transformed []*models.Message
 
-	for _, msg := range oversized {
+	for _, msg := range messages {
 		sv, err := badrows.NewSizeViolation(
 			&badrows.SizeViolationInput{
 				ProcessorArtifact:              ef.processorArtifact,
@@ -115,7 +108,7 @@ func (ef *EventForwardingFailure) WriteOversized(maximumAllowedSizeBytes int, ov
 				FailureMaximumAllowedSizeBytes: maximumAllowedSizeBytes,
 				FailureExpectation:             "Expected payload to fit into requested target",
 			},
-			ef.target.MaximumAllowedMessageSizeBytes(),
+			ef.failureTargetMessageMaxSize,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to transform oversized message to event_forwarding.size_violation bad-row JSON")
@@ -128,24 +121,8 @@ func (ef *EventForwardingFailure) WriteOversized(maximumAllowedSizeBytes int, ov
 
 		tMsg := msg
 		tMsg.Data = []byte(svCompact)
-
 		transformed = append(transformed, tMsg)
 	}
 
-	return ef.target.Write(transformed)
-}
-
-// Open manages opening the underlying target
-func (ef *EventForwardingFailure) Open() {
-	ef.target.Open()
-}
-
-// Close manages closing the underlying target
-func (ef *EventForwardingFailure) Close() {
-	ef.target.Close()
-}
-
-// GetID returns the identifier for this target
-func (ef *EventForwardingFailure) GetID() string {
-	return ef.target.GetID()
+	return transformed, nil
 }

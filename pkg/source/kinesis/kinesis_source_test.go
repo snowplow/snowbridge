@@ -12,32 +12,19 @@
 package kinesissource
 
 import (
-	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
+	"context"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/assets"
-	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/common"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/observer"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceconfig"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
-
-func TestMain(m *testing.M) {
-	os.Clearenv()
-	exitVal := m.Run()
-	os.Exit(exitVal)
-}
 
 // --- Test StatsReceiver for testing kinsumer metrics
 
@@ -49,79 +36,6 @@ func (s *TestStatsReceiver) Send(b *models.ObserverBuffer) {
 	s.onSend(b)
 }
 
-// DelayedTestWriteBuilder sleeps before processing messages to allow kinsumer metrics to be captured
-func DelayedTestWriteBuilder(source sourceiface.Source, msgChan chan *models.Message, additionalOpts any) func(messages []*models.Message) error {
-	return func(messages []*models.Message) error {
-		// Sleep to allow kinsumer to accumulate records in memory while observer flushes metrics
-		time.Sleep(2 * time.Second)
-
-		// Then process messages normally like DefaultTestWriteBuilder
-		for _, msg := range messages {
-			msgChan <- msg
-			msg.AckFunc()
-		}
-		return nil
-	}
-}
-
-func TestNewKinesisSourceWithInterfaces_Success(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-	// Since this requires a localstack client (until we implement a mock and make unit tests),
-	// We'll only run it with the integration tests for the time being.
-	assert := assert.New(t)
-
-	// Set up localstack resources
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
-
-	streamName := "kinesis-source-integration-1"
-	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
-	if createErr != nil {
-		t.Fatal(createErr)
-	}
-	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-
-	appName := "integration"
-	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
-	if ddbErr != nil {
-		t.Fatal(ddbErr)
-	}
-	defer func() {
-		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 250, 10, 10, "test_client_name", 10000, 0)
-
-	assert.IsType(&kinesisSource{}, source)
-	assert.Nil(err)
-}
-
-// newKinesisSourceWithInterfaces should fail if we can't reach Kinesis and DDB, commented out this test until we look into https://github.com/snowplow/snowbridge/issues/151
-/*
-func TestNewKinesisSourceWithInterfaces_Failure(t *testing.T) {
-	// Unlike the success test, we don't require anything to exist for this one
-	assert := assert.New(t)
-
-	// Set up localstack resources
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
-
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, "nonexistent-stream", "test", nil, 250, 10, 10, "test_client_name", 10000, 0)
-
-	assert.Nil(&kinesisSource{}, source)
-	assert.NotNil(err)
-
-}
-*/
-
 // TODO: When we address https://github.com/snowplow/snowbridge/issues/151, this test will need to change.
 func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 	if testing.Short() {
@@ -130,20 +44,38 @@ func TestKinesisSource_ReadFailure_NoResources(t *testing.T) {
 
 	assert := assert.New(t)
 
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
 
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists", "fake-name", nil, 250, 10, 10, "test_client_name", 10000, 0)
+	cfg := DefaultConfiguration()
+	cfg.StreamName = "not-exists"
+	cfg.AppName = "fake-name"
+	cfg.ClientName = "test_client_name"
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
+
+	source, err := BuildFromConfig(&cfg, nil)
 	assert.Nil(err)
 	assert.NotNil(source)
-	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/not-exists", source.GetID())
 
-	err = source.Read(nil)
-	assert.NotNil(err)
-	if err != nil {
-		assert.Contains(err.Error(), "Failed to start Kinsumer client: error describing table fake-name_checkpoints")
-		assert.Contains(err.Error(), "ResourceNotFoundException: Cannot do operations on a non-existent table")
-	}
+	outputChannel := make(chan *models.Message, 1)
+
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		// Source should log error and return cleanly when table doesn't exist
+		source.Start(ctx)
+	})
+
+	// Source should exit quickly when it encounters the error
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source should exit cleanly on error")
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 }
 
 func TestKinesisSource_ReadMessages(t *testing.T) {
@@ -152,6 +84,9 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	}
 
 	assert := assert.New(t)
+
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
 
 	// Set up localstack resources
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
@@ -188,15 +123,42 @@ func TestKinesisSource_ReadMessages(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Create the source and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, nil, 250, 10, 10, "test_client_name", 10000, 0)
+	cfg := DefaultConfiguration()
+	cfg.StreamName = streamName
+	cfg.AppName = appName
+	cfg.ClientName = "test_client_name"
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
+
+	source, err := BuildFromConfig(&cfg, nil)
 	assert.Nil(err)
 	assert.NotNil(source)
-	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-2", source.GetID())
 
-	// Read data from stream and check that we got it all
-	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
+	outputChannel := make(chan *models.Message, 10)
+
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
 
 	assert.Equal(10, len(successfulReads))
+
+	cancel()
+
+	for _, msg := range successfulReads {
+		assert.Contains(string(msg.Data), "Test")
+		msg.AckFunc()
+	}
+
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 }
 
 func TestKinesisSource_KinsumerMetrics(t *testing.T) {
@@ -206,6 +168,9 @@ func TestKinesisSource_KinsumerMetrics(t *testing.T) {
 
 	// Set log level to reduce noise
 	logrus.SetLevel(logrus.WarnLevel)
+
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
 
 	assert := assert.New(t)
 
@@ -244,10 +209,12 @@ func TestKinesisSource_KinsumerMetrics(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Create the source and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 1, testutil.AWSLocalstackRegion, streamName, appName, nil, 250, 10, 10, "test_client_name", 10000, 0)
-	assert.Nil(err)
-	assert.NotNil(source)
-	assert.Equal(fmt.Sprintf("arn:aws:kinesis:us-east-1:00000000000:stream/%s", streamName), source.GetID())
+	cfg := DefaultConfiguration()
+	cfg.StreamName = streamName
+	cfg.AppName = appName
+	cfg.ClientName = "test_client_name"
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
 
 	// Set up observer with mock stats receiver to capture kinsumer metrics
 	var capturedBuffers []*models.ObserverBuffer
@@ -256,18 +223,34 @@ func TestKinesisSource_KinsumerMetrics(t *testing.T) {
 			capturedBuffers = append(capturedBuffers, b)
 		},
 	}
-
 	obs := observer.New(mockStatsReceiver, 1*time.Second, 500*time.Millisecond, nil)
+
+	source, err := BuildFromConfig(&cfg, obs)
+	assert.Nil(err)
+	assert.NotNil(source)
+
+	outputChannel := make(chan *models.Message, 10)
+
+	source.SetChannels(outputChannel)
+
 	obs.Start()
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
 	defer obs.Stop()
 
-	// Set observer on kinesis source to enable kinsumer metrics
-	source.SetObserver(obs)
-
-	// Read data from stream and check that we got it all
-	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, DelayedTestWriteBuilder, nil)
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
 
 	assert.Equal(10, len(successfulReads))
+
+	for _, msg := range successfulReads {
+		// Sleep to allow kinsumer to accumulate records in memory while observer flushes metrics
+		time.Sleep(2 * time.Second)
+		msg.AckFunc()
+	}
 
 	// Verify that kinsumer metrics were captured in observer buffer
 	assert.NotEmpty(capturedBuffers, "Observer buffers should have been captured during processing")
@@ -285,6 +268,12 @@ func TestKinesisSource_KinsumerMetrics(t *testing.T) {
 	}
 	assert.True(foundNonZeroRecords, "Should have captured non-zero KinsumerRecordsInMemory during processing")
 	assert.True(foundNonZeroBytes, "Should have captured non-zero KinsumerRecordsInMemoryBytes during processing")
+
+	cancel()
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 }
 
 func TestKinesisSource_StartTimestamp(t *testing.T) {
@@ -293,6 +282,9 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	}
 
 	assert := assert.New(t)
+
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
 
 	// Set up localstack resources
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
@@ -337,35 +329,64 @@ func TestKinesisSource_StartTimestamp(t *testing.T) {
 	}
 
 	// Create the source (with start timestamp) and assert that it's there
-	source, err := newKinesisSourceWithInterfaces(kinesisClient, dynamodbClient, "00000000000", 15, testutil.AWSLocalstackRegion, streamName, appName, &timeToStart, 250, 10, 10, "test_client_name", 10000, 0)
+	cfg := DefaultConfiguration()
+	cfg.StreamName = streamName
+	cfg.AppName = appName
+	cfg.ClientName = "test_client_name"
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
+	cfg.StartTimestamp = timeToStart.Format("2006-01-02 15:04:05.999")
+
+	source, err := BuildFromConfig(&cfg, nil)
 	assert.Nil(err)
 	assert.NotNil(source)
-	assert.Equal("arn:aws:kinesis:us-east-1:00000000000:stream/kinesis-source-integration-3", source.GetID())
 
-	// Read from stream
-	successfulReads := testutil.ReadAndReturnMessages(source, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
+	outputChannel := make(chan *models.Message, 10)
 
-	// Check that we have ten messages
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+
 	assert.Equal(10, len(successfulReads))
 
-	// Check that all messages are from the second batch of Puts
+	cancel()
+
 	for _, msg := range successfulReads {
 		assert.Contains(string(msg.Data), "Second batch")
+		msg.AckFunc()
 	}
+
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 }
 
-func TestGetSource_WithKinesisSource(t *testing.T) {
+// TestKinesisSource_WaitForDelayedAcks verifies that:
+// 1. When context is cancelled, the source waits for all in-flight messages to be acked before shutting down
+// 2. Messages can be acked out of order (last 5 before first 5) without blocking the main thread
+// 3. Kinsumer handles out-of-order acking correctly while ensuring sequential checkpointing to DynamoDB
+func TestKinesisSource_WaitForDelayedAcks(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	assert := assert.New(t)
 
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
+
 	// Set up localstack resources
 	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
 	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
 
-	streamName := "kinesis-source-config-integration-1"
+	streamName := "kinesis-source-delayed-acks"
 	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
 	if createErr != nil {
 		t.Fatal(createErr)
@@ -376,7 +397,7 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 		}
 	}()
 
-	appName := "kinesisSourceIntegration"
+	appName := "integration-delayed"
 	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
 	if ddbErr != nil {
 		t.Fatal(ddbErr)
@@ -387,156 +408,183 @@ func TestGetSource_WithKinesisSource(t *testing.T) {
 		}
 	}()
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-	// Construct the config
-	c, err := config.NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+	// Put ten records into kinesis stream
+	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "Test message")
+	if putErr != nil {
+		t.Fatal(putErr)
 	}
 
-	configBytesToMerge := []byte(fmt.Sprintf(`
-    stream_name = "%s"
-    region      = "%s"
-    app_name    = "%s"
-`, streamName, testutil.AWSLocalstackRegion, appName))
+	// Create the source
+	cfg := DefaultConfiguration()
+	cfg.StreamName = streamName
+	cfg.AppName = appName
+	cfg.ClientName = "test_client_name"
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
 
-	parser := hclparse.NewParser()
-	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
-	if diags.HasErrors() {
-		t.Fatalf("failed to parse config bytes")
-	}
-
-	c.Data.Source.Use.Name = "kinesis"
-	c.Data.Source.Use.Body = fileHCL.Body
-
-	// use our function generator to interact with localstack
-	kinesisSourceConfigFunctionWithLocalstack := configFunctionGeneratorWithInterfaces(kinesisClient, dynamodbClient, "00000000000")
-	adaptedHandle := adapterGenerator(kinesisSourceConfigFunctionWithLocalstack)
-
-	kinesisSourceConfigPairWithLocalstack := config.ConfigurationPair{Name: "kinesis", Handle: adaptedHandle}
-	supportedSources := []config.ConfigurationPair{kinesisSourceConfigPairWithLocalstack}
-
-	source, err := sourceconfig.GetSource(c, supportedSources)
-	assert.NotNil(source)
+	source, err := BuildFromConfig(&cfg, nil)
 	assert.Nil(err)
+	assert.NotNil(source)
 
-	assert.IsType(&kinesisSource{}, source)
-}
+	outputChannel := make(chan *models.Message, 10)
 
-func TestKinesisSourceHCL(t *testing.T) {
-	testFixPath := filepath.Join(assets.AssetsRootDir, "test", "source", "configs")
-	testCases := []struct {
-		File           string
-		Plug           config.Pluggable
-		Expected       *Configuration
-		ClientNameUUID bool
-	}{
-		{
-			File: "source-kinesis-simple.hcl",
-			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
-			Expected: &Configuration{
-				StreamName:              "testStream",
-				Region:                  "us-test-1",
-				AppName:                 "testApp",
-				RoleARN:                 "",
-				StartTimestamp:          "",
-				ConcurrentWrites:        50,
-				ReadThrottleDelayMs:     250,
-				ShardCheckFreqSeconds:   10,
-				LeaderActionFreqSeconds: 60,
-				GetRecordsLimit:         10000,
-				MaxConcurrentShards:     0,
-			},
-			ClientNameUUID: true,
-		},
-		{
-			File: "source-kinesis-extended.hcl",
-			Plug: testKinesisSourceAdapter(testKinesisSourceFunc),
-			Expected: &Configuration{
-				StreamName:              "testStream",
-				Region:                  "us-test-1",
-				AppName:                 "testApp",
-				RoleARN:                 "xxx-test-role-arn",
-				StartTimestamp:          "2022-03-15 07:52:53",
-				ConcurrentWrites:        51,
-				ReadThrottleDelayMs:     250,
-				ShardCheckFreqSeconds:   10,
-				LeaderActionFreqSeconds: 60,
-				ClientName:              "test_client_name",
-				GetRecordsLimit:         10000,
-				MaxConcurrentShards:     0,
-			},
-			ClientNameUUID: false,
-		},
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+	assert.Equal(10, len(successfulReads))
+
+	// Cancel source first without acking anything yet
+	cancel()
+
+	assert.False(common.WaitWithTimeout(&wg, 5*time.Second), "Source finished even though it still waits for acks")
+
+	// Now ack all messages but not in the receiving order.
+	// However, this doesn't mean that the last 5 records are checkpointed (to DynamoDB) before the first 5.
+	// It just means we don't block the main thread when calling the ack function.
+	// Kinsumer ensures that the actual under-the-hood checkpointing happens in the correct order.
+	for _, msg := range successfulReads[5:10] {
+		msg.AckFunc()
 	}
 
-	for _, tt := range testCases {
-		t.Run(tt.File, func(t *testing.T) {
-			assert := assert.New(t)
-
-			filename := filepath.Join(testFixPath, tt.File)
-			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-			c, err := config.NewConfig()
-			assert.NotNil(c)
-			if err != nil {
-				t.Fatalf("function NewConfig failed with error: %q", err.Error())
-			}
-
-			use := c.Data.Source.Use
-			decoderOpts := &config.DecoderOptions{
-				Input: use.Body,
-			}
-
-			result, err := c.CreateComponent(tt.Plug, decoderOpts)
-			assert.NotNil(result)
-			assert.Nil(err)
-
-			resultConf, ok := result.(*Configuration)
-			if !ok {
-				t.Fatal("result is not of type pointer to Configuration")
-			}
-
-			assert.Equal(resultConf.StreamName, tt.Expected.StreamName)
-			assert.Equal(resultConf.Region, tt.Expected.Region)
-			assert.Equal(resultConf.AppName, tt.Expected.AppName)
-			assert.Equal(resultConf.RoleARN, tt.Expected.RoleARN)
-			assert.Equal(resultConf.StartTimestamp, tt.Expected.StartTimestamp)
-			assert.Equal(resultConf.ConcurrentWrites, tt.Expected.ConcurrentWrites)
-			assert.Equal(resultConf.ReadThrottleDelayMs, tt.Expected.ReadThrottleDelayMs)
-			assert.Equal(resultConf.ShardCheckFreqSeconds, tt.Expected.ShardCheckFreqSeconds)
-			assert.Equal(resultConf.LeaderActionFreqSeconds, tt.Expected.LeaderActionFreqSeconds)
-			assert.Equal(resultConf.GetRecordsLimit, tt.Expected.GetRecordsLimit)
-			assert.Equal(resultConf.MaxConcurrentShards, tt.Expected.MaxConcurrentShards)
-
-			if !tt.ClientNameUUID {
-				assert.Equal(resultConf.ClientName, tt.Expected.ClientName)
-			} else {
-				_, err := uuid.Parse(resultConf.ClientName)
-				assert.Nil(err)
-			}
-
-		})
+	for _, msg := range successfulReads[0:5] {
+		msg.AckFunc()
 	}
+
+	assert.True(common.WaitWithTimeout(&wg, 5*time.Second), "Source is not finished even though it has been stopped and all messages have been acked")
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 }
 
-// Helpers
-func testKinesisSourceAdapter(f func(c *Configuration) (*Configuration, error)) adapter {
-	return func(i any) (any, error) {
-		cfg, ok := i.(*Configuration)
-		if !ok {
-			return nil, errors.New("invalid input, expected KinesisSourceConfig")
+// TestKinesisSource_SourceRestart verifies that:
+// 1. When a source is restarted after processing and acking messages, it handles the restart correctly
+// 2. The source processes new messages published after the first run
+// 3. Messages that were not acked in the first run are redelivered and can be processed again
+func TestKinesisSource_SourceRestart(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	assert := assert.New(t)
+
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
+
+	// Set up localstack resources
+	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+	dynamodbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+	streamName := "kinesis-source-restart"
+	createErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, streamName, 1)
+	if createErr != nil {
+		t.Fatal(createErr)
+	}
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, streamName); err != nil {
+			logrus.Error(err.Error())
 		}
+	}()
 
-		return f(cfg)
+	appName := "integration-restart"
+	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(dynamodbClient, appName)
+	if ddbErr != nil {
+		t.Fatal(ddbErr)
+	}
+	defer func() {
+		if err := testutil.DeleteAWSLocalstackDynamoDBTables(dynamodbClient, appName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	// Put ten records into kinesis stream
+	putErr := testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "msg-first-batch")
+	if putErr != nil {
+		t.Fatal(putErr)
 	}
 
-}
+	// Create the source
+	cfg := DefaultConfiguration()
+	cfg.StreamName = streamName
+	cfg.AppName = appName
+	cfg.ClientName = "test_client_name"
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
 
-func testKinesisSourceFunc(c *Configuration) (*Configuration, error) {
+	source, err := BuildFromConfig(&cfg, nil)
+	assert.Nil(err)
+	assert.NotNil(source)
 
-	return c, nil
+	outputChannel := make(chan *models.Message, 10)
+
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+	assert.Equal(10, len(successfulReads))
+
+	cancel()
+
+	// Ack only first 5 messages
+	for _, msg := range successfulReads[0:5] {
+		msg.AckFunc()
+	}
+
+	// Try to ack messages 8-9, skipping 5-7.
+	// This shouldn't block or actually checkpoint any record from 8-9 (because of the gap at 5-7).
+	for _, msg := range successfulReads[8:10] {
+		msg.AckFunc()
+	}
+
+	// Kinsumer waits some time for the rest of acks (never happens), but should eventually quit.
+	assert.True(common.WaitWithTimeout(&wg, 60*time.Second))
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
+
+	// Second batch! Publish new messages
+	putErr = testutil.PutNRecordsIntoKinesis(kinesisClient, 10, streamName, "msg-second-batch")
+	if putErr != nil {
+		t.Fatal(putErr)
+	}
+
+	// Build another source (simulating app restart) and confirm it consumes both nacked messages and new messages
+	secondSource, err := BuildFromConfig(&cfg, nil)
+	assert.Nil(err)
+	assert.NotNil(secondSource)
+
+	outputChannel = make(chan *models.Message, 20)
+
+	secondSource.SetChannels(outputChannel)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	wg.Go(func() {
+		secondSource.Start(ctx)
+	})
+
+	successfulReads = testutil.ReadSourceOutput(outputChannel)
+
+	// We should have 5 unacked from the first batch + 10 from the second batch = 15
+	assert.Equal(15, len(successfulReads))
+
+	cancel()
+
+	for _, msg := range successfulReads {
+		msg.AckFunc()
+	}
+
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
+
+	_, ok = <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 }

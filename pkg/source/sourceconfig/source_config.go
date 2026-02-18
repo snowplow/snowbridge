@@ -13,35 +13,54 @@ package sourceconfig
 
 import (
 	"fmt"
-	"strings"
+	httpsource "github.com/snowplow/snowbridge/v3/pkg/source/http"
 
 	config "github.com/snowplow/snowbridge/v3/config"
+	kafkasource "github.com/snowplow/snowbridge/v3/pkg/source/kafka"
+	pubsubsource "github.com/snowplow/snowbridge/v3/pkg/source/pubsub"
 	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
+	sqssource "github.com/snowplow/snowbridge/v3/pkg/source/sqs"
+	stdinsource "github.com/snowplow/snowbridge/v3/pkg/source/stdin"
 )
 
-// GetSource creates and returns the source that is configured.
-func GetSource(c *config.Config, supportedSources []config.ConfigurationPair) (sourceiface.Source, error) {
+func sourceCommon(c *config.Config) (sourceiface.Source, error) {
 	useSource := c.Data.Source.Use
 	decoderOpts := &config.DecoderOptions{
 		Input: useSource.Body,
 	}
 
-	sourceList := make([]string, 0)
-	for _, pair := range supportedSources {
-		if pair.Name == useSource.Name {
-			plug := pair.Handle
-			component, err := c.CreateComponent(plug, decoderOpts)
-			if err != nil {
-				return nil, err
-			}
-
-			if s, ok := component.(sourceiface.Source); ok {
-				return s, nil
-			}
-
-			return nil, fmt.Errorf("could not interpret source configuration for %q", useSource.Name)
+	switch useSource.Name {
+	case stdinsource.SupportedSourceStdin:
+		cfg := stdinsource.DefaultConfiguration()
+		if err := c.Decoder.Decode(decoderOpts, &cfg); err != nil {
+			return nil, err
 		}
-		sourceList = append(sourceList, pair.Name)
+		return stdinsource.BuildFromConfig(&cfg)
+	case kafkasource.SupportedSourceKafka:
+		cfg := kafkasource.DefaultConfiguration()
+		if err := c.Decoder.Decode(decoderOpts, &cfg); err != nil {
+			return nil, err
+		}
+		return kafkasource.BuildFromConfig(&cfg)
+	case pubsubsource.SupportedSourcePubsub:
+		cfg := pubsubsource.DefaultConfiguration()
+		if err := c.Decoder.Decode(decoderOpts, &cfg); err != nil {
+			return nil, err
+		}
+		return pubsubsource.BuildFromConfig(&cfg)
+	case sqssource.SupportedSourceSQS:
+		cfg := sqssource.DefaultConfiguration()
+		if err := c.Decoder.Decode(decoderOpts, &cfg); err != nil {
+			return nil, err
+		}
+		return sqssource.BuildFromConfig(&cfg)
+	case httpsource.SupportedSourceHTTP:
+		cfg := httpsource.DefaultConfiguration()
+		if err := c.Decoder.Decode(decoderOpts, &cfg); err != nil {
+			return nil, err
+		}
+		return httpsource.BuildFromConfig(&cfg)
+	default:
+		return nil, fmt.Errorf("unknown source: %s", useSource.Name)
 	}
-	return nil, fmt.Errorf("invalid source found: %s. Supported sources in this build: %s", useSource.Name, strings.Join(sourceList, ", "))
 }

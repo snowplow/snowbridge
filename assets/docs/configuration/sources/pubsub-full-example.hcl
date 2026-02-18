@@ -8,11 +8,6 @@ source {
     # subscription ID for the pubsub subscription
     subscription_id   = "subscription-id"
 
-    # This option is deprecated for the pubsub source, and will be changed or removed in the next major release.
-    # Use streaming_pull_goroutines, max_outstanding_messages, and max_outstanding_bytes to configure concurrency instead.
-    # Where streaming_pull_goroutines is set, this option is ignored.
-    concurrent_writes = 1
-
     # Maximum number of unprocessed messages (default 1000)
     max_outstanding_messages = 2000
 

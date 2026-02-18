@@ -150,3 +150,22 @@ func CreatePubsubResourcesAndWrite(numMsgs int, topicName string, t *testing.T) 
 
 	WriteToPubSubTopic(t, topic, numMsgs)
 }
+
+// ReceiveMessagesFromSubscription receives messages from a PubSub subscription and returns their data
+func ReceiveMessagesFromSubscription(t *testing.T, subscription *pubsub.Subscription) []string {
+	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(10)*time.Second)
+	defer cancel()
+
+	receivedMessages := make([]string, 0)
+
+	receiveErr := subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+		receivedMessages = append(receivedMessages, string(msg.Data))
+		msg.Ack()
+	})
+
+	if receiveErr != nil && !errors.Is(receiveErr, context.Canceled) {
+		t.Fatalf("Unexpected error receiving messages: %v", receiveErr)
+	}
+
+	return receivedMessages
+}

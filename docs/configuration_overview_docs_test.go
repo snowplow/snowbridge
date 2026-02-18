@@ -42,6 +42,9 @@ func TestConfigurationOverview(t *testing.T) {
 	// Test that statsd compiles
 	testStatsDConfig(t, hclFilePath, false)
 
+	// Test that failure parser compiles
+	testFailureParserConfig(t, hclFilePath, false)
+
 	// Test that sentry compiles
 	testSentryConfig(t, hclFilePath, false)
 

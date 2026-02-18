@@ -48,122 +48,151 @@ func getSliceFromInput(filepath string) []string {
 var dataToSend = getSliceFromInput(inputFilePath)
 
 func testE2EPubsubSource(t *testing.T) {
-	assert := assert.New(t)
-
-	// Create topic and subscription
-	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-pubsub-source-topic", "e2e-pubsub-source-subscription")
-	defer func() {
-		if err := topic.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-	defer func() {
-		if err := subscription.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "pubsub", "config.hcl"))
-	if err != nil {
-		panic(err)
+	testCases := []struct {
+		name         string
+		binary       string
+		topic        string
+		subscription string
+		configFile   string
+	}{
+		{name: "default", binary: "", topic: "e2e-pubsub-source-topic", subscription: "e2e-pubsub-source-subscription", configFile: "config.hcl"},
+		{name: "aws-only", binary: "-aws-only", topic: "e2e-pubsub-source-topic-aws-only", subscription: "e2e-pubsub-source-subscription-aws-only", configFile: "config_aws_only.hcl"},
 	}
 
-	for _, binary := range []string{"-aws-only", ""} {
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert := assert.New(t)
 
-		testutil.WriteProvidedDataToPubSubTopic(t, topic, dataToSend)
+			// Create topic and subscription
+			topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, testCase.topic, testCase.subscription)
+			defer func() {
+				if err := topic.Delete(t.Context()); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+			defer func() {
+				if err := subscription.Delete(t.Context()); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
 
-		// Additional env var options allow us to connect to the pubsub emulator
-		stdOut, cmdErr := runDockerCommand(3*time.Second, "pubsubSource", configFilePath, binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error())
-		}
+			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "pubsub", testCase.configFile))
+			if err != nil {
+				panic(err)
+			}
 
-		data := getDataFromStdoutResult(stdOut)
-		// Output should exactly match input.
-		evaluateTestCaseString(t, data, inputFilePath, "PubSub source "+binary)
+			testutil.WriteProvidedDataToPubSubTopic(t, topic, dataToSend)
+
+			// Additional env var options allow us to connect to the pubsub emulator
+			stdOut, cmdErr := runDockerCommand(10*time.Second, "pubsubSource", configFilePath, testCase.binary, "--env PUBSUB_PROJECT_ID=project-test --env PUBSUB_EMULATOR_HOST=integration-pubsub-1:8432")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error(), "Docker run returned error for PubSub source")
+			}
+
+			data := getDataFromStdoutResult(stdOut)
+			evaluateTestCaseString(t, data, inputFilePath, "PubSub source "+testCase.binary)
+		})
 	}
-
 }
 
 func testE2ESQSSource(t *testing.T) {
-	assert := assert.New(t)
+	testCases := []struct {
+		name       string
+		binary     string
+		queueName  string
+		configFile string
+	}{
+		{name: "default", binary: "", queueName: "sqs-queue-e2e-source", configFile: "config.hcl"},
+		{name: "aws-only", binary: "-aws-only", queueName: "sqs-queue-e2e-source-aws-only", configFile: "config_aws_only.hcl"},
+	}
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	queueName := "sqs-queue-e2e-source"
-	res, err := testutil.CreateAWSLocalstackSQSQueue(client, queueName)
-	if err != nil {
-		panic(err)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			res, err := testutil.CreateAWSLocalstackSQSQueue(client, testCase.queueName)
+			if err != nil {
+				panic(err)
+			}
+
+			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "sqs", testCase.configFile))
+			if err != nil {
+				panic(err)
+			}
+
+			testutil.PutProvidedDataIntoSQS(client, *res.QueueUrl, dataToSend)
+
+			stdOut, cmdErr := runDockerCommand(10*time.Second, "sqsSource", configFilePath, testCase.binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error(), "Docker run returned error for SQS source")
+			}
+			data := getDataFromStdoutResult(stdOut)
+			evaluateTestCaseString(t, data, inputFilePath, "SQS source "+testCase.binary)
+		})
 	}
-
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "sqs", "config.hcl"))
-	if err != nil {
-		panic(err)
-	}
-
-	for _, binary := range []string{"-aws-only", ""} {
-		testutil.PutProvidedDataIntoSQS(client, *res.QueueUrl, dataToSend)
-
-		stdOut, cmdErr := runDockerCommand(3*time.Second, "sqsSource", configFilePath, binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
-		if cmdErr != nil {
-			assert.Fail(cmdErr.Error(), "Docker run returned error for SQS source")
-		}
-		data := getDataFromStdoutResult(stdOut)
-		evaluateTestCaseString(t, data, inputFilePath, "SQS source "+binary)
-	}
-
 }
 
 func testE2EKinesisSource(t *testing.T) {
-	assert := assert.New(t)
-
-	appName := "e2eKinesisSource"
-
-	ddbClient := testutil.GetAWSLocalstackDynamoDBClient()
-
-	ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(ddbClient, appName)
-	if ddbErr != nil {
-		panic(ddbErr)
-	}
-	defer func() {
-		if err := testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, appName); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-
-	kinesisClient := testutil.GetAWSLocalstackKinesisClient()
-
-	kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, appName, 1)
-	if kinErr != nil {
-		panic(kinErr)
-	}
-	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, appName); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-
-	putErr := testutil.PutProvidedDataIntoKinesis(kinesisClient, appName, dataToSend)
-	if putErr != nil {
-		panic(putErr)
+	testCases := []struct {
+		name       string
+		binary     string
+		appName    string
+		configFile string
+	}{
+		// Kinesis source may only use the aws binary
+		{name: "aws-only", binary: "-aws-only", appName: "e2eKinesisSource", configFile: "config.hcl"},
 	}
 
-	configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kinesis", "config.hcl"))
-	if err != nil {
-		panic(err)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			ddbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+			ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(ddbClient, testCase.appName)
+			if ddbErr != nil {
+				panic(ddbErr)
+			}
+			defer func() {
+				if err := testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, testCase.appName); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+
+			kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+
+			kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, testCase.appName, 1)
+			if kinErr != nil {
+				panic(kinErr)
+			}
+			defer func() {
+				if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, testCase.appName); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+
+			putErr := testutil.PutProvidedDataIntoKinesis(kinesisClient, testCase.appName, dataToSend)
+			if putErr != nil {
+				panic(putErr)
+			}
+
+			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kinesis", testCase.configFile))
+			if err != nil {
+				panic(err)
+			}
+
+			// Since setup is slower for kinesis source, if this test is flaky we may need to add more time here
+			stdOut, cmdErr := runDockerCommand(5*time.Second, "kinesisSource", configFilePath, testCase.binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis source")
+			}
+
+			data := getDataFromStdoutResult(stdOut)
+			evaluateTestCaseString(t, data, inputFilePath, "Kinesis source "+testCase.binary)
+		})
 	}
-
-	// Kinesis source may only use the aws binary
-
-	// Since setup is slower for kinesis source, if this test is flaky we may need to add more time here
-	stdOut, cmdErr := runDockerCommand(5*time.Second, "kinesisSource", configFilePath, "-aws-only", "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
-	if cmdErr != nil {
-		assert.Fail(cmdErr.Error())
-	}
-
-	data := getDataFromStdoutResult(stdOut)
-	// Output should exactly match input.
-	evaluateTestCaseString(t, data, inputFilePath, "Kinesis source aws")
 }
 
 func testE2EKafkaSource(t *testing.T) {

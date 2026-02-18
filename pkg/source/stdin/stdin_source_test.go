@@ -12,27 +12,21 @@
 package stdinsource
 
 import (
+	"context"
+	"github.com/snowplow/snowbridge/v3/pkg/common"
 	"os"
-	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/assets"
-	config "github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceconfig"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
-func TestMain(m *testing.M) {
-	os.Clearenv()
-	exitVal := m.Run()
-	os.Exit(exitVal)
-}
-
-func TestStdinSource_ReadSuccess(t *testing.T) {
+func TestStdinSource(t *testing.T) {
 	assert := assert.New(t)
 
 	// Setup test input
@@ -54,45 +48,33 @@ func TestStdinSource_ReadSuccess(t *testing.T) {
 	defer func() { os.Stdin = oldStdin }()
 	os.Stdin = tmpfile
 
+	outputChannel := make(chan *models.Message, 1)
+
 	// Read from test input
-	source, err := newStdinSource(1)
+	source, err := NewStdinSourceDriver()
 	assert.NotNil(source)
 	assert.Nil(err)
-	assert.Equal("stdin", source.GetID())
-	defer source.Stop()
 
-	writeFunc := func(messages []*models.Message) error {
-		for _, msg := range messages {
-			assert.Equal("Hello World!", string(msg.Data))
-		}
-		return nil
-	}
+	source.SetChannels(outputChannel)
 
-	sf := sourceiface.SourceFunctions{
-		WriteToTarget: writeFunc,
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	err1 := source.Read(&sf)
-	assert.Nil(err1)
-}
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
 
-func TestGetSource_WithStdinSource(t *testing.T) {
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
 
-	assert := assert.New(t)
+	// Check that we got one message and the correct data in the message
+	assert.Equal(1, len(successfulReads))
+	assert.Equal("Hello World!", string(successfulReads[0].Data))
 
-	supportedSources := []config.ConfigurationPair{ConfigPair}
+	// Like in this case, stdin source can quit naturally, without explicit cancel
+	assert.True(common.WaitWithTimeout(&wg, 1*time.Second))
 
-	c, err := config.NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 
-	stdinSource, err := sourceconfig.GetSource(c, supportedSources)
-
-	assert.NotNil(stdinSource)
-	assert.Nil(err)
-	assert.Equal("stdin", stdinSource.GetID())
 }

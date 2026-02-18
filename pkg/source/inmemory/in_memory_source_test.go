@@ -12,49 +12,57 @@
 package inmemory
 
 import (
+	"context"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/snowplow/snowbridge/v3/pkg/common"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInMemorySource_ReadSuccess(t *testing.T) {
+func TestInMemorySource(t *testing.T) {
 	assert := assert.New(t)
 
-	wg := sync.WaitGroup{}
 	inputChannel := make(chan []string)
-	source, err := newInMemorySource(inputChannel)
+
+	source, err := Build(inputChannel)
 	assert.NotNil(source)
 	assert.Nil(err)
-	assert.Equal("inMemory", source.GetID())
-	defer source.Stop()
 
-	var out []string
+	outputChannel := make(chan *models.Message, 10)
 
-	writeFunc := func(messages []*models.Message) error {
-		for _, msg := range messages {
-			out = append(out, string(msg.Data))
-			wg.Done()
-		}
-		return nil
-	}
+	source.SetChannels(outputChannel)
 
-	sf := sourceiface.SourceFunctions{
-		WriteToTarget: writeFunc,
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
 
-	go func() {
-		err1 := source.Read(&sf)
-		assert.Nil(err1)
-	}()
-
-	wg.Add(6)
 	inputChannel <- []string{"m1", "m2"}
 	inputChannel <- []string{"m3", "m4", "m5"}
 	inputChannel <- []string{"m6"}
-	wg.Wait()
 
-	assert.Equal([]string{"m1", "m2", "m3", "m4", "m5", "m6"}, out)
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+
+	assert.Equal(6, len(successfulReads))
+
+	// Extract message data into a slice for easier comparison
+	receivedMessages := make([]string, 0)
+	for _, msg := range successfulReads {
+		receivedMessages = append(receivedMessages, string(msg.Data))
+	}
+
+	assert.Contains(receivedMessages, "m1")
+	assert.Contains(receivedMessages, "m2")
+	assert.Contains(receivedMessages, "m3")
+	assert.Contains(receivedMessages, "m4")
+	assert.Contains(receivedMessages, "m5")
+	assert.Contains(receivedMessages, "m6")
+
+	cancel()
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second))
 }

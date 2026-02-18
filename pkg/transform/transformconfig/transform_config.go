@@ -15,6 +15,8 @@ import (
 	"fmt"
 
 	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/observer"
 	"github.com/snowplow/snowbridge/v3/pkg/transform"
 	"github.com/snowplow/snowbridge/v3/pkg/transform/engine"
 	"github.com/snowplow/snowbridge/v3/pkg/transform/filter"
@@ -44,31 +46,58 @@ func GetTransformations(c *config.Config, supportedTransformations []config.Conf
 		funcs = append(funcs, transform.CollectorTstampTransformation())
 	}
 
-	for _, transformation := range c.Data.Transformations {
+	if c.Data.Transform != nil {
+		for _, transformation := range c.Data.Transform.Transformations {
 
-		useTransf := transformation.Use
-		decoderOpts := &config.DecoderOptions{
-			Input: useTransf.Body,
-		}
+			decoderOpts := &config.DecoderOptions{
+				Input: transformation.Body,
+			}
 
-		var component any
-		var err error
-		for _, pair := range supportedTransformations {
-			if pair.Name == useTransf.Name {
-				plug := pair.Handle
-				component, err = c.CreateComponent(plug, decoderOpts)
-				if err != nil {
-					return nil, err
+			var component any
+			var err error
+			for _, pair := range supportedTransformations {
+				if pair.Name == transformation.Name {
+					plug := pair.Handle
+					component, err = c.CreateComponent(plug, decoderOpts)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
-		}
 
-		f, ok := component.(transform.TransformationFunction)
-		if !ok {
-			return nil, fmt.Errorf("could not interpret transformation configuration for %q", useTransf.Name)
+			f, ok := component.(transform.TransformationFunction)
+			if !ok {
+				return nil, fmt.Errorf("could not interpret transformation configuration for %q", transformation.Name)
+			}
+			funcs = append(funcs, f)
 		}
-		funcs = append(funcs, f)
 	}
 
 	return transform.NewTransformation(funcs...), nil
+}
+
+// GetTransformer builds and returns a complete Transformer with all channels configured, along with the output channel for the router to read from.
+func GetTransformer(
+	c *config.Config,
+	supportedTransformations []config.ConfigurationPair,
+	input <-chan *models.Message,
+	obs *observer.Observer,
+) (*transform.Transformer, chan *models.TransformationResult, error) {
+	// Get the transformation function
+	transformFunc, err := GetTransformations(c, supportedTransformations)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get worker pool config, defaulting to 0 if not set
+	workerPool := 0
+	if c.Data.Transform != nil {
+		workerPool = c.Data.Transform.WorkerPool
+	}
+
+	// The transformer is the sole producer to the output channel, so ownership clearly lies here.
+	output := make(chan *models.TransformationResult)
+
+	// Create and return the transformer and its output channel
+	return transform.NewTransformer(transformFunc, input, output, obs, workerPool), output, nil
 }

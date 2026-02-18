@@ -2,6 +2,18 @@
 
 target {
   use "kinesis" {
+    batching {
+      # Maximum number of events that can go into one batched request (default: 500)
+      max_batch_messages     = 200
+      # Maximum byte limit for a single batched request (default: 5242880)
+      max_batch_bytes        = 5000000
+      # Maximum byte limit for individual message (default: 1048576)
+      max_message_bytes      = 1000000
+      # How many batches attempted concurrently (default: 5)
+      max_concurrent_batches = 2
+      # Milliseconds between flushes of messages (default: 500)
+      flush_period_millis    = 200
+    }
     # Kinesis stream name to send data to
     stream_name = "my-stream"
 
@@ -14,11 +26,6 @@ target {
 
     # Optional ARN to use on the stream (default: "")
     role_arn    = "arn:aws:iam::123456789012:role/myrole"
-
-    # Set the maximum amount of messages that can be in one request
-    # The maximum value for a PutRecords request is 500. If set to higher, 500 will be used.
-    # If a single message in a request fails, all messages will be retried. This configuration can be used to manage risk of duplicates
-    request_max_messages = 1
   }
 }
 

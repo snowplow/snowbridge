@@ -12,23 +12,76 @@
 package main
 
 import (
-	"github.com/snowplow/snowbridge/v3/cmd/cli"
-	"github.com/snowplow/snowbridge/v3/config"
-	httpsource "github.com/snowplow/snowbridge/v3/pkg/source/http"
-	kafkasource "github.com/snowplow/snowbridge/v3/pkg/source/kafka"
-	pubsubsource "github.com/snowplow/snowbridge/v3/pkg/source/pubsub"
-	sqssource "github.com/snowplow/snowbridge/v3/pkg/source/sqs"
-	stdinsource "github.com/snowplow/snowbridge/v3/pkg/source/stdin"
+	"net/http"
+	"os"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/getsentry/sentry-go"
+	"github.com/snowplow/snowbridge/v3/cmd"
+	snowbridge_cli "github.com/snowplow/snowbridge/v3/cmd/cli"
 	"github.com/snowplow/snowbridge/v3/pkg/transform/transformconfig"
+	"github.com/urfave/cli"
 )
 
 func main() {
-	// Make a slice of SourceConfigPairs supported for this build
-	sourceConfigPairs := []config.ConfigurationPair{
-		stdinsource.ConfigPair, sqssource.ConfigPair,
-		kafkasource.ConfigPair, pubsubsource.ConfigPair,
-		httpsource.ConfigPair,
+	config, sentryEnabled, err := cmd.Init()
+	if err != nil {
+		exitWithError(err, sentryEnabled)
+	}
+	app := cli.NewApp()
+	app.Name = cmd.AppName
+	app.Usage = cmd.AppUsage
+	app.Version = cmd.AppVersion
+	app.Copyright = cmd.AppCopyright
+	app.Compiled = time.Now().UTC()
+	app.Authors = []cli.Author{
+		{
+			Name:  "Joshua Beemster",
+			Email: "support@snowplow.io",
+		},
+		{
+			Name:  "Colm O Griobhtha",
+			Email: "support@snowplow.io",
+		},
 	}
 
-	cli.RunCli(sourceConfigPairs, transformconfig.SupportedTransformations)
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "profile, p",
+			Usage: "Enable application profiling endpoint on port 8080",
+		},
+	}
+
+	app.Action = func(c *cli.Context) error {
+		profile := c.Bool("profile")
+		if profile {
+			go func() {
+				if err := http.ListenAndServe("localhost:8080", nil); err != nil {
+					log.WithError(err).Fatal("failed to start up the server")
+				}
+			}()
+		}
+		return snowbridge_cli.RunApp(config, transformconfig.SupportedTransformations)
+	}
+
+	app.ExitErrHandler = func(context *cli.Context, err error) {
+		if err != nil {
+			exitWithError(err, sentryEnabled)
+		}
+	}
+
+	if err := app.Run(os.Args); err != nil {
+		log.WithError(err).Error("failed to run cli")
+	}
+}
+
+// exitWithError will ensure we log the error and leave time for Sentry to flush
+func exitWithError(err error, flushSentry bool) {
+	log.WithFields(log.Fields{"error": err}).Error(err)
+	if flushSentry {
+		sentry.Flush(2 * time.Second)
+	}
+	os.Exit(1)
 }

@@ -2,17 +2,20 @@
 
 target {
   use "http" {
+    batching {
+      # Maximum number of events that can go into one batched request (default: 50)
+      max_batch_messages     = 20
+      # Maximum byte limit for a single batched request (default: 1048576)
+      max_batch_bytes        = 10000000
+      # Maximum byte limit for individual message (default: 1048576)
+      max_message_bytes      = 10000000
+      # How many batches attempted concurrently (default: 5)
+      max_concurrent_batches = 2
+      # Milliseconds between flushes of messages (default: 500)
+      flush_period_millis    = 200
+    }
     # URL endpoint
     url                        = "https://acme.com/x"
-
-    # Maximum number of events that can go into one batched request (default: 20)
-    request_max_messages       = 100
-
-    # Byte limit for requests (default: 1048576)
-    request_byte_limit         = 1000000
-
-    # Byte limit for individual messages (default: 1048576)
-    message_byte_limit         = 1000000
 
     # Request timeout in milliseconds (default: 5000)
     # Takes precedence over `request_timeout_in_seconds` (when both defined)  
@@ -53,7 +56,8 @@ target {
     # If tls_cert and tls_key are not provided, this setting is not applied.
     skip_verify_tls            = true
 
-    # Whether to enable setting headers dynamically
+    # Whether to enable setting headers dynamically - useful for enabling GTM SS debug mode
+    # Events with dynamic headers will be sent individually, rather than batched.
     dynamic_headers            = true
 
     # Optional. One of client credentials required when authorizing using OAuth2.

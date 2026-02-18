@@ -2,6 +2,7 @@
 transform {
   use "spEnrichedToJson" {
   }
+  worker_pool = 1
 }
 
 target {

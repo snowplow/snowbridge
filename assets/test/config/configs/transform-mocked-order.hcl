@@ -1,24 +1,7 @@
 transform {
-  use "one" {
-  }
-}
-
-transform {
-  use "two" {
-  }
-}
-
-transform {
-  use "three" {
-  }
-}
-
-transform {
-  use "four" {
-  }
-}
-
-transform {
-  use "five" {
-  }
+  use "one" {}
+  use "two" {}
+  use "three" {}
+  use "four" {}
+  use "five" {}
 }

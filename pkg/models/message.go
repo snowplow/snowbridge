@@ -47,6 +47,10 @@ type Message struct {
 	// AckFunc must be called on a successful message emission to ensure
 	// any cleanup process for the source is actioned
 	AckFunc func()
+	
+	// NackFunc must be called on an unsuccessful message emission to ensure
+	// any cleanup process for the source is actioned
+	NackFunc func()
 
 	// If the message is invalid it can be decorated with an error
 	// message for logging and reporting

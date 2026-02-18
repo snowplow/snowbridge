@@ -4,6 +4,7 @@ transform {
     
     snowplow_mode       = true # Snowplow mode enabled - this transforms the tsv to an object on input
   }
+  worker_pool = 1
 }
 
 disable_telemetry = true

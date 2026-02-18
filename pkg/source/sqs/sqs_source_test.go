@@ -12,41 +12,28 @@
 package sqssource
 
 import (
-	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
-	"reflect"
+	"context"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/assets"
-	config "github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v3/pkg/common"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceconfig"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
-func TestMain(m *testing.M) {
-	os.Clearenv()
-	exitVal := m.Run()
-	os.Exit(exitVal)
-}
-
-// func newSQSSourceWithInterfaces(client sqs.SqsAPI, awsAccountID string, concurrentWrites int, region string, queueName string) (*sqsSource, error) {
-func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
+func TestBuildFromConfig_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
-	// Since this requires a localstack client (until we implement a mock and make unit tests),
-	// We'll only run it with the integration tests for the time being.
+
 	assert := assert.New(t)
+
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
 
 	client := testutil.GetAWSLocalstackSQSClient()
 
@@ -54,209 +41,207 @@ func TestNewSQSSourceWithInterfaces_Success(t *testing.T) {
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
-			logrus.Error(err.Error())
+			log.Error(err.Error())
 		}
 	}()
 
-	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
+	cfg := DefaultConfiguration()
+	cfg.QueueName = queueName
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
 
-	assert.IsType(&sqsSource{}, source)
+	source, err := BuildFromConfig(&cfg)
+
 	assert.Nil(err)
+	assert.NotNil(source)
 }
 
-func TestSQSSource_SetupFailure(t *testing.T) {
+func TestBuildFromConfig_SetupFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	assert := assert.New(t)
-	client := testutil.GetAWSLocalstackSQSClient()
 
-	_, err := newSQSSourceWithInterfaces(client, "00000000000", 1, testutil.AWSLocalstackRegion, "not-exists")
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
+
+	cfg := DefaultConfiguration()
+	cfg.QueueName = "not-exists"
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
+
+	_, err := BuildFromConfig(&cfg)
 	assert.NotNil(err)
-	if err != nil {
-		assert.Contains(err.Error(), "Failed to get SQS queue URL:")
-	}
+	assert.ErrorContains(err, "Failed to get SQS queue URL:")
 }
 
-func TestSQSSource_ReadSuccess(t *testing.T) {
+func TestSQSSource_StartSuccess(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	assert := assert.New(t)
 
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
+
 	client := testutil.GetAWSLocalstackSQSClient()
 
-	queueName := "sqs-queue-source"
+	queueName := "sqs-queue-source-read"
 	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 50, "Hello SQS!!")
 	defer func() {
 		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
-			logrus.Error(err.Error())
+			log.Error(err.Error())
 		}
 	}()
 
-	source, err := newSQSSourceWithInterfaces(client, "00000000000", 10, testutil.AWSLocalstackRegion, queueName)
+	// Create the source using BuildFromConfig
+	cfg := DefaultConfiguration()
+	cfg.QueueName = queueName
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
+
+	source, err := BuildFromConfig(&cfg)
 	assert.Nil(err)
 	assert.NotNil(source)
 
-	messageCount := 0
-	writeFunc := func(messages []*models.Message) error {
-		for _, msg := range messages {
-			assert.Equal("Hello SQS!!", string(msg.Data))
-			assert.Greater(msg.TimePulled, msg.TimeCreated)
-			messageCount++
+	outputChannel := make(chan *models.Message, 50)
 
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+
+	assert.Equal(50, len(successfulReads))
+
+	for _, msg := range successfulReads {
+		assert.Equal("Hello SQS!!", string(msg.Data))
+		assert.Greater(msg.TimePulled, msg.TimeCreated)
+	}
+
+	cancel()
+
+	// Ack all messages
+	for _, msg := range successfulReads {
+		if msg.AckFunc != nil {
 			msg.AckFunc()
 		}
-		return nil
-	}
-	sf := sourceiface.SourceFunctions{
-		WriteToTarget: writeFunc,
 	}
 
-	done := make(chan bool)
-	go func() {
-		err = source.Read(&sf)
-		assert.Nil(err)
-
-		done <- true
-	}()
-
-	// Wait for the reader to process a batch
-	time.Sleep(1 * time.Second)
-	source.Stop()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("TestSQSSource_ReadSuccess timed out!")
-	}
-
-	assert.Equal(50, messageCount)
+	assert.True(common.WaitWithTimeout(&wg, 5*time.Second), "Source is not finished even though it has been stopped and all messages have been acked")
 }
 
-func TestGetSource_WithSQSSource(t *testing.T) {
+// TestSQSSource_SourceRestart verifies that:
+// 1. When a source is restarted after processing and acking/nacking messages, it handles the restart correctly
+// 2. The source processes new messages published after the first run
+// 3. Messages that were nacked in the first run are redelivered and can be processed again
+func TestSQSSource_SourceRestart(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
 
 	assert := assert.New(t)
 
-	// Set up localstack resources
-	sqsClient := testutil.GetAWSLocalstackSQSClient()
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
 
-	queueName := "sqs-source-config-integration-1"
-	_, createErr := testutil.CreateAWSLocalstackSQSQueue(sqsClient, queueName)
-	if createErr != nil {
-		t.Fatal(createErr)
-	}
+	client := testutil.GetAWSLocalstackSQSClient()
 
+	queueName := "sqs-queue-source-restart"
+	queueURL := testutil.SetupAWSLocalstackSQSQueueWithMessages(client, queueName, 10, "msg-first-batch")
 	defer func() {
-		if _, err := testutil.DeleteAWSLocalstackSQSQueue(sqsClient, &queueName); err != nil {
-			logrus.Error(err.Error())
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(client, queueURL); err != nil {
+			log.Error(err.Error())
 		}
 	}()
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+	// Create the source using BuildFromConfig
+	cfg := DefaultConfiguration()
+	cfg.QueueName = queueName
+	cfg.Region = testutil.AWSLocalstackRegion
+	cfg.CustomAWSEndpoint = testutil.AWSLocalstackEndpoint
 
-	// Construct the config
-	c, err := config.NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-
-	configBytesToMerge := []byte(fmt.Sprintf(`
-    queue_name = "%s"
-    region     = "us-test-1"
-`, queueName))
-
-	parser := hclparse.NewParser()
-	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
-	if diags.HasErrors() {
-		t.Fatalf("failed to parse config bytes")
-	}
-
-	c.Data.Source.Use.Name = "sqs"
-	c.Data.Source.Use.Body = fileHCL.Body
-
-	sqsSourceConfigFunctionWithLocalStack := configFunctionGeneratorWithInterfaces(sqsClient, "00000000000")
-	adaptedHandle := adapterGenerator(sqsSourceConfigFunctionWithLocalStack)
-
-	sqsSourceConfigPairWithInterfaces := config.ConfigurationPair{Name: "sqs", Handle: adaptedHandle}
-	supportedSources := []config.ConfigurationPair{sqsSourceConfigPairWithInterfaces}
-
-	source, err := sourceconfig.GetSource(c, supportedSources)
-	assert.NotNil(source)
+	source, err := BuildFromConfig(&cfg)
 	assert.Nil(err)
+	assert.NotNil(source)
 
-	assert.IsType(&sqsSource{}, source)
-}
+	outputChannel := make(chan *models.Message, 100)
 
-func TestSQSSourceHCL(t *testing.T) {
-	testFixPath := filepath.Join(assets.AssetsRootDir, "test", "source", "configs")
-	testCases := []struct {
-		File     string
-		Plug     config.Pluggable
-		Expected any
-	}{
-		{
-			File: "source-sqs.hcl",
-			Plug: testSQSSourceAdapter(testSQSSourceFunc),
-			Expected: &Configuration{
-				QueueName:        "testQueue",
-				Region:           "us-test-1",
-				RoleARN:          "xxx-test-role-arn",
-				ConcurrentWrites: 50,
-			},
-		},
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+	assert.Equal(10, len(successfulReads))
+
+	cancel()
+
+	// Source has been cancelled and finished processing, it won't produce more messages
+	assert.True(common.WaitWithTimeout(&wg, 1*time.Second))
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
+
+	// Even though source has been stopped, we can still ack/nack what we've pulled so far.
+	// For SQS we don't need its Start(ctx) function to keep running.
+	// Ack 5 messages from the first batch...
+	for _, msg := range successfulReads[0:5] {
+		msg.AckFunc()
 	}
 
-	for _, tt := range testCases {
-		t.Run(tt.File, func(t *testing.T) {
-			assert := assert.New(t)
-
-			filename := filepath.Join(testFixPath, tt.File)
-			t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-			c, err := config.NewConfig()
-			assert.NotNil(c)
-			if err != nil {
-				t.Fatalf("function NewConfig failed with error: %q", err.Error())
-			}
-
-			use := c.Data.Source.Use
-			decoderOpts := &config.DecoderOptions{
-				Input: use.Body,
-			}
-
-			result, err := c.CreateComponent(tt.Plug, decoderOpts)
-			assert.NotNil(result)
-			assert.Nil(err)
-
-			if !reflect.DeepEqual(result, tt.Expected) {
-				t.Errorf("GOT:\n%s\nEXPECTED:\n%s",
-					spew.Sdump(result),
-					spew.Sdump(tt.Expected))
-			}
-		})
+	// And nack the other 5 messages...
+	for _, msg := range successfulReads[5:10] {
+		msg.NackFunc()
 	}
-}
 
-// Helpers
-func testSQSSourceAdapter(f func(c *Configuration) (*Configuration, error)) adapter {
-	return func(i any) (any, error) {
-		cfg, ok := i.(*Configuration)
-		if !ok {
-			return nil, errors.New("invalid input, expected SQSSourceConfig")
+	// Second batch! Publish new messages
+	secondBatchMessages := make([]string, 10)
+	for i := range 10 {
+		secondBatchMessages[i] = "msg-second-batch"
+	}
+	testutil.PutProvidedDataIntoSQS(client, *queueURL, secondBatchMessages)
+
+	// Build another source (simulating app restart) and confirm it consumes both nacked messages and new messages
+	secondSource, err := BuildFromConfig(&cfg)
+	assert.Nil(err)
+	assert.NotNil(secondSource)
+
+	outputChannel = make(chan *models.Message, 15)
+
+	secondSource.SetChannels(outputChannel)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	wg.Go(func() {
+		secondSource.Start(ctx)
+	})
+
+	// Eventually we should have 5 nacked from the first batch + 10 from the second batch, so 15 total
+	successfulReads = make([]*models.Message, 0)
+	for i := 0; i < 5; i++ {
+		successfulReads = append(successfulReads, testutil.ReadSourceOutput(outputChannel)...)
+		for _, msg := range successfulReads {
+			msg.AckFunc()
 		}
-
-		return f(cfg)
+		if len(successfulReads) > 14 {
+			break
+		}
 	}
-}
+	assert.Equal(15, len(successfulReads))
 
-func testSQSSourceFunc(c *Configuration) (*Configuration, error) {
-	return c, nil
+	cancel()
+
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked")
+
+	_, ok = <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 }

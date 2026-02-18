@@ -59,7 +59,7 @@ var (
 			"tags": map[string]any{
 				"pipeline": "release_tests",
 			},
-			"message": "1 error occurred:\n\t* got setup error, response status: '401 Unauthorized'\n\n",
+			"message": "got setup error, response status: '401 Unauthorized'",
 		},
 	}
 )

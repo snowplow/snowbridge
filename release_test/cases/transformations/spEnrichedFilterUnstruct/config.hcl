@@ -9,6 +9,7 @@ transform {
     
     filter_action = "keep"
   }
+  worker_pool = 1
 }
 
 disable_telemetry = true

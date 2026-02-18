@@ -22,7 +22,7 @@ import (
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
-func TestEventForwardingFailure_WriteOversized(t *testing.T) {
+func TestEventForwardingFailure_MakeOversizedPayloads(t *testing.T) {
 	assert := assert.New(t)
 
 	expectedJSON := map[string]any{
@@ -45,36 +45,24 @@ func TestEventForwardingFailure_WriteOversized(t *testing.T) {
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
-		assert.Equal(5, len(messages))
-		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
-			assert.Nil(err)
-			assert.Zero(diff)
-		}
-
-		return nil, nil
-	}
-	tft := TestFailureTarget{
-		onWrite: onWrite,
-	}
-
-	sf, err := NewEventForwardingFailure(&tft, "test", "0.1.0")
+	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0")
 	assert.Nil(err)
 	assert.NotNil(sf)
-	assert.Equal("empty", sf.GetID())
-
-	defer sf.Close()
-	sf.Open()
 
 	messages := testutil.GetTestMessages(5, "Hello EventForwarding!!", nil)
 
-	r, err := sf.WriteOversized(5000, messages)
-	assert.Nil(r)
+	result, err := sf.MakeOversizedPayloads(5000, messages)
 	assert.Nil(err)
+	assert.Equal(5, len(result))
+
+	for _, msg := range result {
+		diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
+		assert.Nil(err)
+		assert.Zero(diff)
+	}
 }
 
-func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
+func TestEventForwardingFailure_MakeInvalidPayloadsTransformationError(t *testing.T) {
 	assert := assert.New(t)
 
 	expectedJSON := map[string]any{
@@ -98,26 +86,9 @@ func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
-		assert.Equal(5, len(messages))
-		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
-			assert.Nil(err)
-			assert.Zero(diff)
-		}
-
-		return nil, nil
-	}
-	tft := TestFailureTarget{
-		onWrite: onWrite,
-	}
-
-	sf, err := NewEventForwardingFailure(&tft, "test", "0.1.0")
+	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0")
 	assert.Nil(err)
 	assert.NotNil(sf)
-
-	defer sf.Close()
-	sf.Open()
 
 	messages := testutil.GetTestMessages(5, "Hello EventForwarding!!", nil)
 	for _, msg := range messages {
@@ -128,12 +99,18 @@ func TestEventForwardingFailure_WriteInvalidTransformationError(t *testing.T) {
 		})
 	}
 
-	r, err := sf.WriteInvalid(messages)
-	assert.Nil(r)
+	result, err := sf.MakeInvalidPayloads(messages)
 	assert.Nil(err)
+	assert.Equal(5, len(result))
+
+	for _, msg := range result {
+		diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
+		assert.Nil(err)
+		assert.Zero(diff)
+	}
 }
 
-func TestEventForwardingFailure_WriteInvalidTemplatingError(t *testing.T) {
+func TestEventForwardingFailure_MakeInvalidPayloadsTemplatingError(t *testing.T) {
 	assert := assert.New(t)
 
 	expectedJSON := map[string]any{
@@ -157,26 +134,9 @@ func TestEventForwardingFailure_WriteInvalidTemplatingError(t *testing.T) {
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
-		assert.Equal(5, len(messages))
-		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
-			assert.Nil(err)
-			assert.Zero(diff)
-		}
-
-		return nil, nil
-	}
-	tft := TestFailureTarget{
-		onWrite: onWrite,
-	}
-
-	sf, err := NewEventForwardingFailure(&tft, "test", "0.1.0")
+	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0")
 	assert.Nil(err)
 	assert.NotNil(sf)
-
-	defer sf.Close()
-	sf.Open()
 
 	messages := testutil.GetTestMessages(5, "Hello EventForwarding!!", nil)
 	for _, msg := range messages {
@@ -187,12 +147,18 @@ func TestEventForwardingFailure_WriteInvalidTemplatingError(t *testing.T) {
 		})
 	}
 
-	r, err := sf.WriteInvalid(messages)
-	assert.Nil(r)
+	result, err := sf.MakeInvalidPayloads(messages)
 	assert.Nil(err)
+	assert.Equal(5, len(result))
+
+	for _, msg := range result {
+		diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
+		assert.Nil(err)
+		assert.Zero(diff)
+	}
 }
 
-func TestEventForwardingFailure_WriteInvalidApiError(t *testing.T) {
+func TestEventForwardingFailure_MakeInvalidPayloadsApiError(t *testing.T) {
 	assert := assert.New(t)
 
 	expectedJSON := map[string]any{
@@ -216,26 +182,9 @@ func TestEventForwardingFailure_WriteInvalidApiError(t *testing.T) {
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	onWrite := func(messages []*models.Message) (*models.TargetWriteResult, error) {
-		assert.Equal(5, len(messages))
-		for _, msg := range messages {
-			diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
-			assert.Nil(err)
-			assert.Zero(diff)
-		}
-
-		return nil, nil
-	}
-	tft := TestFailureTarget{
-		onWrite: onWrite,
-	}
-
-	sf, err := NewEventForwardingFailure(&tft, "test", "0.1.0")
+	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0")
 	assert.Nil(err)
 	assert.NotNil(sf)
-
-	defer sf.Close()
-	sf.Open()
 
 	messages := testutil.GetTestMessages(5, "Hello EventForwarding!!", nil)
 	for _, msg := range messages {
@@ -246,7 +195,13 @@ func TestEventForwardingFailure_WriteInvalidApiError(t *testing.T) {
 		})
 	}
 
-	r, err := sf.WriteInvalid(messages)
-	assert.Nil(r)
+	result, err := sf.MakeInvalidPayloads(messages)
 	assert.Nil(err)
+	assert.Equal(5, len(result))
+
+	for _, msg := range result {
+		diff, err := testutil.GetJsonDiff(string(expectedJSONString), string(msg.Data))
+		assert.Nil(err)
+		assert.Zero(diff)
+	}
 }

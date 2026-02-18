@@ -14,8 +14,5 @@ source {
     # Optional custom endpoint url to override aws endpoints,
     # this is for use with local testing tools like localstack - don't set for production use.
     custom_aws_endpoint = "http://integration-localstack-1:4566"
-
-    # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
-    concurrent_writes = 20
   }
 }

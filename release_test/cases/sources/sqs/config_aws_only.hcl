@@ -1,0 +1,13 @@
+source {
+  use "sqs" {
+    queue_name = "sqs-queue-e2e-source-aws-only"
+    region     = "us-east-1"
+    custom_aws_endpoint = "http://integration-localstack-1:4566"
+  }
+}
+
+transform {
+  worker_pool = 1
+}
+
+disable_telemetry = true

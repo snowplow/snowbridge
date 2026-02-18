@@ -17,4 +17,8 @@ const (
 
 	// AppName is the name of the application to use in logging / places that require the artifact
 	AppName = "snowbridge"
+
+	AppUsage = "Replicates data streams to supported targets"
+
+	AppCopyright = "(c) 2020-present Snowplow Analytics Ltd. All rights reserved."
 )

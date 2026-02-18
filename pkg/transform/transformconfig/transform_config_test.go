@@ -93,35 +93,37 @@ func TestEnginesAndTransformations(t *testing.T) {
 			Description: "simple transform success",
 			File:        "transform-js-simple.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowTsv1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         snowplowTsv1,
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 		},
 		{
 			Description: "invalid return failure",
 			File:        "transform-js-invalid-return.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
-				After: []*models.Message{messageJSCompileErr},
+				},
+				After:        []*models.Message{messageJSCompileErr},
+				ExpectedType: "invalid",
 			},
 		},
 		{
 			Description: "simple transform with js compile error",
 			File:        "transform-js-error.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{}},
 			},
 			CompileErr: `error building JS engine:`,
@@ -130,14 +132,15 @@ func TestEnginesAndTransformations(t *testing.T) {
 			Description: `mixed success`,
 			File:        "transform-mixed.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         snowplowJSON1Mixed,
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 		},
 		{
@@ -145,24 +148,25 @@ func TestEnginesAndTransformations(t *testing.T) {
 			File:        "transform-mixed-order.hcl",
 			// initial app_id should be changed to 1, then if the app_id is 1, it should be changed to 2, then 3
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         snowplowJSON1Order,
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 		},
 		{
 			Description: `mixed with error`,
 			File:        "transform-mixed-error.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{}},
 			},
 			CompileErr: `error building JS engine:`,
@@ -171,29 +175,31 @@ func TestEnginesAndTransformations(t *testing.T) {
 			Description: `mixed with filter success`,
 			File:        "transform-mixed-filtered.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowTsv1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         snowplowTsv1,
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "filtered",
 			},
 		},
 		{
 			Description: `e2e latency metric enabled -> collector tstamp attached`,
 			File:        "transform-collector-tstamp.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowTsv1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:            snowplowTsv1,
 					PartitionKey:    "some-key",
 					CollectorTstamp: time.Date(2019, 5, 10, 14, 40, 35, 972000000, time.UTC),
 				}},
+				ExpectedType: "success",
 			},
 		},
 	}
@@ -255,28 +261,34 @@ func TestEnginesAndTransformations(t *testing.T) {
 			result := tr(tt.ExpectedMessages.Before)
 
 			assert.NotNil(result)
-			assert.Equal(int(result.ResultCount+result.FilteredCount+result.InvalidCount), len(tt.ExpectedMessages.After))
 
-			// check result for successfully transformed messages
-			for idx, resultMessage := range result.Result {
-				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
-			}
-
-			// check errors for invalid messages
-			for idx, resultMessage := range result.Invalid {
-				assert.Equal(tt.ExpectedMessages.After[idx].GetError(), resultMessage.GetError())
-			}
-
-			// check if collector timestamp has been attached
-			for idx, resultMessage := range result.Result {
-				assert.Equal(tt.ExpectedMessages.After[idx].CollectorTstamp, resultMessage.CollectorTstamp)
-			}
-
-			// check result for transformed messages in case of filtered results
-			if result.FilteredCount != 0 {
+			// Use the ExpectedType field to determine what assertions to run
+			switch tt.ExpectedMessages.ExpectedType {
+			case "success":
+				// Successfully transformed messages
+				assert.NotNil(result.Transformed)
+				assert.Nil(result.Invalid)
+				assert.Nil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Transformed.Data)
+					assert.Equal(tt.ExpectedMessages.After[0].CollectorTstamp, result.Transformed.CollectorTstamp)
+				}
+			case "invalid":
+				// Invalid messages
+				assert.Nil(result.Transformed)
+				assert.NotNil(result.Invalid)
+				assert.Nil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].GetError(), result.Invalid.GetError())
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Invalid.Data)
+				}
+			case "filtered":
+				// Filtered messages
+				assert.Nil(result.Transformed)
+				assert.Nil(result.Invalid)
 				assert.NotNil(result.Filtered)
-				for idx, resultMessage := range result.Filtered {
-					assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Filtered.Data)
 				}
 			}
 		})
@@ -298,28 +310,30 @@ func TestJQHashTransformation(t *testing.T) {
 			Description: "simple JQ transform with hash & without salt - success",
 			File:        "transform-jq-hash-function.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowTsv1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         []byte(`{"agentName":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"}`),
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 		},
 		{
 			Description: "simple JQ transform with hash & with salt - success",
 			File:        "transform-jq-hash-salt-function.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowTsv1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         []byte(`{"agentName":"5841e55de6c4486fa092f044a5189570dec421cb06652829"}`),
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 		},
 	}
@@ -346,11 +360,30 @@ func TestJQHashTransformation(t *testing.T) {
 			result := tr(tt.ExpectedMessages.Before)
 			assert.NotNil(result)
 
-			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
-
-			// check result for successfully transformed messages
-			for idx, resultMessage := range result.Result {
-				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
+			// Use the ExpectedType field to determine what assertions to run
+			switch tt.ExpectedMessages.ExpectedType {
+			case "success":
+				assert.NotNil(result.Transformed)
+				assert.Nil(result.Invalid)
+				assert.Nil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Transformed.Data)
+				}
+			case "invalid":
+				assert.Nil(result.Transformed)
+				assert.NotNil(result.Invalid)
+				assert.Nil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].GetError(), result.Invalid.GetError())
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Invalid.Data)
+				}
+			case "filtered":
+				assert.Nil(result.Transformed)
+				assert.Nil(result.Invalid)
+				assert.NotNil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Filtered.Data)
+				}
 			}
 		})
 	}
@@ -370,28 +403,30 @@ func TestJSScriptHashTransformation(t *testing.T) {
 			Description: "simple JS transform with hash & without salt - success",
 			File:        "transform-js-hash-function.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         snowplowJSON1Sha1NoSaltHashed,
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 		},
 		{
 			Description: "simple JS transform with hash & with salt - success",
 			File:        "transform-js-hash-function.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         snowplowJSON1Sha1SaltHashed,
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
 		},
@@ -420,11 +455,30 @@ func TestJSScriptHashTransformation(t *testing.T) {
 			result := tr(tt.ExpectedMessages.Before)
 			assert.NotNil(result)
 
-			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
-
-			// check result for successfully transformed messages
-			for idx, resultMessage := range result.Result {
-				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
+			// Use the ExpectedType field to determine what assertions to run
+			switch tt.ExpectedMessages.ExpectedType {
+			case "success":
+				assert.NotNil(result.Transformed)
+				assert.Nil(result.Invalid)
+				assert.Nil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Transformed.Data)
+				}
+			case "invalid":
+				assert.Nil(result.Transformed)
+				assert.NotNil(result.Invalid)
+				assert.Nil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].GetError(), result.Invalid.GetError())
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Invalid.Data)
+				}
+			case "filtered":
+				assert.Nil(result.Transformed)
+				assert.Nil(result.Invalid)
+				assert.NotNil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Filtered.Data)
+				}
 			}
 		})
 	}
@@ -449,14 +503,15 @@ func TestJSScriptPathHashTransformation(t *testing.T) {
 			Description: "simple JS transform with hash & without salt - success",
 			File:        "transform-js-path-hash-function.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         snowplowJSON1Sha1NoSaltHashed,
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 			HashSalt: "",
 		},
@@ -464,14 +519,15 @@ func TestJSScriptPathHashTransformation(t *testing.T) {
 			Description: "simple JS transform with hash & with salt - success",
 			File:        "transform-js-path-hash-salt-function.hcl",
 			ExpectedMessages: expectedMessages{
-				Before: []*models.Message{{
+				Before: &models.Message{
 					Data:         snowplowJSON1,
 					PartitionKey: "some-key",
-				}},
+				},
 				After: []*models.Message{{
 					Data:         snowplowJSON1Sha1SaltHashed,
 					PartitionKey: "some-key",
 				}},
+				ExpectedType: "success",
 			},
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
 		},
@@ -500,19 +556,39 @@ func TestJSScriptPathHashTransformation(t *testing.T) {
 			result := tr(tt.ExpectedMessages.Before)
 			assert.NotNil(result)
 
-			assert.Equal(len(tt.ExpectedMessages.After), int(result.ResultCount))
-
-			// check result for successfully transformed messages
-			for idx, resultMessage := range result.Result {
-				assert.Equal(tt.ExpectedMessages.After[idx].Data, resultMessage.Data)
+			// Use the ExpectedType field to determine what assertions to run
+			switch tt.ExpectedMessages.ExpectedType {
+			case "success":
+				assert.NotNil(result.Transformed)
+				assert.Nil(result.Invalid)
+				assert.Nil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Transformed.Data)
+				}
+			case "invalid":
+				assert.Nil(result.Transformed)
+				assert.NotNil(result.Invalid)
+				assert.Nil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].GetError(), result.Invalid.GetError())
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Invalid.Data)
+				}
+			case "filtered":
+				assert.Nil(result.Transformed)
+				assert.Nil(result.Invalid)
+				assert.NotNil(result.Filtered)
+				if len(tt.ExpectedMessages.After) > 0 {
+					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Filtered.Data)
+				}
 			}
 		})
 	}
 }
 
 type expectedMessages struct {
-	Before []*models.Message
-	After  []*models.Message
+	Before       *models.Message
+	After        []*models.Message
+	ExpectedType string // "success", "filtered", or "invalid"
 }
 
 var (

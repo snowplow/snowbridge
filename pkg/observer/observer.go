@@ -28,9 +28,8 @@ type Observer struct {
 	errorsMetadataClient     monitoring.MetadataReporterer
 	exitSignal               chan struct{}
 	stopDone                 chan struct{}
-	filteredChan             chan *models.FilterResult
+	filteredChan             chan *models.TargetWriteResult
 	targetWriteChan          chan *models.TargetWriteResult
-	targetWriteOversizedChan chan *models.TargetWriteResult
 	targetWriteInvalidChan   chan *models.TargetWriteResult
 	transformedChan          chan *models.TransformationResult
 	timeout                  time.Duration
@@ -52,9 +51,8 @@ func New(statsClient statsreceiveriface.StatsReceiver, timeout, reportInterval t
 		errorsMetadataClient:     metadataClient,
 		exitSignal:               make(chan struct{}),
 		stopDone:                 make(chan struct{}),
-		filteredChan:             make(chan *models.FilterResult, 1000),
+		filteredChan:             make(chan *models.TargetWriteResult, 1000),
 		targetWriteChan:          make(chan *models.TargetWriteResult, 1000),
-		targetWriteOversizedChan: make(chan *models.TargetWriteResult, 1000),
 		targetWriteInvalidChan:   make(chan *models.TargetWriteResult, 1000),
 		transformedChan:          make(chan *models.TransformationResult, 1000),
 		kinsumerRecordsChan:      make(chan int64, 1000),
@@ -96,8 +94,6 @@ func (o *Observer) Start() {
 				buffer.AppendFiltered(res)
 			case res := <-o.targetWriteChan:
 				buffer.AppendWrite(res)
-			case res := <-o.targetWriteOversizedChan:
-				buffer.AppendWriteOversized(res)
 			case res := <-o.targetWriteInvalidChan:
 				buffer.AppendWriteInvalid(res)
 			case res := <-o.transformedChan:
@@ -150,12 +146,6 @@ func (o *Observer) Stop() {
 
 // --- Functions called to push information to observer
 
-// Filtered pushes a filter result onto a channel for processing
-// by the observer
-func (o *Observer) Filtered(r *models.FilterResult) {
-	o.filteredChan <- r
-}
-
 func (o *Observer) Transformed(r *models.TransformationResult) {
 	o.transformedChan <- r
 }
@@ -166,16 +156,14 @@ func (o *Observer) TargetWrite(r *models.TargetWriteResult) {
 	o.targetWriteChan <- r
 }
 
-// TargetWriteOversized pushes an oversized targets write result onto a channel for processing
-// by the observer
-func (o *Observer) TargetWriteOversized(r *models.TargetWriteResult) {
-	o.targetWriteOversizedChan <- r
-}
-
 // TargetWriteInvalid pushes an invalid targets write result onto a channel for processing
 // by the observer
 func (o *Observer) TargetWriteInvalid(r *models.TargetWriteResult) {
 	o.targetWriteInvalidChan <- r
+}
+
+func (o *Observer) TargetWriteFiltered(r *models.TargetWriteResult) {
+	o.filteredChan <- r
 }
 
 // UpdateKinsumerRecordsInMemory updates the current count of records in memory

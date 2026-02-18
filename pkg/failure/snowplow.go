@@ -16,39 +16,35 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
 	"github.com/snowplow/snowbridge/v3/third_party/snowplow/badrows"
 )
 
 const SnowplowFailureTarget = "snowplow"
 
-// SnowplowFailure holds a new client for transforming failed messages and emitting
-// them to a target
+// SnowplowFailure holds a client for transforming failed messages into failure payloads
 type SnowplowFailure struct {
-	processorArtifact string
-	processorVersion  string
-	target            targetiface.Target
-	log               *log.Entry
+	processorArtifact           string
+	processorVersion            string
+	failureTargetMaxMessageSize int
+	log                         *log.Entry
 }
 
 // NewSnowplowFailure will create a new client for handling failed events
-// by converting them into Snowplow compatible bad events and pushing them to
-// a stream
-func NewSnowplowFailure(target targetiface.Target, processorArtifact string, processorVersion string) (*SnowplowFailure, error) {
+// by converting them into Snowplow compatible bad events
+func NewSnowplowFailure(failureTargetMaxMessageSize int, processorArtifact string, processorVersion string) (*SnowplowFailure, error) {
 	return &SnowplowFailure{
-		processorArtifact: processorArtifact,
-		processorVersion:  processorVersion,
-		target:            target,
-		log:               log.WithFields(log.Fields{"failed": SnowplowFailureTarget}),
+		processorArtifact:           processorArtifact,
+		processorVersion:            processorVersion,
+		failureTargetMaxMessageSize: failureTargetMaxMessageSize,
+		log:                         log.WithFields(log.Fields{"failed": SnowplowFailureTarget}),
 	}, nil
 }
 
-// WriteInvalid will handle the conversion of invalid messages into failure
-// messages that will then pushed to the specified target
-func (d *SnowplowFailure) WriteInvalid(invalid []*models.Message) (*models.TargetWriteResult, error) {
+// MakeInvalidPayloads transforms invalid messages into Snowplow generic_error bad-row format
+func (d *SnowplowFailure) MakeInvalidPayloads(messages []*models.Message) ([]*models.Message, error) {
 	var transformed []*models.Message
 
-	for _, msg := range invalid {
+	for _, msg := range messages {
 		var failureErrors []string
 
 		err := msg.GetError()
@@ -64,7 +60,7 @@ func (d *SnowplowFailure) WriteInvalid(invalid []*models.Message) (*models.Targe
 				FailureTimestamp:  msg.TimePulled,
 				FailureErrors:     failureErrors,
 			},
-			d.target.MaximumAllowedMessageSizeBytes(),
+			d.failureTargetMaxMessageSize,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to transform invalid message to snowplow.generic_error bad-row JSON")
@@ -77,19 +73,17 @@ func (d *SnowplowFailure) WriteInvalid(invalid []*models.Message) (*models.Targe
 
 		tMsg := msg
 		tMsg.Data = []byte(svCompact)
-
 		transformed = append(transformed, tMsg)
 	}
 
-	return d.target.Write(transformed)
+	return transformed, nil
 }
 
-// WriteOversized will handle the conversion of oversized messages into failure
-// messages that will then pushed to the specified target
-func (d *SnowplowFailure) WriteOversized(maximumAllowedSizeBytes int, oversized []*models.Message) (*models.TargetWriteResult, error) {
+// MakeOversizedPayloads transforms oversized messages into Snowplow size_violation bad-row format
+func (d *SnowplowFailure) MakeOversizedPayloads(maximumAllowedSizeBytes int, messages []*models.Message) ([]*models.Message, error) {
 	var transformed []*models.Message
 
-	for _, msg := range oversized {
+	for _, msg := range messages {
 		sv, err := badrows.NewSizeViolation(
 			&badrows.SizeViolationInput{
 				ProcessorArtifact:              d.processorArtifact,
@@ -99,7 +93,7 @@ func (d *SnowplowFailure) WriteOversized(maximumAllowedSizeBytes int, oversized 
 				FailureMaximumAllowedSizeBytes: maximumAllowedSizeBytes,
 				FailureExpectation:             "Expected payload to fit into requested target",
 			},
-			d.target.MaximumAllowedMessageSizeBytes(),
+			d.failureTargetMaxMessageSize,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to transform oversized message to snowplow.size_violation bad-row JSON")
@@ -112,24 +106,8 @@ func (d *SnowplowFailure) WriteOversized(maximumAllowedSizeBytes int, oversized 
 
 		tMsg := msg
 		tMsg.Data = []byte(svCompact)
-
 		transformed = append(transformed, tMsg)
 	}
 
-	return d.target.Write(transformed)
-}
-
-// Open manages opening the underlying target
-func (d *SnowplowFailure) Open() {
-	d.target.Open()
-}
-
-// Close manages closing the underlying target
-func (d *SnowplowFailure) Close() {
-	d.target.Close()
-}
-
-// GetID returns the identifier for this target
-func (d *SnowplowFailure) GetID() string {
-	return d.target.GetID()
+	return transformed, nil
 }

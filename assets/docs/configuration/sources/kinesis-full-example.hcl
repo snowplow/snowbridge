@@ -34,9 +34,6 @@ source {
     # Optional configures how often the kinesis client checks the stream for shard count changes, which triggers consumer ownership changes
     leader_action_freq_seconds = 305
 
-    # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
-    concurrent_writes = 15
-
     # The name of the Kinesis client that is used to allocate shards. It must be unique per instance of Snowbridge.
     client_name = env.HOSTNAME
 

@@ -12,147 +12,180 @@
 package sourceconfig
 
 import (
-	"os"
-	"path/filepath"
+	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/sirupsen/logrus"
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 
-	"github.com/snowplow/snowbridge/v3/assets"
 	config "github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
+	"github.com/stretchr/testify/assert"
 )
-
-func TestMain(m *testing.M) {
-	os.Clearenv()
-	exitVal := m.Run()
-	os.Exit(exitVal)
-}
-
-// Mock a Source and configuration
-type mockSource struct {
-	sourceiface.NoOpObserver
-}
-
-func (m mockSource) Read(sf *sourceiface.SourceFunctions) error {
-	return nil
-}
-
-func (m mockSource) Stop() {}
-
-func (m mockSource) GetID() string {
-	return ""
-}
-
-type configuration struct{}
-
-func configfunction(c *configuration) (sourceiface.Source, error) {
-	return mockSource{}, nil
-}
-
-type adapter func(i any) (any, error)
-
-func adapterGenerator(_ func(c *configuration) (sourceiface.Source, error)) adapter {
-	return func(i any) (any, error) {
-		return mockSource{}, nil
-	}
-}
-
-func (f adapter) Create(i any) (any, error) {
-	return f(i)
-}
-
-func (f adapter) ProvideDefault() (any, error) {
-	// Provide defaults
-	cfg := &configuration{}
-
-	return cfg, nil
-}
-
-var mockConfigPair = config.ConfigurationPair{
-	Name:   "mock",
-	Handle: adapterGenerator(configfunction),
-}
-
-// TestGetSource_ValidSource tests the happy path for GetSource
-func TestGetSource_ValidSource(t *testing.T) {
-	assert := assert.New(t)
-
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-	c, err := config.NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-	c.Data.Source.Use.Name = "mock"
-
-	supportedSources := []config.ConfigurationPair{mockConfigPair}
-
-	source, err := GetSource(c, supportedSources)
-
-	assert.Equal(mockSource{}, source)
-	assert.Nil(err)
-}
 
 // TestGetSource_InvalidSource tests that we throw an error when given an invalid source configuration
 func TestGetSource_InvalidSource(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+	// Define HCL config with an invalid source name
+	hclConfig := []byte(`
+		source {
+			use "fake_invalid_source" {}
+		}
+	`)
 
-	c, err := config.NewConfig()
+	c, err := config.NewHclConfig(hclConfig, "test.hcl")
+	assert.NoError(err)
 	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
-	c.Data.Source.Use.Name = "fake"
 
-	supportedSources := []config.ConfigurationPair{}
+	source, _, err := GetSource(c, nil)
 
-	source, err := GetSource(c, supportedSources)
+	assert.Error(err)
 	assert.Nil(source)
-	assert.NotNil(err)
-	if err != nil {
-		assert.Equal("invalid source found: fake. Supported sources in this build: ", err.Error())
-	}
+	assert.Contains(err.Error(), "unknown source: fake_invalid_source")
 }
 
-// Mock a broken adapter generator implementation
-func brokenAdapterGenerator(_ func(c *configuration) (sourceiface.Source, error)) adapter {
-	return func(i any) (any, error) {
-		return nil, nil
-	}
-}
-
-var mockUnhappyConfigPair = config.ConfigurationPair{
-	Name:   "mock",
-	Handle: brokenAdapterGenerator(configfunction),
-}
-
-// TestGetSource_BadConfig tests the case where the configuration implementation is broken
-func TestGetSource_BadConfig(t *testing.T) {
+func TestGetSource_WithStdinSource(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+	// Define HCL config inline as a string
+	hclConfig := []byte(`
+		source {
+			use "stdin" {}
+		}
+	`)
 
-	c, err := config.NewConfig()
+	c, err := config.NewHclConfig(hclConfig, "test.hcl")
+	assert.NoError(err)
 	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
+
+	stdinSource, _, err := GetSource(c, nil)
+
+	assert.NoError(err)
+	assert.NotNil(stdinSource)
+}
+
+func TestGetSource_WithKafkaSource(t *testing.T) {
+	assert := assert.New(t)
+
+	// Define HCL config inline as a string
+	hclConfig := []byte(`
+		source {
+			use "kafka" {
+				brokers         = "my-kafka-connection-string"
+				topic_name      = "snowplow-enriched-good"
+				consumer_name   = "snowplow-stream-replicator"
+				offsets_initial = -2
+			}
+		}
+	`)
+
+	c, err := config.NewHclConfig(hclConfig, "test.hcl")
+	assert.NoError(err)
+	assert.NotNil(c)
+
+	kafkaSource, _, err := GetSource(c, nil)
+
+	assert.NoError(err)
+	assert.NotNil(kafkaSource)
+}
+
+func TestGetSource_WithPubsubSource(t *testing.T) {
+	assert := assert.New(t)
+
+	srv, conn := testutil.InitMockPubsubServer(8563, nil, t)
+	defer func() {
+		if err := srv.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	// Define HCL config inline as a string
+	hclConfig := []byte(`
+		source {
+			use "pubsub" {
+   				project_id      = "project-test"
+  				subscription_id = "test-sub"
+			}
+		}
+	`)
+
+	c, err := config.NewHclConfig(hclConfig, "test.hcl")
+	assert.NoError(err)
+	assert.NotNil(c)
+
+	pubsubSource, _, err := GetSource(c, nil)
+
+	assert.NoError(err)
+	assert.NotNil(pubsubSource)
+}
+
+func TestGetSource_WithSQSSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
 	}
-	c.Data.Source.Use.Name = "mock"
+	assert := assert.New(t)
 
-	supportedSources := []config.ConfigurationPair{mockUnhappyConfigPair}
+	// So that we can access localstack
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "bar")
 
-	source, err := GetSource(c, supportedSources)
-
-	assert.Nil(source)
-	assert.NotNil(err)
-	if err != nil {
-		assert.Equal("could not interpret source configuration for \"mock\"", err.Error())
+	// Set up localstack SQS queue
+	sqsClient := testutil.GetAWSLocalstackSQSClient()
+	queueName := "sqs-source-config-test"
+	res, createErr := testutil.CreateAWSLocalstackSQSQueue(sqsClient, queueName)
+	if createErr != nil {
+		t.Fatal(createErr)
 	}
+	defer func() {
+		if _, err := testutil.DeleteAWSLocalstackSQSQueue(sqsClient, res.QueueUrl); err != nil {
+			t.Logf("Failed to delete queue: %v", err)
+		}
+	}()
+
+	hclConfig := []byte(fmt.Sprintf(`
+		source {
+			use "sqs" {
+				queue_name          = "%s"
+				region              = "%s"
+				custom_aws_endpoint = "%s"
+			}
+		}
+	`, queueName, testutil.AWSLocalstackRegion, testutil.AWSLocalstackEndpoint))
+
+	c, err := config.NewHclConfig(hclConfig, "test.hcl")
+	assert.NoError(err)
+	assert.NotNil(c)
+
+	sqsSource, _, err := GetSource(c, nil)
+
+	assert.NoError(err)
+	assert.NotNil(sqsSource)
+}
+
+func TestGetSource_WithHTTPSource(t *testing.T) {
+	assert := assert.New(t)
+
+	// Define HCL config inline as a string
+	hclConfig := []byte(`
+		source {
+			use "http" {
+				url  = "localhost:8080"
+				path = "/webhook"
+			}
+		}
+	`)
+
+	c, err := config.NewHclConfig(hclConfig, "test.hcl")
+	assert.NoError(err)
+	assert.NotNil(c)
+
+	httpSource, _, err := GetSource(c, nil)
+
+	assert.NoError(err)
+	assert.NotNil(httpSource)
 }

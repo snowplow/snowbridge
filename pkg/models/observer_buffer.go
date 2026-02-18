@@ -30,10 +30,6 @@ type ObserverBuffer struct {
 	MsgFiltered   int64
 	RequestCount  int64
 
-	OversizedTargetResults int64
-	OversizedMsgSent       int64
-	OversizedMsgFailed     int64
-
 	InvalidTargetResults int64
 	InvalidMsgSent       int64
 	InvalidMsgFailed     int64
@@ -149,17 +145,6 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	}
 }
 
-// AppendWriteOversized adds an oversized TargetWriteResult onto the buffer and stores the result
-func (b *ObserverBuffer) AppendWriteOversized(res *TargetWriteResult) {
-	if res == nil {
-		return
-	}
-
-	b.OversizedTargetResults++
-	b.OversizedMsgSent += int64(len(res.Sent))
-	b.OversizedMsgFailed += int64(len(res.Failed))
-}
-
 // AppendWriteInvalid adds an invalid TargetWriteResult onto the buffer and stores the result
 func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	if res == nil {
@@ -174,18 +159,25 @@ func (b *ObserverBuffer) AppendWriteInvalid(res *TargetWriteResult) {
 	b.appendInvalidError(res.Sent)
 }
 
-// AppendFiltered adds a FilterResult onto the buffer and stores the result
-func (b *ObserverBuffer) AppendFiltered(res *FilterResult) {
+// AppendFiltered adds a TargetWriteResult from the filter target onto the buffer and stores the result
+func (b *ObserverBuffer) AppendFiltered(res *TargetWriteResult) {
 	if res == nil {
 		return
 	}
 
-	b.MsgFiltered += res.FilteredCount
-	if b.MaxFilterLatency < res.MaxFilterLatency {
-		b.MaxFilterLatency = res.MaxFilterLatency
-	}
-	if b.MinFilterLatency > res.MinFilterLatency || b.MinFilterLatency == time.Duration(0) {
-		b.MinFilterLatency = res.MinFilterLatency
+	b.MsgFiltered += int64(len(res.Sent))
+
+	// Calculate filter latency from sent messages (time from pull to request finish)
+	for _, msg := range res.Sent {
+		if !msg.TimeRequestFinished.IsZero() && !msg.TimePulled.IsZero() {
+			filterLatency := msg.TimeRequestFinished.Sub(msg.TimePulled)
+			if b.MaxFilterLatency < filterLatency {
+				b.MaxFilterLatency = filterLatency
+			}
+			if b.MinFilterLatency > filterLatency || b.MinFilterLatency == time.Duration(0) {
+				b.MinFilterLatency = filterLatency
+			}
+		}
 	}
 }
 
@@ -194,7 +186,8 @@ func (b *ObserverBuffer) AppendTransformed(res *TransformationResult) {
 		return
 	}
 
-	for _, msg := range res.Result {
+	if res.Transformed != nil {
+		msg := res.Transformed
 		if !msg.TimeTransformationStarted.IsZero() && !msg.TimeTransformed.IsZero() {
 			transformLatency := msg.TimeTransformed.Sub(msg.TimeTransformationStarted)
 			if b.MaxTransformLatency < transformLatency {
@@ -209,15 +202,12 @@ func (b *ObserverBuffer) AppendTransformed(res *TransformationResult) {
 
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,RequestCount:%d,OversizedTargetResults:%d,OversizedMsgSent:%d,OversizedMsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MinProcLatency:%d,MaxProcLatency:%d,MinMsgLatency:%d,MaxMsgLatency:%d,SumMsgLatency:%d,MinFilterLatency:%d,MaxFilterLatency:%d,MinTransformLatency:%d,MaxTransformLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d,SumE2ELatency:%d",
+		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,RequestCount:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MinProcLatency:%d,MaxProcLatency:%d,MinMsgLatency:%d,MaxMsgLatency:%d,SumMsgLatency:%d,MinFilterLatency:%d,MaxFilterLatency:%d,MinTransformLatency:%d,MaxTransformLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d,SumE2ELatency:%d",
 		b.TargetResults,
 		b.MsgFiltered,
 		b.MsgSent,
 		b.MsgFailed,
 		b.RequestCount,
-		b.OversizedTargetResults,
-		b.OversizedMsgSent,
-		b.OversizedMsgFailed,
 		b.InvalidTargetResults,
 		b.InvalidMsgSent,
 		b.InvalidMsgFailed,

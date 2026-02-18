@@ -64,11 +64,25 @@ func TestFilteringSlice(t *testing.T) {
 	}
 
 	filter1 := transform.NewTransformation(filterFunc)
-	filter1Res := filter1(transform.Messages)
 
-	assert.Equal(len(filter1Kept), len(filter1Res.Result))
-	assert.Equal(len(filter1Discarded), len(filter1Res.Filtered))
-	assert.Equal(1, len(filter1Res.Invalid))
+	// Process each message individually and aggregate results
+	var totalResult, totalFiltered, totalInvalid []*models.Message
+	for _, msg := range transform.Messages {
+		res := filter1(msg)
+		if res.Transformed != nil {
+			totalResult = append(totalResult, res.Transformed)
+		}
+		if res.Filtered != nil {
+			totalFiltered = append(totalFiltered, res.Filtered)
+		}
+		if res.Invalid != nil {
+			totalInvalid = append(totalInvalid, res.Invalid)
+		}
+	}
+
+	assert.Equal(len(filter1Kept), len(totalResult))
+	assert.Equal(len(filter1Discarded), len(totalFiltered))
+	assert.Equal(1, len(totalInvalid))
 
 	var filter2Kept = []*models.Message{
 		{
@@ -95,11 +109,25 @@ func TestFilteringSlice(t *testing.T) {
 	}
 
 	filter2 := transform.NewTransformation(filterFunc2)
-	filter2Res := filter2(transform.Messages)
 
-	assert.Equal(len(filter2Kept), len(filter2Res.Result))
-	assert.Equal(len(filter2Discarded), len(filter2Res.Filtered))
-	assert.Equal(1, len(filter2Res.Invalid))
+	// Process each message individually and aggregate results
+	var totalResult2, totalFiltered2, totalInvalid2 []*models.Message
+	for _, msg := range transform.Messages {
+		res := filter2(msg)
+		if res.Transformed != nil {
+			totalResult2 = append(totalResult2, res.Transformed)
+		}
+		if res.Filtered != nil {
+			totalFiltered2 = append(totalFiltered2, res.Filtered)
+		}
+		if res.Invalid != nil {
+			totalInvalid2 = append(totalInvalid2, res.Invalid)
+		}
+	}
+
+	assert.Equal(len(filter2Kept), len(totalResult2))
+	assert.Equal(len(filter2Discarded), len(totalFiltered2))
+	assert.Equal(1, len(totalInvalid2))
 
 	var expectedFilter3 = []*models.Message{
 		{
@@ -114,10 +142,25 @@ func TestFilteringSlice(t *testing.T) {
 	}
 
 	filter3 := transform.NewTransformation(filterFunc3)
-	filter3Res := filter3(transform.Messages)
 
-	assert.Equal(len(expectedFilter3), len(filter3Res.Result))
-	assert.Equal(1, len(filter3Res.Invalid))
+	// Process each message individually and aggregate results
+	var totalResult3, totalFiltered3, totalInvalid3 []*models.Message
+	for _, msg := range transform.Messages {
+		res := filter3(msg)
+		if res.Transformed != nil {
+			totalResult3 = append(totalResult3, res.Transformed)
+		}
+		if res.Filtered != nil {
+			totalFiltered3 = append(totalFiltered3, res.Filtered)
+		}
+		if res.Invalid != nil {
+			totalInvalid3 = append(totalInvalid3, res.Invalid)
+		}
+	}
+
+	assert.Equal(len(expectedFilter3), len(totalResult3))
+	assert.Equal(2, len(totalFiltered3))
+	assert.Equal(1, len(totalInvalid3))
 
 }
 

@@ -11,19 +11,27 @@
 
 package sourceiface
 
-import "github.com/snowplow/snowbridge/v3/pkg/observer"
+import (
+	"context"
 
-// Source describes the interface for how to read the data pulled from the source
+	"github.com/snowplow/snowbridge/v3/pkg/models"
+)
+
+// Source describes the interface for how to reading the data from a source and writing it to an output channel.
 type Source interface {
-	Read(sf *SourceFunctions) error
-	Stop()
-	GetID() string
-	SetObserver(*observer.Observer)
+	// Channel management methods, these are provided by the SourceChannel implementation below, that just needs to be embedded.
+	SetChannels(messageChannel chan<- *models.Message)
+
+	// Start is a long-running process to read from the source and write messages to the output channel.
+	// It should respect context cancellation for graceful shutdown.
+	Start(ctx context.Context)
 }
 
-// NoOpObserver provides a default no-op implementation of SetObserver
-// for sources that don't need observer functionality
-type NoOpObserver struct{}
+// Struct type to embed into the source driver, exists mostly to have channel management in one place.
+type SourceChannels struct {
+	MessageChannel chan<- *models.Message
+}
 
-// SetObserver does nothing - no-op implementation
-func (NoOpObserver) SetObserver(*observer.Observer) {}
+func (sc *SourceChannels) SetChannels(messageChannel chan<- *models.Message) {
+	sc.MessageChannel = messageChannel
+}

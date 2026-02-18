@@ -10,9 +10,7 @@ transform {
 }
 JSEOT
   }
-}
 
-transform {
   use "js" {
     script_path = env.JS_ALTER_AID_2_PATH
   }

@@ -18,18 +18,16 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/snowplow/snowbridge/v3/pkg/failure"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
 	"github.com/snowplow/snowbridge/v3/pkg/common"
-	"github.com/snowplow/snowbridge/v3/pkg/failure"
-	"github.com/snowplow/snowbridge/v3/pkg/failure/failureiface"
 	"github.com/snowplow/snowbridge/v3/pkg/monitoring"
 	"github.com/snowplow/snowbridge/v3/pkg/observer"
 	"github.com/snowplow/snowbridge/v3/pkg/statsreceiver"
 	"github.com/snowplow/snowbridge/v3/pkg/statsreceiver/statsreceiveriface"
-	"github.com/snowplow/snowbridge/v3/pkg/target"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
 )
 
 // ConfigurationPair allows modular packages to define their own configuration and function to interpret the configuration.
@@ -42,24 +40,25 @@ type ConfigurationPair struct {
 
 // Config holds the configuration data along with the Decoder to Decode them
 type Config struct {
-	Data    *configurationData
+	Data    *ConfigurationData
 	Decoder Decoder
 }
 
-// configurationData for holding all configuration options
-type configurationData struct {
+// ConfigurationData for holding all configuration options
+type ConfigurationData struct {
 	Source           *component        `hcl:"source,block"`
-	Target           *component        `hcl:"target,block"`
-	FailureTarget    *failureConfig    `hcl:"failure_target,block"`
-	FilterTarget     *component        `hcl:"filter_target,block"`
+	Target           *TargetConfig     `hcl:"target,block"`
+	FailureTarget    *TargetConfig     `hcl:"failure_target,block"`
+	FilterTarget     *TargetConfig     `hcl:"filter_target,block"`
+	FailureParser    *failureParser    `hcl:"failure_parser,block"`
 	Sentry           *sentryConfig     `hcl:"sentry,block"`
 	StatsReceiver    *statsConfig      `hcl:"stats_receiver,block"`
-	Transformations  []*component      `hcl:"transform,block"`
+	Transform        *TransformConfig  `hcl:"transform,block"`
 	LogLevel         string            `hcl:"log_level,optional"`
 	UserProvidedID   string            `hcl:"user_provided_id,optional"`
 	DisableTelemetry bool              `hcl:"disable_telemetry,optional"`
 	License          *licenseConfig    `hcl:"license,block"`
-	Retry            *retryConfig      `hcl:"retry,block"`
+	Retry            *RetryConfig      `hcl:"retry,block"`
 	Metrics          *metricsConfig    `hcl:"metrics,block"`
 	Monitoring       *monitoringConfig `hcl:"monitoring,block"`
 }
@@ -69,16 +68,25 @@ type component struct {
 	Use *use `hcl:"use,block"`
 }
 
+// TransformConfig holds configuration for transformations.
+type TransformConfig struct {
+	Transformations []*use `hcl:"use,block"`
+	WorkerPool      int    `hcl:"worker_pool,optional"`
+}
+
 // use is a type to denote what a component will be configured to use.
 type use struct {
 	Name string   `hcl:",label"`
 	Body hcl.Body `hcl:",remain"`
 }
 
-// failureConfig holds configuration for the failure target.
-// It includes the target component to use.
-type failureConfig struct {
-	Target *use   `hcl:"use,block"`
+// TargetConfig is handled in the target package.
+type TargetConfig struct {
+	Target *use `hcl:"use,block"`
+}
+
+// failureParser holds configuration for failure handling.
+type failureParser struct {
 	Format string `hcl:"format,optional"`
 }
 
@@ -101,10 +109,10 @@ type licenseConfig struct {
 	Accept bool `hcl:"accept,optional"`
 }
 
-type retryConfig struct {
-	Transient *transientRetryConfig `hcl:"transient,block"`
-	Setup     *setupRetryConfig     `hcl:"setup,block"`
-	Throttle  *throttleRetryConfig  `hcl:"throttle,block"`
+type RetryConfig struct {
+	Transient *TransientRetryConfig `hcl:"transient,block"`
+	Setup     *SetupRetryConfig     `hcl:"setup,block"`
+	Throttle  *ThrottleRetryConfig  `hcl:"throttle,block"`
 }
 
 type metricsConfig struct {
@@ -128,35 +136,34 @@ type metadataReporterConfig struct {
 	Tags     map[string]string `hcl:"tags,optional"`
 }
 
-type transientRetryConfig struct {
+type TransientRetryConfig struct {
 	Delay           int  `hcl:"delay_ms,optional"`
 	MaxAttempts     int  `hcl:"max_attempts,optional"`
 	InvalidAfterMax bool `hcl:"invalid_after_max,optional"` // default: false
 }
 
-type setupRetryConfig struct {
+type SetupRetryConfig struct {
 	Delay           int  `hcl:"delay_ms,optional"`
 	MaxAttempts     int  `hcl:"max_attempts,optional"`
 	InvalidAfterMax bool `hcl:"invalid_after_max,optional"` // default: false
 }
 
-type throttleRetryConfig struct {
+type ThrottleRetryConfig struct {
 	Delay           int  `hcl:"delay_ms,optional"`
 	MaxAttempts     int  `hcl:"max_attempts,optional"`
 	InvalidAfterMax bool `hcl:"invalid_after_max,optional"` // default: false
 }
 
 // defaultConfigData returns the initial main configuration target.
-func defaultConfigData() *configurationData {
-	return &configurationData{
-		Source: &component{&use{Name: "stdin"}},
-		Target: &component{&use{Name: "stdout"}},
-
-		FailureTarget: &failureConfig{
-			Target: &use{Name: "stdout"},
-			Format: failure.SnowplowFailureTarget,
+func defaultConfigData() *ConfigurationData {
+	return &ConfigurationData{
+		Source:        &component{&use{Name: "stdin"}},
+		Target:        &TargetConfig{Target: &use{Name: "stdout"}},
+		FailureTarget: &TargetConfig{Target: &use{Name: "stdout"}},
+		FilterTarget:  &TargetConfig{Target: &use{Name: "silent"}},
+		FailureParser: &failureParser{
+			Format: "snowplow",
 		},
-		FilterTarget: &component{&use{Name: "silent"}},
 		Sentry: &sentryConfig{
 			Tags: "{}",
 		},
@@ -165,22 +172,25 @@ func defaultConfigData() *configurationData {
 			TimeoutSec: 1,
 			BufferSec:  15,
 		},
-		Transformations:  nil,
+		Transform: &TransformConfig{
+			Transformations: nil,
+			WorkerPool:      0, // 0 means use default (runtime.GOMAXPROCS(0) + 1)
+		},
 		LogLevel:         "info",
 		DisableTelemetry: false,
 		License: &licenseConfig{
 			Accept: false,
 		},
-		Retry: &retryConfig{
-			Transient: &transientRetryConfig{
+		Retry: &RetryConfig{
+			Transient: &TransientRetryConfig{
 				Delay:       1000,
 				MaxAttempts: 5,
 			},
-			Setup: &setupRetryConfig{
+			Setup: &SetupRetryConfig{
 				Delay:       20000,
 				MaxAttempts: 5,
 			},
-			Throttle: &throttleRetryConfig{
+			Throttle: &ThrottleRetryConfig{
 				Delay:       10000,
 				MaxAttempts: 5,
 			},
@@ -263,179 +273,6 @@ func (c *Config) CreateComponent(p Pluggable, opts *DecoderOptions) (any, error)
 	return p.Create(decodedConfig)
 }
 
-// GetTarget builds and returns the target that is configured
-func (c *Config) GetTarget() (targetiface.Target, error) {
-	var plug Pluggable
-	useTarget := c.Data.Target.Use
-	decoderOpts := &DecoderOptions{
-		Input: useTarget.Body,
-	}
-
-	switch useTarget.Name {
-	case target.SupportedTargetStdout:
-		plug = target.AdaptStdoutTargetFunc(
-			target.StdoutTargetConfigFunction,
-		)
-	case target.SupportedTargetKinesis:
-		plug = target.AdaptKinesisTargetFunc(
-			target.KinesisTargetConfigFunction,
-		)
-	case target.SupportedTargetPubsub:
-		plug = target.AdaptPubSubTargetFunc(
-			target.PubSubTargetConfigFunction,
-		)
-	case target.SupportedTargetSQS:
-		plug = target.AdaptSQSTargetFunc(
-			target.SQSTargetConfigFunction,
-		)
-	case target.SupportedTargetKafka:
-		plug = target.AdaptKafkaTargetFunc(
-			target.NewKafkaTarget,
-		)
-	case target.SupportedTargetEventHub:
-		plug = target.AdaptEventHubTargetFunc(
-			target.EventHubTargetConfigFunction,
-		)
-	case target.SupportedTargetHTTP:
-		plug = target.AdaptHTTPTargetFunc(
-			target.HTTPTargetConfigFunction,
-		)
-	default:
-		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useTarget.Name))
-	}
-
-	component, err := c.CreateComponent(plug, decoderOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	if t, ok := component.(targetiface.Target); ok {
-		return t, nil
-	}
-
-	return nil, fmt.Errorf("could not interpret target configuration for %q", useTarget.Name)
-}
-
-// GetFailureTarget builds and returns the target that is configured
-func (c *Config) GetFailureTarget(AppName string, AppVersion string) (failureiface.Failure, error) {
-	var plug Pluggable
-	var err error
-
-	useFailureTarget := c.Data.FailureTarget.Target
-	decoderOpts := &DecoderOptions{
-		Input: useFailureTarget.Body,
-	}
-
-	switch useFailureTarget.Name {
-	case target.SupportedTargetStdout:
-		plug = target.AdaptStdoutTargetFunc(
-			target.StdoutTargetConfigFunction,
-		)
-	case target.SupportedTargetKinesis:
-		plug = target.AdaptKinesisTargetFunc(
-			target.KinesisTargetConfigFunction,
-		)
-	case target.SupportedTargetPubsub:
-		plug = target.AdaptPubSubTargetFunc(
-			target.PubSubTargetConfigFunction,
-		)
-	case target.SupportedTargetSQS:
-		plug = target.AdaptSQSTargetFunc(
-			target.SQSTargetConfigFunction,
-		)
-	case target.SupportedTargetKafka:
-		plug = target.AdaptKafkaTargetFunc(
-			target.NewKafkaTarget,
-		)
-	case target.SupportedTargetEventHub:
-		plug = target.AdaptEventHubTargetFunc(
-			target.EventHubTargetConfigFunction,
-		)
-	case target.SupportedTargetHTTP:
-		plug = target.AdaptHTTPTargetFunc(
-			target.HTTPTargetConfigFunction,
-		)
-	default:
-		return nil, errors.New(fmt.Sprintf("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got '%s'", useFailureTarget.Name))
-	}
-
-	component, err := c.CreateComponent(plug, decoderOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	if t, ok := component.(targetiface.Target); ok {
-		switch c.Data.FailureTarget.Format {
-		case failure.SnowplowFailureTarget:
-			return failure.NewSnowplowFailure(t, AppName, AppVersion)
-		case failure.EventForwardingFailureTarget:
-			return failure.NewEventForwardingFailure(t, AppName, AppVersion)
-		default:
-			return nil, errors.New(fmt.Sprintf("Invalid failure format found; expected one of 'snowplow', 'event_forwarding' and got '%s'", c.Data.FailureTarget.Format))
-		}
-	}
-
-	return nil, fmt.Errorf("could not interpret failure target configuration for %q", useFailureTarget.Name)
-}
-
-// GetFilterTarget builds and returns the target for filtered data
-func (c *Config) GetFilterTarget() (targetiface.Target, error) {
-	var plug Pluggable
-	useTarget := c.Data.FilterTarget.Use
-	decoderOpts := &DecoderOptions{
-		Input: useTarget.Body,
-	}
-
-	switch useTarget.Name {
-	case target.SupportedTargetStdout:
-		plug = target.AdaptStdoutTargetFunc(
-			target.StdoutTargetConfigFunction,
-		)
-	case target.SupportedTargetKinesis:
-		plug = target.AdaptKinesisTargetFunc(
-			target.KinesisTargetConfigFunction,
-		)
-	case target.SupportedTargetPubsub:
-		plug = target.AdaptPubSubTargetFunc(
-			target.PubSubTargetConfigFunction,
-		)
-	case target.SupportedTargetSQS:
-		plug = target.AdaptSQSTargetFunc(
-			target.SQSTargetConfigFunction,
-		)
-	case target.SupportedTargetKafka:
-		plug = target.AdaptKafkaTargetFunc(
-			target.NewKafkaTarget,
-		)
-	case target.SupportedTargetEventHub:
-		plug = target.AdaptEventHubTargetFunc(
-			target.EventHubTargetConfigFunction,
-		)
-	case target.SupportedTargetHTTP:
-		plug = target.AdaptHTTPTargetFunc(
-			target.HTTPTargetConfigFunction,
-		)
-	//This one is only available for filter target
-	case target.SupportedTargetSilent:
-		plug = target.AdaptSilentTargetFunc(
-			target.SilentTargetConfigFunction,
-		)
-	default:
-		return nil, errors.New(fmt.Sprintf("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http, silent' and got '%s'", useTarget.Name))
-	}
-
-	component, err := c.CreateComponent(plug, decoderOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	if t, ok := component.(targetiface.Target); ok {
-		return t, nil
-	}
-
-	return nil, fmt.Errorf("could not interpret filter target configuration for %q", useTarget.Name)
-}
-
 // GetTags returns a list of tags to use in identifying this instance of snowbridge with enough
 // entropy so as to avoid collisions as it should not be possible to have both the host and process_id be
 // the same.
@@ -453,6 +290,17 @@ func (c *Config) GetTags() (map[string]string, error) {
 	}
 
 	return tags, nil
+}
+
+func (c *Config) GetFailureParser(failureTargetMaxMessageSize int, appName, appVersion string) (failure.FailureParser, error) {
+	switch c.Data.FailureParser.Format {
+	case failure.SnowplowFailureTarget:
+		return failure.NewSnowplowFailure(failureTargetMaxMessageSize, appName, appVersion)
+	case failure.EventForwardingFailureTarget:
+		return failure.NewEventForwardingFailure(failureTargetMaxMessageSize, appName, appVersion)
+	default:
+		return nil, fmt.Errorf("invalid failure format found; expected one of 'snowplow', 'event_forwarding' and got '%s'", c.Data.FailureParser.Format)
+	}
 }
 
 // GetObserver builds and returns the observer with the embedded

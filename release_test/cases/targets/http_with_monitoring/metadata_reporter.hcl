@@ -2,11 +2,16 @@
 transform {
   use "spEnrichedToJson" {
   }
+  worker_pool = 1
 }
 
 target {
     use "http" {
-        url = "http://host.docker.internal:12080/target"
+      batching {
+        max_batch_messages = 1
+      }
+
+      url = "http://host.docker.internal:12080/target"
 
         request_timeout_in_millis = 3 // manufacture timeouts
 
@@ -25,7 +30,11 @@ target {
 
 failure_target {
     use "http" {
-        url = "http://host.docker.internal:12080/invalid"
+      batching {
+        max_batch_messages = 1
+      }
+
+      url = "http://host.docker.internal:12080/invalid"
     }
 }
 

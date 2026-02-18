@@ -15,9 +15,6 @@ source {
     # Kafka offset configuration, -1 stands for read all new messages, -2 stands for read oldest offset that is still available on the broker
     offsets_initial = -2
 
-    # Optional section:
-    concurrent_writes = "15"
-
     # Kafka assignor
     assignor = "sticky"
 

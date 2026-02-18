@@ -13,31 +13,24 @@ package models
 
 // TransformationResult contains the results from a transformation operation
 type TransformationResult struct {
-	ResultCount   int64
-	FilteredCount int64
-	InvalidCount  int64
+	// Transformed holds the message that was successfully transformed and
+	// is ready for attempts to send to the target
+	Transformed *Message
 
-	// Result holds all the messages that were successfully transformed and
-	// are ready for attempts to send to the target
-	Result []*Message
+	// Filtered holds the message that was designated to be filtered out
+	// it will be acked without passing through to any target
+	Filtered *Message
 
-	// Filtered holds all the messages that were designated to be filtered out
-	// they will all be acked without passing through to any target
-	Filtered []*Message
-
-	// Invalid contains all the messages that cannot be transformed
-	// due to various parseability reasons.  These messages cannot be retried
-	// and need to be specially handled.
-	Invalid []*Message
+	// Invalid contains the message that cannot be transformed
+	// due to various parseability reasons.  This message cannot be retried
+	// and needs to be specially handled.
+	Invalid *Message
 }
 
-// NewTransformationResult contains slices successfully tranformed, filtered and unsuccessfully transformed messages, and their lengths.
-func NewTransformationResult(result []*Message, filtered []*Message, invalid []*Message) *TransformationResult {
+// NewTransformationResult creates a new TransformationResult with the provided transformed, filtered and invalid messages.
+func NewTransformationResult(transformed *Message, filtered *Message, invalid *Message) *TransformationResult {
 	r := TransformationResult{
-		int64(len(result)),
-		int64(len(filtered)),
-		int64(len(invalid)),
-		result,
+		transformed,
 		filtered,
 		invalid,
 	}

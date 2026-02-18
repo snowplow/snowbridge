@@ -5,4 +5,8 @@ target {
   }
 }
 
+transform {
+  worker_pool = 1
+}
+
 disable_telemetry = true

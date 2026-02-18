@@ -24,81 +24,69 @@ import (
 func TestNewTransformation_Passthrough(t *testing.T) {
 	assert := assert.New(t)
 
-	// expected is equal to messages, specifying separately to avoid false positive if we accidentally mutate input.
-	var expected = []*models.Message{
-		{
-			Data:         SnowplowTsv1,
-			PartitionKey: "some-key",
-		},
-		{
-			Data:         SnowplowTsv2,
-			PartitionKey: "some-key1",
-		},
-		{
-			Data:         SnowplowTsv3,
-			PartitionKey: "some-key2",
-		},
-		{
-			Data:         []byte(`not	a	snowplow	event`),
-			PartitionKey: "some-key4",
-		},
-	}
-
-	expectedNoTransformRes := models.NewTransformationResult(expected, make([]*models.Message, 0), make([]*models.Message, 0))
-
 	noTransform := NewTransformation(make([]TransformationFunction, 0)...)
-	noTransformResult := noTransform(Messages)
 
-	assert.Equal(expectedNoTransformRes, noTransformResult)
+	// Test each message individually since we now process single messages
+	for i, msg := range Messages {
+		result := noTransform(msg)
+
+		// With no transformations, each message should pass through as success
+		assert.NotNil(result.Transformed)
+		assert.Nil(result.Filtered)
+		assert.Nil(result.Invalid)
+
+		// Data should be unchanged
+		assert.Equal(Messages[i].Data, result.Transformed.Data)
+		assert.Equal(Messages[i].PartitionKey, result.Transformed.PartitionKey)
+	}
 }
 
 func TestNewTransformation_EnrichedToJson(t *testing.T) {
 	assert := assert.New(t)
 
-	var expectedGood = []*models.Message{
-		{
-			Data:         SnowplowJSON1,
-			PartitionKey: "some-key",
-		},
-		{
-			Data:         snowplowJSON2,
-			PartitionKey: "some-key1",
-		},
-		{
-			Data:         snowplowJSON3,
-			PartitionKey: "some-key2",
-		},
+	var expectedGood = [][]byte{
+		SnowplowJSON1,
+		snowplowJSON2,
+		snowplowJSON3,
 	}
 
 	tranformEnrichJSON := NewTransformation(SpEnrichedToJSON)
-	enrichJSONRes := tranformEnrichJSON(Messages)
 
-	for index, value := range enrichJSONRes.Result {
-		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
-		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
-		assert.NotNil(expectedGood[index].TimeTransformed)
+	// Test the first three messages which should succeed
+	for i := 0; i < 3; i++ {
+		result := tranformEnrichJSON(Messages[i])
+
+		assert.NotNil(result.Transformed)
+		assert.Nil(result.Filtered)
+		assert.Nil(result.Invalid)
+
+		assert.JSONEq(string(expectedGood[i]), string(result.Transformed.Data))
+		assert.Equal(Messages[i].PartitionKey, result.Transformed.PartitionKey)
+		assert.NotNil(result.Transformed.TimeTransformed)
 
 		// assertions to ensure we don't accidentally modify the input
-		assert.NotEqual(Messages[index].Data, value.Data)
-		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
-		assert.Equal(time.Time{}, Messages[index].TimeTransformed)
+		assert.NotEqual(Messages[i].Data, result.Transformed.Data)
+		assert.Equal(time.Time{}, Messages[i].TimeTransformed)
 	}
 
-	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal(1, len(enrichJSONRes.Invalid))
-	assert.Equal(int64(1), enrichJSONRes.InvalidCount)
-	assert.NotNil(enrichJSONRes.Invalid[0].GetError())
-	if enrichJSONRes.Invalid[0].GetError() != nil {
-		assert.Equal("intermediate state cannot be parsed as parsedEvent: cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+	// Test the fourth message which should fail
+	result := tranformEnrichJSON(Messages[3])
+	assert.Nil(result.Transformed)
+	assert.Nil(result.Filtered)
+	assert.NotNil(result.Invalid)
+	assert.NotNil(result.Invalid.GetError())
+	if result.Invalid.GetError() != nil {
+		assert.Equal("intermediate state cannot be parsed as parsedEvent: cannot parse tsv event - wrong number of fields provided: 4", result.Invalid.GetError().Error())
 	}
-	assert.Equal([]byte("not	a	snowplow	event"), enrichJSONRes.Invalid[0].Data)
-	assert.Equal("some-key4", enrichJSONRes.Invalid[0].PartitionKey)
+	assert.Equal([]byte("not	a	snowplow	event"), result.Invalid.Data)
+	assert.Equal("some-key4", result.Invalid.PartitionKey)
 }
 
 func Benchmark_Transform_EnrichToJson(b *testing.B) {
 	tranformEnrichJSON := NewTransformation(SpEnrichedToJSON)
 	for b.Loop() {
-		tranformEnrichJSON(Messages)
+		// Benchmark with a single message
+		tranformEnrichJSON(Messages[0])
 	}
 }
 
@@ -109,54 +97,64 @@ func testfunc(message *models.Message, intermediateState any) (*models.Message, 
 func Benchmark_Transform_Passthrough(b *testing.B) {
 	tranformPassthrough := NewTransformation(testfunc)
 	for b.Loop() {
-		tranformPassthrough(Messages)
+		// Benchmark with a single message
+		tranformPassthrough(Messages[0])
 	}
 }
 
 func TestNewTransformation_Multiple(t *testing.T) {
 	assert := assert.New(t)
 
-	var expectedGood = []*models.Message{
+	var expectedGood = []struct {
+		data         []byte
+		partitionKey string
+	}{
 		{
-			Data:         SnowplowJSON1,
-			PartitionKey: "test-data1",
+			data:         SnowplowJSON1,
+			partitionKey: "test-data1",
 		},
 		{
-			Data:         snowplowJSON2,
-			PartitionKey: "test-data2",
+			data:         snowplowJSON2,
+			partitionKey: "test-data2",
 		},
 		{
-			Data:         snowplowJSON3,
-			PartitionKey: "test-data3",
+			data:         snowplowJSON3,
+			partitionKey: "test-data3",
 		},
 	}
 
 	setPkToAppID, _ := NewSpEnrichedSetPkFunction("app_id")
 	tranformMultiple := NewTransformation(setPkToAppID, SpEnrichedToJSON)
 
-	enrichJSONRes := tranformMultiple(Messages)
+	// Test the first three messages which should succeed
+	for i := 0; i < 3; i++ {
+		result := tranformMultiple(Messages[i])
 
-	for index, value := range enrichJSONRes.Result {
-		assert.JSONEq(string(expectedGood[index].Data), string(value.Data))
-		assert.Equal(expectedGood[index].PartitionKey, value.PartitionKey)
-		assert.NotNil(expectedGood[index].TimeTransformed)
-		assert.NotNil(value.TimeTransformed)
+		assert.NotNil(result.Transformed)
+		assert.Nil(result.Filtered)
+		assert.Nil(result.Invalid)
+
+		assert.JSONEq(string(expectedGood[i].data), string(result.Transformed.Data))
+		assert.Equal(expectedGood[i].partitionKey, result.Transformed.PartitionKey)
+		assert.NotNil(result.Transformed.TimeTransformed)
 
 		// assertions to ensure we don't accidentally modify the input
-		assert.NotEqual(Messages[index].Data, value.Data)
-		assert.NotEqual(Messages[index].PartitionKey, value.PartitionKey)
+		assert.NotEqual(Messages[i].Data, result.Transformed.Data)
+		assert.NotEqual(Messages[i].PartitionKey, result.Transformed.PartitionKey)
 		// assert can't seem to deal with comparing zero value to non-zero value, so assert that it's still zero instead
-		assert.Equal(time.Time{}, Messages[index].TimeTransformed)
+		assert.Equal(time.Time{}, Messages[i].TimeTransformed)
 	}
 
-	// Not matching equivalence of whole object because error stacktrace makes it unfeasible. Doing each component part instead.
-	assert.Equal(1, len(enrichJSONRes.Invalid))
-	assert.Equal(int64(1), enrichJSONRes.InvalidCount)
-	assert.NotNil(enrichJSONRes.Invalid[0].GetError())
-	if enrichJSONRes.Invalid[0].GetError() != nil {
-		assert.Equal("intermediate state cannot be parsed as parsedEvent: cannot parse tsv event - wrong number of fields provided: 4", enrichJSONRes.Invalid[0].GetError().Error())
+	// Test the fourth message which should fail
+	result := tranformMultiple(Messages[3])
+	assert.Nil(result.Transformed)
+	assert.Nil(result.Filtered)
+	assert.NotNil(result.Invalid)
+	assert.NotNil(result.Invalid.GetError())
+	if result.Invalid.GetError() != nil {
+		assert.Equal("intermediate state cannot be parsed as parsedEvent: cannot parse tsv event - wrong number of fields provided: 4", result.Invalid.GetError().Error())
 	}
 
-	assert.Equal([]byte("not	a	snowplow	event"), enrichJSONRes.Invalid[0].Data)
-	assert.Equal("some-key4", enrichJSONRes.Invalid[0].PartitionKey)
+	assert.Equal([]byte("not	a	snowplow	event"), result.Invalid.Data)
+	assert.Equal("some-key4", result.Invalid.PartitionKey)
 }

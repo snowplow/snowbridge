@@ -2,6 +2,18 @@
 
 target {
   use "kafka" {
+    batching {
+      # Maximum number of events that can go into one batched request (default: 100)
+      max_batch_messages     = 20
+      # Maximum byte limit for a single batched request (default: 1048576)
+      max_batch_bytes        = 10000000
+      # Maximum byte limit for individual message (default: 1048576)
+      max_message_bytes      = 10000000
+      # How many batches attempted concurrently (default: 5)
+      max_concurrent_batches = 2
+      # Milliseconds between flushes of messages (default: 500)
+      flush_period_millis    = 200
+    }
     # Kafka broker connectinon string
     brokers             = "my-kafka-connection-string"
 
@@ -11,11 +23,8 @@ target {
     # The Kafka version
     target_version      = "2.7.0"
 
-    # Max retries (default: 10)
+    # Max retries (default: 5)
     max_retries         = 11
-
-    # Kafka default byte limit is 1MB (default: 1048576)
-    byte_limit          = 1000000
 
     # Whether to compress data (default: false).
     # Reduces network usage and increases latency.
@@ -60,17 +69,5 @@ target {
     # Forces the use of the Sync Producer (default: false).
     # Emits as fast as possible but may limit performance.
     force_sync_producer = true
-
-    # Milliseconds between flushes of messages (default: 0)
-    # Setting to 0 means as fast as possible.
-    flush_frequency     = 2
-
-    # Best effort for how many messages are sent in each batch (default: 0)
-    # Setting to 0 means as fast as possible.
-    flush_messages      = 2
-
-    # Best effort for how many bytes will trigger a flush (default: 0)
-    # Setting to 0 means as fast as possible.
-    flush_bytes         = 2
   }
 }

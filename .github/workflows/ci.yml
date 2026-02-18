@@ -42,7 +42,7 @@ jobs:
           echo ::set-output name=VERSION::"$(cat VERSION)"
 
     - name: Block Concurrent Executions of Integration Tests
-      if: ${{ env.NGROK_TOKEN != '' }} 
+      if: ${{ env.NGROK_TOKEN != '' }}
       uses: softprops/turnstyle@v1
       with:
         poll-interval-seconds: 10

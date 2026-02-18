@@ -94,21 +94,21 @@ cli: gox cli-linux cli-darwin cli-windows
 
 # Build CLI binaries for each distro
 cli-linux: gox
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -tags awsonly -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
 	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
-	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
+	CGO_ENABLED=0 gox -tags awsonly -osarch=linux/arm64 -output=$(linux_out_dir)/aws/cli/arm64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/
 
 cli-darwin: gox
-	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -tags awsonly -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
 	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
-	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/aws/cli/arm64/snowbridge ./cmd/aws/cli/
-	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/	
+	CGO_ENABLED=0 gox -tags awsonly -osarch=darwin/arm64 -output=$(darwin_out_dir)/aws/cli/arm64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/
 
 cli-windows: gox
-	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/amd64/snowbridge ./cmd/aws/cli/
+	CGO_ENABLED=0 gox -tags awsonly -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
 	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 container: cli-linux
@@ -146,12 +146,12 @@ test: test-setup
 integration-test: test-setup
 	go test $(integration_test_dirs) -v -covermode=count -coverprofile=$(coverage_out)
 	go tool cover -html=$(coverage_out) -o $(coverage_html)
-	go tool cover -func=$(coverage_out)	
+	go tool cover -func=$(coverage_out)
+	go test ./pkg/source/sourceconfig -tags awsonly -v
 
 # e2e-test covers only the e2e release tests, in preparation for when these will rely on deployed assets
 e2e-test: test-setup
 	go test ./release_test -v
-
 
 e2e-reset: e2e-down e2e-up
 

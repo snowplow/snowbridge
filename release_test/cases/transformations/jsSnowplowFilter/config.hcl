@@ -4,6 +4,7 @@ transform {
     
     snowplow_mode       = true 
   }
+  worker_pool = 1
 }
 
 disable_telemetry = true

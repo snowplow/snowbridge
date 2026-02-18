@@ -15,18 +15,17 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/common"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
 )
+
+const SupportedSourceKafka = "kafka"
 
 // Configuration configures the source for records
 type Configuration struct {
@@ -35,189 +34,38 @@ type Configuration struct {
 	ConsumerName   string `hcl:"consumer_name"`
 	OffsetsInitial int64  `hcl:"offsets_initial"`
 
-	ConcurrentWrites int    `hcl:"concurrent_writes,optional"`
-	Assignor         string `hcl:"assignor,optional"`
-	TargetVersion    string `hcl:"target_version,optional"`
-	EnableSASL       bool   `hcl:"enable_sasl,optional"`
-	SASLUsername     string `hcl:"sasl_username,optional" `
-	SASLPassword     string `hcl:"sasl_password,optional"`
-	SASLAlgorithm    string `hcl:"sasl_algorithm,optional"`
-	SASLVersion      int16  `hcl:"sasl_version,optional"`
-	EnableTLS        bool   `hcl:"enable_tls,optional"`
-	CertFile         string `hcl:"cert_file,optional"`
-	KeyFile          string `hcl:"key_file,optional"`
-	CaFile           string `hcl:"ca_file,optional"`
-	SkipVerifyTLS    bool   `hcl:"skip_verify_tls,optional"`
+	Assignor      string `hcl:"assignor,optional"`
+	TargetVersion string `hcl:"target_version,optional"`
+	EnableSASL    bool   `hcl:"enable_sasl,optional"`
+	SASLUsername  string `hcl:"sasl_username,optional" `
+	SASLPassword  string `hcl:"sasl_password,optional"`
+	SASLAlgorithm string `hcl:"sasl_algorithm,optional"`
+	SASLVersion   int16  `hcl:"sasl_version,optional"`
+	EnableTLS     bool   `hcl:"enable_tls,optional"`
+	CertFile      string `hcl:"cert_file,optional"`
+	KeyFile       string `hcl:"key_file,optional"`
+	CaFile        string `hcl:"ca_file,optional"`
+	SkipVerifyTLS bool   `hcl:"skip_verify_tls,optional"`
 }
 
-// kafkaSource holds a new client for reading messages from Apache Kafka
-type kafkaSource struct {
-	sourceiface.NoOpObserver
-	concurrentWrites int
-	topic            string
-	brokers          string
-	consumerName     string
-	log              *log.Entry
-	cancel           context.CancelFunc
-
-	client sarama.ConsumerGroup
-}
-
-// consumer represents a Sarama consumer group consumer
-type consumer struct {
-	concurrentWrites int
-	throttle         chan struct{}
-	source           *sourceiface.SourceFunctions
-	log              *log.Entry
-}
-
-// Setup is run at the beginning of a new session, before ConsumeClaim
-func (consumer *consumer) Setup(sarama.ConsumerGroupSession) error {
-	consumer.log.Debugf("New session started")
-	return nil
-}
-
-// Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
-func (consumer *consumer) Cleanup(sarama.ConsumerGroupSession) error {
-	return nil
-}
-
-// ConsumeClaim claims consumed messages and writes them to the target
-func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	wg := sync.WaitGroup{}
-	for message := range claim.Messages() {
-		wg.Add(1)
-		consumer.throttle <- struct{}{}
-		go func(message *sarama.ConsumerMessage) {
-			var messages []*models.Message
-			consumer.log.Debugf("Read message with key: %s", string(message.Key))
-
-			newMessage := &models.Message{
-				Data:         message.Value,
-				PartitionKey: uuid.New().String(),
-				TimeCreated:  message.Timestamp,
-				TimePulled:   time.Now().UTC(),
-			}
-			if session != nil {
-				newMessage.AckFunc = func() {
-					consumer.log.Debugf("Ack'ing message with Key: %s", message.Key)
-					session.MarkMessage(message, "")
-				}
-			}
-
-			messages = append(messages, newMessage)
-
-			if err := consumer.source.WriteToTarget(messages); err != nil {
-				// When WriteToTarget returns an error it just means we failed to send some data -
-				// these messages won't have been acked, so they'll get retried eventually.
-				consumer.log.WithFields(log.Fields{"error": err}).Error(err)
-			}
-
-			<-consumer.throttle
-			wg.Done()
-		}(message)
-	}
-
-	wg.Wait()
-
-	return nil
-}
-
-// Read initializes the Kafka consumer group and starts the message consumption loop
-func (ks *kafkaSource) Read(sf *sourceiface.SourceFunctions) error {
-	ks.log.Info("Reading messages from topic...")
-
-	consumer := consumer{
-		throttle:         make(chan struct{}, ks.concurrentWrites),
-		concurrentWrites: ks.concurrentWrites,
-		source:           sf,
-		log:              ks.log,
-	}
-
-	cctx, cancel := context.WithCancel(context.Background())
-	// store reference to context cancel
-	ks.cancel = cancel
-	defer func() {
-		if err := ks.client.Close(); err != nil {
-			ks.log.WithError(err).Error("error closing kafka source")
-		}
-	}()
-
-	for {
-		if err := ks.client.Consume(cctx, strings.Split(ks.topic, ","), &consumer); err != nil {
-			return err
-		}
-		if ctxErr := cctx.Err(); ctxErr != nil {
-			ks.log.WithFields(log.Fields{"error": ctxErr}).Error(ctxErr)
-			// ignore this error, it is called by cancelled context (on application exit)
-			return nil
-		}
+// DefaultConfiguration returns the default configuration for kafka source
+func DefaultConfiguration() Configuration {
+	return Configuration{
+		Assignor:      "range",
+		SASLAlgorithm: "sha512",
+		EnableTLS:     false,
 	}
 }
 
-// Stop cancels the source receiver
-func (ks *kafkaSource) Stop() {
-	if ks.cancel != nil {
-		ks.log.Warn("Cancelling Kafka receiver...")
-		ks.cancel()
-	}
-	ks.cancel = nil
-}
-
-// adapterGenerator returns a Kafka Source adapter.
-func adapterGenerator(f func(c *Configuration) (sourceiface.Source, error)) adapter {
-	return func(i any) (any, error) {
-		cfg, ok := i.(*Configuration)
-		if !ok {
-			return nil, errors.New("invalid input, expected KafkaSourceConfig")
-		}
-
-		return f(cfg)
-	}
-}
-
-// ConfigPair is passed to configuration to determine when to build a Kafka source.
-var ConfigPair = config.ConfigurationPair{
-	Name:   "kafka",
-	Handle: adapterGenerator(configFunction),
-}
-
-// configFunction returns a kafka source from a config
-func configFunction(c *Configuration) (sourceiface.Source, error) {
-	return newKafkaSource(c)
-}
-
-// The adapter type is an adapter for functions to be used as
-// pluggable components for Kafka Source. It implements the Pluggable interface.
-type adapter func(i any) (any, error)
-
-// Create implements the ComponentCreator interface.
-func (f adapter) Create(i any) (any, error) {
-	return f(i)
-}
-
-// ProvideDefault implements the ComponentConfigurable interface
-func (f adapter) ProvideDefault() (any, error) {
-	// Provide defaults
-	cfg := &Configuration{
-		Assignor:         "range",
-		SASLAlgorithm:    "sha512",
-		ConcurrentWrites: 15,
-		EnableTLS:        false,
-	}
-
-	return cfg, nil
-}
-
-// newKafkaSource creates a new source for reading messages from Apache Kafka
-func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
+// BuildFromConfig creates a kafka source from decoded configuration
+func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
 	kafkaVersion, err := common.GetKafkaVersion(cfg.TargetVersion)
 	if err != nil {
 		return nil, err
 	}
 
 	logger := log.WithFields(log.Fields{
-		"source":  "kafka",
+		"source":  SupportedSourceKafka,
 		"brokers": cfg.Brokers,
 		"topic":   cfg.TopicName,
 		"version": kafkaVersion,
@@ -281,29 +129,132 @@ func newKafkaSource(cfg *Configuration) (*kafkaSource, error) {
 	saramaConfig.Net.TLS.Enable = cfg.EnableTLS
 	saramaConfig.Net.TLS.Config = tlsConfig
 
-	client, err := sarama.NewConsumerGroup(strings.Split(cfg.Brokers, ","), fmt.Sprintf(`%s-%s`, cfg.ConsumerName, cfg.TopicName), saramaConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create Kafka client")
+	sConfig := lazySaramaConfig{
+		brokers: strings.Split(cfg.Brokers, ","),
+		groupID: fmt.Sprintf(`%s-%s`, cfg.ConsumerName, cfg.TopicName),
+		config:  saramaConfig,
 	}
 
-	return newKafkaSourceWithInterfaces(client, &kafkaSource{
-		brokers:          cfg.Brokers,
-		topic:            cfg.TopicName,
-		consumerName:     cfg.ConsumerName,
-		log:              logger,
-		concurrentWrites: cfg.ConcurrentWrites,
+	return BuildWithSaramaConsumerInterface(nil, &kafkaSourceDriver{
+		brokers:      cfg.Brokers,
+		topic:        cfg.TopicName,
+		consumerName: cfg.ConsumerName,
+		log:          logger,
+		saramaConfig: sConfig,
 	})
 }
 
-// newKafkaSourceWithInterfaces creates a new source for reading messages from Apache Kafka, allowing the user to provide a mocked client.
-func newKafkaSourceWithInterfaces(client sarama.ConsumerGroup, s *kafkaSource) (*kafkaSource, error) {
+// BuildWithSaramaConsumerInterface creates a new source for reading messages from Apache Kafka, allowing the user to provide a mocked client.
+func BuildWithSaramaConsumerInterface(client sarama.ConsumerGroup, s *kafkaSourceDriver) (sourceiface.Source, error) {
 	// Ensures as even as possible distribution of UUIDs
 	uuid.EnableRandPool()
 	s.client = client
 	return s, nil
 }
 
-// GetID returns the identifier for this target
-func (ks *kafkaSource) GetID() string {
-	return fmt.Sprintf("brokers:%s:topic:%s", ks.brokers, ks.topic)
+// lazySaramaConfig holds Sarama consumer group config for lazy initialisation
+type lazySaramaConfig struct {
+	brokers []string
+	groupID string
+	config  *sarama.Config
+}
+
+// kafkaSourceDriver holds a new client for reading messages from Apache Kafka
+type kafkaSourceDriver struct {
+	sourceiface.SourceChannels
+
+	topic        string
+	brokers      string
+	consumerName string
+	log          *log.Entry
+
+	saramaConfig lazySaramaConfig
+	client       sarama.ConsumerGroup
+}
+
+// consumer represents a Sarama consumer group consumer
+type consumer struct {
+	outputChannel chan<- *models.Message
+	log           *log.Entry
+}
+
+// Setup is run at the beginning of a new session, before ConsumeClaim
+func (consumer *consumer) Setup(sarama.ConsumerGroupSession) error {
+	consumer.log.Debugf("New session started")
+	return nil
+}
+
+// Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
+func (consumer *consumer) Cleanup(sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+// ConsumeClaim claims consumed messages and writes them to the target
+func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	for message := range claim.Messages() {
+		consumer.log.Debugf("Read message with key: %s", string(message.Key))
+
+		newMessage := &models.Message{
+			Data:         message.Value,
+			PartitionKey: uuid.New().String(),
+			TimeCreated:  message.Timestamp,
+			TimePulled:   time.Now().UTC(),
+		}
+		if session != nil {
+			newMessage.AckFunc = func() {
+				consumer.log.Debugf("Ack'ing message with Key: %s", message.Key)
+				session.MarkMessage(message, "")
+			}
+		}
+
+		select {
+		case <-session.Context().Done():
+			return nil
+		case consumer.outputChannel <- newMessage:
+		}
+
+	}
+
+	return nil
+}
+
+// Start initializes the Kafka consumer group and starts the message consumption loop
+func (ks *kafkaSourceDriver) Start(ctx context.Context) {
+	defer func() {
+		close(ks.MessageChannel)
+
+		if err := ks.client.Close(); err != nil {
+			ks.log.WithError(err).Error("error closing kafka client")
+		}
+	}()
+
+	ks.log.Info("Reading messages from topic...")
+
+	// If client is nil
+	if ks.client == nil {
+		// then assumption is that we are planning to run against actual Kafka cluster,
+		// as oppose to testing against stubbed sarama Consumer Group.
+		// The reason to delay creation of actual consumer group until here is that NewConsumerGroup
+		// attempts to connect to Kafka straightaway and thus we cannot call BuildFromConfig
+		// without Kafka running and therefore cannot unit test BuildFromConfig function.
+		client, err := sarama.NewConsumerGroup(ks.saramaConfig.brokers, ks.saramaConfig.groupID,
+			ks.saramaConfig.config)
+		if err != nil {
+			ks.log.WithError(err).Error("Failed to create Kafka client")
+			return
+		}
+		ks.client = client
+	}
+
+	consumer := consumer{
+		outputChannel: ks.MessageChannel,
+		log:           ks.log,
+	}
+
+	for {
+		if err := ks.client.Consume(ctx, strings.Split(ks.topic, ","), &consumer); err != nil {
+			ks.log.WithError(err).Error("Failed to consume from Kafka")
+			break
+		}
+	}
 }

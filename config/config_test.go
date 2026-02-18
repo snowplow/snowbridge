@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/snowplow/snowbridge/v3/assets"
+	"github.com/snowplow/snowbridge/v3/pkg/failure"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,19 +31,21 @@ func TestNewConfig_NoConfig(t *testing.T) {
 
 	assert.Equal(c.Data.Source.Use.Name, "stdin")
 	assert.Nil(c.Data.Source.Use.Body)
-	assert.Equal(c.Data.Target.Use.Name, "stdout")
-	assert.Nil(c.Data.Target.Use.Body)
+	assert.Equal(c.Data.Target.Target.Name, "stdout")
+	assert.Nil(c.Data.Target.Target.Body)
 	assert.Equal(c.Data.FailureTarget.Target.Name, "stdout")
 	assert.Nil(c.Data.FailureTarget.Target.Body)
-	assert.Equal(c.Data.FailureTarget.Format, "snowplow")
-	assert.Equal(c.Data.FilterTarget.Use.Name, "silent")
-	assert.Nil(c.Data.FilterTarget.Use.Body)
+	assert.Equal(c.Data.FailureParser.Format, "snowplow")
+	assert.Equal(c.Data.FilterTarget.Target.Name, "silent")
+	assert.Nil(c.Data.FilterTarget.Target.Body)
 	assert.Equal(c.Data.Sentry.Tags, "{}")
 	assert.Equal(c.Data.StatsReceiver.Receiver.Name, "")
 	assert.Nil(c.Data.StatsReceiver.Receiver.Body)
 	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
 	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
-	assert.Nil(c.Data.Transformations)
+	assert.NotNil(c.Data.Transform)
+	assert.Nil(c.Data.Transform.Transformations)
+	assert.Equal(c.Data.Transform.WorkerPool, 0)
 	assert.Equal(c.Data.LogLevel, "info")
 	assert.Equal(c.Data.DisableTelemetry, false)
 	assert.Equal(c.Data.License.Accept, false)
@@ -51,25 +54,58 @@ func TestNewConfig_NoConfig(t *testing.T) {
 	assert.Equal(20000, c.Data.Retry.Setup.Delay)
 }
 
-func TestNewConfig_InvalidFailureFormat(t *testing.T) {
+func TestNewConfig_GetFailureParser(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
+	t.Run("snowplow_format", func(t *testing.T) {
+		hclConfig := []byte(`
+			failure_parser {
+				format = "snowplow"
+			}
+		`)
+		c, err := NewHclConfig(hclConfig, "test.hcl")
+		assert.NotNil(c)
+		assert.Nil(err)
 
-	c, err := NewConfig()
-	assert.NotNil(c)
-	if err != nil {
-		t.Fatalf("function NewConfig failed with error: %q", err.Error())
-	}
+		parser, err := c.GetFailureParser(500, "testApp", "1.0.0")
+		assert.NotNil(parser)
+		assert.Nil(err)
+		assert.IsType(&failure.SnowplowFailure{}, parser)
+	})
 
-	c.Data.FailureTarget.Format = "fakeHCL"
-	ft, err := c.GetFailureTarget("testAppName", "0.0.0")
-	assert.Nil(ft)
-	assert.NotNil(err)
-	if err != nil {
-		assert.Equal("Invalid failure format found; expected one of 'snowplow', 'event_forwarding' and got 'fakeHCL'", err.Error())
-	}
+	t.Run("event_forwarding_format", func(t *testing.T) {
+		hclConfig := []byte(`
+			failure_parser {
+				format = "event_forwarding"
+			}
+		`)
+		c, err := NewHclConfig(hclConfig, "test.hcl")
+		assert.NotNil(c)
+		assert.Nil(err)
+
+		parser, err := c.GetFailureParser(500, "testApp", "1.0.0")
+		assert.NotNil(parser)
+		assert.Nil(err)
+		assert.IsType(&failure.EventForwardingFailure{}, parser)
+	})
+
+	t.Run("invalid_format", func(t *testing.T) {
+		hclConfig := []byte(`
+			failure_parser {
+				format = "fakeHCL"
+			}
+		`)
+		c, err := NewHclConfig(hclConfig, "test.hcl")
+		assert.NotNil(c)
+		assert.Nil(err)
+
+		parser, err := c.GetFailureParser(500, "testApp", "1.0.0")
+		assert.Nil(parser)
+		assert.NotNil(err)
+		if err != nil {
+			assert.Equal("invalid failure format found; expected one of 'snowplow', 'event_forwarding' and got 'fakeHCL'", err.Error())
+		}
+	})
 }
 
 func TestNewConfig_GetTags(t *testing.T) {
@@ -99,36 +135,13 @@ func TestNewConfig_GetTags(t *testing.T) {
 func TestNewConfig_Hcl_invalids(t *testing.T) {
 	assert := assert.New(t)
 
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
 	c, err := NewConfig()
 	assert.NotNil(c)
 	if err != nil {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	c.Data.Target.Use.Name = "fakeHCL"
-	c.Data.FailureTarget.Target.Name = "fakeHCL"
 	c.Data.StatsReceiver.Receiver.Name = "fakeHCL"
-	t.Run("invalid_target", func(t *testing.T) {
-		target, err := c.GetTarget()
-		assert.Nil(target)
-		assert.NotNil(err)
-		if err != nil {
-			assert.Equal("Invalid target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fakeHCL'", err.Error())
-		}
-	})
-
-	t.Run("invalid_failure_target", func(t *testing.T) {
-		ftarget, err := c.GetFailureTarget("testAppName", "0.0.0")
-		assert.Nil(ftarget)
-		assert.NotNil(err)
-		if err != nil {
-			assert.Equal("Invalid failure target found; expected one of 'stdout, kinesis, pubsub, sqs, kafka, eventhub, http' and got 'fakeHCL'", err.Error())
-		}
-	})
-
 	t.Run("invalid_stats_receiver", func(t *testing.T) {
 		statsReceiver, err := c.GetObserver("testAppName", "0.0.0", map[string]string{})
 		assert.Nil(statsReceiver)
@@ -169,9 +182,9 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 	}
 
 	assert.Equal("stdin", c.Data.Source.Use.Name)
-	assert.Equal("stdout", c.Data.Target.Use.Name)
+	assert.Equal("stdout", c.Data.Target.Target.Name)
 	assert.Equal("stdout", c.Data.FailureTarget.Target.Name)
-	assert.Equal("snowplow", c.Data.FailureTarget.Format)
+	assert.Equal("snowplow", c.Data.FailureParser.Format)
 	assert.Equal("{}", c.Data.Sentry.Tags)
 	assert.Equal(false, c.Data.Sentry.Debug)
 	assert.Equal(1, c.Data.StatsReceiver.TimeoutSec)
@@ -211,12 +224,13 @@ func TestNewConfig_HclTransformationOrder(t *testing.T) {
 		t.Fatalf("function NewConfig failed with error: %q", err.Error())
 	}
 
-	assert.Equal(5, len(c.Data.Transformations))
-	assert.Equal("one", c.Data.Transformations[0].Use.Name)
-	assert.Equal("two", c.Data.Transformations[1].Use.Name)
-	assert.Equal("three", c.Data.Transformations[2].Use.Name)
-	assert.Equal("four", c.Data.Transformations[3].Use.Name)
-	assert.Equal("five", c.Data.Transformations[4].Use.Name)
+	assert.NotNil(c.Data.Transform)
+	assert.Equal(5, len(c.Data.Transform.Transformations))
+	assert.Equal("one", c.Data.Transform.Transformations[0].Name)
+	assert.Equal("two", c.Data.Transform.Transformations[1].Name)
+	assert.Equal("three", c.Data.Transform.Transformations[2].Name)
+	assert.Equal("four", c.Data.Transform.Transformations[3].Name)
+	assert.Equal("five", c.Data.Transform.Transformations[4].Name)
 }
 
 func TestNewConfig_GetMonitoring(t *testing.T) {

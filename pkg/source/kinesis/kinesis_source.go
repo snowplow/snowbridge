@@ -12,19 +12,17 @@
 package kinesissource
 
 import (
+	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/google/uuid"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/twitchscience/kinsumer"
 
-	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/common"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/observer"
@@ -42,347 +40,173 @@ type Configuration struct {
 	CustomAWSEndpoint       string `hcl:"custom_aws_endpoint,optional"`
 	ShardCheckFreqSeconds   int    `hcl:"shard_check_freq_seconds,optional"`
 	LeaderActionFreqSeconds int    `hcl:"leader_action_freq_seconds,optional"`
-	ConcurrentWrites        int    `hcl:"concurrent_writes,optional"`
 	ClientName              string `hcl:"client_name,optional"`
 	GetRecordsLimit         int    `hcl:"get_records_limit,optional"`
 	MaxConcurrentShards     int    `hcl:"max_concurrent_shards,optional"`
 }
 
-// --- Kinesis source
-
-// kinesisSource holds a new client for reading messages from kinesis
-type kinesisSource struct {
-	client           *kinsumer.Kinsumer
-	streamName       string
-	concurrentWrites int
-	region           string
-	accountID        string
-	observer         *observer.Observer
-
-	// Kinsumer initialization parameters (for lazy creation)
-	kinesisClient  common.KinesisV2API
-	dynamodbClient common.DynamoDBV2API
-	appName        string
-	clientName     string
-	kinsumerConfig kinsumer.Config
-
-	log *log.Entry
-}
-
-// -- Config
-
-// configFunctionGeneratorWithInterfaces generates the kinesis Source Config function, allowing you
-// to provide a Kinesis + DynamoDB client directly to allow for mocking and localstack usage
-func configFunctionGeneratorWithInterfaces(kinesisClient common.KinesisV2API, dynamodbClient common.DynamoDBV2API, awsAccountID string) func(c *Configuration) (sourceiface.Source, error) {
-	// Return a function which returns the source
-	return func(c *Configuration) (sourceiface.Source, error) {
-		// Handle iteratorTstamp if provided
-		var iteratorTstamp time.Time
-		var tstampParseErr error
-		if c.StartTimestamp != "" {
-			iteratorTstamp, tstampParseErr = time.Parse("2006-01-02 15:04:05.999", c.StartTimestamp)
-			if tstampParseErr != nil {
-				return nil, errors.Wrap(tstampParseErr, fmt.Sprintf("Failed to parse provided value for SOURCE_KINESIS_START_TIMESTAMP: %v", iteratorTstamp))
-			}
-		}
-
-		return newKinesisSourceWithInterfaces(
-			kinesisClient,
-			dynamodbClient,
-			awsAccountID,
-			c.ConcurrentWrites,
-			c.Region,
-			c.StreamName,
-			c.AppName,
-			&iteratorTstamp,
-			c.ReadThrottleDelayMs,
-			c.ShardCheckFreqSeconds,
-			c.LeaderActionFreqSeconds,
-			c.ClientName,
-			c.GetRecordsLimit,
-			c.MaxConcurrentShards)
-	}
-}
-
-// configFunction returns a kinesis source from a config
-func configFunction(c *Configuration) (sourceiface.Source, error) {
-	awsConfig, awsAccountID, err := common.GetAWSConfig(c.Region, c.RoleARN, c.CustomAWSEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	kinesisClient := kinesis.NewFromConfig(*awsConfig)
-	dynamodbClient := dynamodb.NewFromConfig(*awsConfig)
-
-	sourceConfigFunction := configFunctionGeneratorWithInterfaces(
-		kinesisClient,
-		dynamodbClient,
-		awsAccountID)
-
-	return sourceConfigFunction(c)
-}
-
-// The adapter type is an adapter for functions to be used as
-// pluggable components for Kinesis Source. Implements the Pluggable interface.
-type adapter func(i any) (any, error)
-
-// Create implements the ComponentCreator interface.
-func (f adapter) Create(i any) (any, error) {
-	return f(i)
-}
-
-// ProvideDefault implements the ComponentConfigurable interface.
-func (f adapter) ProvideDefault() (any, error) {
-	// Ensures as even as possible distribution of UUIDs
-	uuid.EnableRandPool()
-
-	// Provide defaults
-	cfg := &Configuration{
+// DefaultConfiguration returns the default configuration for kinesis source
+func DefaultConfiguration() Configuration {
+	return Configuration{
 		ReadThrottleDelayMs:     250, // Kinsumer default is 250ms
-		ConcurrentWrites:        50,
 		ShardCheckFreqSeconds:   10,
 		LeaderActionFreqSeconds: 60,
 		ClientName:              uuid.New().String(),
 		GetRecordsLimit:         10000,
 		MaxConcurrentShards:     0,
 	}
-
-	return cfg, nil
 }
 
-// adapterGenerator returns a Kinesis Source adapter.
-func adapterGenerator(f func(c *Configuration) (sourceiface.Source, error)) adapter {
-	return func(i any) (any, error) {
-		cfg, ok := i.(*Configuration)
-		if !ok {
-			return nil, errors.New("invalid input, expected configuration for kinesis source")
+// kinesisSourceDriver holds a new client for reading messages from kinesis
+type kinesisSourceDriver struct {
+	sourceiface.SourceChannels
+	client *kinsumer.Kinsumer
+	log    *log.Entry
+}
+
+// BuildFromConfig creates a kinesis source from decoded configuration
+func BuildFromConfig(cfg *Configuration, obs *observer.Observer) (sourceiface.Source, error) {
+	awsConfig, _, err := common.GetAWSConfig(cfg.Region, cfg.RoleARN, cfg.CustomAWSEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	kinesisClient := kinesis.NewFromConfig(*awsConfig)
+	dynamodbClient := dynamodb.NewFromConfig(*awsConfig)
+
+	// Handle iteratorTstamp if provided
+	var iteratorTstamp time.Time
+	var tstampParseErr error
+	if cfg.StartTimestamp != "" {
+		iteratorTstamp, tstampParseErr = time.Parse("2006-01-02 15:04:05.999", cfg.StartTimestamp)
+		if tstampParseErr != nil {
+			return nil, errors.Wrap(tstampParseErr, fmt.Sprintf("Failed to parse provided value for start_timestamp: %v", iteratorTstamp))
 		}
-
-		return f(cfg)
 	}
-}
-
-// ConfigPair is passed to configuration to determine when to build a Kinesis source.
-var ConfigPair = config.ConfigurationPair{
-	Name:   "kinesis",
-	Handle: adapterGenerator(configFunction),
-}
-
-// --- Kinsumer overrides
-
-// KinsumerLogrus adds a Logrus logger for Kinsumer
-type KinsumerLogrus struct{}
-
-// Log will print all Kinsumer logs as DEBUG lines
-func (kl *KinsumerLogrus) Log(format string, v ...any) {
-	log.WithFields(log.Fields{"source": "KinesisSource.Kinsumer"}).Debugf(format, v...)
-}
-
-// kinsumerStatsWrapper wraps an observer to implement kinsumer's stats interface
-type kinsumerStatsWrapper struct {
-	observer *observer.Observer
-}
-
-// newKinsumerStatsWrapper creates a wrapper that provides kinsumer-specific metrics
-func newKinsumerStatsWrapper(obs *observer.Observer) *kinsumerStatsWrapper {
-	return &kinsumerStatsWrapper{
-		observer: obs,
-	}
-}
-
-// Kinsumer stats interface implementation
-func (w *kinsumerStatsWrapper) Checkpoint() {
-	// No-op: not necessary for now
-}
-
-func (w *kinsumerStatsWrapper) EventToClient(inserted, retrieved time.Time) {
-	// No-op: not necessary for now
-}
-
-func (w *kinsumerStatsWrapper) EventsFromKinesis(num int, shardID string, lag time.Duration) {
-	// No-op: not necessary for now
-}
-
-func (w *kinsumerStatsWrapper) RecordsInMemory(count int64) {
-	if w.observer != nil {
-		w.observer.UpdateKinsumerRecordsInMemory(count)
-	}
-}
-
-func (w *kinsumerStatsWrapper) RecordsInMemoryBytes(bytes int64) {
-	if w.observer != nil {
-		w.observer.UpdateKinsumerRecordsInMemoryBytes(bytes)
-	}
-}
-
-// newKinesisSourceWithInterfaces allows you to provide a Kinesis + DynamoDB client directly to allow
-// for mocking and localstack usage
-func newKinesisSourceWithInterfaces(
-	kinesisClient common.KinesisV2API,
-	dynamodbClient common.DynamoDBV2API,
-	awsAccountID string,
-	concurrentWrites int,
-	region string,
-	streamName string,
-	appName string,
-	startTimestamp *time.Time,
-	readThrottleDelay int,
-	shardCheckFreq int,
-	leaderActionFreq int,
-	clientName string,
-	getRecordsLimit int,
-	maxConcurrentShards int) (*kinesisSource, error) {
 
 	// Build base kinsumer config with available parameters
 	config := kinsumer.NewConfig().
-		WithShardCheckFrequency(time.Duration(shardCheckFreq) * time.Second).
-		WithLeaderActionFrequency(time.Duration(leaderActionFreq) * time.Second).
+		WithShardCheckFrequency(time.Duration(cfg.ShardCheckFreqSeconds) * time.Second).
+		WithLeaderActionFrequency(time.Duration(cfg.LeaderActionFreqSeconds) * time.Second).
 		WithManualCheckpointing(true).
-		WithLogger(&KinsumerLogrus{}).
-		WithIteratorStartTimestamp(startTimestamp).
-		WithThrottleDelay(time.Duration(readThrottleDelay) * time.Millisecond).
-		WithGetRecordsLimit(getRecordsLimit).
-		WithMaxConcurrentShards(maxConcurrentShards)
+		WithLogger(&kinsumerLogrus{}).
+		WithIteratorStartTimestamp(&iteratorTstamp).
+		WithThrottleDelay(time.Duration(cfg.ReadThrottleDelayMs) * time.Millisecond).
+		WithGetRecordsLimit(cfg.GetRecordsLimit).
+		WithMaxConcurrentShards(cfg.MaxConcurrentShards)
 
-	return &kinesisSource{
-		streamName:       streamName,
-		concurrentWrites: concurrentWrites,
-		region:           region,
-		accountID:        awsAccountID,
-
-		// Store AWS clients and config for lazy kinsumer initialization
-		kinesisClient:  kinesisClient,
-		dynamodbClient: dynamodbClient,
-		appName:        appName,
-		clientName:     clientName,
-		kinsumerConfig: config,
-
-		log: log.WithFields(log.Fields{"source": "kinesis", "cloud": "AWS", "region": region, "stream": streamName}),
-	}, nil
-}
-
-// Read will pull messages from the noted Kinesis stream forever
-func (ks *kinesisSource) Read(sf *sourceiface.SourceFunctions) error {
-	ks.log.Infof("Reading messages from stream ...")
-
-	config := ks.kinsumerConfig
-	if ks.observer != nil {
+	if obs != nil {
 		// If we have an observer, use it for kinsumer metrics
-		kinsumerStats := newKinsumerStatsWrapper(ks.observer)
+		kinsumerStats := newKinsumerStatsWrapper(obs)
 		config = config.WithStats(kinsumerStats)
 	}
 
 	// Create kinsumer client
 	client, err := kinsumer.NewWithInterfaces(
-		ks.kinesisClient,
-		ks.dynamodbClient,
-		ks.streamName,
-		ks.appName,
-		ks.clientName,
-		ks.clientName,
+		kinesisClient,
+		dynamodbClient,
+		cfg.StreamName,
+		cfg.AppName,
+		cfg.ClientName,
+		cfg.ClientName,
 		config,
 	)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create Kinsumer client")
+		return nil, errors.Wrap(err, "Failed to create Kinsumer client")
 	}
 
-	ks.client = client
+	logger := log.WithFields(log.Fields{"source": "kinesis", "cloud": "AWS", "region": cfg.Region, "stream": cfg.StreamName})
+
+	return &kinesisSourceDriver{
+		client: client,
+		log:    logger,
+	}, nil
+}
+
+// Start will pull messages from the noted Kinesis stream forever
+func (ks *kinesisSourceDriver) Start(ctx context.Context) {
+	defer func() {
+		ks.log.Info("Cancelling Kinesis receive ...")
+
+		// Signal for downstream that we're done here
+		close(ks.MessageChannel)
+
+		// Stop() on kinsumer under the hood waits for all pulled messages to be checkpointed
+		if ks.client != nil {
+			ks.client.Stop()
+		}
+	}()
+
+	ks.log.Infof("Reading messages from stream ...")
+
+	err := ks.client.Run()
+	if err != nil {
+		ks.log.WithError(err).Error("Failed to start Kinsumer client")
+		ks.client = nil
+		return
+	}
+
 	ks.log.Debug("Kinsumer client initialized successfully")
 
-	err = ks.client.Run()
-	if err != nil {
-		return errors.Wrap(err, "Failed to start Kinsumer client")
+	// Populate kinsumer messages channel in a background...
+	kinsumerMessages := make(chan *models.Message)
+	go ks.pullMessagesFromKinsumer(ctx, kinsumerMessages)
+
+	// ... and consume internal kinsumer messages here, publish to the public output channel, respecting provided context cancellation
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case message, ok := <-kinsumerMessages:
+			if !ok {
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case ks.MessageChannel <- message:
+			}
+		}
 	}
+}
 
-	throttle := make(chan struct{}, ks.concurrentWrites)
-	wg := sync.WaitGroup{}
+func (ks *kinesisSourceDriver) pullMessagesFromKinsumer(ctx context.Context, output chan<- *models.Message) {
+	defer close(output)
 
-	var kinesisPullErr error
 	for {
 		record, checkpointer, err := ks.client.NextRecordWithCheckpointer()
 		if err != nil {
-			kinesisPullErr = errors.Wrap(err, "Failed to pull next Kinesis record from Kinsumer client")
-			break
+			ks.log.WithError(err).Error("Failed to pull next Kinesis record from Kinsumer client")
+			return
 		}
 
-		timePulled := time.Now().UTC()
+		if record == nil {
+			return
+		}
 
 		ackFunc := func() {
 			ks.log.Debugf("Ack'ing record with SequenceNumber: %s", *record.SequenceNumber)
-			checkpointer()
+
+			// From kinsumer's NextRecordWithCheckpointer: https://github.com/snowplow-devops/kinsumer/blob/v1.7.0/kinsumer.go#L690:
+			// 'WARNING: checkpointer() can block indefinitely if not called in order.'
+
+			// Call checkpointer asynchronously to avoid blocking the calling thread.
+			// Downstream concurrent transformation (e.g. with multiple transformer workers in the pool) may cause messages to be reordered and then acked out of original order by targets,
+			// but kinsumer's updateFunc ensures checkpoints are written to DynamoDB sequentially.
+			// See: https://github.com/snowplow-devops/kinsumer/blob/v1.7.0/checkpoints.go#L274-L298
+			go checkpointer()
 		}
 
-		if record != nil {
-			timeCreated := record.ApproximateArrivalTimestamp.UTC()
-
-			messages := []*models.Message{
-				{
-					Data:         record.Data,
-					PartitionKey: uuid.New().String(),
-					AckFunc:      ackFunc,
-					TimeCreated:  timeCreated,
-					TimePulled:   timePulled,
-				},
-			}
-
-			throttle <- struct{}{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				err := sf.WriteToTarget(messages)
-
-				// The Kinsumer client blocks unless we can checkpoint which only happens
-				// on a successful write to the target.  As such we need to force an app
-				// close in this scenario to allow it to reboot and hopefully continue.
-				if err != nil {
-					ks.log.WithFields(log.Fields{"error": err}).Fatal(err)
-				}
-				<-throttle
-			}()
-		} else {
-			break
+		message := &models.Message{
+			Data:         record.Data,
+			PartitionKey: uuid.New().String(),
+			AckFunc:      ackFunc,
+			TimeCreated:  record.ApproximateArrivalTimestamp.UTC(),
+			TimePulled:   time.Now().UTC(),
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case output <- message:
 		}
 	}
-
-	// Otherwise, wait for other threads to finish, but force a fatal error if it takes too long.
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		break
-	case <-time.After(10 * time.Second):
-		// Append errors and crash
-		if err := multierror.Append(kinesisPullErr, errors.Errorf("wg.Wait() took too long, forcing app close.")); err != nil {
-			ks.log.WithFields(log.Fields{"error": err.Error()}).Fatal(err.Error())
-		}
-	}
-
-	// Return kinesisPullErr if we have one
-	if kinesisPullErr != nil {
-		return kinesisPullErr
-	}
-
-	return nil
-}
-
-// Stop will halt the reader processing more events
-func (ks *kinesisSource) Stop() {
-	ks.log.Warn("Cancelling Kinesis receive ...")
-	if ks.client != nil {
-		ks.client.Stop()
-	}
-}
-
-// GetID returns the identifier for this source
-func (ks *kinesisSource) GetID() string {
-	return fmt.Sprintf("arn:aws:kinesis:%s:%s:stream/%s", ks.region, ks.accountID, ks.streamName)
-}
-
-// SetObserver injects the observer into the kinesis source for metrics reporting
-func (ks *kinesisSource) SetObserver(obs *observer.Observer) {
-	ks.observer = obs
-	ks.log.Debug("Observer set for kinesis source")
 }

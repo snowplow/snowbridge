@@ -16,9 +16,6 @@ source {
     # Format YYYY-MM-DD HH:MM:SS.MS (miliseconds optional)
     # (default: TRIM_HORIZON)
     start_timestamp   = "2020-01-01 10:00:00"
-
-    # Maximum concurrent goroutines (lightweight threads) for message processing (default: 50)
-    concurrent_writes = 15
   }
 }
 
@@ -31,9 +28,7 @@ transform {
 
     filter_action = "keep"
   }
-}
 
-transform {
   use "js" {
     # We use an env var here to facilitate tests. A hardcoded path will also work.
     script_path = env.JS_SCRIPT_PATH
@@ -64,6 +59,11 @@ filter_target {
     use "http" {
       url = "https://test-server"
   }
+}
+
+failure_parser {
+  # Format for failure messages: "snowplow" or "event_forwarding" (default: "snowplow")
+  format = "event_forwarding"
 }
 
 sentry {

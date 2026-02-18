@@ -61,12 +61,10 @@ func TestObserverTargetWrite(t *testing.T) {
 		assert.NotNil(b)
 		if counter == 0 {
 			assert.Equal(int64(5), b.TargetResults)
-			assert.Equal(int64(5), b.OversizedTargetResults)
 			assert.Equal(int64(5), b.InvalidTargetResults)
 			counter++
 		} else {
 			assert.Equal(int64(1), b.TargetResults)
-			assert.Equal(int64(1), b.OversizedTargetResults)
 			assert.Equal(int64(1), b.InvalidTargetResults)
 		}
 	}
@@ -76,7 +74,6 @@ func TestObserverTargetWrite(t *testing.T) {
 		assert.NotNil(b)
 		if metaCounter == 0 {
 			assert.Equal(int64(5), b.TargetResults)
-			assert.Equal(int64(5), b.OversizedTargetResults)
 			assert.Equal(int64(5), b.InvalidTargetResults)
 
 			assert.Equal(1, len(b.FailedErrors))
@@ -94,7 +91,6 @@ func TestObserverTargetWrite(t *testing.T) {
 			metaCounter++
 		} else {
 			assert.Equal(int64(1), b.TargetResults)
-			assert.Equal(int64(1), b.OversizedTargetResults)
 			assert.Equal(int64(1), b.InvalidTargetResults)
 
 			assert.Equal(1, len(b.FailedErrors))
@@ -161,7 +157,6 @@ func TestObserverTargetWrite(t *testing.T) {
 	r := models.NewTargetWriteResult(sent, failed, nil, nil)
 	for range 5 {
 		observer.TargetWrite(r)
-		observer.TargetWriteOversized(r)
 		observer.TargetWriteInvalid(r)
 	}
 
@@ -173,7 +168,6 @@ func TestObserverTargetWrite(t *testing.T) {
 
 	// Trigger emergency flush (4 seconds) - second counter check
 	observer.TargetWrite(r)
-	observer.TargetWriteOversized(r)
 	observer.TargetWriteInvalid(r)
 
 	time.Sleep(1 * time.Second)

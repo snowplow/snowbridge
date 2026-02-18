@@ -22,23 +22,22 @@ import (
 func TestNewTransformationResult(t *testing.T) {
 	assert := assert.New(t)
 
-	msgs := []*Message{
-		{
-			Data:         []byte("Baz"),
-			PartitionKey: "partition1",
-		},
-		{
-			Data:         []byte("Bar"),
-			PartitionKey: "partition2",
-		},
+	successMsg := &Message{
+		Data:         []byte("Success"),
+		PartitionKey: "partition1",
+	}
+	filteredMsg := &Message{
+		Data:         []byte("Filtered"),
+		PartitionKey: "partition2",
+	}
+	invalidMsg := &Message{
+		Data:         []byte("Invalid"),
+		PartitionKey: "partition3",
 	}
 
-	res := NewTransformationResult(msgs, msgs, msgs)
+	res := NewTransformationResult(successMsg, filteredMsg, invalidMsg)
 
-	assert.Equal(int64(2), res.ResultCount)
-	assert.Equal(int64(2), res.FilteredCount)
-	assert.Equal(int64(2), res.InvalidCount)
-	assert.Equal(msgs, res.Result)
-	assert.Equal(msgs, res.Filtered)
-	assert.Equal(msgs, res.Invalid)
+	assert.Equal(successMsg, res.Transformed)
+	assert.Equal(filteredMsg, res.Filtered)
+	assert.Equal(invalidMsg, res.Invalid)
 }

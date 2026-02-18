@@ -20,7 +20,13 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/snowplow/snowbridge/v3/assets"
 	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/target"
+	"github.com/snowplow/snowbridge/v3/pkg/target/eventhub"
+	"github.com/snowplow/snowbridge/v3/pkg/target/http"
+	"github.com/snowplow/snowbridge/v3/pkg/target/kafka"
+	"github.com/snowplow/snowbridge/v3/pkg/target/kinesis"
+	"github.com/snowplow/snowbridge/v3/pkg/target/pubsub"
+	"github.com/snowplow/snowbridge/v3/pkg/target/sqs"
+	"github.com/snowplow/snowbridge/v3/pkg/target/stdout"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,7 +59,7 @@ func testTargetConfig(t *testing.T, filepath string, fullExample bool) {
 
 	c := getConfigFromFilepath(t, filepath)
 
-	use := c.Data.Target.Use
+	use := c.Data.Target.Target
 	testTargetComponent(t, use.Name, use.Body, fullExample)
 }
 
@@ -68,7 +74,7 @@ func testFailureTargetConfig(t *testing.T, filepath string, fullExample bool) {
 func testFilterTargetConfig(t *testing.T, filepath string, fullExample bool) {
 	c := getConfigFromFilepath(t, filepath)
 
-	use := c.Data.FilterTarget.Use
+	use := c.Data.FilterTarget.Target
 	testTargetComponent(t, use.Name, use.Body, fullExample)
 }
 
@@ -76,22 +82,20 @@ func testTargetComponent(t *testing.T, name string, body hcl.Body, fullExample b
 	assert := assert.New(t)
 	var configObject any
 	switch name {
-	case "eventhub":
-		configObject = &target.EventHubConfig{}
-	case "http":
-		configObject = &target.HTTPTargetConfig{}
-	case "kafka":
-		configObject = &target.KafkaConfig{}
-	case "kinesis":
-		configObject = &target.KinesisTargetConfig{}
-	case "pubsub":
-		configObject = &target.PubSubTargetConfig{}
-	case "sqs":
-		configObject = &target.SQSTargetConfig{}
-	case "stdout":
-		// stdout doesn't have a config object, so we use an empty struct.
-		var s struct{}
-		configObject = &s
+	case eventhub.SupportedTargetEventHub:
+		configObject = &eventhub.EventHubConfig{}
+	case http.SupportedTargetHTTP:
+		configObject = &http.HTTPTargetConfig{}
+	case kafka.SupportedTargetKafka:
+		configObject = &kafka.KafkaConfig{}
+	case kinesis.SupportedTargetKinesis:
+		configObject = &kinesis.KinesisTargetConfig{}
+	case pubsub.SupportedTargetPubsub:
+		configObject = &pubsub.PubSubTargetConfig{}
+	case sqs.SupportedTargetSQS:
+		configObject = &sqs.SQSTargetConfig{}
+	case stdout.SupportedTargetStdout:
+		configObject = &stdout.StdoutTargetConfig{}
 	default:
 		assert.Fail(fmt.Sprint("Target not recognised: ", name))
 	}

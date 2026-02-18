@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -105,6 +106,23 @@ func GetAverageFromDuration(sum time.Duration, total int64) time.Duration {
 		return time.Duration(int64(sum)/total) * time.Nanosecond
 	}
 	return time.Duration(0)
+}
+
+// WaitWithTimeout waits for a WaitGroup to finish or times out.
+// Returns true if the WaitGroup finished within the timeout, false if it timed out.
+func WaitWithTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
 }
 
 // CreateTLSConfiguration creates a TLS configuration for use in a target

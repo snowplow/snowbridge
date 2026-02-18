@@ -134,9 +134,15 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 
 	c := getConfigFromFilepath(t, filepath)
 
+	// Check that Transform block exists
+	if c.Data.Transform == nil {
+		assert.Fail("Transform block is nil")
+		return
+	}
+
 	// Iterate transformations found
-	for _, transformation := range c.Data.Transformations {
-		use := transformation.Use
+	for _, transformation := range c.Data.Transform.Transformations {
+		use := transformation
 
 		// Pick the config to compare against
 		var configObject any

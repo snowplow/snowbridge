@@ -126,8 +126,8 @@ func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
 	s.client.Incr("message_filtered", b.MsgFiltered)
 
 	// unsendable
-	s.client.Incr("failure_target_success", b.OversizedMsgSent+b.InvalidMsgSent)
-	s.client.Incr("failure_target_failed", b.OversizedMsgFailed+b.InvalidMsgFailed)
+	s.client.Incr("failure_target_success", b.InvalidMsgSent)
+	s.client.Incr("failure_target_failed", b.InvalidMsgFailed)
 
 	// latencies
 	s.client.PrecisionTiming("min_processing_latency", b.MinProcLatency)

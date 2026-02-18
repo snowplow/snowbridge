@@ -81,3 +81,22 @@ func GetJsonDiff(expected, actual string) (string, error) {
 
 	return exp.Diff(act).Render(), nil
 }
+
+// ReadSourceOutput reads messages from source output channel with a timeout.
+// Returns all successfully read messages.
+// Stops reading after 5 seconds of inactivity or when the output channel is closed.
+func ReadSourceOutput(output chan *models.Message) []*models.Message {
+	successfulReads := make([]*models.Message, 0)
+
+	for {
+		select {
+		case msg, ok := <-output:
+			if !ok {
+				return successfulReads
+			}
+			successfulReads = append(successfulReads, msg)
+		case <-time.After(5 * time.Second):
+			return successfulReads
+		}
+	}
+}

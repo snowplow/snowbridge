@@ -12,130 +12,29 @@
 package pubsubsource
 
 import (
+	"cloud.google.com/go/pubsub/pstest"
 	"context"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/assets"
-	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/v3/pkg/common"
+	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
-func TestMain(m *testing.M) {
-	os.Clearenv()
-	exitVal := m.Run()
-	os.Exit(exitVal)
-}
-
-func TestPubSubSource_ReadAndReturnSuccessIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-	assert := assert.New(t)
-
-	// Create topic and subscription
-	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer func() {
-		if err := topic.Delete(context.Background()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-	defer func() {
-		if err := subscription.Delete(context.Background()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-
-	// Write to topic
-	testutil.WriteToPubSubTopic(t, topic, 10)
-
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-	adaptedHandle := adapterGenerator(configFunction)
-
-	pubsubSourceConfigPair := config.ConfigurationPair{Name: "pubsub", Handle: adaptedHandle}
-	supportedSources := []config.ConfigurationPair{pubsubSourceConfigPair}
-
-	// Construct the config
-	pubsubConfig, err := config.NewConfig()
-	assert.NotNil(pubsubConfig)
-	if err != nil {
-		t.Fatalf("unexpected error: %q", err.Error())
-	}
-
-	configBytesToMerge := []byte(`
-    project_id      = "project-test"
-    subscription_id = "test-sub"
-`)
-
-	parser := hclparse.NewParser()
-	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
-	if diags.HasErrors() {
-		t.Fatalf("failed to parse config bytes")
-	}
-
-	pubsubConfig.Data.Source.Use.Name = "pubsub"
-	pubsubConfig.Data.Source.Use.Body = fileHCL.Body
-
-	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
-
-	assert.NotNil(pubsubSource)
-	assert.Nil(err)
-	if err != nil {
-		logrus.Error(err.Error())
-	}
-	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
-
-	output := testutil.ReadAndReturnMessages(pubsubSource, 5*time.Second, testutil.DefaultTestWriteBuilder, nil)
-	assert.Equal(10, len(output))
-	for _, message := range output {
-		assert.Contains(string(message.Data), `message #`)
-		assert.Nil(message.GetError())
-	}
-}
-
-// newPubSubSource_Failure should fail if we can't reach PubSub, commented out this test until we look into https://github.com/snowplow/snowbridge/issues/151
-/*
-func TestNewPubSubSource_Failure(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-	assert := assert.New(t)
-
-	pubsubSource, err := newPubSubSource(10, "nonexistent-project", "nonexistent-subscription")
-	assert.NotNil(err)
-	assert.Nil(pubsubSource)
-	// This should return an error when we can't connect, rather than proceeding to the Write() function before we hit a problem.
-}
-*/
-
-// TestNewPubSubSource_Success tests the typical case of creating a new pubsub source.
-func TestNewPubSubSource_Success(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
-	}
-	assert := assert.New(t)
-
-	testutil.InitMockPubsubServer(8010, nil, t)
-
-	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub", 1000, 1e9, 0, 1, 0)
-	assert.Nil(err)
-	assert.IsType(&pubSubSource{}, pubsubSource)
-	// This should return an error when we can't connect, rather than proceeding to the Write() function before we hit a problem.
-}
-
-func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
+// TestPubSubSource_ReadAndReturnSuccess verifies basic pubsub source functionality:
+// 1. Messages are successfully read from the pubsub subscription
+// 2. All published messages are received by the source
+// 3. Messages are properly acked after processing
+// 4. The source respects context cancellation and shuts down gracefully
+// 5. The output channel is properly closed after shutdown
+func TestPubSubSource_ReadAndReturnSuccess(t *testing.T) {
 	assert := assert.New(t)
 
 	srv, conn := testutil.InitMockPubsubServer(8008, nil, t)
@@ -151,38 +50,125 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock(t *testing.T) {
 	}()
 
 	// Publish ten messages
-	numMsgs := 10
-	wg := sync.WaitGroup{}
-	for i := 0; i < numMsgs; i++ {
-		wg.Add(1)
-		go func(i int) {
-			_ = srv.Publish(`projects/project-test/topics/test-topic`, []byte(strconv.Itoa(i)), nil)
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
+	publishMessages(srv, 10, "")
 
-	pubsubSource, err := newPubSubSource(10, "project-test", "test-sub", 1000, 1e9, 0, 1, 0)
+	// Create the source source using BuildFromConfig
+	cfg := DefaultConfiguration()
+	cfg.ProjectID = "project-test"
+	cfg.SubscriptionID = "test-sub"
 
-	assert.NotNil(pubsubSource)
+	source, err := BuildFromConfig(&cfg)
 	assert.Nil(err)
-	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
+	assert.NotNil(source)
 
-	output := testutil.ReadAndReturnMessages(pubsubSource, 3*time.Second, testutil.DefaultTestWriteBuilder, nil)
-	assert.Equal(10, len(output))
+	outputChannel := make(chan *models.Message, 10)
+
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+
+	assert.Equal(10, len(successfulReads))
+
+	cancel()
 
 	// Check that we got exactly the 10 messages we want, with no duplicates
 	msgDatas := make([]string, 0)
-	for _, msg := range output {
+	for _, msg := range successfulReads {
 		msgDatas = append(msgDatas, string(msg.Data))
+		msg.AckFunc()
 	}
 	expected := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 	sort.Strings(msgDatas)
 	assert.Equal(expected, msgDatas)
+
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
 }
 
-// TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks tests the behaviour of pubsub source when some messages take longer to ack than others
-func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
+// TestPubSubSource_WaitForDelayedAcks verifies that:
+// 1. The source properly handles slow message processing without timing out
+// 2. Messages can take time to be acked/nacked without causing issues
+func TestPubSubSource_WaitForDelayedAcks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+	assert := assert.New(t)
+
+	// Create topic and subscription
+	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic-ack", "test-sub-ack")
+	defer func() {
+		if err := topic.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+	defer func() {
+		if err := subscription.Delete(context.Background()); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	testutil.WriteToPubSubTopic(t, topic, 10)
+
+	cfg := DefaultConfiguration()
+	cfg.ProjectID = "project-test"
+	cfg.SubscriptionID = "test-sub-ack"
+
+	source, err := BuildFromConfig(&cfg)
+	assert.Nil(err)
+	assert.NotNil(source)
+
+	outputChannel := make(chan *models.Message, 10)
+
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+
+	assert.Equal(10, len(successfulReads))
+
+	cancel()
+
+	assert.False(common.WaitWithTimeout(&wg, 1*time.Second), "Source finished even though it still waits for acks/nacks")
+
+	// Ack first half...
+	for _, msg := range successfulReads[0:5] {
+		msg.AckFunc()
+	}
+
+	time.Sleep(2 * time.Second)
+
+	assert.False(common.WaitWithTimeout(&wg, 1*time.Second), "Source finished even though not all acks/nacks happened yet")
+
+	// and nack the other half...
+	for _, msg := range successfulReads[5:10] {
+		msg.NackFunc()
+	}
+
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
+}
+
+// TestPubSubSource_SourceRestart verifies that:
+// 1. When a source is restarted after processing and acking/nacking messages, it handles the restart correctly
+// 2. The source processes new messages published after the first run
+// 3. Messages that were nacked in the first run are redelivered and can be processed again
+func TestPubSubSource_SourceRestart(t *testing.T) {
 	assert := assert.New(t)
 
 	srv, conn := testutil.InitMockPubsubServer(8008, nil, t)
@@ -197,62 +183,90 @@ func TestPubSubSource_ReadAndReturnSuccessWithMock_DelayedAcks(t *testing.T) {
 		}
 	}()
 
-	// publish 10 messages
-	numMsgs := 10
+	// Publish ten messages
+	publishMessages(srv, 10, "msg-")
+
+	// Create the source
+	cfg := DefaultConfiguration()
+	cfg.ProjectID = "project-test"
+	cfg.SubscriptionID = "test-sub"
+
+	source, err := BuildFromConfig(&cfg)
+	assert.Nil(err)
+	assert.NotNil(source)
+
+	outputChannel := make(chan *models.Message, 10)
+
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	successfulReads := testutil.ReadSourceOutput(outputChannel)
+	assert.Equal(10, len(successfulReads))
+
+	cancel()
+
+	// Ack 5 messages from the first batch...
+	for _, msg := range successfulReads[0:5] {
+		msg.AckFunc()
+	}
+
+	// And nack the other 5 messages...
+	for _, msg := range successfulReads[5:10] {
+		msg.NackFunc()
+	}
+
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
+
+	_, ok := <-outputChannel
+	assert.False(ok, "Output channel should be closed")
+
+	// Second batch! Publish new messages
+	publishMessages(srv, 10, "second-run-msg-")
+
+	// Build another source (simulating app restart) and confirm it only consumes unacked messages
+	secondSource, err := BuildFromConfig(&cfg)
+	assert.Nil(err)
+	assert.NotNil(secondSource)
+
+	outputChannel = make(chan *models.Message, 10)
+
+	secondSource.SetChannels(outputChannel)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	wg.Go(func() {
+		secondSource.Start(ctx)
+	})
+
+	successfulReads = testutil.ReadSourceOutput(outputChannel)
+
+	// We should have 5 nacked from the first batch + 10 from the first one
+	assert.Equal(15, len(successfulReads))
+
+	cancel()
+
+	for _, msg := range successfulReads {
+		msg.AckFunc()
+	}
+
+	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
+
+	_, ok = <-outputChannel
+	assert.False(ok, "Output channel should be closed")
+}
+
+func publishMessages(srv *pstest.Server, numMsgs int, prefix string) {
 	wg := sync.WaitGroup{}
 	for i := 0; i < numMsgs; i++ {
 		wg.Add(1)
 		go func(i int) {
-			_ = srv.Publish(`projects/project-test/topics/test-topic`, []byte(strconv.Itoa(i)), nil)
+			_ = srv.Publish(`projects/project-test/topics/test-topic`, []byte(prefix+strconv.Itoa(i)), nil)
 			wg.Done()
 		}(i)
 	}
 	wg.Wait()
-
-	filename := filepath.Join(assets.AssetsRootDir, "test", "config", "configs", "empty.hcl")
-	t.Setenv("SNOWBRIDGE_CONFIG_FILE", filename)
-
-	adaptedHandle := adapterGenerator(configFunction)
-
-	pubsubSourceConfigPair := config.ConfigurationPair{Name: "pubsub", Handle: adaptedHandle}
-	supportedSources := []config.ConfigurationPair{pubsubSourceConfigPair}
-
-	// Construct the config
-	pubsubConfig, err := config.NewConfig()
-	assert.NotNil(pubsubConfig)
-	if err != nil {
-		t.Fatalf("unexpected error: %q", err.Error())
-	}
-
-	configBytesToMerge := []byte(`
-    project_id      = "project-test"
-    subscription_id = "test-sub"
-`)
-
-	parser := hclparse.NewParser()
-	fileHCL, diags := parser.ParseHCL(configBytesToMerge, "placeholder")
-	if diags.HasErrors() {
-		t.Fatalf("failed to parse config bytes")
-	}
-
-	pubsubConfig.Data.Source.Use.Name = "pubsub"
-	pubsubConfig.Data.Source.Use.Body = fileHCL.Body
-
-	pubsubSource, err := sourceconfig.GetSource(pubsubConfig, supportedSources)
-
-	assert.NotNil(pubsubSource)
-	assert.Nil(err)
-	assert.Equal("projects/project-test/subscriptions/test-sub", pubsubSource.GetID())
-
-	output := testutil.ReadAndReturnMessages(pubsubSource, 5*time.Second, testutil.DelayedAckTestWriteBuilder, 2*time.Second)
-	assert.Equal(10, len(output))
-
-	// Check that we got exactly the 10 messages we want, with no duplicates
-	msgDatas := make([]string, 0)
-	for _, msg := range output {
-		msgDatas = append(msgDatas, string(msg.Data))
-	}
-	expected := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
-	sort.Strings(msgDatas)
-	assert.Equal(expected, msgDatas)
 }
