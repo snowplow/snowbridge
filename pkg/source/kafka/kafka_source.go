@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -191,6 +192,11 @@ func (consumer *consumer) Cleanup(sarama.ConsumerGroupSession) error {
 
 // ConsumeClaim claims consumed messages and writes them to the target
 func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	// Create a local sequencer for this partition.
+	// Each ConsumeClaim invocation processes one partition, so the sequencer
+	// only needs to exist for this invocation's lifetime.
+	sequencer := newKafkaOffsetSequencer()
+
 	for message := range claim.Messages() {
 		consumer.log.Debugf("Read message with key: %s", string(message.Key))
 
@@ -201,9 +207,18 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 			TimePulled:   time.Now().UTC(),
 		}
 		if session != nil {
+			// Create the sequenced ack function that will enforce ordering
+			sequencedAckFn := sequencer.createSequencedAck(session, message)
+
 			newMessage.AckFunc = func() {
-				consumer.log.Debugf("Ack'ing message with Key: %s", message.Key)
-				session.MarkMessage(message, "")
+				consumer.log.Debugf("Ack'ing message with Key: %s, Offset: %d", message.Key, message.Offset)
+
+				// Call sequencer asynchronously to avoid blocking the calling thread.
+				// Downstream concurrent transformation (e.g., with multiple transformer workers in the pool)
+				// may cause messages to be reordered and then acked out of original order by targets,
+				// but the sequencer ensures offsets are marked sequentially via channel-based ordering.
+				// Similar to Kinsumer's approach: https://github.com/snowplow-devops/kinsumer/blob/v1.7.0/checkpoints.go#L274-L298
+				go sequencedAckFn()
 			}
 		}
 
@@ -256,5 +271,47 @@ func (ks *kafkaSourceDriver) Start(ctx context.Context) {
 			ks.log.WithError(err).Error("Failed to consume from Kafka")
 			break
 		}
+	}
+}
+
+// kafkaOffsetSequencer ensures offsets are committed sequentially even when acked out of order.
+// Similar to Kinsumer's channel-based sequencing mechanism.
+type kafkaOffsetSequencer struct {
+	mutex       sync.Mutex
+	lastChannel chan struct{}
+}
+
+// newKafkaOffsetSequencer creates a new offset sequencer with an initial closed channel.
+func newKafkaOffsetSequencer() *kafkaOffsetSequencer {
+	initialChannel := make(chan struct{})
+	close(initialChannel) // First message can proceed immediately
+	return &kafkaOffsetSequencer{
+		lastChannel: initialChannel,
+	}
+}
+
+// createSequencedAck creates an ack function that will execute sequentially.
+// Even if acks are called out of order (e.g., msg 5, 2, 7), they will execute in order (2, 5, 7).
+// This prevents Sarama's "highest offset wins" behavior from causing message loss.
+//
+// Similar to Kinsumer's updateFunc pattern:
+// https://github.com/snowplow-devops/kinsumer/blob/v1.7.0/checkpoints.go#L274-L298
+func (s *kafkaOffsetSequencer) createSequencedAck(
+	session sarama.ConsumerGroupSession,
+	msg *sarama.ConsumerMessage,
+) func() {
+	s.mutex.Lock()
+	prev := s.lastChannel
+	next := make(chan struct{})
+	s.lastChannel = next
+	s.mutex.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			<-prev                       // Wait for previous message to be acked
+			session.MarkMessage(msg, "") // Mark this message
+			close(next)                  // Allow next message to be acked
+		})
 	}
 }

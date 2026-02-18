@@ -38,25 +38,66 @@ func TestDefaultConfiguration(t *testing.T) {
 }
 
 func TestKafkaSource_StartSuccess(t *testing.T) {
-	assert := assert.New(t)
-
-	topicName := "test-topic"
-
-	// Create mock consumer group with test messages
-	mockMessages := generateMockMessages(100, topicName)
-	mockConsumer := &mockConsumerGroup{
-		messages: mockMessages,
+	if testing.Short() {
+		t.Skip("skipping integration test")
 	}
 
-	// Create kafka source using dependency injection
-	kafkaSource, err := BuildWithSaramaConsumerInterface(mockConsumer, &kafkaSourceDriver{
-		topic:        topicName,
-		brokers:      "mock-broker",
-		consumerName: "test-consumer",
-		log:          logrus.WithField("test", true),
-	})
+	assert := assert.New(t)
+
+	// Set up Kafka resources
+	admin, err := testutil.GetKafkaAdminClient()
+	if err != nil {
+		t.Fatalf("Failed to create Kafka admin client: %v", err)
+	}
+	defer func() {
+		if err := admin.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	producer, err := testutil.GetKafkaSyncProducer()
+	if err != nil {
+		t.Fatalf("Failed to create Kafka producer: %v", err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	topicName := fmt.Sprintf("kafka-source-success-%d", time.Now().Unix())
+	createErr := testutil.CreateKafkaTopic(admin, topicName, 1, 1)
+	if createErr != nil {
+		t.Fatal(createErr)
+	}
+	defer func() {
+		if err := testutil.DeleteKafkaTopic(admin, topicName); err != nil {
+			logrus.Error(err.Error())
+		}
+	}()
+
+	// Put 100 messages into Kafka topic
+	var messages []string
+	for i := 0; i < 100; i++ {
+		messages = append(messages, strconv.Itoa(i))
+	}
+	putErr := testutil.PutProvidedDataIntoKafka(producer, topicName, messages)
+	if putErr != nil {
+		t.Fatal(putErr)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	// Create the source
+	cfg := DefaultConfiguration()
+	cfg.TopicName = topicName
+	cfg.Brokers = testutil.KafkaBrokerEndpoint
+	cfg.ConsumerName = "test-consumer-success"
+	cfg.OffsetsInitial = sarama.OffsetOldest
+
+	kafkaSource, err := BuildFromConfig(&cfg)
+	assert.Nil(err)
 	assert.NotNil(kafkaSource)
-	assert.NoError(err)
 
 	// Set up channels
 	outputChannel := make(chan *models.Message, 100)
@@ -70,7 +111,10 @@ func TestKafkaSource_StartSuccess(t *testing.T) {
 	})
 
 	// Collect messages with timeout
-	successfulReads := testutil.ReadSourceOutput(outputChannel)
+	var successfulReads []*models.Message
+	for i := 0; i < 5 && len(successfulReads) == 0; i++ {
+		successfulReads = testutil.ReadSourceOutput(outputChannel)
+	}
 
 	assert.Equal(100, len(successfulReads))
 
@@ -99,185 +143,146 @@ func TestKafkaSource_StartSuccess(t *testing.T) {
 	}
 }
 
-// Mock implementations for testing
-type mockConsumerGroup struct {
-	messages  []*mockMessage
-	errorChan chan error
-	closed    bool
-}
-
-type mockMessage struct {
-	topic     string
-	partition int32
-	key       []byte
-	value     []byte
-	offset    int64
-	timestamp time.Time
-}
-
-func (m *mockConsumerGroup) Consume(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
-	if m.closed {
-		return fmt.Errorf("consumer group is closed")
+// TestKafkaSource_AtLeastOnce verifies that:
+// 1. The kafkaOffsetSequencer prevents message loss when messages are acked out of order
+// 2. Offsets are only committed when all previous messages have been acked (sequential ordering)
+// 3. At-least-once delivery semantics are maintained even with concurrent processing
+func TestKafkaSource_AtLeastOnce(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
 	}
 
-	// Create mock session
-	session := &mockSession{}
+	assert := assert.New(t)
 
-	// Call handler Setup
-	if err := handler.Setup(session); err != nil {
-		return err
+	// Set up Kafka resources
+	admin, err := testutil.GetKafkaAdminClient()
+	if err != nil {
+		t.Fatalf("Failed to create Kafka admin client: %v", err)
 	}
-
-	// Create mock claim for each topic
-	for _, topic := range topics {
-		claim := &mockClaim{
-			messages: m.messages,
-			topic:    topic,
-			msgChan:  make(chan *sarama.ConsumerMessage, len(m.messages)),
+	defer func() {
+		if err := admin.Close(); err != nil {
+			logrus.Error(err.Error())
 		}
+	}()
 
-		// Populate message channel
-		for _, mockMsg := range m.messages {
-			if mockMsg.topic == topic {
-				claim.msgChan <- &sarama.ConsumerMessage{
-					Topic:     mockMsg.topic,
-					Partition: mockMsg.partition,
-					Key:       mockMsg.key,
-					Value:     mockMsg.value,
-					Offset:    mockMsg.offset,
-					Timestamp: mockMsg.timestamp,
-				}
-			}
+	producer, err := testutil.GetKafkaSyncProducer()
+	if err != nil {
+		t.Fatalf("Failed to create Kafka producer: %v", err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			logrus.Error(err.Error())
 		}
-		close(claim.msgChan)
+	}()
 
-		// Process claim in goroutine
-		go func(c *mockClaim) {
-			if err := handler.ConsumeClaim(session, c); err != nil {
-				logrus.WithError(err).Error("error consuming kafka claim")
-				return
-			}
-		}(claim)
+	topicName := fmt.Sprintf("kafka-source-restart-%d", time.Now().Unix())
+	createErr := testutil.CreateKafkaTopic(admin, topicName, 1, 1)
+	if createErr != nil {
+		t.Fatal(createErr)
 	}
-
-	// Wait for context cancellation
-	<-ctx.Done()
-
-	// Call handler Cleanup
-	if err := handler.Cleanup(session); err != nil {
-		return err
-	}
-
-	return ctx.Err()
-}
-
-func (m *mockConsumerGroup) Errors() <-chan error {
-	if m.errorChan == nil {
-		m.errorChan = make(chan error)
-	}
-	return m.errorChan
-}
-
-func (m *mockConsumerGroup) Close() error {
-	m.closed = true
-	return nil
-}
-
-func (m *mockConsumerGroup) Pause(partitions map[string][]int32) {
-	// Mock implementation - no-op
-}
-
-func (m *mockConsumerGroup) Resume(partitions map[string][]int32) {
-	// Mock implementation - no-op
-}
-
-func (m *mockConsumerGroup) PauseAll() {
-	// Mock implementation - no-op
-}
-
-func (m *mockConsumerGroup) ResumeAll() {
-	// Mock implementation - no-op
-}
-
-type mockSession struct {
-	markedMessages []*sarama.ConsumerMessage
-}
-
-func (m *mockSession) Claims() map[string][]int32 {
-	return map[string][]int32{"test-topic": {0}}
-}
-
-func (m *mockSession) MemberID() string {
-	return "mock-member"
-}
-
-func (m *mockSession) GenerationID() int32 {
-	return 1
-}
-
-func (m *mockSession) MarkOffset(topic string, partition int32, offset int64, metadata string) {
-	// Mock implementation - no-op
-}
-
-func (m *mockSession) ResetOffset(topic string, partition int32, offset int64, metadata string) {
-	// Mock implementation - no-op
-}
-
-func (m *mockSession) MarkMessage(msg *sarama.ConsumerMessage, metadata string) {
-	m.markedMessages = append(m.markedMessages, msg)
-}
-
-func (m *mockSession) Context() context.Context {
-	return context.Background()
-}
-
-func (m *mockSession) Commit() {
-	// Mock implementation - no-op
-}
-
-type mockClaim struct {
-	messages []*mockMessage
-	topic    string
-	msgChan  chan *sarama.ConsumerMessage
-}
-
-func (m *mockClaim) Topic() string {
-	return m.topic
-}
-
-func (m *mockClaim) Partition() int32 {
-	return 0
-}
-
-func (m *mockClaim) InitialOffset() int64 {
-	return 0
-}
-
-func (m *mockClaim) HighWaterMarkOffset() int64 {
-	return int64(len(m.messages))
-}
-
-func (m *mockClaim) Messages() <-chan *sarama.ConsumerMessage {
-	return m.msgChan
-}
-
-func generateMockMessages(count int, topic string) []*mockMessage {
-	messages := make([]*mockMessage, count)
-	for i := range count {
-		keyBuf := make([]byte, 0, 16)
-		keyBuf = fmt.Appendf(keyBuf, "key-%d", i)
-
-		valueBuf := make([]byte, 0, 8)
-		valueBuf = fmt.Append(valueBuf, i)
-
-		messages[i] = &mockMessage{
-			topic:     topic,
-			partition: 0,
-			key:       keyBuf,
-			value:     valueBuf,
-			offset:    int64(i),
-			timestamp: time.Now(),
+	defer func() {
+		if err := testutil.DeleteKafkaTopic(admin, topicName); err != nil {
+			logrus.Error(err.Error())
 		}
+	}()
+
+	// Put ten records into Kafka topic
+	messages := []string{
+		"msg-0", "msg-1", "msg-2", "msg-3", "msg-4",
+		"msg-5", "msg-6", "msg-7", "msg-8", "msg-9",
 	}
-	return messages
+	putErr := testutil.PutProvidedDataIntoKafka(producer, topicName, messages)
+	if putErr != nil {
+		t.Fatal(putErr)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	// Create the source
+	cfg := DefaultConfiguration()
+	cfg.TopicName = topicName
+	cfg.Brokers = testutil.KafkaBrokerEndpoint
+	cfg.ConsumerName = "test-consumer-restart"
+	cfg.OffsetsInitial = sarama.OffsetOldest
+
+	source, err := BuildFromConfig(&cfg)
+	assert.Nil(err)
+	assert.NotNil(source)
+
+	outputChannel := make(chan *models.Message, 10)
+
+	source.SetChannels(outputChannel)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		source.Start(ctx)
+	})
+
+	var firstBatch []*models.Message
+	for i := 0; i < 5 && len(firstBatch) == 0; i++ {
+		firstBatch = testutil.ReadSourceOutput(outputChannel)
+	}
+
+	assert.Equal(10, len(firstBatch))
+	assert.Equal("msg-0", string(firstBatch[0].Data))
+	assert.Equal("msg-1", string(firstBatch[1].Data))
+	assert.Equal("msg-2", string(firstBatch[2].Data))
+	assert.Equal("msg-3", string(firstBatch[3].Data))
+	assert.Equal("msg-4", string(firstBatch[4].Data))
+	assert.Equal("msg-5", string(firstBatch[5].Data))
+	assert.Equal("msg-6", string(firstBatch[6].Data))
+	assert.Equal("msg-7", string(firstBatch[7].Data))
+	assert.Equal("msg-8", string(firstBatch[8].Data))
+	assert.Equal("msg-9", string(firstBatch[9].Data))
+
+	// Out-of-order acking!
+	// Let's imagine concurrent processing and that only msg-5 is successful.
+	// Messages 0-4 fail, are never acked explicitly,
+	// This call doesn't block.
+	firstBatch[5].AckFunc()
+
+	cancel()
+
+	// Kafka consumer should quit after context cancellation
+	assert.True(common.WaitWithTimeout(&wg, 30*time.Second))
+
+	time.Sleep(5 * time.Second)
+
+	// Restarting source...
+	secondSource, err := BuildFromConfig(&cfg)
+	assert.Nil(err)
+	assert.NotNil(secondSource)
+
+	outputChannel = make(chan *models.Message, 10)
+
+	secondSource.SetChannels(outputChannel)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+
+	wg.Go(func() {
+		secondSource.Start(ctx)
+	})
+
+	var secondBatch []*models.Message
+	for i := 0; i < 5 && len(secondBatch) == 0; i++ {
+		secondBatch = testutil.ReadSourceOutput(outputChannel)
+	}
+
+	// With kafkaOffsetSequencer: We only acked msg-5 (out-of-order acking).
+	// The sequencer ensures msg-5's ack WAITS for msg-0 through msg-4 to be acked first.
+	// Since msg-0 through msg-4 are never acked, msg-5's ack never executes.
+	// Result: No offset is committed, all 10 messages are redelivered (at-least-once delivery).
+	assert.Equal(10, len(secondBatch))
+	assert.Equal("msg-0", string(secondBatch[0].Data))
+	assert.Equal("msg-1", string(secondBatch[1].Data))
+	assert.Equal("msg-2", string(secondBatch[2].Data))
+	assert.Equal("msg-3", string(secondBatch[3].Data))
+	assert.Equal("msg-4", string(secondBatch[4].Data))
+	assert.Equal("msg-5", string(secondBatch[5].Data))
+	assert.Equal("msg-6", string(secondBatch[6].Data))
+	assert.Equal("msg-7", string(secondBatch[7].Data))
+	assert.Equal("msg-8", string(secondBatch[8].Data))
+	assert.Equal("msg-9", string(secondBatch[9].Data))
 }
