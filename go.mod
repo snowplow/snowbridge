@@ -1,6 +1,6 @@
 module github.com/snowplow/snowbridge/v3
 
-go 1.25.1
+go 1.25.7
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
