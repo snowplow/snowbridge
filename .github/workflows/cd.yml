@@ -9,6 +9,8 @@ jobs:
   release:
     if: ${{ github.event.repository.private == true }}
     name: Release
+    permissions:
+      contents: write 
     strategy:
       matrix:
         # Quotes are required: https://github.com/actions/setup-go/issues/326#issuecomment-1415719692
