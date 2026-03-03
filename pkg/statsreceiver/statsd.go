@@ -122,7 +122,7 @@ func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
 	// overall
 	s.client.Incr("target_success", b.MsgSent)
 	s.client.Incr("target_failed", b.MsgFailed)
-	s.client.Incr("target_request_count", b.RequestCount)
+	s.client.Incr("target_request_count", b.TargetResults)
 	s.client.Incr("message_filtered", b.MsgFiltered)
 
 	// unsendable

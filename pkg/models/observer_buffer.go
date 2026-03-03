@@ -28,7 +28,6 @@ type ObserverBuffer struct {
 	MsgSent       int64
 	MsgFailed     int64
 	MsgFiltered   int64
-	RequestCount  int64
 
 	InvalidTargetResults int64
 	InvalidMsgSent       int64
@@ -130,8 +129,6 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	allMessages := append(append(res.Sent, res.Failed...), res.Invalid...)
 	for _, msg := range allMessages {
 		if !msg.TimeRequestStarted.IsZero() && !msg.TimeRequestFinished.IsZero() {
-			b.RequestCount++
-
 			requestLatency := msg.TimeRequestFinished.Sub(msg.TimeRequestStarted)
 			b.SumRequestLatency += requestLatency
 
@@ -202,12 +199,11 @@ func (b *ObserverBuffer) AppendTransformed(res *TransformationResult) {
 
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,RequestCount:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MinProcLatency:%d,MaxProcLatency:%d,MinMsgLatency:%d,MaxMsgLatency:%d,SumMsgLatency:%d,MinFilterLatency:%d,MaxFilterLatency:%d,MinTransformLatency:%d,MaxTransformLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d,SumE2ELatency:%d",
+		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MinProcLatency:%d,MaxProcLatency:%d,MinMsgLatency:%d,MaxMsgLatency:%d,SumMsgLatency:%d,MinFilterLatency:%d,MaxFilterLatency:%d,MinTransformLatency:%d,MaxTransformLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d,SumE2ELatency:%d",
 		b.TargetResults,
 		b.MsgFiltered,
 		b.MsgSent,
 		b.MsgFailed,
-		b.RequestCount,
 		b.InvalidTargetResults,
 		b.InvalidMsgSent,
 		b.InvalidMsgFailed,
