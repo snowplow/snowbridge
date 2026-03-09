@@ -98,7 +98,7 @@ func TestWriteBatch_Basic(t *testing.T) {
 
 func TestWriteBatch_FatalError(t *testing.T) {
 	// Create mock target
-	target, _ := createMockTarget(10)
+	target, mockDriver := createMockTarget(10)
 
 	// Create router
 	mockCancel, wasCancelCalled := createMockCancel()
@@ -108,9 +108,9 @@ func TestWriteBatch_FatalError(t *testing.T) {
 		invalidChannel: make(chan *invalidMessages, 10),
 		cancel:         mockCancel,
 		retryConfig: &config.RetryConfig{
-			Setup:     &config.SetupRetryConfig{Delay: 100, MaxAttempts: 1},
-			Transient: &config.TransientRetryConfig{Delay: 100, MaxAttempts: 1},
-			Throttle:  &config.ThrottleRetryConfig{Delay: 100, MaxAttempts: 1},
+			Setup:     &config.SetupRetryConfig{Delay: 100, MaxAttempts: 2},
+			Transient: &config.TransientRetryConfig{Delay: 100, MaxAttempts: 2},
+			Throttle:  &config.ThrottleRetryConfig{Delay: 100, MaxAttempts: 2},
 		},
 		metrics: createMockMetrics(),
 	}
@@ -131,6 +131,9 @@ func TestWriteBatch_FatalError(t *testing.T) {
 	// Wait for async write to complete
 	target.WaitGroup.Wait()
 
+	// Setup block fires FatalWriteError on call 1 — guard exits immediately, no further retry tiers
+	assert.Equal(t, 1, len(mockDriver.GetReceivedBatches()), "Expected exactly 1 write call for setup-block FatalWriteError")
+
 	// Verify cancel was called due to fatal error
 	assert.True(t, wasCancelCalled(), "Cancel should be called due to fatal error in target write")
 
@@ -147,6 +150,52 @@ func TestWriteBatch_FatalError(t *testing.T) {
 
 	assert.False(t, ackedMessages["message3"], "Message should not be acked due to fatal error")
 	assert.True(t, nackedMessages["message3"], "Message should be nacked due to fatal error")
+
+	// sendToInvalid=false — invalid channel must receive nothing
+	select {
+	case v := <-router.invalidChannel:
+		t.Fatalf("Expected empty invalid channel, got: %v", v)
+	default:
+	}
+}
+
+func TestWriteBatch_FatalWriteError_Transient(t *testing.T) {
+	target, mockDriver := createMockTarget(10)
+	mockCancel, wasCancelCalled := createMockCancel()
+
+	router := &Router{
+		Target:         target,
+		invalidChannel: make(chan *invalidMessages, 1),
+		cancel:         mockCancel,
+		retryConfig: &config.RetryConfig{
+			Setup:     &config.SetupRetryConfig{Delay: 100, MaxAttempts: 2},
+			Transient: &config.TransientRetryConfig{Delay: 100, MaxAttempts: 2},
+			Throttle:  &config.ThrottleRetryConfig{Delay: 100, MaxAttempts: 2},
+		},
+		metrics: createMockMetrics(),
+	}
+
+	testMessages := []*models.Message{
+		{Data: []byte("message1"), PartitionKey: "success"},
+		{Data: []byte("message2"), PartitionKey: "failed"},
+		{Data: []byte("message1"), PartitionKey: "fatal-transient"},
+	}
+
+	router.WriteBatch(testMessages, target, func(*models.TargetWriteResult) {})
+	target.WaitGroup.Wait()
+
+	// Call 1: plain error (setup block), Call 2: FatalWriteError (transient block) — 2 total
+	assert.Equal(t, 2, len(mockDriver.GetReceivedBatches()), "Expected exactly 2 write calls for transient-block FatalWriteError")
+
+	// Verify cancel was called due to fatal error
+	assert.True(t, wasCancelCalled(), "Cancel should be called due to fatal error in target write")
+
+	// sendToInvalid=false — invalid channel must receive nothing
+	select {
+	case v := <-router.invalidChannel:
+		t.Fatalf("Expected empty invalid channel, got: %v", v)
+	default:
+	}
 }
 
 // This test specifies the desired retry behaviour. The "fail-for-n" partition keys tell our mocks how many times to fail a given event.

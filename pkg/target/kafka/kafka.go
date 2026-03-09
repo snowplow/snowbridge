@@ -278,6 +278,12 @@ func (kt *KafkaTargetDriver) Write(messages []*models.Message) (*models.TargetWr
 		}
 	} else {
 		errResult = multierror.Append(errResult, fmt.Errorf("no producer has been configured"))
+		return models.NewTargetWriteResult(
+			sent,
+			failed,
+			nil,
+			nil,
+		), models.FatalWriteError{Err: errResult}
 	}
 
 	if errResult != nil {

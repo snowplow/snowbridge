@@ -351,8 +351,12 @@ func handleWriteWithRetryConfig(cfg *config.RetryConfig, write func() error, ale
 	// If after retries we still have setup error
 	// there is no reason to retry it further, so error early
 	if _, isSetup := err.(models.SetupWriteError); isSetup {
-
 		return err, cfg.Setup.InvalidAfterMax
+	}
+
+	if _, isFatal := err.(models.FatalWriteError); isFatal {
+		log.WithError(err).Error("Fatal write error detected, shutting down")
+		return err, false
 	}
 
 	// Now, `err` is either nil or no longer setup-related
@@ -393,7 +397,6 @@ func handleWriteWithRetryConfig(cfg *config.RetryConfig, write func() error, ale
 	// If after retries we still have throttle error
 	// there is no reason to retry it further, so error early
 	if _, isThrottle := err.(models.ThrottleWriteError); isThrottle {
-
 		return err, cfg.Throttle.InvalidAfterMax
 	}
 
@@ -411,8 +414,14 @@ func handleWriteWithRetryConfig(cfg *config.RetryConfig, write func() error, ale
 		log.Warnf("Retry failed with transient error. Retry counter: %d, error: %s\n", retry+1, err)
 	})
 
+	retryOnlyNotFatal := retry.RetryIf(func(err error) bool {
+		_, isFatal := err.(models.FatalWriteError)
+		return !isFatal
+	})
+
 	err = retry.Do(
 		write,
+		retryOnlyNotFatal,
 		onTransientError,
 		// * 2 because we have initial sleep above
 		retry.Delay(time.Duration(cfg.Transient.Delay*2)*time.Millisecond),
@@ -429,16 +438,29 @@ func handleWriteWithRetryConfig(cfg *config.RetryConfig, write func() error, ale
 // and don't produce alert load events.
 func handleSimpleWrite(write func() error) error {
 	onAnyError := retry.OnRetry(func(retry uint, err error) {
-		log.Warnf("Retry failed with an error. Retry counter: %d, error: %s\n", retry+1, err)
+		_, isFatal := err.(models.FatalWriteError)
+		if !isFatal {
+			log.Warnf("Retry failed with an error. Retry counter: %d, error: %s\n", retry+1, err)
+		}
+	})
+
+	retryIfNotFatal := retry.RetryIf(func(err error) bool {
+		_, isFatal := err.(models.FatalWriteError)
+		return !isFatal
 	})
 
 	err := retry.Do(
 		write,
 		onAnyError,
+		retryIfNotFatal,
 		retry.Delay(time.Duration(50)*time.Millisecond),
 		retry.Attempts(5),
 		retry.LastErrorOnly(true),
 	)
+
+	if _, isFatal := err.(models.FatalWriteError); isFatal {
+		log.WithError(err).Error("Fatal write error detected, shutting down")
+	}
 
 	return err
 }

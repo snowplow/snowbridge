@@ -192,7 +192,7 @@ func TestWriteFailureBatch_Retry(t *testing.T) {
 
 func TestWriteFailureBatch_FatalError(t *testing.T) {
 	// Create mock failure target
-	failureTarget, _ := createMockTarget(10)
+	failureTarget, mockDriver := createMockTarget(10)
 
 	// Create router
 	mockCancel, wasCancelCalled := createMockCancel()
@@ -224,6 +224,9 @@ func TestWriteFailureBatch_FatalError(t *testing.T) {
 	// Wait for async write to complete
 	failureTarget.WaitGroup.Wait()
 
+	// handleSimpleWrite: RetryIf(!isFatal) stops on first FatalWriteError — exactly 1 write call
+	assert.Equal(t, 1, len(mockDriver.GetReceivedBatches()), "Expected exactly 1 write call for FatalWriteError in handleSimpleWrite")
+
 	// Verify cancel was called due to fatal error
 	assert.True(t, wasCancelCalled(), "Cancel should be called due to fatal error in failure target write")
 
@@ -240,4 +243,11 @@ func TestWriteFailureBatch_FatalError(t *testing.T) {
 
 	assert.False(t, ackedMessages["message3"], "Message should not be acked due to fatal error")
 	assert.True(t, nackedMessages["message3"], "Message should be nacked due to fatal error")
+
+	// No messages sent to invalid channel (sendToInvalid logic does not apply to handleSimpleWrite path)
+	select {
+	case v := <-router.invalidChannel:
+		t.Fatalf("Expected empty invalid channel, got: %v", v)
+	default:
+	}
 }

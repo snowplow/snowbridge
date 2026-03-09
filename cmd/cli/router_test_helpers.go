@@ -37,12 +37,15 @@ type receivedBatch struct {
 //   - "fail-for-N": Fails N times before succeeding (e.g., "fail-for-3")
 //   - "invalid": Message becomes invalid
 //   - "failed": Message becomes failed
+//   - "write-fatal": Returns FatalWriteError on first call (tests setup-block guard)
+//   - "write-fatal-transient": Returns plain error on call 1, FatalWriteError on call 2 (tests transient-block guard)
 //   - default: Message succeeds
 type mockTargetDriver struct {
 	mu              sync.Mutex
 	receivedBatches []receivedBatch
 	batchingConfig  targetiface.BatchingConfig
 	isOpened        bool
+	callCounts      map[string]int
 }
 
 func (m *mockTargetDriver) GetDefaultConfiguration() any {
@@ -70,11 +73,22 @@ func (m *mockTargetDriver) Write(messages []*models.Message) (*models.TargetWrit
 		timestamp: time.Now(),
 	})
 
-	// Check for fatal error first
+	// Check for fatal error first(tier-specific FatalWriteError triggers)
 	for _, msg := range messages {
-		if msg.PartitionKey == "fatal" {
+		switch msg.PartitionKey {
+		case "fatal":
 			// On fatal error, return all messages as failed
-			return models.NewTargetWriteResult(nil, messages, nil, nil), errors.New("fatal error")
+			return models.NewTargetWriteResult(nil, messages, nil, nil), models.FatalWriteError{Err: errors.New("fatal error")}
+		case "fatal-transient":
+			// Call 1: plain error (not setup, not throttle — setup block exits, throttle check skipped, enters transient block)
+			// Call 2: FatalWriteError (transient-block guard fires)
+			m.callCounts[msg.PartitionKey]++
+			if m.callCounts[msg.PartitionKey] == 1 {
+				return models.NewTargetWriteResult(nil, messages, nil, nil),
+					fmt.Errorf("transient write error")
+			}
+			return models.NewTargetWriteResult(nil, messages, nil, nil),
+				models.FatalWriteError{Err: errors.New("fatal write error")}
 		}
 	}
 
@@ -200,6 +214,7 @@ func createMockTargetWithConfig(bufferSize int, batchingConfig targetiface.Batch
 	driver := &mockTargetDriver{
 		receivedBatches: make([]receivedBatch, 0),
 		batchingConfig:  batchingConfig,
+		callCounts:      make(map[string]int),
 	}
 
 	// Create a ticker that won't fire during tests

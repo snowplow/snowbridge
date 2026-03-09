@@ -11,7 +11,8 @@
 
 package models
 
-// SetupWriteError is a wrapper for target write error. It is used by any target as a signal for a caller that this kind of error should be retried using 'setup-like' retry strategy.
+// SetupWriteError is a wrapper for target write error and used by targets as a signal
+// for a caller that this kind of error should be retried using 'setup-like' retry strategy.
 type SetupWriteError struct {
 	Err error
 }
@@ -20,11 +21,22 @@ func (err SetupWriteError) Error() string {
 	return err.Err.Error()
 }
 
-// ThrottleWriteError is a wrapper for target write error. It is used by any target as a signal for a caller that this kind of error should be retried using 'throttle-like' retry strategy.
+// ThrottleWriteError is a wrapper for target write error and used by targets as a signal
+// for a caller that this kind of error should be retried using 'throttle-like' retry strategy.
 type ThrottleWriteError struct {
 	Err error
 }
 
 func (err ThrottleWriteError) Error() string {
+	return err.Err.Error()
+}
+
+// FatalWriteError is a wrapper for target write error and used by targets as a signal
+// for a caller that the process should be cancelled and graceful shutdown initiated.
+type FatalWriteError struct {
+	Err error
+}
+
+func (err FatalWriteError) Error() string {
 	return err.Err.Error()
 }

@@ -13,3 +13,4 @@ build/
 dist/
 .localstack/
 /AMAZON_LICENSE
+.planning/

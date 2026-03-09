@@ -130,7 +130,7 @@ func (ps *PubSubTargetDriver) Write(messages []*models.Message) (*models.TargetW
 			failed,
 			nil,
 			nil,
-		), err
+		), models.FatalWriteError{Err: err}
 	}
 
 	var results []*pubSubPublishResult

@@ -359,7 +359,7 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 	request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(reqBody))
 
 	if err != nil {
-		panic(err)
+		return models.NewTargetWriteResult(nil, nil, nil, nil), models.FatalWriteError{Err: err}
 	}
 
 	request.Header.Add("Content-Type", ht.contentType)                        // Add content type
