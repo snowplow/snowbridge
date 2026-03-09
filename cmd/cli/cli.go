@@ -147,8 +147,8 @@ func RunApp(cfg *config.Config, supportedTransformations []config.ConfigurationP
 	select {
 	case <-done:
 		log.Info("App shutdown completed successfully")
-	case <-time.After(10 * time.Second):
-		log.Error("Shutdown timed out after 10 seconds, forcing quit...")
+	case <-time.After(5 * time.Second):
+		log.Warn("Shutdown timed out after 5 seconds, forcing quit...")
 	}
 
 	return err
