@@ -12,10 +12,14 @@
 package kinesis
 
 import (
+	"context"
 	"os"
 	"sync/atomic"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
@@ -220,4 +224,162 @@ func TestKinesisTarget_WriteSuccess(t *testing.T) {
 	assert.Equal(0, len(writeRes.Failed))
 	assert.Equal(0, len(writeRes.Oversized))
 	assert.Equal(0, len(writeRes.Invalid))
+}
+
+func TestDeduplicateErrMsgWithCounts(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    []error
+		expected string
+	}{
+		{
+			name:     "single error",
+			input:    []error{errors.New("foo")},
+			expected: "foo (count: 1)",
+		},
+		{
+			name:     "all unique errors",
+			input:    []error{errors.New("a"), errors.New("b"), errors.New("c")},
+			expected: "a (count: 1); b (count: 1); c (count: 1)",
+		},
+		{
+			name:     "all identical errors",
+			input:    []error{errors.New("foo"), errors.New("foo"), errors.New("foo")},
+			expected: "foo (count: 3)",
+		},
+		{
+			name:     "mixed duplicates preserves first-occurrence order",
+			input:    []error{errors.New("a"), errors.New("b"), errors.New("a")},
+			expected: "a (count: 2); b (count: 1)",
+		},
+		{
+			name:     "two errors each appearing multiple times",
+			input:    []error{errors.New("X"), errors.New("Y"), errors.New("X"), errors.New("Y"), errors.New("X")},
+			expected: "X (count: 3); Y (count: 2)",
+		},
+		{
+			name:     "empty slice",
+			input:    []error{},
+			expected: "",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := deduplicateErrMsgWithCounts(tt.input)
+			assert.Equal(t, tt.expected, result.Error())
+		})
+	}
+}
+
+func TestKinesisTarget_Write_DeduplicatedErrors_AllSame(t *testing.T) {
+	assert := assert.New(t)
+
+	errCode := "InternalFailure"
+	errMsg := "Internal service failure"
+
+	client := &mockKinesisClient{
+		putRecordsOutput: &kinesis.PutRecordsOutput{
+			Records: []types.PutRecordsResultEntry{
+				{ErrorCode: &errCode, ErrorMessage: &errMsg},
+				{ErrorCode: &errCode, ErrorMessage: &errMsg},
+				{ErrorCode: &errCode, ErrorMessage: &errMsg},
+			},
+		},
+	}
+
+	target, err := newKinesisTargetWithInterfaces(client, "000000000000", "us-east-1", "test-stream", 500)
+	assert.Nil(err)
+
+	messages := testutil.GetTestMessages(3, "Hello Kinesis!!", nil)
+	writeRes, writeErr := target.Write(messages)
+
+	assert.NotNil(writeErr)
+	assert.Equal("Internal service failure (count: 3)", writeErr.Error())
+	assert.Equal(3, len(writeRes.Failed))
+	assert.Equal(0, len(writeRes.Sent))
+}
+
+func TestKinesisTarget_Write_DeduplicatedErrors_Mixed(t *testing.T) {
+	assert := assert.New(t)
+
+	errCodeA, errMsgA := "InternalFailure", "Internal service failure"
+	errCodeB, errMsgB := "ValidationError", "Invalid partition key"
+
+	client := &mockKinesisClient{
+		putRecordsOutput: &kinesis.PutRecordsOutput{
+			Records: []types.PutRecordsResultEntry{
+				{ErrorCode: &errCodeA, ErrorMessage: &errMsgA},
+				{ErrorCode: &errCodeB, ErrorMessage: &errMsgB},
+				{ErrorCode: &errCodeA, ErrorMessage: &errMsgA},
+				{ErrorCode: &errCodeB, ErrorMessage: &errMsgB},
+			},
+		},
+	}
+
+	target, err := newKinesisTargetWithInterfaces(client, "000000000000", "us-east-1", "test-stream", 500)
+	assert.Nil(err)
+
+	messages := testutil.GetTestMessages(4, "Hello Kinesis!!", nil)
+	writeRes, writeErr := target.Write(messages)
+
+	assert.NotNil(writeErr)
+	assert.Equal("Internal service failure (count: 2); Invalid partition key (count: 2)", writeErr.Error())
+	assert.Equal(4, len(writeRes.Failed))
+	assert.Equal(0, len(writeRes.Sent))
+}
+
+func TestKinesisTarget_Write_RequestLevelError_Deduplicated(t *testing.T) {
+	assert := assert.New(t)
+
+	client := &mockKinesisClient{
+		putRecordsError: errors.New("connection refused"),
+	}
+
+	target, err := newKinesisTargetWithInterfaces(client, "000000000000", "us-east-1", "test-stream", 500)
+	assert.Nil(err)
+
+	messages := testutil.GetTestMessages(3, "Hello Kinesis!!", nil)
+	writeRes, writeErr := target.Write(messages)
+
+	assert.NotNil(writeErr)
+	assert.Contains(writeErr.Error(), "Failed to send message batch to Kinesis stream: connection refused")
+	assert.Contains(writeErr.Error(), "(count: 1)")
+	assert.Equal(3, len(writeRes.Failed))
+	assert.Equal(0, len(writeRes.Sent))
+}
+
+// mockKinesisClient implements common.KinesisV2API for unit testing.
+// Only PutRecords is used by Write(); the remaining methods are stubbed.
+type mockKinesisClient struct {
+	putRecordsOutput *kinesis.PutRecordsOutput
+	putRecordsError  error
+}
+
+func (m *mockKinesisClient) PutRecords(ctx context.Context, input *kinesis.PutRecordsInput, opts ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
+	return m.putRecordsOutput, m.putRecordsError
+}
+func (m *mockKinesisClient) CreateStream(ctx context.Context, input *kinesis.CreateStreamInput, opts ...func(*kinesis.Options)) (*kinesis.CreateStreamOutput, error) {
+	return nil, nil
+}
+func (m *mockKinesisClient) DeleteStream(ctx context.Context, input *kinesis.DeleteStreamInput, opts ...func(*kinesis.Options)) (*kinesis.DeleteStreamOutput, error) {
+	return nil, nil
+}
+func (m *mockKinesisClient) DescribeStream(ctx context.Context, input *kinesis.DescribeStreamInput, opts ...func(*kinesis.Options)) (*kinesis.DescribeStreamOutput, error) {
+	return nil, nil
+}
+func (m *mockKinesisClient) ListShards(ctx context.Context, input *kinesis.ListShardsInput, opts ...func(*kinesis.Options)) (*kinesis.ListShardsOutput, error) {
+	return nil, nil
+}
+func (m *mockKinesisClient) GetRecords(ctx context.Context, input *kinesis.GetRecordsInput, opts ...func(*kinesis.Options)) (*kinesis.GetRecordsOutput, error) {
+	return nil, nil
+}
+func (m *mockKinesisClient) PutRecord(ctx context.Context, input *kinesis.PutRecordInput, opts ...func(*kinesis.Options)) (*kinesis.PutRecordOutput, error) {
+	return nil, nil
+}
+func (m *mockKinesisClient) MergeShards(ctx context.Context, input *kinesis.MergeShardsInput, opts ...func(*kinesis.Options)) (*kinesis.MergeShardsOutput, error) {
+	return nil, nil
+}
+func (m *mockKinesisClient) GetShardIterator(ctx context.Context, input *kinesis.GetShardIteratorInput, opts ...func(*kinesis.Options)) (*kinesis.GetShardIteratorOutput, error) {
+	return nil, nil
 }

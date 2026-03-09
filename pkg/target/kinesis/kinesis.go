@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -168,7 +169,7 @@ func (kt *KinesisTargetDriver) Write(messages []*models.Message) (*models.Target
 		}
 
 		throttled := make([]*models.Message, 0)
-		throttleMsgs := make([]string, 0)
+		throttleMsgs := make([]error, 0)
 
 		for i, resultRecord := range res.Records {
 			// If we have an error code, check if it's a throttle error
@@ -177,7 +178,7 @@ func (kt *KinesisTargetDriver) Write(messages []*models.Message) (*models.Target
 				case provisionedThroughputExceededException.ErrorCode():
 					// If we got throttled, add the corresponding record to the list for next retry
 					throttled = append(throttled, messagesToTry[i])
-					throttleMsgs = append(throttleMsgs, *resultRecord.ErrorMessage)
+					throttleMsgs = append(throttleMsgs, errors.New(*resultRecord.ErrorMessage))
 				default:
 					// If it's a different error, treat it as a failure - retries for this will be handled by the main flow of the app
 					errorsEncountered = append(errorsEncountered, errors.New(*resultRecord.ErrorMessage))
@@ -196,12 +197,8 @@ func (kt *KinesisTargetDriver) Write(messages []*models.Message) (*models.Target
 			messagesToTry = throttled
 
 			throttleWarn := errors.New(fmt.Sprintf("hit kinesis throttling, backing off and retrying %v messages", len(throttleMsgs)))
-
-			// Log a warning message about it
-			for _, msg := range throttleMsgs {
-				throttleWarn = errors.Wrap(throttleWarn, msg)
-			}
-			kt.log.Warn(throttleWarn.Error())
+			dedupErr := deduplicateErrMsgWithCounts(throttleMsgs)
+			kt.log.Warn(errors.Wrap(throttleWarn, dedupErr.Error()))
 
 			// Wait for the delay plus jitter before the next loop
 			jitter := time.Duration(1+rand.IntN(30000-1)) * time.Microsecond // any value between 1 microsecond and 30 milliseconds
@@ -221,10 +218,7 @@ func (kt *KinesisTargetDriver) Write(messages []*models.Message) (*models.Target
 	var aggregateErr error
 
 	if len(errorsEncountered) > 0 {
-		aggregateErr = errors.New("")
-		for _, errToAdd := range errorsEncountered {
-			aggregateErr = errors.Wrap(aggregateErr, errToAdd.Error())
-		}
+		aggregateErr = deduplicateErrMsgWithCounts(errorsEncountered)
 	}
 
 	kt.log.Debugf("Successfully wrote %d/%d messages, with %d failures", len(success), len(messages), len(nonThrottleFailures))
@@ -243,3 +237,24 @@ func (kt *KinesisTargetDriver) Open() error {
 
 // Close does not do anything for this target
 func (kt *KinesisTargetDriver) Close() {}
+
+// deduplicateErrMsgWithCounts returns an error with unique messages together with their occurrence counts appended,
+// while preserving first-occurrence order.
+func deduplicateErrMsgWithCounts(errs []error) error {
+	counts := make(map[string]int, len(errs))
+	order := make([]string, 0, len(errs))
+	for _, err := range errs {
+		errMsg := err.Error()
+		if counts[errMsg] == 0 {
+			order = append(order, errMsg)
+		}
+		counts[errMsg]++
+	}
+
+	result := make([]string, 0, len(order))
+	for _, msg := range order {
+		result = append(result, fmt.Sprintf("%s (count: %d)", msg, counts[msg]))
+	}
+
+	return errors.New(strings.Join(result, "; "))
+}
