@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 )
 
@@ -65,7 +66,6 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 	assert.Equal(5, len(result.Sent))
 	assert.Equal(0, len(result.Failed))
 	assert.Equal([]*models.Message(nil), result.Failed)
-	assert.Equal([]*models.Message(nil), result.Oversized)
 
 	// Receive messages from subscription to verify they landed in the topic
 	receivedMessages := testutil.ReceiveMessagesFromSubscription(t, subscription)
@@ -185,7 +185,6 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert.Equal(10, len(twres.Sent))
 	assert.Equal(0, len(twres.Failed))
 	assert.Nil(twres.Failed)
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 
 	// nolint: staticcheck
@@ -255,7 +254,6 @@ func TestPubSubTarget_WriteFailureWithMocks(t *testing.T) {
 	assert.Equal(0, len(twres.Sent))
 	assert.Equal(10, len(twres.Failed))
 	assert.Nil(twres.Sent)
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 	if err != nil {
 		assert.True(strings.Contains(err.Error(), "Error writing messages to PubSub topic: 10 errors occurred:"))
@@ -313,7 +311,6 @@ func TestPubSubTarget_WriteFailureRetryableWithMocks(t *testing.T) {
 	assert.Equal(0, len(twres.Sent))
 	assert.Equal(10, len(twres.Failed))
 	assert.Nil(twres.Sent)
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 	if err != nil {
 		assert.True(strings.Contains(err.Error(), "Error writing messages to PubSub topic: 10 errors occurred:"))
@@ -359,6 +356,47 @@ func TestnewPubSubTarget_Failure(t *testing.T) {
 	assert.Nil(pubsubTarget)
 }
 */
+
+func TestPubSubTargetDriver_Batcher(t *testing.T) {
+	driver := &PubSubTargetDriver{}
+	defaultConfig := driver.GetDefaultConfiguration().(*PubSubTargetConfig)
+	driver.BatchingConfig = *defaultConfig.BatchingConfig
+
+	t.Run("adding 100th message triggers send with empty new batch", func(t *testing.T) {
+		smallMessages := testutil.GetTestMessages(99, "small", nil)
+		currentBatchDataBytes := 0
+		for _, msg := range smallMessages {
+			currentBatchDataBytes += len(msg.Data)
+		}
+
+		currentBatch := targetiface.CurrentBatch{
+			Messages:  smallMessages,
+			DataBytes: currentBatchDataBytes,
+		}
+		additionalMessage := testutil.GetTestMessages(1, "small", nil)[0]
+
+		batchToSend, newCurrentBatch, oversized := driver.Batcher(currentBatch, additionalMessage)
+
+		assert.Len(t, batchToSend, 100, "Should send complete batch of 100 messages")
+		assert.Len(t, newCurrentBatch.Messages, 0, "Should have empty current batch after sending")
+		assert.Equal(t, 0, newCurrentBatch.DataBytes, "Should have 0 bytes in new current batch")
+		assert.Nil(t, oversized, "Should have no oversized message")
+	})
+
+	t.Run("oversized message is returned as oversized with no batch sent", func(t *testing.T) {
+		oversizedMessage := testutil.GetTestMessages(1, testutil.GenRandomString(1_148_5760), nil)[0]
+
+		emptyBatch := targetiface.CurrentBatch{}
+
+		batchToSend, newCurrentBatch, oversized := driver.Batcher(emptyBatch, oversizedMessage)
+
+		assert.Nil(t, batchToSend, "Should not send any batch for oversized message")
+		assert.Len(t, newCurrentBatch.Messages, 0, "Current batch should remain empty")
+		assert.Equal(t, 0, newCurrentBatch.DataBytes, "Current batch bytes should remain 0")
+		assert.NotNil(t, oversized, "Should return oversized message")
+		assert.Equal(t, oversizedMessage, oversized, "Should return the exact oversized message")
+	})
+}
 
 // TestPubSubTargetDriver_InitFromConfig_WithCredentials tests initialization with credentials
 func TestPubSubTargetDriver_InitFromConfig_WithCredentials(t *testing.T) {

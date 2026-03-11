@@ -80,11 +80,12 @@ const (
 	ResponseRuleTypeInvalid  ResponseRuleType = "invalid"
 	ResponseRuleTypeSetup    ResponseRuleType = "setup"
 	ResponseRuleTypeThrottle ResponseRuleType = "throttle"
+	ResponseRuleTypeFatal    ResponseRuleType = "fatal"
 )
 
 func isValidResponseRuleType(ruleType ResponseRuleType) bool {
 	switch ruleType {
-	case ResponseRuleTypeInvalid, ResponseRuleTypeSetup, ResponseRuleTypeThrottle:
+	case ResponseRuleTypeInvalid, ResponseRuleTypeSetup, ResponseRuleTypeThrottle, ResponseRuleTypeFatal:
 		return true
 	default:
 		return false
@@ -353,13 +354,13 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 
 	if len(goodMsgs) == 0 {
 		// All messages failed validation - return them as invalid without error
-		return models.NewTargetWriteResult(nil, nil, nil, invalid), nil
+		return models.NewTargetWriteResult(nil, nil, invalid), nil
 	}
 
 	request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(reqBody))
 
 	if err != nil {
-		return models.NewTargetWriteResult(nil, nil, nil, nil), models.FatalWriteError{Err: err}
+		return models.NewTargetWriteResult(nil, nil, nil), models.FatalWriteError{Err: err}
 	}
 
 	request.Header.Add("Content-Type", ht.contentType)                        // Add content type
@@ -391,7 +392,7 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 		// append with earlier invalids
 		invalid = append(invalid, newInvalid...)
 
-		return models.NewTargetWriteResult(nil, failed, nil, invalid), wrappedErr
+		return models.NewTargetWriteResult(nil, failed, invalid), wrappedErr
 	}
 
 	defer func() {
@@ -411,7 +412,7 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 		}
 
 		ht.log.Debugf("Successfully wrote %d/%d messages", len(goodMsgs), len(messages))
-		return models.NewTargetWriteResult(goodMsgs, nil, nil, invalid), nil
+		return models.NewTargetWriteResult(goodMsgs, nil, invalid), nil
 	}
 
 	// Process non-2xx responses
@@ -422,7 +423,7 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 		newInvalid, failed, wrappedErr := handleResponseRules(response, ht.responseRules, goodMsgs, false) // Always metadata-safe
 		invalid = append(invalid, newInvalid...)
 
-		return models.NewTargetWriteResult(nil, failed, nil, invalid), wrappedErr
+		return models.NewTargetWriteResult(nil, failed, invalid), wrappedErr
 	}
 
 	response := response{Body: string(responseBody), Status: resp.StatusCode, StringStatus: resp.Status}
@@ -430,7 +431,7 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 	newInvalid, failed, wrappedErr := handleResponseRules(response, ht.responseRules, goodMsgs, ht.metadataSafeMode)
 	invalid = append(invalid, newInvalid...)
 
-	return models.NewTargetWriteResult(nil, failed, nil, invalid), wrappedErr
+	return models.NewTargetWriteResult(nil, failed, invalid), wrappedErr
 }
 
 func handleResponseRules(response response, rules *ResponseRules, messages []*models.Message, safeMode bool) (invalid, failed []*models.Message, wrappedError error) {
@@ -503,6 +504,27 @@ func handleResponseRules(response response, rules *ResponseRules, messages []*mo
 			}
 			failed = append(failed, messages...)
 			return invalid, failed, models.SetupWriteError{Err: errorDetails}
+
+		case ResponseRuleTypeFatal:
+			var errorDetails error
+			if matchedRule.MatchingBodyPart != "" {
+				errorDetails = fmt.Errorf("got fatal error, response status: '%s' with error details: '%s'", response.StringStatus, matchedRule.MatchingBodyPart)
+			} else {
+				errorDetails = fmt.Errorf("got fatal error, response status: '%s'", response.StringStatus)
+			}
+			if safeMode {
+				message = "Fatal error"
+			}
+
+			for _, msg := range messages {
+				msg.SetError(&models.ApiError{
+					StatusCode:   response.StringStatus,
+					ResponseBody: response.Body,
+					SafeMessage:  message,
+				})
+			}
+			failed = append(failed, messages...)
+			return invalid, failed, models.FatalWriteError{Err: errorDetails}
 		}
 	}
 

@@ -223,6 +223,12 @@ func (r *Router) WriteFailureBatch(batch []*models.Message, metricsFunc func(*mo
 
 func (r *Router) handleGoodMessages(messages *models.TransformationResult) {
 	if messages.Transformed != nil {
+
+		if messages.Transformed.Data == nil {
+			r.signalUnrecoverableError(errors.New("transformation produced message with nil data"), []*models.Message{messages.Transformed})
+			return
+		}
+
 		batchToSend, oversized := r.Target.AddMessage(messages.Transformed)
 
 		// If we have a batch ready, send it

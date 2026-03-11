@@ -11,7 +11,6 @@
 
 package models
 
-
 // TargetWriteResult contains the results from a target write operation
 type TargetWriteResult struct {
 	// Sent holds all the messages that were successfully sent to the target
@@ -22,10 +21,6 @@ type TargetWriteResult struct {
 	// and that should be retried.
 	Failed []*Message
 
-	// Oversized holds all the messages that were too big to be sent to
-	// the target and need to be handled externally to the target.
-	Oversized []*Message
-
 	// Invalid contains all the messages that cannot be sent to the target
 	// due to various parseability reasons.  These messages cannot be retried
 	// and need to be specially handled.
@@ -33,26 +28,10 @@ type TargetWriteResult struct {
 }
 
 // NewTargetWriteResult builds a result structure to return from a target write attempt.
-func NewTargetWriteResult(sent []*Message, failed []*Message, oversized []*Message, invalid []*Message) *TargetWriteResult {
+func NewTargetWriteResult(sent []*Message, failed []*Message, invalid []*Message) *TargetWriteResult {
 	return &TargetWriteResult{
-		Sent:      sent,
-		Failed:    failed,
-		Oversized: oversized,
-		Invalid:   invalid,
+		Sent:    sent,
+		Failed:  failed,
+		Invalid: invalid,
 	}
-}
-
-// Append will add another write result to the source one to allow for
-// result concatenation and then return the resultant struct
-func (wr *TargetWriteResult) Append(nwr *TargetWriteResult) *TargetWriteResult {
-	wrC := *wr
-
-	if nwr != nil {
-		wrC.Sent = append(wrC.Sent, nwr.Sent...)
-		wrC.Failed = append(wrC.Failed, nwr.Failed...)
-		wrC.Oversized = append(wrC.Oversized, nwr.Oversized...)
-		wrC.Invalid = append(wrC.Invalid, nwr.Invalid...)
-	}
-
-	return &wrC
 }

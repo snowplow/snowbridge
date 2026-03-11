@@ -339,6 +339,117 @@ func TestRoute_FatalError(t *testing.T) {
 	assert.True(t, wasCancelCalled(), "Cancel should be called due to fatal error in target write")
 }
 
+func TestRoute_TransformedMessageWithNilData(t *testing.T) {
+
+	msg1 := &models.Message{Data: []byte("message1"), PartitionKey: "success"}
+	msg2 := &models.Message{Data: []byte("message2"), PartitionKey: "success"}
+	nilDataMsg := &models.Message{Data: nil, PartitionKey: "success"}
+
+	t.Run("last message of the batch triggers shutdown via data == nil", func(t *testing.T) {
+		batchingConfig := targetiface.BatchingConfig{
+			MaxBatchMessages:  3,
+			MaxBatchBytes:     1000000,
+			MaxMessageBytes:   1000000,
+			FlushPeriodMillis: 100,
+		}
+		target, _ := createMockTargetWithConfig(10, batchingConfig)
+		defer target.Ticker.Stop()
+
+		// This is needed because test Ticker's first tick is 1 hour
+		// Not an issue for live code as that only uses tick period from batching config.
+		target.Ticker.Reset(target.TickerPeriod)
+
+		filterTarget, _ := createMockTargetWithConfig(10, batchingConfig)
+		defer filterTarget.Ticker.Stop()
+
+		transformationOutput := make(chan *models.TransformationResult, 10)
+		invalidChannel := make(chan *invalidMessages, 10)
+		mockCancel, wasCancelCalled := createMockCancel()
+
+		router := &Router{
+			transformationOutput: transformationOutput,
+			invalidChannel:       invalidChannel,
+			cancel:               mockCancel,
+			Target:               target,
+			FilterTarget:         filterTarget,
+			retryConfig: &config.RetryConfig{
+				Setup:     &config.SetupRetryConfig{Delay: 100, MaxAttempts: 1},
+				Transient: &config.TransientRetryConfig{Delay: 100, MaxAttempts: 1},
+				Throttle:  &config.ThrottleRetryConfig{Delay: 100, MaxAttempts: 1},
+			},
+			metrics: createMockMetrics(),
+		}
+
+		go router.Route()
+
+		// Build messages with nack tracking: two good ones followed by a nil-data message.
+		ackedMessages, nackedMessages, _ := addAckNackTracking([]*models.Message{msg1, msg2, nilDataMsg})
+
+		transformationOutput <- models.NewTransformationResult(msg1, nil, nil)
+		transformationOutput <- models.NewTransformationResult(msg2, nil, nil)
+		transformationOutput <- models.NewTransformationResult(nilDataMsg, nil, nil)
+
+		time.Sleep(150 * time.Millisecond)
+
+		assert.True(t, wasCancelCalled(), "Cancel should be called when transformed message has nil data")
+		assert.True(t, ackedMessages["message1"], "message1 should be acked")
+		assert.True(t, ackedMessages["message2"], "message2 should be acked")
+		assert.True(t, nackedMessages[string(nilDataMsg.Data)], "nil-data message should be nacked")
+	})
+
+	t.Run("some message of the batch triggers shutdown via data == nil", func(t *testing.T) {
+		batchingConfig := targetiface.BatchingConfig{
+			MaxBatchMessages:  4,
+			MaxBatchBytes:     1000000,
+			MaxMessageBytes:   1000000,
+			FlushPeriodMillis: 100,
+		}
+		target, _ := createMockTargetWithConfig(10, batchingConfig)
+		defer target.Ticker.Stop()
+
+		// This is needed because test Ticker's first tick is 1 hour
+		// Not an issue for live code as that only uses tick period from batching config.
+		target.Ticker.Reset(target.TickerPeriod)
+
+		filterTarget, _ := createMockTargetWithConfig(10, batchingConfig)
+		defer filterTarget.Ticker.Stop()
+
+		transformationOutput := make(chan *models.TransformationResult, 10)
+		invalidChannel := make(chan *invalidMessages, 10)
+		mockCancel, wasCancelCalled := createMockCancel()
+
+		router := &Router{
+			transformationOutput: transformationOutput,
+			invalidChannel:       invalidChannel,
+			cancel:               mockCancel,
+			Target:               target,
+			FilterTarget:         filterTarget,
+			retryConfig: &config.RetryConfig{
+				Setup:     &config.SetupRetryConfig{Delay: 100, MaxAttempts: 1},
+				Transient: &config.TransientRetryConfig{Delay: 100, MaxAttempts: 1},
+				Throttle:  &config.ThrottleRetryConfig{Delay: 100, MaxAttempts: 1},
+			},
+			metrics: createMockMetrics(),
+		}
+
+		go router.Route()
+
+		// Build messages with nack tracking: two good ones followed by a nil-data message.
+		ackedMessages, nackedMessages, _ := addAckNackTracking([]*models.Message{msg1, msg2, nilDataMsg})
+
+		transformationOutput <- models.NewTransformationResult(msg1, nil, nil)
+		transformationOutput <- models.NewTransformationResult(msg2, nil, nil)
+		transformationOutput <- models.NewTransformationResult(nilDataMsg, nil, nil)
+
+		time.Sleep(150 * time.Millisecond)
+
+		assert.True(t, wasCancelCalled(), "Cancel should be called when transformed message has nil data")
+		assert.True(t, ackedMessages["message1"], "message1 should be acked")
+		assert.True(t, ackedMessages["message2"], "message2 should be acked")
+		assert.True(t, nackedMessages[string(nilDataMsg.Data)], "nil-data message should be nacked")
+	})
+}
+
 func TestRoute_TickerFlush(t *testing.T) {
 	// Create mock targets with small batch size and short flush period
 	batchingConfig := targetiface.BatchingConfig{

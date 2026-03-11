@@ -154,7 +154,7 @@ func TestObserverTargetWrite(t *testing.T) {
 	failed[0].SetError(&failedTempError)
 	sent[2].SetError(&invalidTempError)
 
-	r := models.NewTargetWriteResult(sent, failed, nil, nil)
+	r := models.NewTargetWriteResult(sent, failed, nil)
 	for range 5 {
 		observer.TargetWrite(r)
 		observer.TargetWriteInvalid(r)

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	eventhub "github.com/Azure/azure-event-hubs-go/v3"
+	"github.com/Azure/go-amqp"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
@@ -163,10 +164,17 @@ func (eht *EventHubTargetDriver) Write(messages []*models.Message) (*models.Targ
 	}
 
 	if err != nil {
-		// If we hit an error, we can't distinguish successful messages from failed ones,
+		var amqpErr *amqp.Error
+		if errors.As(err, &amqpErr) {
+			if amqpErr.Condition == amqp.ErrCondMessageSizeExceeded || amqpErr.Condition == amqp.ErrCondTransferLimitExceeded {
+				return models.NewTargetWriteResult(nil, messages, nil), models.FatalWriteError{Err: errors.Wrap(err, "Unexpected oversized response from EventHubs")}
+			}
+		}
+
+		// If we hit any error, we can't distinguish successful messages from failed ones,
 		// so return all as failed.
 		eht.log.Debugf("Failed to write %d messages", len(messages))
-		return models.NewTargetWriteResult(nil, messages, nil, nil), errors.Wrap(err, "Failed to send message batch to EventHub")
+		return models.NewTargetWriteResult(nil, messages, nil), errors.Wrap(err, "Failed to send message batch to EventHub")
 	}
 
 	// If no error, all messages were successful
@@ -177,7 +185,7 @@ func (eht *EventHubTargetDriver) Write(messages []*models.Message) (*models.Targ
 	}
 
 	eht.log.Debugf("Successfully wrote %d messages", len(messages))
-	return models.NewTargetWriteResult(messages, nil, nil, nil), nil
+	return models.NewTargetWriteResult(messages, nil, nil), nil
 }
 
 // Open does not do anything for this target

@@ -78,16 +78,16 @@ func (m *mockTargetDriver) Write(messages []*models.Message) (*models.TargetWrit
 		switch msg.PartitionKey {
 		case "fatal":
 			// On fatal error, return all messages as failed
-			return models.NewTargetWriteResult(nil, messages, nil, nil), models.FatalWriteError{Err: errors.New("fatal error")}
+			return models.NewTargetWriteResult(nil, messages, nil), models.FatalWriteError{Err: errors.New("fatal error")}
 		case "fatal-transient":
 			// Call 1: plain error (not setup, not throttle — setup block exits, throttle check skipped, enters transient block)
 			// Call 2: FatalWriteError (transient-block guard fires)
 			m.callCounts[msg.PartitionKey]++
 			if m.callCounts[msg.PartitionKey] == 1 {
-				return models.NewTargetWriteResult(nil, messages, nil, nil),
+				return models.NewTargetWriteResult(nil, messages, nil),
 					fmt.Errorf("transient write error")
 			}
-			return models.NewTargetWriteResult(nil, messages, nil, nil),
+			return models.NewTargetWriteResult(nil, messages, nil),
 				models.FatalWriteError{Err: errors.New("fatal write error")}
 		}
 	}
@@ -155,7 +155,7 @@ func (m *mockTargetDriver) Write(messages []*models.Message) (*models.TargetWrit
 		err = fmt.Errorf("mock target write had %d failed and %d invalid messages", len(failed), len(invalid))
 	}
 
-	return models.NewTargetWriteResult(sent, failed, nil, invalid), err
+	return models.NewTargetWriteResult(sent, failed, invalid), err
 }
 
 func (m *mockTargetDriver) Open() error {

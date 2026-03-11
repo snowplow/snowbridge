@@ -282,7 +282,6 @@ func (kt *KafkaTargetDriver) Write(messages []*models.Message) (*models.TargetWr
 			sent,
 			failed,
 			nil,
-			nil,
 		), models.FatalWriteError{Err: errResult}
 	}
 
@@ -294,7 +293,6 @@ func (kt *KafkaTargetDriver) Write(messages []*models.Message) (*models.TargetWr
 	return models.NewTargetWriteResult(
 		sent,
 		failed,
-		nil,
 		nil,
 	), errResult
 }

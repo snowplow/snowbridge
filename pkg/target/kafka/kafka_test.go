@@ -18,6 +18,7 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/IBM/sarama/mocks"
 	log "github.com/sirupsen/logrus"
+	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
 	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -94,7 +95,7 @@ func TestKafkaTarget_AsyncWriteSuccess(t *testing.T) {
 
 	mockProducer, target := SetUpMockAsyncProducer(t)
 
-	for i := 0; i < 501; i++ {
+	for range 501 {
 		mockProducer.ExpectInputAndSucceed()
 	}
 
@@ -176,4 +177,44 @@ func TestKafkaTarget_SyncWriteSuccess(t *testing.T) {
 	// Check results
 	assert.Equal(501, len(writeRes.Sent))
 	assert.Equal(0, len(writeRes.Failed))
+}
+
+func TestKafkaTargetDriver_Batcher(t *testing.T) {
+	driver := &KafkaTargetDriver{}
+	defaultConfig := driver.GetDefaultConfiguration().(*KafkaConfig)
+	driver.BatchingConfig = *defaultConfig.BatchingConfig
+
+	t.Run("adding 100th message triggers send with empty new batch", func(t *testing.T) {
+		smallMessages := testutil.GetTestMessages(99, "small", nil)
+		currentBatchDataBytes := 0
+		for _, msg := range smallMessages {
+			currentBatchDataBytes += len(msg.Data)
+		}
+
+		currentBatch := targetiface.CurrentBatch{
+			Messages:  smallMessages,
+			DataBytes: currentBatchDataBytes,
+		}
+		additionalMessage := testutil.GetTestMessages(1, "small", nil)[0]
+
+		batchToSend, newCurrentBatch, oversized := driver.Batcher(currentBatch, additionalMessage)
+
+		assert.Len(t, batchToSend, 100, "Should send complete batch of 100 messages")
+		assert.Len(t, newCurrentBatch.Messages, 0, "Should have empty current batch after sending")
+		assert.Equal(t, 0, newCurrentBatch.DataBytes, "Should have 0 bytes in new current batch")
+		assert.Nil(t, oversized, "Should have no oversized message")
+	})
+
+	t.Run("oversized message is returned as oversized with no batch sent", func(t *testing.T) {
+		oversizedMessage := testutil.GetTestMessages(1, testutil.GenRandomString(1_148_576), nil)[0]
+		emptyBatch := targetiface.CurrentBatch{}
+
+		batchToSend, newCurrentBatch, oversized := driver.Batcher(emptyBatch, oversizedMessage)
+
+		assert.Nil(t, batchToSend, "Should not send any batch for oversized message")
+		assert.Len(t, newCurrentBatch.Messages, 0, "Current batch should remain empty")
+		assert.Equal(t, 0, newCurrentBatch.DataBytes, "Current batch bytes should remain 0")
+		assert.NotNil(t, oversized, "Should return oversized message")
+		assert.Equal(t, oversizedMessage, oversized, "Should return the exact oversized message")
+	})
 }

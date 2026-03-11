@@ -92,7 +92,7 @@ func TestObserverBuffer(t *testing.T) {
 		b.AppendTransformed(transformResult)
 	}
 
-	r := NewTargetWriteResult(sent, failed, nil, nil)
+	r := NewTargetWriteResult(sent, failed, nil)
 
 	b.AppendWrite(r)
 	b.AppendWrite(r)
@@ -101,7 +101,7 @@ func TestObserverBuffer(t *testing.T) {
 	b.AppendWriteInvalid(r)
 	b.AppendWriteInvalid(nil)
 
-	fr := NewTargetWriteResult(filtered, nil, nil, nil)
+	fr := NewTargetWriteResult(filtered, nil, nil)
 
 	b.AppendFiltered(fr)
 
@@ -164,13 +164,13 @@ func TestObserverBuffer_Basic(t *testing.T) {
 	}
 	b.AppendTransformed(transformResult)
 
-	r := NewTargetWriteResult(sent, nil, nil, nil)
+	r := NewTargetWriteResult(sent, nil, nil)
 
 	b.AppendWrite(r)
 	b.AppendWrite(nil)
 	b.AppendWriteInvalid(nil)
 
-	fr := NewTargetWriteResult(nil, nil, nil, nil)
+	fr := NewTargetWriteResult(nil, nil, nil)
 
 	b.AppendFiltered(fr)
 
@@ -224,13 +224,13 @@ func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 		},
 	}
 
-	r := NewTargetWriteResult(sent, nil, nil, nil)
+	r := NewTargetWriteResult(sent, nil, nil)
 
 	b.AppendWrite(r)
 	b.AppendWrite(nil)
 	b.AppendWriteInvalid(nil)
 
-	fr := NewTargetWriteResult(nil, nil, nil, nil)
+	fr := NewTargetWriteResult(nil, nil, nil)
 
 	b.AppendFiltered(fr)
 

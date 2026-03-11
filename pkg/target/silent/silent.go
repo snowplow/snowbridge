@@ -87,7 +87,6 @@ func (st *SilentTargetDriver) Write(messages []*models.Message) (*models.TargetW
 		messages,
 		nil,
 		nil,
-		nil,
 	), nil
 }
 

@@ -226,7 +226,6 @@ func (kt *KinesisTargetDriver) Write(messages []*models.Message) (*models.Target
 		success,
 		nonThrottleFailures,
 		nil,
-		nil,
 	), aggregateErr
 }
 

@@ -100,6 +100,11 @@ target {
           type = "setup"
           http_codes =  [401, 403]
         }
+      # Fatal rule to signal graceful shutdown when code is received
+      rule {
+          type = "fatal"
+          http_codes =  [413]
+        }
       # Example rule to treat client timeouts as throttling
       rule {
         type = "throttle"

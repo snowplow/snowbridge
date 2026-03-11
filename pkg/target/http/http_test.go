@@ -610,7 +610,6 @@ func TestHTTP_Write_Failure(t *testing.T) {
 	assert.Equal(int64(10), int64(len(writeResult.Failed)))
 	assert.Equal(10, len(writeResult.Failed))
 	assert.Empty(writeResult.Sent)
-	assert.Empty(writeResult.Oversized)
 }
 
 func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
@@ -657,7 +656,6 @@ func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 			assert.Equal(int64(10), int64(len(writeResult.Failed)))
 			assert.Equal(10, len(writeResult.Failed))
 			assert.Empty(writeResult.Sent)
-			assert.Empty(writeResult.Oversized)
 		})
 	}
 }

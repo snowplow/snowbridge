@@ -51,5 +51,4 @@ func TestSilentTarget_WriteSuccess(t *testing.T) {
 	// Check results
 	assert.Equal(1, len(writeRes.Sent))
 	assert.Equal(0, len(writeRes.Failed))
-	assert.Equal(0, len(writeRes.Oversized))
 }

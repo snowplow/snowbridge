@@ -113,7 +113,7 @@ func (st *StdoutTargetDriver) Write(messages []*models.Message) (result *models.
 		sent = append(sent, msg)
 	}
 
-	return models.NewTargetWriteResult(sent, nil, nil, nil), nil
+	return models.NewTargetWriteResult(sent, nil, nil), nil
 }
 
 // Open does not do anything for this target

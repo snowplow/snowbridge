@@ -20,6 +20,7 @@ import (
 	"time"
 
 	eventhub "github.com/Azure/azure-event-hubs-go/v3"
+	"github.com/Azure/go-amqp"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -51,12 +52,17 @@ type mockHub struct {
 	results chan *eventhub.EventBatch
 	// Boolean to allow us to mock failure path
 	fail bool
+	// failWithErr, when non-nil, is returned directly from SendBatch (takes precedence over fail)
+	failWithErr error
 }
 
 // Sendbatch is a mock of the Eventhubs SendBatch method. If m.fail is true, it returns an error.
 // Otherwise, it uses the provided BatchIterator to mimic the batching behaviour in the client, and feeds
 // those batches into the m.results channel.
 func (m mockHub) SendBatch(ctx context.Context, iterator eventhub.BatchIterator, opts ...eventhub.BatchOption) error {
+	if m.failWithErr != nil {
+		return m.failWithErr
+	}
 	if m.fail {
 		return errMock
 	}
@@ -113,53 +119,68 @@ func TestEventHubTargetDriver_Batcher(t *testing.T) {
 	defaultConfig := driver.GetDefaultConfiguration().(*EventHubConfig)
 	driver.BatchingConfig = *defaultConfig.BatchingConfig
 
-	// Test 1: Adding one message to a batch with 499 messages should trigger send
-	// Create a current batch with 499 small messages
-	smallMessages := testutil.GetTestMessages(499, "small", nil)
-	currentBatchDataBytes := 0
-	for _, msg := range smallMessages {
-		currentBatchDataBytes += len(msg.Data)
-	}
+	t.Run("adding 500th message triggers send with empty new batch", func(t *testing.T) {
+		smallMessages := testutil.GetTestMessages(499, "small", nil)
+		currentBatchDataBytes := 0
+		for _, msg := range smallMessages {
+			currentBatchDataBytes += len(msg.Data)
+		}
 
-	currentBatch := targetiface.CurrentBatch{
-		Messages:  smallMessages,
-		DataBytes: currentBatchDataBytes,
-	}
+		currentBatch := targetiface.CurrentBatch{
+			Messages:  smallMessages,
+			DataBytes: currentBatchDataBytes,
+		}
+		additionalMessage := testutil.GetTestMessages(1, "small", nil)[0]
 
-	// Add one more small message (the 500th)
-	additionalMessage := testutil.GetTestMessages(1, "small", nil)[0]
+		batchToSend, newCurrentBatch, oversized := driver.Batcher(currentBatch, additionalMessage)
 
-	batchToSend, newCurrentBatch, oversized := driver.Batcher(currentBatch, additionalMessage)
+		assert.Len(t, batchToSend, 500, "Should send complete batch of 500 messages")
+		assert.Len(t, newCurrentBatch.Messages, 0, "Should have empty current batch after sending")
+		assert.Equal(t, 0, newCurrentBatch.DataBytes, "Should have 0 bytes in new current batch")
+		assert.Nil(t, oversized, "Should have no oversized message")
+	})
 
-	// Verify complete batch is sent (500 messages - EventHub's max)
-	assert.Len(t, batchToSend, 500, "Should send complete batch of 500 messages")
+	t.Run("adding one message to a batch with 500 messages should trigger 2 batches created", func(t *testing.T) {
+		// Create a current batch with 500 small messages
+		overBatchMessages := testutil.GetTestMessages(500, "small", nil)
+		currentBatchDataBytes := 0
+		for _, msg := range overBatchMessages {
+			currentBatchDataBytes += len(msg.Data)
+		}
 
-	// Verify new current batch is empty
-	assert.Len(t, newCurrentBatch.Messages, 0, "Should have empty current batch after sending")
-	assert.Equal(t, 0, newCurrentBatch.DataBytes, "Should have 0 bytes in new current batch")
+		currentBatch := targetiface.CurrentBatch{
+			Messages:  overBatchMessages,
+			DataBytes: currentBatchDataBytes,
+		}
+		additionalMessage := testutil.GetTestMessages(1, "small", nil)[0]
 
-	// Verify no oversized message
-	assert.Nil(t, oversized, "Should have no oversized message")
+		batchToSend, newCurrentBatch, oversized := driver.Batcher(currentBatch, additionalMessage)
 
-	// Test 2: Oversized message should be returned as oversized
-	// Create an oversized message (larger than 1MB)
-	oversizedMessage := testutil.GetTestMessages(1, testutil.GenRandomString(1100000), nil)[0]
+		fmt.Println(fmt.Printf("%d, %d, %+v", len(batchToSend), len(newCurrentBatch.Messages), oversized))
 
-	// Start with empty batch for oversized test
-	emptyBatch := targetiface.CurrentBatch{}
+		// Verify complete batch is sent (500 messages - EventHub's max)
+		assert.Len(t, batchToSend, 500, "Should send complete batch of 500 messages")
 
-	batchToSend2, newCurrentBatch2, oversized2 := driver.Batcher(emptyBatch, oversizedMessage)
+		// Verify new current batch contains 1 messages
+		assert.Len(t, newCurrentBatch.Messages, 1, "Should have 1 messages in new current batch")
+		assert.Equal(t, 5, newCurrentBatch.DataBytes, "Should have 5 bytes in new current batch")
 
-	// Verify no batch is sent
-	assert.Nil(t, batchToSend2, "Should not send any batch for oversized message")
+		// Verify no oversized message
+		assert.Nil(t, oversized, "Should have no oversized message")
+	})
 
-	// Verify current batch remains empty
-	assert.Len(t, newCurrentBatch2.Messages, 0, "Current batch should remain empty")
-	assert.Equal(t, 0, newCurrentBatch2.DataBytes, "Current batch bytes should remain 0")
+	t.Run("oversized message is returned as oversized with no batch sent", func(t *testing.T) {
+		oversizedMessage := testutil.GetTestMessages(1, testutil.GenRandomString(1_100_000), nil)[0]
+		emptyBatch := targetiface.CurrentBatch{}
 
-	// Verify oversized message is returned
-	assert.NotNil(t, oversized2, "Should return oversized message")
-	assert.Equal(t, oversizedMessage, oversized2, "Should return the exact oversized message")
+		batchToSend, newCurrentBatch, oversized := driver.Batcher(emptyBatch, oversizedMessage)
+
+		assert.Nil(t, batchToSend, "Should not send any batch for oversized message")
+		assert.Len(t, newCurrentBatch.Messages, 0, "Current batch should remain empty")
+		assert.Equal(t, 0, newCurrentBatch.DataBytes, "Current batch bytes should remain 0")
+		assert.NotNil(t, oversized, "Should return oversized message")
+		assert.Equal(t, oversizedMessage, oversized, "Should return the exact oversized message")
+	})
 }
 
 // TestWriteWithRandomPartitionKeys tests the Write() function happy path when we set the eventhub partition key to a random value.
@@ -200,7 +221,6 @@ func TestWriteWithRandomPartitionKeys(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(10, len(twres.Sent))
 	assert.Nil(twres.Failed)
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 }
 
@@ -248,7 +268,6 @@ func TestWriteFailure(t *testing.T) {
 	}
 	assert.Nil(twres.Sent)
 	assert.Equal(10, len(twres.Failed))
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 }
 
@@ -290,7 +309,6 @@ func TestWriteWithNoPartitionKey(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(10, len(twres.Sent))
 	assert.Nil(twres.Failed)
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 }
 
@@ -336,7 +354,6 @@ func TestWriteBatchingByPartitionKey(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(99, len(twres.Sent))
 	assert.Nil(twres.Failed)
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 
 	// The data iteslf isn't public from the EH client, but at least we can check that the partition keys are as expected.
@@ -390,7 +407,6 @@ func TestWriteSuccess(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(100, len(twres.Sent))
 	assert.Nil(twres.Failed)
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 }
 
@@ -435,7 +451,6 @@ func TestWriteFailureNew(t *testing.T) {
 	}
 	assert.Nil(twres.Sent)
 	assert.Equal(100, len(twres.Failed))
-	assert.Nil(twres.Oversized)
 	assert.Nil(twres.Invalid)
 }
 
@@ -476,6 +491,51 @@ func TestNewEventHubTargetDriver_CredentialsNotFound(t *testing.T) {
 	assert.NotNil(err)
 	if err != nil {
 		assert.Equal("Error initialising EventHub client: No valid combination of authentication Env vars found. https://pkg.go.dev/github.com/Azure/azure-event-hubs-go#NewHubWithNamespaceNameAndEnvironment", err.Error())
+	}
+}
+
+// TestWriteAMQPFatalErrors tests that AMQP message-size and transfer-limit errors result in a FatalWriteError,
+// signalling the caller to initiate graceful shutdown.
+func TestWriteAMQPFatalErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		condition amqp.ErrCond
+	}{
+		{"message size exceeded", amqp.ErrCondMessageSizeExceeded},
+		{"transfer limit exceeded", amqp.ErrCondTransferLimitExceeded},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			m := mockHub{
+				results:     make(chan *eventhub.EventBatch),
+				failWithErr: &amqp.Error{Condition: tc.condition},
+			}
+			tgt := &EventHubTargetDriver{}
+			if err := tgt.newEventHubTargetDriverWithInterfaces(m, &cfg); err != nil {
+				t.Fatalf("failed to create eventhub target driver: %s", err)
+			}
+
+			var ackOps int64
+			ackFunc := func() { atomic.AddInt64(&ackOps, 1) }
+
+			messages := testutil.GetTestMessages(10, testutil.GenRandomString(100), ackFunc)
+
+			twres, err := tgt.Write(messages)
+
+			// Must be a FatalWriteError to trigger graceful shutdown
+			assert.NotNil(err)
+			_, isFatal := err.(models.FatalWriteError)
+			assert.True(isFatal, "expected FatalWriteError, got %T: %v", err, err)
+
+			// No acks — messages were not successfully delivered
+			assert.Equal(int64(0), ackOps)
+
+			// All messages returned as failed, none sent
+			assert.Nil(twres.Sent)
+			assert.Equal(10, len(twres.Failed))
+			assert.Nil(twres.Invalid)
+		})
 	}
 }
 

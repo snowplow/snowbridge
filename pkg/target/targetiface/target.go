@@ -109,21 +109,25 @@ func DefaultBatcher(currentBatch CurrentBatch, message *models.Message, batching
 
 	msgByteLen := len(message.Data)
 
-	// Check for oversied first.
+	// Check for oversized first.
 	if msgByteLen > batchingConfig.MaxMessageBytes {
 		return nil, currentBatch, message
 
-		// If our new message taks this batch over the byte limit, schedule the batch for a send, and start a new batch.
+		// If our new message takes this batch over the byte limit, schedule the batch for a send, and start a new batch.
 	} else if currentBatch.DataBytes > 0 && currentBatch.DataBytes+msgByteLen > batchingConfig.MaxBatchBytes {
 		return currentBatch.Messages, CurrentBatch{Messages: []*models.Message{message}, DataBytes: msgByteLen}, nil
 
-		// Otherwise, append our message to the current batch, and return
+		// If the current batch is already at the message count limit, send it and start a new batch with this message.
+	} else if len(currentBatch.Messages) == batchingConfig.MaxBatchMessages {
+		return currentBatch.Messages, CurrentBatch{Messages: []*models.Message{message}, DataBytes: msgByteLen}, nil
+
+		// Otherwise, append our message to the current batch
 	} else {
 		currentBatch.Messages = append(currentBatch.Messages, message)
 		currentBatch.DataBytes += msgByteLen
 	}
 
-	// If the current batch is full, return it for sending now and make a new empty batch
+	// If the current batch is full after adding new message, return it for sending now and make a new empty batch
 	// Full because it's at the max message count,
 	if len(currentBatch.Messages) == batchingConfig.MaxBatchMessages ||
 		// or full because one more average message in the batch would exceed the byte limit

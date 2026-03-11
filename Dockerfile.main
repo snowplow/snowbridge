@@ -1,6 +1,9 @@
 FROM --platform=$TARGETPLATFORM alpine:3.23.3
 LABEL org.opencontainers.image.authors="Snowplow Analytics <support@snowplow.io>"
 
+# https://security.snyk.io/vuln/SNYK-ALPINE323-ZLIB-15435528 
+RUN apk update && apk upgrade zlib
+
 ARG TARGETARCH
 
 ADD build/output/linux/main/cli/$TARGETARCH/snowbridge /opt/snowplow/

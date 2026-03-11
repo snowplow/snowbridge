@@ -152,7 +152,6 @@ func (st *SQSTargetDriver) Write(messages []*models.Message) (*models.TargetWrit
 			nil,
 			messages,
 			nil,
-			nil,
 		), errors.Wrap(err, "Error writing messages to SQS queue")
 	}
 
@@ -203,7 +202,6 @@ func (st *SQSTargetDriver) Write(messages []*models.Message) (*models.TargetWrit
 	return models.NewTargetWriteResult(
 		sent,
 		failed,
-		nil,
 		invalid,
 	), errResult
 }

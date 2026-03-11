@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/pubsub v1.50.1
 	github.com/Azure/azure-event-hubs-go/v3 v3.6.2
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible // indirect
-	github.com/Azure/go-amqp v1.5.0 // indirect
+	github.com/Azure/go-amqp v1.5.0
 	github.com/Azure/go-autorest/autorest v0.11.30 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.24 // indirect
 	github.com/IBM/sarama v1.46.3
