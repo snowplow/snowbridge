@@ -60,52 +60,41 @@ func createTestServer(results *[][]byte) *httptest.Server {
 	return createTestServerWithResponseCode(results, &headers, 200, "", 0)
 }
 
-func TestHTTP_GetHeaders(t *testing.T) {
+func TestHTTP_HeadersFromConfig(t *testing.T) {
 	assert := assert.New(t)
-	valid1 := `{"Max Forwards": "10", "Accept-Language": "en-US", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}`
 
-	expected1 := map[string]string{"Max Forwards": "10", "Accept-Language": "en-US", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}
+	var results [][]byte
+	var headers http.Header
+	wg := sync.WaitGroup{}
+	server := createTestServerWithResponseCode(&results, &headers, 200, "", 0)
+	defer server.Close()
 
-	out1, err1 := getHeaders(valid1)
-
-	assert.Nil(err1)
-	assert.Equal(expected1, out1)
-
-	valid2 := `{"Max Forwards": "10"}`
-	expected2 := map[string]string{"Max Forwards": "10"}
-
-	out2, err2 := getHeaders(valid2)
-
-	assert.Nil(err2)
-	assert.Equal(expected2, out2)
-
-	valid3 := "{\"Max Forwards\": \"10\", \"Accept-Language\": \"en-US\", \"Accept-Datetime\": \"Thu, 31 May 2007 20:35:00 GMT\"}"
-
-	expected3 := map[string]string{"Max Forwards": "10", "Accept-Language": "en-US", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}
-
-	out3, err3 := getHeaders(valid3)
-
-	assert.Nil(err3)
-	assert.Equal(expected3, out3)
-
-	invalid1 := `{"Max Forwards": 10}`
-	out4, err4 := getHeaders(invalid1)
-
-	assert.NotNil(err4)
-	if err4 != nil {
-		assert.Equal("Error parsing headers. Ensure that headers are provided as a JSON of string key-value pairs: json: cannot unmarshal number into Go value of type string", err4.Error())
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = server.URL
+	config.Headers = map[string]string{
+		"X-Custom-Header": "custom-value",
+		"Accept-Language": "en-US",
 	}
-	assert.Nil(out4)
-
-	invalid2 := `[{"Max Forwards": "10"}]`
-	out5, err5 := getHeaders(invalid2)
-
-	assert.NotNil(err5)
-	if err5 != nil {
-		assert.Equal("Error parsing headers. Ensure that headers are provided as a JSON of string key-value pairs: json: cannot unmarshal array into Go value of type map[string]string", err5.Error())
+	err := driver.InitFromConfig(config)
+	if err != nil {
+		t.Fatal(err)
 	}
-	assert.Nil(out5)
 
+	wg.Add(1)
+	ackFunc := func() { wg.Done() }
+	messages := testutil.GetTestMessages(1, `{"message": "hello"}`, ackFunc)
+
+	writeResult, err := driver.Write(messages)
+
+	if ok := WaitForAcksWithTimeout(2*time.Second, &wg); !ok {
+		assert.Fail("Timed out waiting for acks")
+	}
+
+	assert.Nil(err)
+	assert.Equal(1, len(writeResult.Sent))
+	assert.Equal("custom-value", headers.Get("X-Custom-Header"))
+	assert.Equal("en-US", headers.Get("Accept-Language"))
 }
 
 func TestHTTP_RetrieveHeaders(t *testing.T) {

@@ -41,12 +41,12 @@ const SupportedTargetHTTP = "http"
 type HTTPTargetConfig struct {
 	BatchingConfig *targetiface.BatchingConfig `hcl:"batching,block"`
 
-	URL                    string `hcl:"url"`
-	RequestTimeoutInMillis int    `hcl:"request_timeout_in_millis,optional"`
-	ContentType            string `hcl:"content_type,optional"`
-	Headers                string `hcl:"headers,optional"`
-	BasicAuthUsername      string `hcl:"basic_auth_username,optional"`
-	BasicAuthPassword      string `hcl:"basic_auth_password,optional"`
+	URL                    string            `hcl:"url"`
+	RequestTimeoutInMillis int               `hcl:"request_timeout_in_millis,optional"`
+	ContentType            string            `hcl:"content_type,optional"`
+	Headers                map[string]string `hcl:"headers,optional"`
+	BasicAuthUsername      string            `hcl:"basic_auth_username,optional"`
+	BasicAuthPassword      string            `hcl:"basic_auth_password,optional"`
 
 	EnableTLS      bool   `hcl:"enable_tls,optional"`
 	CertFile       string `hcl:"cert_file,optional"`
@@ -125,21 +125,6 @@ type HTTPTargetDriver struct {
 
 	includeTimingHeaders bool
 	rejectionThreshold   int
-}
-
-// getHeaders expects a JSON object with key-value pairs, eg: `{"Max Forwards": "10", "Accept-Language": "en-US", "Accept-Datetime": "Thu, 31 May 2007 20:35:00 GMT"}`
-func getHeaders(headers string) (map[string]string, error) {
-	if headers == "" { // No headers is acceptable
-		return nil, nil
-	}
-	var parsed map[string]string
-
-	err := json.Unmarshal([]byte(headers), &parsed)
-	if err != nil {
-		return nil, errors.Wrap(err, "Error parsing headers. Ensure that headers are provided as a JSON of string key-value pairs")
-	}
-
-	return parsed, nil
 }
 
 func addHeadersToRequest(request *http.Request, headers map[string]string, dynamicHeaders map[string]string) {
@@ -255,10 +240,6 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	if err != nil {
 		return err
 	}
-	parsedHeaders, err1 := getHeaders(c.Headers)
-	if err1 != nil {
-		return err1
-	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
 
@@ -286,7 +267,7 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	ht.client = client
 	ht.httpURL = c.URL
 	ht.contentType = c.ContentType
-	ht.headers = parsedHeaders
+	ht.headers = c.Headers
 	ht.basicAuthUsername = c.BasicAuthUsername
 	ht.basicAuthPassword = c.BasicAuthPassword
 	ht.log = log.WithFields(log.Fields{"target": SupportedTargetHTTP, "url": c.URL})

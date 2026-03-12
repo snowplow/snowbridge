@@ -23,9 +23,10 @@ target {
     # Content type for POST request (default: "application/json")
     content_type               = "text/html"
 
-    # Optional headers to add to the request.
-    # It is provided as a JSON string of key-value pairs (default: "").
-    headers                    = "{\"Accept-Language\":\"en-US\"}"
+    # Optional headers to add to the request as key-value pairs.
+    headers = {
+      Accept-Language = "en-US"
+    }
 
     # Optional basicauth username
     basic_auth_username        = "myUsername"
