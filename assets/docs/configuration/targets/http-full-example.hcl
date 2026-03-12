@@ -18,12 +18,7 @@ target {
     url                        = "https://acme.com/x"
 
     # Request timeout in milliseconds (default: 5000)
-    # Takes precedence over `request_timeout_in_seconds` (when both defined)  
     request_timeout_in_millis  = 2000
-
-    # Request timeout in seconds (default: 5)
-    # Deprecated, use `request_timeout_in_millis` instead
-    request_timeout_in_seconds = 2
 
     # Content type for POST request (default: "application/json")
     content_type               = "text/html"

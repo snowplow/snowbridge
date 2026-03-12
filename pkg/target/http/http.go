@@ -41,13 +41,12 @@ const SupportedTargetHTTP = "http"
 type HTTPTargetConfig struct {
 	BatchingConfig *targetiface.BatchingConfig `hcl:"batching,block"`
 
-	URL                     string `hcl:"url"`
-	RequestTimeoutInSeconds int    `hcl:"request_timeout_in_seconds,optional"`
-	RequestTimeoutInMillis  int    `hcl:"request_timeout_in_millis,optional"`
-	ContentType             string `hcl:"content_type,optional"`
-	Headers                 string `hcl:"headers,optional"`
-	BasicAuthUsername       string `hcl:"basic_auth_username,optional"`
-	BasicAuthPassword       string `hcl:"basic_auth_password,optional"`
+	URL                    string `hcl:"url"`
+	RequestTimeoutInMillis int    `hcl:"request_timeout_in_millis,optional"`
+	ContentType            string `hcl:"content_type,optional"`
+	Headers                string `hcl:"headers,optional"`
+	BasicAuthUsername      string `hcl:"basic_auth_username,optional"`
+	BasicAuthPassword      string `hcl:"basic_auth_password,optional"`
 
 	EnableTLS      bool   `hcl:"enable_tls,optional"`
 	CertFile       string `hcl:"cert_file,optional"`
@@ -218,7 +217,8 @@ func (ht *HTTPTargetDriver) GetDefaultConfiguration() any {
 			MaxConcurrentBatches: 5,
 			FlushPeriodMillis:    500,
 		},
-		EnableTLS: false,
+		RequestTimeoutInMillis: 5000,
+		EnableTLS:              false,
 
 		ContentType: "application/json",
 		ResponseRules: &ResponseRules{
@@ -251,27 +251,6 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	ht.BatchingConfig.MaxBatchBytes -= approxTmplSize
 	ht.BatchingConfig.MaxMessageBytes -= approxTmplSize
 
-	var requestTimeoutInMillis int
-
-	if c.RequestTimeoutInMillis != 0 && c.RequestTimeoutInSeconds == 0 {
-		requestTimeoutInMillis = c.RequestTimeoutInMillis
-	}
-
-	if c.RequestTimeoutInMillis != 0 && c.RequestTimeoutInSeconds != 0 {
-		requestTimeoutInMillis = c.RequestTimeoutInMillis
-		log.Warn("Both 'request_timeout_in_millis' and 'request_timeout_in_seconds' options are set. In this case 'request_timeout_in_millis' takes precendence and 'request_timeout_in_seconds' is ignored. Using 'request_timeout_in_seconds' is deprecated, and will be removed in the next major version. Use 'request_timeout_in_millis' only")
-	}
-
-	if c.RequestTimeoutInMillis == 0 && c.RequestTimeoutInSeconds != 0 {
-		requestTimeoutInMillis = c.RequestTimeoutInSeconds * 1000
-		log.Warn("For the HTTP target, 'request_timeout_in_seconds' is deprecated, and will be removed in the next major version. Use 'request_timeout_in_millis' instead")
-	}
-
-	if c.RequestTimeoutInMillis == 0 && c.RequestTimeoutInSeconds == 0 {
-		requestTimeoutInMillis = 5000
-		log.Warn("Neither 'request_timeout_in_millis' nor 'request_timeout_in_seconds' are set. The previous default is preserved, but strongly advise manual configuration of 'request_timeout_in_millis'")
-	}
-
 	err = common.CheckURL(c.URL)
 	if err != nil {
 		return err
@@ -293,7 +272,7 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	}
 
 	client := createHTTPClient(c.OAuth2ClientID, c.OAuth2ClientSecret, c.OAuth2TokenURL, c.OAuth2RefreshToken, transport)
-	client.Timeout = time.Duration(requestTimeoutInMillis) * time.Millisecond
+	client.Timeout = time.Duration(c.RequestTimeoutInMillis) * time.Millisecond
 
 	// validating response rules from config
 	if c.ResponseRules != nil {

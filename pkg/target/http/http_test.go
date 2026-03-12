@@ -188,29 +188,19 @@ func TestHTTP_RetrieveHeaders(t *testing.T) {
 
 func TestHTTP_RequestTimeoutsConfig(t *testing.T) {
 	testCases := []struct {
-		Name                 string
-		Config               *HTTPTargetConfig
-		ExpectedCientTimeout time.Duration
+		Name                  string
+		Config                *HTTPTargetConfig
+		ExpectedClientTimeout time.Duration
 	}{
 		{
-			Name:                 "Nothing set",
-			Config:               &HTTPTargetConfig{},
-			ExpectedCientTimeout: time.Duration(5) * time.Second,
+			Name:                  "Default",
+			Config:                &HTTPTargetConfig{},
+			ExpectedClientTimeout: time.Duration(5) * time.Second,
 		},
 		{
-			Name:                 "In seconds only",
-			Config:               &HTTPTargetConfig{RequestTimeoutInSeconds: 10},
-			ExpectedCientTimeout: time.Duration(10) * time.Second,
-		},
-		{
-			Name:                 "In milliseconds only",
-			Config:               &HTTPTargetConfig{RequestTimeoutInMillis: 2500},
-			ExpectedCientTimeout: time.Duration(2500) * time.Millisecond,
-		},
-		{
-			Name:                 "Seconds and millis are set",
-			Config:               &HTTPTargetConfig{RequestTimeoutInSeconds: 10, RequestTimeoutInMillis: 2500},
-			ExpectedCientTimeout: time.Duration(2500) * time.Millisecond,
+			Name:                  "Custom millis",
+			Config:                &HTTPTargetConfig{RequestTimeoutInMillis: 2500},
+			ExpectedClientTimeout: time.Duration(2500) * time.Millisecond,
 		},
 	}
 	for _, tt := range testCases {
@@ -219,13 +209,14 @@ func TestHTTP_RequestTimeoutsConfig(t *testing.T) {
 			driver := &HTTPTargetDriver{}
 			config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
 			config.URL = "http://test"
-			config.RequestTimeoutInSeconds = tt.Config.RequestTimeoutInSeconds
-			config.RequestTimeoutInMillis = tt.Config.RequestTimeoutInMillis
+			if tt.Config.RequestTimeoutInMillis != 0 {
+				config.RequestTimeoutInMillis = tt.Config.RequestTimeoutInMillis
+			}
 			config.BatchingConfig.MaxBatchBytes = 1048576
 			config.BatchingConfig.MaxMessageBytes = 1048576
 			_ = driver.InitFromConfig(config)
 
-			assert.Equal(tt.ExpectedCientTimeout, driver.client.Timeout)
+			assert.Equal(tt.ExpectedClientTimeout, driver.client.Timeout)
 		})
 	}
 }
