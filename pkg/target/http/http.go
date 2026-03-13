@@ -405,103 +405,66 @@ func handleResponseRules(response response, rules *ResponseRules, messages []*mo
 		}
 	}
 
-	message := response.Body
+	apiErr := &models.ApiError{
+		StatusCode:   response.StringStatus,
+		ResponseBody: response.Body,
+		SafeMessage:  pickSafeMessage(response, matchedRule, safeMode),
+	}
+	for _, msg := range messages {
+		msg.SetError(apiErr)
+	}
+
+	return categorizeByRuleType(matchedRule, messages, apiErr)
+}
+
+// pickSafeMessage returns an error description that is safe to log and report as metadata.
+// When safeMode is off, returns the full response body. When on, returns the matched
+// body part from the rule if available, otherwise a generic label based on the rule type.
+func pickSafeMessage(response response, matchedRule *Rule, safeMode bool) string {
+	if !safeMode {
+		return response.Body
+	}
+	if matchedRule != nil {
+		if matchedRule.MatchingBodyPart != "" {
+			return matchedRule.MatchingBodyPart
+		}
+		switch matchedRule.Type {
+		case ResponseRuleTypeInvalid:
+			return "Invalid error"
+		case ResponseRuleTypeThrottle:
+			return "Throttle error"
+		case ResponseRuleTypeSetup:
+			return "Setup error"
+		case ResponseRuleTypeFatal:
+			return "Fatal error"
+		}
+	}
+	return "Transient error"
+}
+
+// categorizeByRuleType splits messages into invalid or failed based on the matched rule type,
+// and wraps the error details in the appropriate write error type for the router's retry logic.
+func categorizeByRuleType(matchedRule *Rule, messages []*models.Message, apiErr *models.ApiError) (invalid, failed []*models.Message, wrappedError error) {
+	errorDetails := fmt.Errorf("response status: '%s' with error details: '%s'", apiErr.StatusCode, apiErr.SafeMessage)
 
 	if matchedRule != nil {
 		switch matchedRule.Type {
 		case ResponseRuleTypeInvalid:
-			if safeMode {
-				message = "Invalid error"
-			}
-			for _, msg := range messages {
-				msg.SetError(&models.ApiError{
-					StatusCode:   response.StringStatus,
-					ResponseBody: response.Body,
-					SafeMessage:  message,
-				})
-			}
-			invalid = append(invalid, messages...)
-			return invalid, failed, nil
+			return messages, nil, nil
 
 		case ResponseRuleTypeThrottle:
-			var errorDetails error
-			if matchedRule.MatchingBodyPart != "" {
-				errorDetails = fmt.Errorf("got throttle error, response status: '%s' with error details: '%s'", response.StringStatus, matchedRule.MatchingBodyPart)
-			} else {
-				errorDetails = fmt.Errorf("got throttle error, response status: '%s'", response.StringStatus)
-			}
-			if safeMode {
-				message = "Throttle error"
-			}
-
-			for _, msg := range messages {
-				msg.SetError(&models.ApiError{
-					StatusCode:   response.StringStatus,
-					ResponseBody: response.Body,
-					SafeMessage:  message,
-				})
-			}
-			failed = append(failed, messages...)
-			return invalid, failed, models.ThrottleWriteError{Err: errorDetails}
+			return nil, messages, models.ThrottleWriteError{Err: errorDetails}
 
 		case ResponseRuleTypeSetup:
-			var errorDetails error
-			if matchedRule.MatchingBodyPart != "" {
-				errorDetails = fmt.Errorf("got setup error, response status: '%s' with error details: '%s'", response.StringStatus, matchedRule.MatchingBodyPart)
-			} else {
-				errorDetails = fmt.Errorf("got setup error, response status: '%s'", response.StringStatus)
-			}
-			if safeMode {
-				message = "Setup error"
-			}
-
-			for _, msg := range messages {
-				msg.SetError(&models.ApiError{
-					StatusCode:   response.StringStatus,
-					ResponseBody: response.Body,
-					SafeMessage:  message,
-				})
-			}
-			failed = append(failed, messages...)
-			return invalid, failed, models.SetupWriteError{Err: errorDetails}
+			return nil, messages, models.SetupWriteError{Err: errorDetails}
 
 		case ResponseRuleTypeFatal:
-			var errorDetails error
-			if matchedRule.MatchingBodyPart != "" {
-				errorDetails = fmt.Errorf("got fatal error, response status: '%s' with error details: '%s'", response.StringStatus, matchedRule.MatchingBodyPart)
-			} else {
-				errorDetails = fmt.Errorf("got fatal error, response status: '%s'", response.StringStatus)
-			}
-			if safeMode {
-				message = "Fatal error"
-			}
-
-			for _, msg := range messages {
-				msg.SetError(&models.ApiError{
-					StatusCode:   response.StringStatus,
-					ResponseBody: response.Body,
-					SafeMessage:  message,
-				})
-			}
-			failed = append(failed, messages...)
-			return invalid, failed, models.FatalWriteError{Err: errorDetails}
+			return nil, messages, models.FatalWriteError{Err: errorDetails}
 		}
 	}
 
 	// No rule matched - transient error
-	if safeMode {
-		message = "Transient error"
-	}
-	for _, msg := range messages {
-		msg.SetError(&models.ApiError{
-			StatusCode:   response.StringStatus,
-			ResponseBody: response.Body,
-			SafeMessage:  message,
-		})
-	}
-	errorDetails := fmt.Errorf("got transient error, response status: '%s'", response.StringStatus)
-	failed = append(failed, messages...)
-	return invalid, failed, errorDetails
+	return nil, messages, errorDetails
 }
 
 func ruleMatches(res response, rule Rule) bool {

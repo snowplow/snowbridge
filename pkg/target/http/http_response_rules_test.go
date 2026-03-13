@@ -14,6 +14,7 @@ package http
 import (
 	"testing"
 
+	"github.com/snowplow/snowbridge/v3/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -213,4 +214,104 @@ func TestHTTP_ResponseRules_ValidateRuleTypes(t *testing.T) {
 	// but the old test checked that target was nil. This is a minor behavioral difference
 	// in how errors are handled, but the test still validates the error message correctly.
 	assert.Contains(err.Error(), "Invalid response rule type ''")
+}
+
+func TestHTTP_HandleResponseRules_ErrorDetails(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		Response      response
+		Rules         []Rule
+		SafeMode      bool
+		ExpectedError string
+	}{
+		{
+			Name:          "Transient, safe mode off — full body in error details",
+			Response:      response{Status: 500, StringStatus: "500 Internal Server Error", Body: `{"error": "something went wrong"}`},
+			Rules:         []Rule{},
+			SafeMode:      false,
+			ExpectedError: `response status: '500 Internal Server Error' with error details: '{"error": "something went wrong"}'`,
+		},
+		{
+			Name:          "Transient, safe mode on — generic label in error details",
+			Response:      response{Status: 500, StringStatus: "500 Internal Server Error", Body: `{"error": "something went wrong"}`},
+			Rules:         []Rule{},
+			SafeMode:      true,
+			ExpectedError: "response status: '500 Internal Server Error' with error details: 'Transient error'",
+		},
+		{
+			Name:     "Client timeout, no matching rule — actual error in details",
+			Response: response{Status: 0, StringStatus: "Client failed to complete request", Body: `Post "http://example.com": context deadline exceeded`},
+			Rules:    []Rule{},
+			SafeMode: false,
+			ExpectedError: `response status: 'Client failed to complete request' with error details: ` +
+				`'Post "http://example.com": context deadline exceeded'`,
+		},
+		{
+			Name:          "Throttle, safe mode on, with matching body part",
+			Response:      response{Status: 429, StringStatus: "429 Too Many Requests", Body: "Rate limit exceeded, retry after 30s"},
+			Rules:         []Rule{{Type: ResponseRuleTypeThrottle, MatchingHTTPCodes: []int{429}, MatchingBodyPart: "Rate limit"}},
+			SafeMode:      true,
+			ExpectedError: "response status: '429 Too Many Requests' with error details: 'Rate limit'",
+		},
+		{
+			Name:          "Throttle, safe mode on, no matching body part",
+			Response:      response{Status: 429, StringStatus: "429 Too Many Requests", Body: "slow down"},
+			Rules:         []Rule{{Type: ResponseRuleTypeThrottle, MatchingHTTPCodes: []int{429}}},
+			SafeMode:      true,
+			ExpectedError: "response status: '429 Too Many Requests' with error details: 'Throttle error'",
+		},
+		{
+			Name:          "Throttle, safe mode off — full body in error details",
+			Response:      response{Status: 429, StringStatus: "429 Too Many Requests", Body: "Rate limit exceeded, retry after 30s"},
+			Rules:         []Rule{{Type: ResponseRuleTypeThrottle, MatchingHTTPCodes: []int{429}, MatchingBodyPart: "Rate limit"}},
+			SafeMode:      false,
+			ExpectedError: "response status: '429 Too Many Requests' with error details: 'Rate limit exceeded, retry after 30s'",
+		},
+		{
+			Name:          "Setup, safe mode on, with matching body part",
+			Response:      response{Status: 401, StringStatus: "401 Unauthorized", Body: "Invalid token: expired at 2024-01-01"},
+			Rules:         []Rule{{Type: ResponseRuleTypeSetup, MatchingHTTPCodes: []int{401}, MatchingBodyPart: "Invalid token"}},
+			SafeMode:      true,
+			ExpectedError: "response status: '401 Unauthorized' with error details: 'Invalid token'",
+		},
+		{
+			Name:          "Fatal, safe mode on, no matching body part",
+			Response:      response{Status: 403, StringStatus: "403 Forbidden", Body: "Account suspended"},
+			Rules:         []Rule{{Type: ResponseRuleTypeFatal, MatchingHTTPCodes: []int{403}}},
+			SafeMode:      true,
+			ExpectedError: "response status: '403 Forbidden' with error details: 'Fatal error'",
+		},
+		{
+			Name:          "Invalid, safe mode on — no wrapped error",
+			Response:      response{Status: 400, StringStatus: "400 Bad Request", Body: "malformed JSON"},
+			Rules:         []Rule{{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{400}}},
+			SafeMode:      true,
+			ExpectedError: "",
+		},
+		{
+			Name:          "Invalid, safe mode off — no wrapped error",
+			Response:      response{Status: 400, StringStatus: "400 Bad Request", Body: "malformed JSON"},
+			Rules:         []Rule{{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{400}}},
+			SafeMode:      false,
+			ExpectedError: "",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			messages := testutil.GetTestMessages(1, `{"data": "test"}`, nil)
+			rules := &ResponseRules{Rules: tt.Rules}
+
+			_, _, err := handleResponseRules(tt.Response, rules, messages, tt.SafeMode)
+
+			if tt.ExpectedError == "" {
+				assert.Nil(err)
+			} else {
+				assert.NotNil(err)
+				assert.Equal(tt.ExpectedError, err.Error())
+			}
+		})
+	}
 }

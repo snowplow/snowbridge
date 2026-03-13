@@ -583,7 +583,7 @@ func TestHTTP_Write_Failure(t *testing.T) {
 
 	assert.NotNil(err1)
 	if err1 != nil {
-		assert.Regexp("got transient error, response status:.*", err1.Error())
+		assert.Regexp("response status:.*", err1.Error())
 	}
 
 	assert.Equal(int64(0), int64(len(writeResult.Sent)))
@@ -629,7 +629,7 @@ func TestHTTP_Write_InvalidResponseCode(t *testing.T) {
 
 			assert.NotNil(err1)
 			if err1 != nil {
-				assert.Regexp("got transient error, response status:.*", err1.Error())
+				assert.Regexp("response status:.*", err1.Error())
 			}
 
 			assert.Equal(int64(0), int64(len(writeResult.Sent)))
@@ -769,7 +769,7 @@ func TestHTTP_Write_Setup(t *testing.T) {
 
 	_, isSetup := err.(models.SetupWriteError)
 	assert.True(isSetup)
-	assert.Regexp(".*got setup error, response status: '401 Unauthorized' with error details: 'Invalid token'", err.Error())
+	assert.Regexp(".*response status: '401 Unauthorized' with error details: 'Invalid token'", err.Error())
 }
 
 func TestHTTP_Write_Throttle(t *testing.T) {
@@ -807,7 +807,7 @@ func TestHTTP_Write_Throttle(t *testing.T) {
 
 	_, isThrottle := err.(models.ThrottleWriteError)
 	assert.True(isThrottle)
-	assert.Regexp(".*got throttle error, response status: '429.*' with error details: 'Rate limit'", err.Error())
+	assert.Regexp(".*response status: '429.*' with error details: 'Rate limit'", err.Error())
 }
 
 func TestHTTP_Write_ClientTimeoutResponseRule(t *testing.T) {
@@ -848,6 +848,39 @@ func TestHTTP_Write_ClientTimeoutResponseRule(t *testing.T) {
 	assert.Equal(1, len(writeResult.Invalid), "Invalid count should be 1")
 	assert.Contains(writeResult.Invalid[0].GetError().Error(), "Client failed to complete request")
 	assert.Contains(writeResult.Invalid[0].GetError().Error(), "context deadline exceeded")
+}
+
+func TestHTTP_Write_ClientTimeoutTransient(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	var headers http.Header
+
+	server := createTestServerWithResponseCode(&results, &headers, 200, "ok", 10)
+	defer server.Close()
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = server.URL
+	config.TemplateFile = string(`../../../integration/http/template`)
+	config.RequestTimeoutInMillis = 1
+	err := driver.InitFromConfig(config)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{ "attribute": "value"}`)}}
+
+	writeResult, err1 := driver.Write(input)
+
+	assert.NotNil(err1)
+	assert.Equal(0, len(writeResult.Sent), "Sent count should be 0")
+	assert.Equal(1, len(writeResult.Failed), "Failed count should be 1")
+	assert.Equal(0, len(writeResult.Invalid), "Invalid count should be 0")
+	// The error should contain the actual timeout cause, not just the status
+	assert.Contains(err1.Error(), "Client failed to complete request")
+	assert.Contains(err1.Error(), "context deadline exceeded")
 }
 
 func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
