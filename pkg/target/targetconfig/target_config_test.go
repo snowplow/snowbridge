@@ -243,6 +243,39 @@ func TestGetTarget_BatchingOverrides(t *testing.T) {
 	assert.False(dataOnlyOutputField.Bool())
 }
 
+func TestGetTarget_InvalidBatching(t *testing.T) {
+	assert := assert.New(t)
+
+	// Define HCL config inline as a string
+	hclConfig := []byte(`
+		target {
+			use "stdout" {
+				batching {
+					max_batch_bytes = 99999
+					max_message_bytes = 100000
+					max_batch_messages = 999
+					max_concurrent_batches = 99
+					flush_period_millis = 9
+				}
+			}
+		}
+	`)
+
+	c, err := config.NewHclConfig(hclConfig, "test.hcl")
+	assert.NoError(err)
+	assert.NotNil(c)
+
+	// Call GetTarget with valid stdout config
+	tar, err := GetTarget(c.Data.Target, c.Decoder)
+
+	// Assert that it returns a valid target and no error
+	assert.Nil(tar)
+	assert.NotNil(err)
+	if err != nil {
+		assert.Contains(err.Error(), "invalid batching configuration")
+	}
+}
+
 func TestGetTarget_PubSub(t *testing.T) {
 	assert := assert.New(t)
 
@@ -266,8 +299,8 @@ func TestGetTarget_PubSub(t *testing.T) {
 				topic_name = "test-topic"
 				batching {
 					max_batch_messages = 250
-					max_batch_bytes = 2097152
-					max_message_bytes = 5242880
+					max_batch_bytes = 5242880
+					max_message_bytes = 2097152
 					max_concurrent_batches = 10
 					flush_period_millis = 1000
 				}
@@ -290,8 +323,8 @@ func TestGetTarget_PubSub(t *testing.T) {
 
 	// Verify the target has the correct batching configuration (different from defaults)
 	assert.Equal(250, batchingConfig.MaxBatchMessages)
-	assert.Equal(2097152, batchingConfig.MaxBatchBytes)
-	assert.Equal(5242880, batchingConfig.MaxMessageBytes)
+	assert.Equal(5242880, batchingConfig.MaxBatchBytes)
+	assert.Equal(2097152, batchingConfig.MaxMessageBytes)
 	assert.Equal(10, batchingConfig.MaxConcurrentBatches)
 	assert.Equal(1000, batchingConfig.FlushPeriodMillis)
 

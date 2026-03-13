@@ -180,6 +180,10 @@ func GetTarget(targetCfg *config.TargetConfig, decoder config.Decoder) (*targeti
 
 	batchingConfig := driver.GetBatchingConfig()
 
+	if batchingConfig.MaxMessageBytes > batchingConfig.MaxBatchBytes {
+		return nil, fmt.Errorf("%s target has invalid batching configuration: max_message_bytes (%d) must not be greater than max_batch_bytes (%d)", useTarget.Name, batchingConfig.MaxMessageBytes, batchingConfig.MaxBatchBytes)
+	}
+
 	tickerPeriod := time.Duration(batchingConfig.FlushPeriodMillis) * time.Millisecond
 	ticker := time.NewTicker(tickerPeriod)
 
