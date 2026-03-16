@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 )
 
 func TestJQRunFunction_SpMode_true(t *testing.T) {
@@ -37,7 +38,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_timestamp_to_epochMillis",
 			JQCommand: `{ foo: .collector_tstamp | epochMillis }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -56,7 +57,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_timestamp_to_epochMillis_context",
 			JQCommand: `{ sessionId: .contexts_com_snowplowanalytics_snowplow_client_session_1[0].firstEventTimestamp | epochMillis }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -75,7 +76,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_timestamp_to_epoch",
 			JQCommand: `{ foo: .collector_tstamp | epoch }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -94,7 +95,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_timestamp_to_epoch_chained",
 			JQCommand: `{ foo: .collector_tstamp | epoch | todateiso8601 }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -113,7 +114,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_hash_context-sha1-wo-salt",
 			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha1"; "") }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -132,7 +133,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_hash_context-sha1-with-salt",
 			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha1"; "09a2d6b3ecd943aa8512df1f") }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -151,7 +152,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_hash_context-sha256-wo-salt",
 			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha256"; "") }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -170,7 +171,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_hash_context-sha256-with-salt",
 			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("sha256"; "09a2d6b3ecd943aa8512df1f") }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -189,7 +190,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_hash_context-md5-wo-salt",
 			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("md5"; "") }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -208,7 +209,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "test_hash_context-md5-with-salt",
 			JQCommand: `{ agentName: .contexts_nl_basjes_yauaa_context_1[0].agentNameVersionMajor | hash("md5"; "09a2d6b3ecd943aa8512df1f") }`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -227,7 +228,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "happy_path",
 			JQCommand: `{foo: .app_id}`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -246,10 +247,10 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "happy_path_with_Intermediate_state",
 			JQCommand: `{foo: .app_id}`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
-			InputInterState: SpTsv1Parsed,
+			InputInterState: transform.SpTsv1Parsed,
 			Expected: map[string]*models.Message{
 				"success": {
 					Data:         []byte(`{"foo":"test-data1"}`),
@@ -265,7 +266,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			Scenario:  "selecting_from_context",
 			JQCommand: `{foo: .contexts_nl_basjes_yauaa_context_1[0].operatingSystemName}`,
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -345,7 +346,7 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 			Scenario:  "happy_path",
 			JQCommand: `{foo: .app_id}`,
 			InputMsg: &models.Message{
-				Data:         SnowplowJSON1,
+				Data:         transform.SnowplowJSON1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -677,7 +678,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 				SpMode:       true,
 			},
 			InputMsg: &models.Message{
-				Data:         SnowplowTsv1,
+				Data:         transform.SnowplowTsv1,
 				PartitionKey: "some-key",
 			},
 			InputInterState: nil,
@@ -685,7 +686,7 @@ func TestJQRunFunction_errors(t *testing.T) {
 				"success":  nil,
 				"filtered": nil,
 				"failed": {
-					Data:         SnowplowTsv1,
+					Data:         transform.SnowplowTsv1,
 					PartitionKey: "some-key",
 				},
 			},

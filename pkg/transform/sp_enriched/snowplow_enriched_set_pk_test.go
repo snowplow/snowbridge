@@ -18,18 +18,19 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 )
 
 func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	assert := assert.New(t)
 
 	var messageGood = models.Message{
-		Data:         SnowplowTsv3,
+		Data:         transform.SnowplowTsv3,
 		PartitionKey: "some-key",
 	}
 
 	var messageBad = models.Message{
-		Data:         nonSnowplowString,
+		Data:         transform.NonSnowplowString,
 		PartitionKey: "some-key4",
 	}
 
@@ -39,7 +40,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	stringAsPk, _, fail, intermediate := aidSetPkFunc(&messageGood, nil)
 
 	assert.Equal("test-data3", stringAsPk.PartitionKey)
-	assert.Equal(SpTsv3Parsed, intermediate)
+	assert.Equal(transform.SpTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
 	ctstampSetPkFunc, _ := NewSpEnrichedSetPkFunction("collector_tstamp")
@@ -47,7 +48,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	tstampAsPk, _, fail, intermediate := ctstampSetPkFunc(&messageGood, nil)
 
 	assert.Equal("2019-05-10 14:40:29.576 +0000 UTC", tstampAsPk.PartitionKey)
-	assert.Equal(SpTsv3Parsed, intermediate)
+	assert.Equal(transform.SpTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
 	pgurlportSetPkFunc, _ := NewSpEnrichedSetPkFunction("page_urlport")
@@ -55,7 +56,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	intAsPk, _, fail, intermediate := pgurlportSetPkFunc(&messageGood, nil)
 
 	assert.Equal("80", intAsPk.PartitionKey)
-	assert.Equal(SpTsv3Parsed, intermediate)
+	assert.Equal(transform.SpTsv3Parsed, intermediate)
 	assert.Nil(fail)
 
 	// Simple failure case
@@ -72,12 +73,12 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	// Nuanced success case
 	// Test to assert behaviour when there's an incompatible intermediateState in the input
 	incompatibleIntermediateMessage := models.Message{
-		Data:         SnowplowTsv1,
+		Data:         transform.SnowplowTsv1,
 		PartitionKey: "some-key",
 	}
 
 	expected := models.Message{
-		Data:         SnowplowTsv1,
+		Data:         transform.SnowplowTsv1,
 		PartitionKey: "test-data1",
 	}
 	incompatibleIntermediate := "Incompatible intermediate state"
@@ -86,7 +87,7 @@ func TestNewSpEnrichedSetPkFunction(t *testing.T) {
 	stringAsPkIncompat, _, failIncompat, intermediate := aidSetPkFunc(&incompatibleIntermediateMessage, incompatibleIntermediate)
 
 	assert.Equal(&expected, stringAsPkIncompat)
-	assert.Equal(SpTsv1Parsed, intermediate)
+	assert.Equal(transform.SpTsv1Parsed, intermediate)
 	assert.Nil(failIncompat)
 
 	// Invalid field

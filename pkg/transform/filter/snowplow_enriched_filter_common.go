@@ -21,7 +21,9 @@ import (
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+
 	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // evaluateSpEnrichedfilter takes a regex and a slice of values, and returns whether or not a value has been matched
@@ -68,7 +70,7 @@ func createFilterFunction(regex string, getFunc valueGetter, filterAction string
 	return func(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 
 		// Evaluate intermediateState to parsedEvent
-		parsedEvent, parseErr := transform.IntermediateAsSpEnrichedParsed(intermediateState, message)
+		parsedEvent, parseErr := utils.IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(&models.TransformationError{
 				SafeMessage: "intermediate state cannot be parsed as parsedEvent",

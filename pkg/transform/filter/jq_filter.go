@@ -18,6 +18,7 @@ import (
 	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	jq "github.com/snowplow/snowbridge/v3/pkg/transform/jq"
 )
 
 // JQFilterConfig represents the configuration for the JQ filter transformation
@@ -34,7 +35,7 @@ var JQFilterConfigPair = config.ConfigurationPair{
 }
 
 func jqFilterConfigFunction(cfg *JQFilterConfig) (transform.TransformationFunction, error) {
-	return transform.GojqTransformationFunction(cfg.JQCommand, cfg.RunTimeoutMs, cfg.SpMode, filterOutput)
+	return jq.GojqTransformationFunction(cfg.JQCommand, cfg.RunTimeoutMs, cfg.SpMode, filterOutput)
 }
 
 func jqFilterAdapterGenerator(f func(*JQFilterConfig) (transform.TransformationFunction, error)) jqFilterAdapter {
@@ -49,7 +50,7 @@ func jqFilterAdapterGenerator(f func(*JQFilterConfig) (transform.TransformationF
 }
 
 // This is where actual filtering is implemented, based on a JQ command output.
-func filterOutput(jqOutput transform.JqCommandOutput) transform.TransformationFunction {
+func filterOutput(jqOutput jq.JqCommandOutput) transform.TransformationFunction {
 	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		shouldKeepMessage, isBoolean := jqOutput.(bool)
 

@@ -290,6 +290,8 @@ func TestEnginesAndTransformations(t *testing.T) {
 				if len(tt.ExpectedMessages.After) > 0 {
 					assert.Equal(tt.ExpectedMessages.After[0].Data, result.Filtered.Data)
 				}
+			default:
+				t.Fatalf("test case %q has unrecognized or missing ExpectedType: %q", tt.Description, tt.ExpectedMessages.ExpectedType)
 			}
 		})
 	}

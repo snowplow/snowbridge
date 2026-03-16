@@ -20,6 +20,9 @@ import (
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // GTMSSPreviewConfig is a configuration object for the spEnrichedToJson transformation
@@ -42,7 +45,7 @@ func (f gtmssPreviewAdapter) Create(i any) (any, error) {
 }
 
 // gtmssPreviewAdapterGenerator returns a gtmssPreviewAdapter
-func gtmssPreviewAdapterGenerator(f func(cfg *GTMSSPreviewConfig) (TransformationFunction, error)) gtmssPreviewAdapter {
+func gtmssPreviewAdapterGenerator(f func(cfg *GTMSSPreviewConfig) (transform.TransformationFunction, error)) gtmssPreviewAdapter {
 	return func(i any) (any, error) {
 		cfg, ok := i.(*GTMSSPreviewConfig)
 		if !ok {
@@ -54,7 +57,7 @@ func gtmssPreviewAdapterGenerator(f func(cfg *GTMSSPreviewConfig) (Transformatio
 }
 
 // gtmssPreviewConfigFunction returns a transformation function
-func gtmssPreviewConfigFunction(cfg *GTMSSPreviewConfig) (TransformationFunction, error) {
+func gtmssPreviewConfigFunction(cfg *GTMSSPreviewConfig) (transform.TransformationFunction, error) {
 	ctx := "contexts_com_google_tag-manager_server-side_preview_mode_1"
 	property := "x-gtm-server-preview"
 	header := "x-gtm-server-preview"
@@ -69,9 +72,9 @@ var GTMSSPreviewConfigPair = config.ConfigurationPair{
 }
 
 // gtmssPreviewTransformation returns a transformation function
-func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Duration) TransformationFunction {
+func gtmssPreviewTransformation(ctx, property, headerKey string, expiry time.Duration) transform.TransformationFunction {
 	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
-		parsedEvent, err := IntermediateAsSpEnrichedParsed(interState, message)
+		parsedEvent, err := utils.IntermediateAsSpEnrichedParsed(interState, message)
 		if err != nil {
 			message.SetError(&models.TransformationError{
 				SafeMessage: "intermediate state cannot be parsed as parsedEvent",

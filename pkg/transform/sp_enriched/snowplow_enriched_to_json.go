@@ -16,6 +16,9 @@ import (
 
 	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // We could avoid all the config-related trimmings for this one, but providing them means that this
@@ -41,7 +44,7 @@ func (f enrichedToJSONAdapter) ProvideDefault() (any, error) {
 }
 
 // adapterGenerator returns a spEnrichedToJson transformation adapter.
-func enrichedToJSONAdapterGenerator(f func(c *EnrichedToJSONConfig) (TransformationFunction, error)) enrichedToJSONAdapter {
+func enrichedToJSONAdapterGenerator(f func(c *EnrichedToJSONConfig) (transform.TransformationFunction, error)) enrichedToJSONAdapter {
 	return func(i any) (any, error) {
 		cfg, ok := i.(*EnrichedToJSONConfig)
 		if !ok {
@@ -53,7 +56,7 @@ func enrichedToJSONAdapterGenerator(f func(c *EnrichedToJSONConfig) (Transformat
 }
 
 // enrichedToJSONConfigFunction returns an spEnrichedToJson transformation function, from an enrichedToJSONConfig.
-func enrichedToJSONConfigFunction(c *EnrichedToJSONConfig) (TransformationFunction, error) {
+func enrichedToJSONConfigFunction(c *EnrichedToJSONConfig) (transform.TransformationFunction, error) {
 	return SpEnrichedToJSON, nil
 }
 
@@ -66,7 +69,7 @@ var EnrichedToJSONConfigPair = config.ConfigurationPair{
 // SpEnrichedToJSON is a specific transformation implementation to transform good enriched data within a message to Json
 func SpEnrichedToJSON(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 	// Evalute intermediateState to parsedEvent
-	parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
+	parsedEvent, parseErr := utils.IntermediateAsSpEnrichedParsed(intermediateState, message)
 	if parseErr != nil {
 		message.SetError(&models.TransformationError{
 			SafeMessage: "intermediate state cannot be parsed as parsedEvent",

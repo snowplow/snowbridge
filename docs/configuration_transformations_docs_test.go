@@ -21,9 +21,12 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/snowplow/snowbridge/v3/assets"
 	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	base64 "github.com/snowplow/snowbridge/v3/pkg/transform/base64"
 	"github.com/snowplow/snowbridge/v3/pkg/transform/engine"
 	"github.com/snowplow/snowbridge/v3/pkg/transform/filter"
+	jq "github.com/snowplow/snowbridge/v3/pkg/transform/jq"
+	spenriched "github.com/snowplow/snowbridge/v3/pkg/transform/sp_enriched"
+	spgmtss "github.com/snowplow/snowbridge/v3/pkg/transform/sp_gtmss"
 	"github.com/snowplow/snowbridge/v3/pkg/transform/transformconfig"
 	"github.com/stretchr/testify/assert"
 )
@@ -154,19 +157,19 @@ func testTransformationConfig(t *testing.T, filepath string, fullExample bool) {
 		case "spEnrichedFilterUnstructEvent":
 			configObject = &filter.UnstructFilterConfig{}
 		case "spEnrichedSetPk":
-			configObject = &transform.SetPkConfig{}
+			configObject = &spenriched.SetPkConfig{}
 		case "spEnrichedToJson":
-			configObject = &transform.EnrichedToJSONConfig{}
+			configObject = &spenriched.EnrichedToJSONConfig{}
 		case "base64Decode":
-			configObject = &transform.Base64DecodeConfig{}
+			configObject = &base64.Base64DecodeConfig{}
 		case "base64Encode":
-			configObject = &transform.Base64EncodeConfig{}
+			configObject = &base64.Base64EncodeConfig{}
 		case "spGtmssPreview":
-			configObject = &transform.GTMSSPreviewConfig{}
+			configObject = &spgmtss.GTMSSPreviewConfig{}
 		case "js":
 			configObject = &engine.JSEngineConfig{}
 		case "jq":
-			configObject = &transform.JQMapperConfig{}
+			configObject = &jq.JQMapperConfig{}
 		case "jqFilter":
 			configObject = &filter.JQFilterConfig{}
 		default:

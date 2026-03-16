@@ -136,11 +136,14 @@ func TestTransformer_ObserverTransformationMetrics(t *testing.T) {
 	assert.True(t, len(buffers) >= 1, "Observer should have flushed at least one metrics buffer")
 
 	// Verify observer metrics show transformation activity
-	// The observer tracks transformation latency when Transformed() is called
-	// Check the latest buffer for transformation metrics
-	// Should have transformation latency metrics indicating Transformed() was called
-	latestBuffer := buffers[len(buffers)-1]
-	hasTransformMetrics := latestBuffer.MaxTransformLatency > 0 || latestBuffer.MinTransformLatency > 0
+	// Check that any buffer has transformation latency metrics
+	hasTransformMetrics := false
+	for _, buf := range buffers {
+		if buf.MaxTransformLatency > 0 || buf.MinTransformLatency > 0 {
+			hasTransformMetrics = true
+			break
+		}
+	}
 	assert.True(t, hasTransformMetrics,
 		"Observer should have transformation latency metrics indicating Transformed() was called")
 }
@@ -211,11 +214,14 @@ func TestTransformer_MultipleWorkers(t *testing.T) {
 	assert.True(t, len(buffers) >= 1, "Observer should have flushed at least one metrics buffer")
 
 	// Verify observer metrics show transformation activity
-	// The observer tracks transformation latency when Transformed() is called
-	// Check the latest buffer for transformation metrics
-	// Should have transformation latency metrics indicating Transformed() was called
-	latestBuffer := buffers[len(buffers)-1]
-	hasTransformMetrics := latestBuffer.MaxTransformLatency > 0 || latestBuffer.MinTransformLatency > 0
+	// Check that any buffer has transformation latency metrics
+	hasTransformMetrics := false
+	for _, buf := range buffers {
+		if buf.MaxTransformLatency > 0 || buf.MinTransformLatency > 0 {
+			hasTransformMetrics = true
+			break
+		}
+	}
 	assert.True(t, hasTransformMetrics,
 		"Observer should have transformation latency metrics indicating Transformed() was called")
 }

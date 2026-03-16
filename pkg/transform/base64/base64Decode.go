@@ -17,6 +17,7 @@ import (
 
 	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 )
 
 // We could avoid all the config-related trimmings for this one, but providing them means that this
@@ -42,7 +43,7 @@ func (f base64DecodeAdapter) ProvideDefault() (any, error) {
 }
 
 // base64DecodeAdapterGenerator returns a base64Decode transformation adapter.
-func base64DecodeAdapterGenerator(f func(c *Base64DecodeConfig) (TransformationFunction, error)) base64DecodeAdapter {
+func base64DecodeAdapterGenerator(f func(c *Base64DecodeConfig) (transform.TransformationFunction, error)) base64DecodeAdapter {
 	return func(i any) (any, error) {
 		cfg, ok := i.(*Base64DecodeConfig)
 		if !ok {
@@ -54,7 +55,7 @@ func base64DecodeAdapterGenerator(f func(c *Base64DecodeConfig) (TransformationF
 }
 
 // base64DecodeConfigFunction returns an Base64Decode transformation function, from an Base64DecodeConfig.
-func base64DecodeConfigFunction(c *Base64DecodeConfig) (TransformationFunction, error) {
+func base64DecodeConfigFunction(c *Base64DecodeConfig) (transform.TransformationFunction, error) {
 	return Base64Decode, nil
 }
 

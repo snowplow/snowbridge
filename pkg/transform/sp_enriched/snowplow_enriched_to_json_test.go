@@ -17,23 +17,24 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 )
 
 func TestSpEnrichedToJson(t *testing.T) {
 	assert := assert.New(t)
 
 	var messageGood = models.Message{
-		Data:         SnowplowTsv1,
+		Data:         transform.SnowplowTsv1,
 		PartitionKey: "some-key",
 	}
 
 	var messageBad = models.Message{
-		Data:         nonSnowplowString,
+		Data:         transform.NonSnowplowString,
 		PartitionKey: "some-key4",
 	}
 
 	var expectedGood = models.Message{
-		Data:         SnowplowJSON1,
+		Data:         transform.SnowplowJSON1,
 		PartitionKey: "some-key",
 	}
 
@@ -42,7 +43,7 @@ func TestSpEnrichedToJson(t *testing.T) {
 
 	assert.Equal(expectedGood.PartitionKey, transformSuccess.PartitionKey)
 	assert.JSONEq(string(expectedGood.Data), string(transformSuccess.Data))
-	assert.Equal(SpTsv1Parsed, intermediate)
+	assert.Equal(transform.SpTsv1Parsed, intermediate)
 	assert.Nil(failure)
 
 	// Simple failure case
@@ -65,7 +66,7 @@ func TestSpEnrichedToJson(t *testing.T) {
 	// Nuanced success case
 	// Test to assert behaviour when there's an incompatible IntermediateState in the input
 	incompatibleIntermediateMessage := models.Message{
-		Data:         SnowplowTsv1,
+		Data:         transform.SnowplowTsv1,
 		PartitionKey: "some-key",
 	}
 
@@ -76,6 +77,6 @@ func TestSpEnrichedToJson(t *testing.T) {
 
 	assert.Equal(expectedGood.PartitionKey, transformSuccess2.PartitionKey)
 	assert.JSONEq(string(expectedGood.Data), string(transformSuccess2.Data))
-	assert.Equal(SpTsv1Parsed, intermediate2)
+	assert.Equal(transform.SpTsv1Parsed, intermediate2)
 	assert.Nil(failure2)
 }

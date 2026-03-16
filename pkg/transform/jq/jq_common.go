@@ -21,6 +21,9 @@ import (
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // JqCommandOutput is a type representing output after executing JQ command. For filters for example we expect it to be boolean.
@@ -28,11 +31,11 @@ type JqCommandOutput = any
 
 // JqOutputHandler is a function which accepts JqCommandOutput and is response for doing something with it.
 // For filters for example that would be filtering message based on boolean output.
-type JqOutputHandler func(JqCommandOutput) TransformationFunction
+type JqOutputHandler func(JqCommandOutput) transform.TransformationFunction
 
 // GojqTransformationFunction is a function returning another transformation function which allows us to do some GOJQ based mapping/filtering.
 // Actual transformation happens in provided JqOutputHandler.
-func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) (TransformationFunction, error) {
+func GojqTransformationFunction(command string, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) (transform.TransformationFunction, error) {
 	query, err := gojq.Parse(command)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing jq command: %s", err)
@@ -135,10 +138,10 @@ func resolveHash(input any, params []any) (string, error) {
 	hashFunctionName := params[0].(string)
 	hashSalt := params[1].(string)
 
-	return DoHashing(inputString, hashFunctionName, hashSalt)
+	return utils.DoHashing(inputString, hashFunctionName, hashSalt)
 }
 
-func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) TransformationFunction {
+func runFunction(jqcode *gojq.Code, timeoutMs int, spMode bool, jqOutputHandler JqOutputHandler) transform.TransformationFunction {
 	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
 		input, parsedEvent, err := mkJQInput(message, interState, spMode)
 		if err != nil {
@@ -188,7 +191,7 @@ func mkJQInput(message *models.Message, interState any, spMode bool) (map[string
 		return input, nil, nil
 	}
 
-	parsedEvent, err := IntermediateAsSpEnrichedParsed(interState, message)
+	parsedEvent, err := utils.IntermediateAsSpEnrichedParsed(interState, message)
 	if err != nil {
 		return nil, nil, err
 	}

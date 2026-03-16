@@ -17,6 +17,9 @@ import (
 
 	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // JQMapperConfig represents the configuration for the JQ transformation
@@ -33,13 +36,13 @@ var JQMapperConfigPair = config.ConfigurationPair{
 }
 
 // jqMapperConfigFunction returns a jq mapper transformation function from a JQMapperConfig
-func jqMapperConfigFunction(c *JQMapperConfig) (TransformationFunction, error) {
+func jqMapperConfigFunction(c *JQMapperConfig) (transform.TransformationFunction, error) {
 	return GojqTransformationFunction(c.JQCommand, c.RunTimeoutMs, c.SpMode, transformOutput)
 }
 
-func transformOutput(jqOutput JqCommandOutput) TransformationFunction {
+func transformOutput(jqOutput JqCommandOutput) transform.TransformationFunction {
 	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
-		jqOutput = RemoveNullFields(jqOutput)
+		jqOutput = utils.RemoveNullFields(jqOutput)
 
 		// here v is any, so we Marshal. alternative: gojq.Marshal
 		data, err := json.Marshal(jqOutput)
@@ -57,7 +60,7 @@ func transformOutput(jqOutput JqCommandOutput) TransformationFunction {
 }
 
 // jqMapperAdapterGenerator returns a jqAdapter
-func jqMapperAdapterGenerator(f func(c *JQMapperConfig) (TransformationFunction, error)) jqMapperAdapter {
+func jqMapperAdapterGenerator(f func(c *JQMapperConfig) (transform.TransformationFunction, error)) jqMapperAdapter {
 	return func(i any) (any, error) {
 		cfg, ok := i.(*JQMapperConfig)
 		if !ok {

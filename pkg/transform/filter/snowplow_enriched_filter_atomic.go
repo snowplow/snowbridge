@@ -14,8 +14,10 @@ package filter
 import (
 	"github.com/pkg/errors"
 	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // AtomicFilterConfig is a configuration object for the spEnrichedFilter transformation
@@ -88,7 +90,7 @@ func makeBaseValueGetter(field string) valueGetter {
 func NewAtomicFilterFunction(field, regex string, filterAction string) (transform.TransformationFunction, error) {
 
 	// Validate the field provided
-	err := transform.ValidateAtomicField(field)
+	err := utils.ValidateAtomicField(field)
 	if err != nil {
 		return nil, err
 	}

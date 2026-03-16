@@ -17,6 +17,9 @@ import (
 
 	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // SetPkConfig is a configuration object for the spEnrichedSetPk transformation
@@ -42,7 +45,7 @@ func (f setPkAdapter) ProvideDefault() (any, error) {
 }
 
 // setPkAdapterGenerator returns a spEnrichedSetPk transformation adapter.
-func setPkAdapterGenerator(f func(c *SetPkConfig) (TransformationFunction, error)) setPkAdapter {
+func setPkAdapterGenerator(f func(c *SetPkConfig) (transform.TransformationFunction, error)) setPkAdapter {
 	return func(i any) (any, error) {
 		cfg, ok := i.(*SetPkConfig)
 		if !ok {
@@ -54,7 +57,7 @@ func setPkAdapterGenerator(f func(c *SetPkConfig) (TransformationFunction, error
 }
 
 // setPkConfigFunction returns an spEnrichedSetPk transformation function, from an setPkConfig.
-func setPkConfigFunction(c *SetPkConfig) (TransformationFunction, error) {
+func setPkConfigFunction(c *SetPkConfig) (transform.TransformationFunction, error) {
 	return NewSpEnrichedSetPkFunction(
 		c.AtomicField,
 	)
@@ -67,17 +70,17 @@ var SetPkConfigPair = config.ConfigurationPair{
 }
 
 // NewSpEnrichedSetPkFunction returns a TransformationFunction which sets the partition key of a message to a field within a Snowplow enriched event
-func NewSpEnrichedSetPkFunction(pkField string) (TransformationFunction, error) {
+func NewSpEnrichedSetPkFunction(pkField string) (transform.TransformationFunction, error) {
 
 	// Validate the field provided
-	err := ValidateAtomicField(pkField)
+	err := utils.ValidateAtomicField(pkField)
 	if err != nil {
 		return nil, err
 	}
 
 	return func(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {
 		// Evalute intermediateState to parsedEvent
-		parsedEvent, parseErr := IntermediateAsSpEnrichedParsed(intermediateState, message)
+		parsedEvent, parseErr := utils.IntermediateAsSpEnrichedParsed(intermediateState, message)
 		if parseErr != nil {
 			message.SetError(&models.TransformationError{
 				SafeMessage: "intermediate state cannot be parsed as parsedEvent",

@@ -25,6 +25,7 @@ import (
 	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // JSEngineConfig configures the JavaScript Engine.
@@ -222,7 +223,7 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 		case map[string]any:
 
 			if e.RemoveNulls {
-				protoData = transform.RemoveNullFromMap(protoData)
+				protoData = utils.RemoveNullFromMap(protoData)
 			}
 			// encode
 			encoded, err := json.Marshal(protoData)
@@ -266,7 +267,7 @@ func buildHashFunction(vm *goja.Runtime, hashSalt string) func(call goja.Functio
 		input := call.Arguments[0].String()
 		hashFunctionName := call.Arguments[1].String()
 
-		result, err := transform.DoHashing(input, hashFunctionName, hashSalt)
+		result, err := utils.DoHashing(input, hashFunctionName, hashSalt)
 		if err != nil {
 			vm.ToValue("")
 		}
@@ -359,7 +360,7 @@ func mkJSEngineInput(e *JSEngine, message *models.Message, interState any) (*eng
 }
 
 func parseAsTSV(interState any, message *models.Message) (map[string]any, error) {
-	parsedEvent, err := transform.IntermediateAsSpEnrichedParsed(interState, message)
+	parsedEvent, err := utils.IntermediateAsSpEnrichedParsed(interState, message)
 	if err != nil {
 		// if spMode, error for non Snowplow enriched event data
 		return nil, err

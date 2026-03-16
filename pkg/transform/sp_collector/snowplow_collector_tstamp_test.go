@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +24,7 @@ func TestCollectorTstamp_Snowplow_Data(t *testing.T) {
 	assert := assert.New(t)
 
 	input := models.Message{
-		Data:         SnowplowTsv1,
+		Data:         transform.SnowplowTsv1,
 		PartitionKey: "some-key",
 	}
 

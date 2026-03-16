@@ -17,9 +17,16 @@ import (
 	"github.com/snowplow/snowbridge/v3/config"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/observer"
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
 	"github.com/snowplow/snowbridge/v3/pkg/transform/engine"
 	"github.com/snowplow/snowbridge/v3/pkg/transform/filter"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	base64 "github.com/snowplow/snowbridge/v3/pkg/transform/base64"
+	jq "github.com/snowplow/snowbridge/v3/pkg/transform/jq"
+	spcollector "github.com/snowplow/snowbridge/v3/pkg/transform/sp_collector"
+	spenriched "github.com/snowplow/snowbridge/v3/pkg/transform/sp_enriched"
+	spgmtss "github.com/snowplow/snowbridge/v3/pkg/transform/sp_gtmss"
+	transformer "github.com/snowplow/snowbridge/v3/pkg/transform/transformer"
 )
 
 // SupportedTransformations is a ConfigurationPair slice containing all the officially supported transformations.
@@ -28,12 +35,12 @@ var SupportedTransformations = []config.ConfigurationPair{
 	filter.UnstructFilterConfigPair,
 	filter.ContextFilterConfigPair,
 	filter.JQFilterConfigPair,
-	transform.SetPkConfigPair,
-	transform.EnrichedToJSONConfigPair,
-	transform.Base64DecodeConfigPair,
-	transform.Base64EncodeConfigPair,
-	transform.GTMSSPreviewConfigPair,
-	transform.JQMapperConfigPair,
+	spenriched.SetPkConfigPair,
+	spenriched.EnrichedToJSONConfigPair,
+	base64.Base64DecodeConfigPair,
+	base64.Base64EncodeConfigPair,
+	spgmtss.GTMSSPreviewConfigPair,
+	jq.JQMapperConfigPair,
 	engine.JSConfigPair,
 }
 
@@ -43,7 +50,7 @@ func GetTransformations(c *config.Config, supportedTransformations []config.Conf
 	funcs := make([]transform.TransformationFunction, 0)
 
 	if c.Data.Metrics.E2ELatencyEnabled {
-		funcs = append(funcs, transform.CollectorTstampTransformation())
+		funcs = append(funcs, spcollector.CollectorTstampTransformation())
 	}
 
 	if c.Data.Transform != nil {
@@ -82,7 +89,7 @@ func GetTransformer(
 	supportedTransformations []config.ConfigurationPair,
 	input <-chan *models.Message,
 	obs *observer.Observer,
-) (*transform.Transformer, chan *models.TransformationResult, error) {
+) (*transformer.Transformer, chan *models.TransformationResult, error) {
 	// Get the transformation function
 	transformFunc, err := GetTransformations(c, supportedTransformations)
 	if err != nil {
@@ -99,5 +106,5 @@ func GetTransformer(
 	output := make(chan *models.TransformationResult)
 
 	// Create and return the transformer and its output channel
-	return transform.NewTransformer(transformFunc, input, output, obs, workerPool), output, nil
+	return transformer.NewTransformer(transformFunc, input, output, obs, workerPool), output, nil
 }

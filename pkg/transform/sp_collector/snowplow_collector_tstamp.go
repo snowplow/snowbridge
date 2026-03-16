@@ -16,14 +16,17 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/v3/pkg/models"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
 )
 
 // CollectorTstampTransformation returns a transformation function attaching collector timestamp to the input message
 // This transformation is not like other configurable transformations - it's enabled/disabled based on top-level metric configuration toggle (`metrics.enable_e2e_latency`)
 // It doesn't produce invalid data in case of errors - it logs a warning and proceeds with input data as nothing happened.
-func CollectorTstampTransformation() TransformationFunction {
+func CollectorTstampTransformation() transform.TransformationFunction {
 	return func(message *models.Message, interState any) (*models.Message, *models.Message, *models.Message, any) {
-		parsedEvent, err := IntermediateAsSpEnrichedParsed(interState, message)
+		parsedEvent, err := utils.IntermediateAsSpEnrichedParsed(interState, message)
 		if err != nil {
 			log.Warnf("Error while extracting 'collector_tstamp': %s", err)
 			return message, nil, nil, nil

@@ -6,10 +6,12 @@ import (
 
 	"github.com/snowplow/snowbridge/v3/pkg/models"
 	"github.com/snowplow/snowbridge/v3/pkg/observer"
+
+	"github.com/snowplow/snowbridge/v3/pkg/transform"
 )
 
 type Transformer struct {
-	transformFunction TransformationApplyFunction
+	transformFunction transform.TransformationApplyFunction
 	input             <-chan *models.Message
 	output            chan<- *models.TransformationResult
 	observer          *observer.Observer
@@ -17,7 +19,7 @@ type Transformer struct {
 }
 
 func NewTransformer(
-	transformFunction TransformationApplyFunction,
+	transformFunction transform.TransformationApplyFunction,
 	input <-chan *models.Message,
 	output chan<- *models.TransformationResult,
 	observer *observer.Observer,
@@ -31,7 +33,7 @@ func NewTransformer(
 	}
 }
 
-func (t Transformer) Start() {
+func (t *Transformer) Start() {
 	// Close output channel when all workers are done
 	defer close(t.output)
 
