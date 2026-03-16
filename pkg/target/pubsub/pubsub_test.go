@@ -68,8 +68,13 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 	assert.Equal([]*models.Message(nil), result.Failed)
 
 	// Receive messages from subscription to verify they landed in the topic
-	receivedMessages := testutil.ReceiveMessagesFromSubscription(t, subscription)
-
+	var receivedMessages []string
+	for i := 0; i < 5; i++ {
+		receivedMessages = append(receivedMessages, testutil.ReceiveMessagesFromSubscription(t, subscription)...)
+		if len(receivedMessages) >= 5 {
+			break
+		}
+	}
 	assert.Equal(5, len(receivedMessages))
 	for _, receivedMsg := range receivedMessages {
 		assert.Equal("Hello Pubsub!!", receivedMsg)

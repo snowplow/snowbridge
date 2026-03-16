@@ -1075,12 +1075,13 @@ type ngrokAPIResponse struct {
 func getNgrokAddress() string {
 	var resp *http.Response
 	var err error
-	for range 3 { // retry 3 times as this part is flaky
+	for range 10 { // retry 10 times as this part is flaky
 		resp, err = http.DefaultClient.Get("http://localhost:4040/api/tunnels")
 		if resp != nil {
 			err = nil
 			break
 		}
+		time.Sleep(1 * time.Second)
 	}
 	if err != nil {
 		panic(err)

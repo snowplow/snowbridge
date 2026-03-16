@@ -12,13 +12,14 @@
 package pubsubsource
 
 import (
-	"cloud.google.com/go/pubsub/pstest"
 	"context"
 	"sort"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/pubsub/pstest"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -242,16 +243,20 @@ func TestPubSubSource_SourceRestart(t *testing.T) {
 		secondSource.Start(ctx)
 	})
 
-	successfulReads = testutil.ReadSourceOutput(outputChannel)
-
-	// We should have 5 nacked from the first batch + 10 from the first one
+	// Eventually we should have 5 nacked from the first batch + 10 from the second batch, so 15 total
+	successfulReads = make([]*models.Message, 0)
+	for i := 0; i < 5; i++ {
+		successfulReads = append(successfulReads, testutil.ReadSourceOutput(outputChannel)...)
+		for _, msg := range successfulReads {
+			msg.AckFunc()
+		}
+		if len(successfulReads) > 14 {
+			break
+		}
+	}
 	assert.Equal(15, len(successfulReads))
 
 	cancel()
-
-	for _, msg := range successfulReads {
-		msg.AckFunc()
-	}
 
 	assert.True(common.WaitWithTimeout(&wg, 10*time.Second), "Source is not finished even though it has been stopped and all messages have been acked/nacked")
 

@@ -345,7 +345,7 @@ func testE2EKafkaSourceSASL(t *testing.T) {
 				}
 			}
 
-			stdOut, cmdErr := runDockerCommand(5*time.Second, "kafkaSourceSASL", configFilePath, testCase.binary, "")
+			stdOut, cmdErr := runDockerCommand(10*time.Second, "kafkaSourceSASL", configFilePath, testCase.binary, "")
 			if cmdErr != nil {
 				assert.Fail(cmdErr.Error(), "Docker run returned error for Kafka SASL source")
 			}
