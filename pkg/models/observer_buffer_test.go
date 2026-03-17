@@ -131,7 +131,7 @@ func TestObserverBuffer(t *testing.T) {
 	assert.Equal(time.Duration(80)*time.Minute, b.MaxE2ELatency)
 	assert.Equal(time.Duration(60)*time.Minute, b.MinE2ELatency)
 
-	assert.Equal("TargetResults:2,MsgFiltered:1,MsgSent:4,MsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MinProcLatency:240000,MaxProcLatency:420000,MinMsgLatency:3000000,MaxMsgLatency:4200000,SumMsgLatency:14400000,MinFilterLatency:600000,MaxFilterLatency:600000,MinTransformLatency:60000,MaxTransformLatency:180000,MinReqLatency:60000,MaxReqLatency:300000,SumReqLatency:960000,MinE2ELatency:3600000,MaxE2ELatency:4800000,SumE2ELatency:16800000", b.String())
+	assert.Equal("TargetResults:2,MsgFiltered:1,MsgSent:4,MsgFailed:2,InvalidTargetResults:2,InvalidMsgSent:4,InvalidMsgFailed:2,MinProcLatency:240000,MaxProcLatency:420000,MinMsgLatency:3000000,MaxMsgLatency:4200000,MinFilterLatency:600000,MaxFilterLatency:600000,MinTransformLatency:60000,MaxTransformLatency:180000,MinReqLatency:60000,MaxReqLatency:300000,MinE2ELatency:3600000,MaxE2ELatency:4800000", b.String())
 }
 
 // TestObserverBuffer_Basic is a basic version of the above test, stripping away all but one event
@@ -197,7 +197,7 @@ func TestObserverBuffer_Basic(t *testing.T) {
 	assert.Equal(time.Duration(1)*time.Minute, b.MaxRequestLatency)
 	assert.Equal(time.Duration(1)*time.Minute, b.MinRequestLatency)
 
-	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MinProcLatency:240000,MaxProcLatency:240000,MinMsgLatency:3000000,MaxMsgLatency:3000000,SumMsgLatency:3000000,MinFilterLatency:0,MaxFilterLatency:0,MinTransformLatency:60000,MaxTransformLatency:60000,MinReqLatency:60000,MaxReqLatency:60000,SumReqLatency:60000,MinE2ELatency:0,MaxE2ELatency:0,SumE2ELatency:0", b.String())
+	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MinProcLatency:240000,MaxProcLatency:240000,MinMsgLatency:3000000,MaxMsgLatency:3000000,MinFilterLatency:0,MaxFilterLatency:0,MinTransformLatency:60000,MaxTransformLatency:60000,MinReqLatency:60000,MaxReqLatency:60000,MinE2ELatency:0,MaxE2ELatency:0", b.String())
 }
 
 // TestObserverBuffer_BasicNoTransform is a basic version of the above test, stripping away all but one event.
@@ -257,5 +257,5 @@ func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 	assert.Equal(time.Duration(1)*time.Minute, b.MaxRequestLatency)
 	assert.Equal(time.Duration(1)*time.Minute, b.MinRequestLatency)
 
-	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MinProcLatency:240000,MaxProcLatency:240000,MinMsgLatency:3000000,MaxMsgLatency:3000000,SumMsgLatency:3000000,MinFilterLatency:0,MaxFilterLatency:0,MinTransformLatency:0,MaxTransformLatency:0,MinReqLatency:60000,MaxReqLatency:60000,SumReqLatency:60000,MinE2ELatency:0,MaxE2ELatency:0,SumE2ELatency:0", b.String())
+	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MinProcLatency:240000,MaxProcLatency:240000,MinMsgLatency:3000000,MaxMsgLatency:3000000,MinFilterLatency:0,MaxFilterLatency:0,MinTransformLatency:0,MaxTransformLatency:0,MinReqLatency:60000,MaxReqLatency:60000,MinE2ELatency:0,MaxE2ELatency:0", b.String())
 }

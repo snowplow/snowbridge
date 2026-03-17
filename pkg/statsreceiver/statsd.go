@@ -144,7 +144,6 @@ func (s *statsDStatsReceiver) Send(b *models.ObserverBuffer) {
 
 	s.client.PrecisionTiming("min_request_latency", b.MinRequestLatency)
 	s.client.PrecisionTiming("max_request_latency", b.MaxRequestLatency)
-	s.client.PrecisionTiming("sum_request_latency", b.SumRequestLatency)
 
 	if s.enableE2ELatency {
 		s.client.PrecisionTiming("min_e2e_latency", b.MinE2ELatency)

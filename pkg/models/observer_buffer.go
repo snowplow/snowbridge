@@ -37,17 +37,14 @@ type ObserverBuffer struct {
 	MinProcLatency      time.Duration
 	MaxMsgLatency       time.Duration
 	MinMsgLatency       time.Duration
-	SumMsgLatency       time.Duration
 	MaxTransformLatency time.Duration
 	MinTransformLatency time.Duration
 	MaxFilterLatency    time.Duration
 	MinFilterLatency    time.Duration
 	MaxRequestLatency   time.Duration
 	MinRequestLatency   time.Duration
-	SumRequestLatency   time.Duration
 	MaxE2ELatency       time.Duration
 	MinE2ELatency       time.Duration
-	SumE2ELatency       time.Duration
 
 	InvalidErrors map[MetadataCodeDescription]int
 	FailedErrors  map[MetadataCodeDescription]int
@@ -105,7 +102,6 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 		}
 
 		messageLatency := msg.TimeRequestFinished.Sub(msg.TimeCreated)
-		b.SumMsgLatency += messageLatency
 		if b.MaxMsgLatency < messageLatency {
 			b.MaxMsgLatency = messageLatency
 		}
@@ -115,7 +111,6 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 
 		if !msg.CollectorTstamp.IsZero() {
 			e2eLatency := msg.TimeRequestFinished.Sub(msg.CollectorTstamp)
-			b.SumE2ELatency += e2eLatency
 			if b.MaxE2ELatency < e2eLatency {
 				b.MaxE2ELatency = e2eLatency
 			}
@@ -130,8 +125,6 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 	for _, msg := range allMessages {
 		if !msg.TimeRequestStarted.IsZero() && !msg.TimeRequestFinished.IsZero() {
 			requestLatency := msg.TimeRequestFinished.Sub(msg.TimeRequestStarted)
-			b.SumRequestLatency += requestLatency
-
 			if b.MaxRequestLatency < requestLatency {
 				b.MaxRequestLatency = requestLatency
 			}
@@ -199,7 +192,7 @@ func (b *ObserverBuffer) AppendTransformed(res *TransformationResult) {
 
 func (b *ObserverBuffer) String() string {
 	return fmt.Sprintf(
-		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MinProcLatency:%d,MaxProcLatency:%d,MinMsgLatency:%d,MaxMsgLatency:%d,SumMsgLatency:%d,MinFilterLatency:%d,MaxFilterLatency:%d,MinTransformLatency:%d,MaxTransformLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,SumReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d,SumE2ELatency:%d",
+		"TargetResults:%d,MsgFiltered:%d,MsgSent:%d,MsgFailed:%d,InvalidTargetResults:%d,InvalidMsgSent:%d,InvalidMsgFailed:%d,MinProcLatency:%d,MaxProcLatency:%d,MinMsgLatency:%d,MaxMsgLatency:%d,MinFilterLatency:%d,MaxFilterLatency:%d,MinTransformLatency:%d,MaxTransformLatency:%d,MinReqLatency:%d,MaxReqLatency:%d,MinE2ELatency:%d,MaxE2ELatency:%d",
 		b.TargetResults,
 		b.MsgFiltered,
 		b.MsgSent,
@@ -211,16 +204,13 @@ func (b *ObserverBuffer) String() string {
 		b.MaxProcLatency.Milliseconds(),
 		b.MinMsgLatency.Milliseconds(),
 		b.MaxMsgLatency.Milliseconds(),
-		b.SumMsgLatency.Milliseconds(),
 		b.MinFilterLatency.Milliseconds(),
 		b.MaxFilterLatency.Milliseconds(),
 		b.MinTransformLatency.Milliseconds(),
 		b.MaxTransformLatency.Milliseconds(),
 		b.MinRequestLatency.Milliseconds(),
 		b.MaxRequestLatency.Milliseconds(),
-		b.SumRequestLatency.Milliseconds(),
 		b.MinE2ELatency.Milliseconds(),
 		b.MaxE2ELatency.Milliseconds(),
-		b.SumE2ELatency.Milliseconds(),
 	)
 }
