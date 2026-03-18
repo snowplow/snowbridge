@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,7 +26,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/snowplow/snowbridge/v3/pkg/common"
@@ -119,7 +119,6 @@ type HTTPTargetDriver struct {
 	dynamicHeaders    bool
 
 	requestTemplate  *template.Template
-	approxTmplSize   int
 	responseRules    *ResponseRules
 	metadataSafeMode bool // If enabled, we don't put response content into metadata reporting
 
@@ -137,17 +136,40 @@ func addHeadersToRequest(request *http.Request, headers map[string]string, dynam
 	}
 }
 
-func loadRequestTemplate(templateFile string) (int, *template.Template, error) {
+func loadRequestTemplate(templateFile string) ([]byte, *template.Template, error) {
 	if templateFile != "" {
 		content, err := os.ReadFile(templateFile)
-
 		if err != nil {
-			return 0, nil, err
+			return nil, nil, err
 		}
 		tmpl, err := parseRequestTemplate(string(content))
-		return len(content), tmpl, err
+		return content, tmpl, err
 	}
-	return 0, nil, nil
+	return nil, nil, nil
+}
+
+// calculateBatchOverhead returns the total batch-level byte overhead not tracked by
+// message.Data lengths:
+//   - Comma separators between messages (max MaxBatchMessages - 1 bytes)
+//   - Template size (when using a template)
+//   - JSON array wrapper [] (2 bytes, when not using a template)
+//
+// Using raw template size is a rough approximation: template placeholders
+// (e.g. {{range .}}) get replaced at render time, so the actual overhead
+// differs. This is still a safe estimate because the data that replaces
+// placeholders is already counted in message.Data lengths.
+func calculateBatchOverhead(cfg *targetiface.BatchingConfig, tmplContent []byte, requestTemplate *template.Template) (int, error) {
+	overhead := cfg.MaxBatchMessages - 1 // commas between messages
+	if requestTemplate != nil {
+		approxTmplSize := len(tmplContent)
+		if approxTmplSize >= cfg.MaxBatchBytes {
+			return 0, errors.New("target error: Template must be smaller than batching Byte limit. MaxBatchBytes: " + strconv.Itoa(cfg.MaxBatchBytes))
+		}
+		overhead += approxTmplSize
+	} else {
+		overhead += 2 // for JSON array wrapper []
+	}
+	return overhead, nil
 }
 
 func parseRequestTemplate(templateContent string) (*template.Template, error) {
@@ -222,19 +244,20 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 		return fmt.Errorf("invalid configuration type")
 	}
 
-	// Our batching logic must account for template sizes, so we amend the batcher values to suit.
-	approxTmplSize, requestTemplate, err := loadRequestTemplate(c.TemplateFile)
+	tmplContent, requestTemplate, err := loadRequestTemplate(c.TemplateFile)
 	if err != nil {
 		return err
 	}
-	if approxTmplSize >= c.BatchingConfig.MaxBatchBytes || approxTmplSize >= c.BatchingConfig.MaxMessageBytes {
-		return errors.New("target error: Template must be smaller than batching Byte limit. MaxBatchBytes: " + strconv.Itoa(c.BatchingConfig.MaxBatchBytes) + " MaxMessageBytes: " + strconv.Itoa(c.BatchingConfig.MaxMessageBytes))
+
+	batchOverhead, err := calculateBatchOverhead(c.BatchingConfig, tmplContent, requestTemplate)
+	if err != nil {
+		return err
 	}
 
 	ht.BatchingConfig = *c.BatchingConfig
-
-	ht.BatchingConfig.MaxBatchBytes -= approxTmplSize
-	ht.BatchingConfig.MaxMessageBytes -= approxTmplSize
+	ht.BatchingConfig.MaxBatchBytes -= batchOverhead
+	// A single message can't exceed the batch limit, so cap accordingly.
+	ht.BatchingConfig.MaxMessageBytes = min(ht.BatchingConfig.MaxMessageBytes, ht.BatchingConfig.MaxBatchBytes)
 
 	err = common.CheckURL(c.URL)
 	if err != nil {
@@ -273,7 +296,6 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	ht.log = log.WithFields(log.Fields{"target": SupportedTargetHTTP, "url": c.URL})
 	ht.dynamicHeaders = c.DynamicHeaders
 	ht.requestTemplate = requestTemplate
-	ht.approxTmplSize = approxTmplSize
 	ht.responseRules = c.ResponseRules
 	ht.metadataSafeMode = c.MetadataSafeMode
 	ht.includeTimingHeaders = c.IncludeTimingHeaders

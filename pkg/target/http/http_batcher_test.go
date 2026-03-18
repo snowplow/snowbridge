@@ -130,3 +130,42 @@ func TestHTTPBatcher_DynamicHeadersEnabled(t *testing.T) {
 	// Verify no oversized message
 	assert.Nil(oversized, "Should have no oversized message")
 }
+
+func TestHTTPBatcher_BatchOverhead_NoTemplate(t *testing.T) {
+	assert := assert.New(t)
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = "https://example.com"
+	config.BatchingConfig.MaxBatchMessages = 4
+	config.BatchingConfig.MaxBatchBytes = 30
+	config.BatchingConfig.MaxMessageBytes = 30
+
+	err := driver.InitFromConfig(config)
+	assert.NoError(err)
+
+	// Expected overhead: 3 (commas) + 2 (JSON array []) = 5
+	assert.Equal(25, driver.BatchingConfig.MaxBatchBytes)
+	// MaxMessageBytes is capped to adjusted MaxBatchBytes
+	assert.Equal(25, driver.BatchingConfig.MaxMessageBytes)
+}
+
+func TestHTTPBatcher_BatchOverhead_WithTemplate(t *testing.T) {
+	assert := assert.New(t)
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = "https://example.com"
+	config.BatchingConfig.MaxBatchMessages = 4
+	config.BatchingConfig.MaxBatchBytes = 1048576
+	config.BatchingConfig.MaxMessageBytes = 1048576
+	config.TemplateFile = "../../../integration/http/template"
+
+	err := driver.InitFromConfig(config)
+	assert.NoError(err)
+
+	// Expected overhead: 3 (commas) + 181 (template size) = 184
+	assert.Equal(1048576-184, driver.BatchingConfig.MaxBatchBytes)
+	// MaxMessageBytes is capped to adjusted MaxBatchBytes
+	assert.Equal(1048576-184, driver.BatchingConfig.MaxMessageBytes)
+}

@@ -420,9 +420,10 @@ func TestGetTarget_HTTP(t *testing.T) {
 	batchingConfig := tar.GetBatchingConfig()
 
 	// Verify the target has the correct default batching configuration
+	// Batch overhead for 50 messages with no template: 49 (commas) + 2 (JSON array []) = 51
 	assert.Equal(50, batchingConfig.MaxBatchMessages)
-	assert.Equal(1048576, batchingConfig.MaxBatchBytes)
-	assert.Equal(1048576, batchingConfig.MaxMessageBytes)
+	assert.Equal(1048576-51, batchingConfig.MaxBatchBytes)
+	assert.Equal(1048576-51, batchingConfig.MaxMessageBytes)
 	assert.Equal(5, batchingConfig.MaxConcurrentBatches)
 	assert.Equal(500, batchingConfig.FlushPeriodMillis)
 
