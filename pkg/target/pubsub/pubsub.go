@@ -94,7 +94,7 @@ func (ps *PubSubTargetDriver) InitFromConfig(c any) error {
 	var opts []option.ClientOption
 
 	if cfg.CredentialsPath != "" {
-		opts = append(opts, option.WithCredentialsFile(cfg.CredentialsPath))
+		opts = append(opts, option.WithAuthCredentialsFile(option.ServiceAccount, cfg.CredentialsPath))
 	}
 
 	client, err := pubsub.NewClient(ctx, cfg.ProjectID, opts...)
