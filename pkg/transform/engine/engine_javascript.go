@@ -14,6 +14,9 @@ package engine
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	goja "github.com/dop251/goja"
@@ -190,6 +193,22 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			return nil, nil, message, nil
 		}
 
+		if err := vm.Set("allContexts", buildAllContextsFunction(vm)); err != nil {
+			message.SetError(&models.TransformationError{
+				SafeMessage: "error setting JavaScript function [allContexts]",
+				Err:         err,
+			})
+			return nil, nil, message, nil
+		}
+
+		if err := vm.Set("allUnstruct", buildAllUnstructFunction(vm)); err != nil {
+			message.SetError(&models.TransformationError{
+				SafeMessage: "error setting JavaScript function [allUnstruct]",
+				Err:         err,
+			})
+			return nil, nil, message, nil
+		}
+
 		// running
 		res, err := fun(goja.Undefined(), vm.ToValue(input))
 		if err != nil {
@@ -272,6 +291,87 @@ func buildHashFunction(vm *goja.Runtime, hashSalt string) func(call goja.Functio
 			vm.ToValue("")
 		}
 		return vm.ToValue(result)
+	}
+}
+
+func buildAllContextsFunction(vm *goja.Runtime) func(call goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 2 {
+			return vm.ToValue("allContexts() expects 2 arguments: data and contextName")
+		}
+
+		contextName := call.Arguments[1].String()
+		prefix := "contexts_" + contextName + "_"
+
+		dataMap, ok := call.Arguments[0].Export().(map[string]any)
+		if !ok {
+			return vm.ToValue([]any{})
+		}
+
+		type entry struct {
+			version int
+			arr     []any
+		}
+		var entries []entry
+
+		for key, val := range dataMap {
+			if !strings.HasPrefix(key, prefix) {
+				continue
+			}
+			suffix := key[len(prefix):]
+			if strings.Contains(suffix, "_") {
+				continue
+			}
+			version, err := strconv.Atoi(suffix)
+			if err != nil {
+				continue
+			}
+			arr, ok := val.([]any)
+			if !ok {
+				continue
+			}
+			entries = append(entries, entry{version: version, arr: arr})
+		}
+
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].version > entries[j].version
+		})
+
+		result := make([]any, 0)
+		for _, e := range entries {
+			result = append(result, e.arr...)
+		}
+
+		return vm.ToValue(result)
+	}
+}
+
+func buildAllUnstructFunction(vm *goja.Runtime) func(call goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) != 2 {
+			return vm.ToValue("allUnstruct() expects 2 arguments: data and eventName")
+		}
+
+		eventName := call.Arguments[1].String()
+		prefix := "unstruct_event_" + eventName + "_"
+
+		dataMap, ok := call.Arguments[0].Export().(map[string]any)
+		if !ok {
+			return goja.Undefined()
+		}
+
+		for key, val := range dataMap {
+			if !strings.HasPrefix(key, prefix) {
+				continue
+			}
+			suffix := key[len(prefix):]
+			if strings.Contains(suffix, "_") {
+				continue
+			}
+			return vm.ToValue(val)
+		}
+
+		return goja.Undefined()
 	}
 }
 

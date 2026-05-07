@@ -734,6 +734,218 @@ func TestHTTP_Write_Invalid(t *testing.T) {
 	assert.Equal("HTTP Status Code: 400 Bad Request Body: Request is invalid. Invalid value for field 'attribute'", writeResult.Invalid[0].GetError().Error())
 }
 
+func TestHTTP_Write_2xx_Invalid_BodyMatch(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	var headers http.Header
+
+	server := createTestServerWithResponseCode(&results, &headers, 200, "operation failed: bad input", 0)
+	defer server.Close()
+
+	responseRules := ResponseRules{
+		Rules: []Rule{
+			{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{200}, MatchingBodyPart: "operation failed"},
+		},
+	}
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = server.URL
+	config.ResponseRules = &responseRules
+	err := driver.InitFromConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{"attribute": "value"}`)}}
+
+	writeResult, err1 := driver.Write(input)
+
+	assert.Nil(err1)
+	assert.Equal(0, len(writeResult.Sent))
+	assert.Equal(1, len(writeResult.Invalid))
+	assert.Equal(0, len(writeResult.Failed))
+}
+
+func TestHTTP_Write_2xx_Invalid_BodyNoMatch(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	var headers http.Header
+
+	// Body does NOT contain the matching pattern
+	server := createTestServerWithResponseCode(&results, &headers, 200, "ok", 0)
+	defer server.Close()
+
+	responseRules := ResponseRules{
+		Rules: []Rule{
+			{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{200}, MatchingBodyPart: "operation failed"},
+		},
+	}
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = server.URL
+	config.ResponseRules = &responseRules
+	err := driver.InitFromConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{"attribute": "value"}`)}}
+
+	writeResult, err1 := driver.Write(input)
+
+	assert.Nil(err1)
+	assert.Equal(1, len(writeResult.Sent))
+	assert.Equal(0, len(writeResult.Invalid))
+	assert.Equal(0, len(writeResult.Failed))
+}
+
+func TestHTTP_Write_2xx_Invalid_NoBodyPart(t *testing.T) {
+	assert := assert.New(t)
+
+	// Rule has no MatchingBodyPart — 2XX rules without a body matcher are rejected at init time
+	responseRules := ResponseRules{
+		Rules: []Rule{
+			{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{200}},
+		},
+	}
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = "http://example.com"
+	config.ResponseRules = &responseRules
+	err := driver.InitFromConfig(config)
+
+	assert.Error(err)
+	assert.Contains(err.Error(), "2XX response rule must have 'body' setting set")
+}
+
+func TestHTTP_Write_2xx_Invalid_WrongCode(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	var headers http.Header
+
+	// Rule targets 400, but response is 200
+	server := createTestServerWithResponseCode(&results, &headers, 200, "operation failed", 0)
+	defer server.Close()
+
+	responseRules := ResponseRules{
+		Rules: []Rule{
+			{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{400}, MatchingBodyPart: "operation failed"},
+		},
+	}
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = server.URL
+	config.ResponseRules = &responseRules
+	err := driver.InitFromConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{"attribute": "value"}`)}}
+
+	writeResult, err1 := driver.Write(input)
+
+	assert.Nil(err1)
+	assert.Equal(1, len(writeResult.Sent))
+	assert.Equal(0, len(writeResult.Invalid))
+	assert.Equal(0, len(writeResult.Failed))
+}
+
+func TestHTTP_Write_2xx_ThrottleRule_BodyMatch(t *testing.T) {
+	assert := assert.New(t)
+
+	var results [][]byte
+	var headers http.Header
+
+	// Throttle rule on 200 with body match IS applied under new behavior (all rule types apply to 2XX)
+	server := createTestServerWithResponseCode(&results, &headers, 200, "rate limit exceeded", 0)
+	defer server.Close()
+
+	responseRules := ResponseRules{
+		Rules: []Rule{
+			{Type: ResponseRuleTypeThrottle, MatchingHTTPCodes: []int{200}, MatchingBodyPart: "rate limit"},
+		},
+	}
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = server.URL
+	config.ResponseRules = &responseRules
+	err := driver.InitFromConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{"attribute": "value"}`)}}
+
+	writeResult, err1 := driver.Write(input)
+
+	assert.NotNil(err1)
+	_, isThrottle := err1.(models.ThrottleWriteError)
+	assert.True(isThrottle)
+	assert.Equal(0, len(writeResult.Sent))
+	assert.Equal(1, len(writeResult.Failed))
+	assert.Equal(0, len(writeResult.Invalid))
+}
+
+func TestHTTP_Write_2xx_BodyReadError(t *testing.T) {
+	assert := assert.New(t)
+
+	// Server sends 200 + Content-Length: 10, then immediately closes the connection
+	// before sending the body, causing io.ReadAll on the response body to fail.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			panic("hijacking not supported")
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			panic(err)
+		}
+		if _, err := io.WriteString(conn, "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\n"); err != nil {
+			panic(err)
+		}
+		if err := conn.Close(); err != nil {
+			logrus.Error(err.Error())
+		}
+	}))
+	defer server.Close()
+
+	// A 2XX rule with body match — causes responseRules2XX to be populated,
+	// so the code enters the io.ReadAll branch.
+	responseRules := ResponseRules{
+		Rules: []Rule{
+			{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{200}, MatchingBodyPart: "operation failed"},
+		},
+	}
+
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = server.URL
+	config.ResponseRules = &responseRules
+	err := driver.InitFromConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := []*models.Message{{Data: []byte(`{"attribute": "value"}`)}}
+
+	writeResult, err1 := driver.Write(input)
+
+	assert.NotNil(err1)
+	assert.Contains(err1.Error(), "Error reading response body")
+	assert.Equal(0, len(writeResult.Sent))
+	assert.Equal(1, len(writeResult.Failed))
+	assert.Equal(0, len(writeResult.Invalid))
+}
+
 func TestHTTP_Write_Setup(t *testing.T) {
 	assert := assert.New(t)
 

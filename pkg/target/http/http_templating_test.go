@@ -27,7 +27,7 @@ func TestHTTP_Templating_WithPrettyPrint(t *testing.T) {
     "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{prettyPrint .event_data}}{{end}}]
   }`
 
-	parsedTemplate, err := parseRequestTemplate(rawTemplate)
+	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
 	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
@@ -59,7 +59,7 @@ func TestHTTP_Templating_NoPrettyPrinting(t *testing.T) {
     "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{.event_data}}{{end}}]
   }`
 
-	parsedTemplate, err := parseRequestTemplate(rawTemplate)
+	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
 	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
@@ -93,7 +93,7 @@ func TestHTTP_Templating_WithEnvVariable(t *testing.T) {
     "events": [{{range $i, $data := .}}{{if $i}},{{end}}{{prettyPrint .}}{{end}}]
   }`
 
-	parsedTemplate, err := parseRequestTemplate(rawTemplate)
+	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
 	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
@@ -122,7 +122,7 @@ func TestHTTP_Templating_ArrayProvided(t *testing.T) {
     "attributes": [{{range $i, $data := .}}{{if $i}},{{end}}{{range $i, $d := $data}}{{if $i}},{{end}}"Value: {{$d}}"{{end}}{{end}}]
   }`
 
-	parsedTemplate, err := parseRequestTemplate(rawTemplate)
+	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
 	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
@@ -162,7 +162,7 @@ func TestHTTP_Templating_AccessNonExistingField(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 
 			assert := assert.New(t)
-			parsedTemplate, err := parseRequestTemplate(tt.Template)
+			parsedTemplate, err := ParseRequestTemplate(tt.Template)
 			assert.Nil(err)
 			target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
@@ -182,7 +182,7 @@ func TestHTTP_Templatating_ParsingTemplateFailure(t *testing.T) {
 	assert := assert.New(t)
 
 	rawTemplate := "{{ "
-	_, err := parseRequestTemplate(rawTemplate)
+	_, err := ParseRequestTemplate(rawTemplate)
 	assert.Equal("template: HTTP:1: unclosed action", err.Error())
 }
 
@@ -191,7 +191,7 @@ func TestHTTP_Templating_JSONParseFailure(t *testing.T) {
 
 	rawTemplate := "{{ prettyPrint (index . 0).event_data}}"
 
-	parsedTemplate, err := parseRequestTemplate(rawTemplate)
+	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
 	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
@@ -218,7 +218,7 @@ func TestHTTP_Templating_RenderFailure(t *testing.T) {
 	assert := assert.New(t)
 
 	rawTemplate := "{{ index . 1 }}"
-	parsedTemplate, err := parseRequestTemplate(rawTemplate)
+	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
 	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 

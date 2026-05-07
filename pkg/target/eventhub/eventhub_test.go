@@ -36,7 +36,7 @@ var cfg = EventHubConfig{
 		MaxBatchBytes:        1048576,
 		MaxMessageBytes:      1048576,
 		MaxConcurrentBatches: 5,
-		FlushPeriodMillis:    500,
+		FlushPeriodMillis:    200,
 	},
 	EventHubNamespace:       "test",
 	EventHubName:            "test",

@@ -70,7 +70,7 @@ func (ps *PubSubTargetDriver) GetDefaultConfiguration() any {
 			MaxBatchBytes:        10485760,
 			MaxMessageBytes:      pubSubPublishMessageByteLimit,
 			MaxConcurrentBatches: 5,
-			FlushPeriodMillis:    500,
+			FlushPeriodMillis:    200,
 		},
 	}
 }

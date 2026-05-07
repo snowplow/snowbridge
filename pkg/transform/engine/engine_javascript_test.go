@@ -732,6 +732,210 @@ function main(x) {
 			Error:    nil,
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
 		},
+		// allContexts tests
+		{
+			Src: `
+function main(x) {
+   const data = JSON.parse(x.Data);
+   x.Data = allContexts(data, "nl_basjes_yauaa_context")[0].agentName;
+   return x;
+}
+`,
+			Scenario: "allContexts - single version, field extracted from testJsJSON",
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("python-requests"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "python-requests",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   const data = JSON.parse(x.Data);
+   // version 2 entries should appear first (descending order)
+   x.Data = allContexts(data, "com_example").map(c => c.label).join(",");
+
+
+   return x;
+}
+`,
+			Scenario: "allContexts - multiple versions concatenated in descending version order",
+			Input: &models.Message{
+				Data:         []byte(`{"contexts_com_example_1":[{"label":"v1"}],"contexts_com_example_2":[{"label":"v2"}]}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("v2,v1"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "v2,v1",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   const data = JSON.parse(x.Data);
+   x.Data = String(allContexts(data, "com_example").length);
+   return x;
+}
+`,
+			Scenario: "allContexts - no matching key returns empty array",
+			Input: &models.Message{
+				Data:         []byte(`{"contexts_com_other_1":[{"url":"https://example.com"}]}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("0"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "0",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   const data = JSON.parse(x.Data);
+   // contexts_com_example_sub_1 has an extra path segment and must not match;
+   // concatenating all urls ensures "wrong" is genuinely absent, not just shadowed
+   x.Data = allContexts(data, "com_example").map(c => c.url).join(",");
+   return x;
+}
+`,
+			Scenario: "allContexts - excludes keys with extra path segments between name and version",
+			Input: &models.Message{
+				Data:         []byte(`{"contexts_com_example_sub_1":[{"url":"wrong"}],"contexts_com_example_1":[{"url":"correct"}]}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("correct"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "correct",
+			},
+			Error: nil,
+		},
+		// allUnstruct tests
+		{
+			Src: `
+function main(x) {
+   const data = JSON.parse(x.Data);
+   x.Data = allUnstruct(data, "com_snowplowanalytics_snowplow_add_to_cart").sku;
+   return x;
+}
+`,
+			Scenario: "allUnstruct - field extracted from testJsJSON",
+			Input: &models.Message{
+				Data:         testJsJSON,
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("item41"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "item41",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   const data = JSON.parse(x.Data);
+   x.Data = allUnstruct(data, "com_example") ?? "not_found";
+   return x;
+}
+`,
+			Scenario: "allUnstruct - no matching key returns undefined, so we default to `not_found`",
+			Input: &models.Message{
+				Data:         []byte(`{"unstruct_event_com_other_1":{"sku":"item1"}}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("not_found"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "not_found",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   const data = JSON.parse(x.Data);
+   // unstruct_event_com_example_sub_event_1 has extra path segments and must not match
+   x.Data = allUnstruct(data, "com_example").result;
+   return x;
+}
+`,
+			Scenario: "allUnstruct - excludes keys with extra path segments between name and version",
+			Input: &models.Message{
+				Data:         []byte(`{"unstruct_event_com_example_sub_1":{"result":"wrong"},"unstruct_event_com_example_1":{"result":"correct"}}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("correct"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "correct",
+			},
+			Error: nil,
+		},
 	}
 
 	for _, tt := range testCases {

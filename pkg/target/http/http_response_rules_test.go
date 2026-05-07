@@ -216,6 +216,97 @@ func TestHTTP_ResponseRules_ValidateRuleTypes(t *testing.T) {
 	assert.Contains(err.Error(), "Invalid response rule type ''")
 }
 
+func TestHTTP_InitFromConfig_2XXResponseRules(t *testing.T) {
+	makeConfig := func() *HTTPTargetConfig {
+		driver := &HTTPTargetDriver{}
+		cfg := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+		cfg.URL = "https://example.com"
+		return cfg
+	}
+
+	t.Run("2XX rule without body returns error", func(t *testing.T) {
+		assert := assert.New(t)
+		driver := &HTTPTargetDriver{}
+		cfg := makeConfig()
+		cfg.ResponseRules = &ResponseRules{
+			Rules: []Rule{
+				{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{200}},
+			},
+		}
+		err := driver.InitFromConfig(cfg)
+		assert.Error(err)
+		assert.Contains(err.Error(), "2XX response rule must have 'body' setting set")
+	})
+
+	t.Run("2XX rule with body is accepted and stored in responseRules2XX", func(t *testing.T) {
+		assert := assert.New(t)
+		driver := &HTTPTargetDriver{}
+		cfg := makeConfig()
+		cfg.ResponseRules = &ResponseRules{
+			Rules: []Rule{
+				{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{200}, MatchingBodyPart: "error"},
+			},
+		}
+		err := driver.InitFromConfig(cfg)
+		assert.NoError(err)
+		assert.NotNil(driver.responseRules2XX)
+		assert.Len(driver.responseRules2XX.Rules, 1)
+		assert.Equal("error", driver.responseRules2XX.Rules[0].MatchingBodyPart)
+	})
+
+	t.Run("nil ResponseRules → no error, responseRules2XX is nil", func(t *testing.T) {
+		assert := assert.New(t)
+		driver := &HTTPTargetDriver{}
+		cfg := makeConfig()
+		cfg.ResponseRules = nil
+		err := driver.InitFromConfig(cfg)
+		assert.NoError(err)
+		assert.Nil(driver.responseRules2XX)
+	})
+}
+
+func TestHTTP_Has2xxCode(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.False(has2xxCode(nil))
+	assert.False(has2xxCode([]int{}))
+	assert.False(has2xxCode([]int{400, 500, 429}))
+	assert.False(has2xxCode([]int{199, 300})) // boundary: just outside 2XX range
+	assert.True(has2xxCode([]int{200}))
+	assert.True(has2xxCode([]int{201, 400})) // mixed codes: one 2XX is enough
+	assert.True(has2xxCode([]int{299}))      // boundary: last valid 2XX
+}
+
+func TestHTTP_FindMatchingRule(t *testing.T) {
+	assert := assert.New(t)
+
+	res := response{Status: 500, Body: "database connection failed"}
+
+	assert.Nil(findMatchingRule(res, &ResponseRules{}), "empty rules → nil")
+
+	assert.Nil(findMatchingRule(res, &ResponseRules{Rules: []Rule{
+		{Type: ResponseRuleTypeSetup, MatchingHTTPCodes: []int{503}},
+	}}), "status mismatch → nil")
+
+	assert.Nil(findMatchingRule(res, &ResponseRules{Rules: []Rule{
+		{Type: ResponseRuleTypeSetup, MatchingHTTPCodes: []int{500}, MatchingBodyPart: "validation"},
+	}}), "body mismatch → nil")
+
+	rule := findMatchingRule(res, &ResponseRules{Rules: []Rule{
+		{Type: ResponseRuleTypeSetup, MatchingHTTPCodes: []int{500}, MatchingBodyPart: "database"},
+	}})
+	assert.NotNil(rule, "status + body match → rule returned")
+	assert.Equal(ResponseRuleTypeSetup, rule.Type)
+
+	// First matching rule wins
+	firstRule := findMatchingRule(res, &ResponseRules{Rules: []Rule{
+		{Type: ResponseRuleTypeSetup, MatchingHTTPCodes: []int{500}, MatchingBodyPart: "database"},
+		{Type: ResponseRuleTypeInvalid, MatchingHTTPCodes: []int{500}},
+	}})
+	assert.NotNil(firstRule)
+	assert.Equal(ResponseRuleTypeSetup, firstRule.Type, "first matching rule wins")
+}
+
 func TestHTTP_HandleResponseRules_ErrorDetails(t *testing.T) {
 	testCases := []struct {
 		Name          string

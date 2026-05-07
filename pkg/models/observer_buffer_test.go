@@ -78,20 +78,6 @@ func TestObserverBuffer(t *testing.T) {
 		},
 	}
 
-	// Process each sent and failed message individually for transformation metrics
-	for _, msg := range sent {
-		transformResult := &TransformationResult{
-			Transformed: msg,
-		}
-		b.AppendTransformed(transformResult)
-	}
-	for _, msg := range failed {
-		transformResult := &TransformationResult{
-			Transformed: msg,
-		}
-		b.AppendTransformed(transformResult)
-	}
-
 	r := NewTargetWriteResult(sent, failed, nil)
 
 	b.AppendWrite(r)
@@ -159,10 +145,6 @@ func TestObserverBuffer_Basic(t *testing.T) {
 			TimeRequestFinished:       timeNow,
 		},
 	}
-	transformResult := &TransformationResult{
-		Transformed: sent[0],
-	}
-	b.AppendTransformed(transformResult)
 
 	r := NewTargetWriteResult(sent, nil, nil)
 

@@ -61,7 +61,7 @@ func TestGetTarget_Stdout(t *testing.T) {
 	assert.Equal(1048576, batchingConfig.MaxBatchBytes)
 	assert.Equal(1048576, batchingConfig.MaxMessageBytes)
 	assert.Equal(1, batchingConfig.MaxConcurrentBatches)
-	assert.Equal(500, batchingConfig.FlushPeriodMillis)
+	assert.Equal(200, batchingConfig.FlushPeriodMillis)
 
 	// Verify the driver configuration (dataOnlyOutput should be false by default)
 	stdoutTarget := tar.TargetDriver
@@ -128,7 +128,7 @@ func TestGetTarget_Kafka(t *testing.T) {
 	assert.Equal(1048576, batchingConfig.MaxBatchBytes)
 	assert.Equal(1048576, batchingConfig.MaxMessageBytes)
 	assert.Equal(5, batchingConfig.MaxConcurrentBatches)
-	assert.Equal(500, batchingConfig.FlushPeriodMillis)
+	assert.Equal(200, batchingConfig.FlushPeriodMillis)
 
 	// Verify the target driver is properly initialized
 	assert.NotNil(tar.TargetDriver)
@@ -375,7 +375,7 @@ func TestGetTarget_PubSub_DefaultBatching(t *testing.T) {
 	assert.Equal(10485760, batchingConfig.MaxBatchBytes)
 	assert.Equal(10485760, batchingConfig.MaxMessageBytes)
 	assert.Equal(5, batchingConfig.MaxConcurrentBatches)
-	assert.Equal(500, batchingConfig.FlushPeriodMillis)
+	assert.Equal(200, batchingConfig.FlushPeriodMillis)
 
 	// Verify the target driver is properly initialized
 	assert.NotNil(tar.TargetDriver)
@@ -425,7 +425,7 @@ func TestGetTarget_HTTP(t *testing.T) {
 	assert.Equal(1048576-51, batchingConfig.MaxBatchBytes)
 	assert.Equal(1048576-51, batchingConfig.MaxMessageBytes)
 	assert.Equal(5, batchingConfig.MaxConcurrentBatches)
-	assert.Equal(500, batchingConfig.FlushPeriodMillis)
+	assert.Equal(200, batchingConfig.FlushPeriodMillis)
 
 	// Verify the driver configuration
 	httpTargetDriver := tar.TargetDriver.(*httpTarget.HTTPTargetDriver)
@@ -477,7 +477,7 @@ func TestGetTarget_SQS(t *testing.T) {
 	assert.Equal(1048576, batchingConfig.MaxBatchBytes)
 	assert.Equal(1048576, batchingConfig.MaxMessageBytes)
 	assert.Equal(5, batchingConfig.MaxConcurrentBatches)
-	assert.Equal(500, batchingConfig.FlushPeriodMillis)
+	assert.Equal(200, batchingConfig.FlushPeriodMillis)
 }
 
 func TestGetTarget_EventHub(t *testing.T) {
@@ -516,7 +516,7 @@ func TestGetTarget_EventHub(t *testing.T) {
 	assert.Equal(1048576, batchingConfig.MaxBatchBytes)
 	assert.Equal(1048576, batchingConfig.MaxMessageBytes)
 	assert.Equal(5, batchingConfig.MaxConcurrentBatches)
-	assert.Equal(500, batchingConfig.FlushPeriodMillis)
+	assert.Equal(200, batchingConfig.FlushPeriodMillis)
 }
 
 func TestGetTarget_Silent(t *testing.T) {

@@ -57,7 +57,6 @@ func (t *Transformer) Start() {
 			for msg := range t.input {
 				// Do some work...
 				transformed := t.transformFunction(msg)
-				t.observer.Transformed(transformed)
 
 				// Send to output channel. This output channel is then later consumed by targets
 				// Output channel is a way for targets to backpressure/throttle transformer workers

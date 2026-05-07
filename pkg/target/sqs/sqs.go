@@ -75,7 +75,7 @@ func (st *SQSTargetDriver) GetDefaultConfiguration() any {
 			MaxBatchBytes:        sqsSendMessageBatchByteLimit,
 			MaxMessageBytes:      sqsSendMessageByteLimit,
 			MaxConcurrentBatches: 5,
-			FlushPeriodMillis:    500,
+			FlushPeriodMillis:    200,
 		},
 	}
 }

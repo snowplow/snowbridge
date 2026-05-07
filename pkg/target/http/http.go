@@ -120,7 +120,8 @@ type HTTPTargetDriver struct {
 
 	requestTemplate  *template.Template
 	responseRules    *ResponseRules
-	metadataSafeMode bool // If enabled, we don't put response content into metadata reporting
+	responseRules2XX *ResponseRules // Pre-filtered rules for 2XX response matching (must have MatchingBodyPart set)
+	metadataSafeMode bool           // If enabled, we don't put response content into metadata reporting
 
 	includeTimingHeaders bool
 	rejectionThreshold   int
@@ -142,7 +143,7 @@ func loadRequestTemplate(templateFile string) ([]byte, *template.Template, error
 		if err != nil {
 			return nil, nil, err
 		}
-		tmpl, err := parseRequestTemplate(string(content))
+		tmpl, err := ParseRequestTemplate(string(content))
 		return content, tmpl, err
 	}
 	return nil, nil, nil
@@ -172,7 +173,9 @@ func calculateBatchOverhead(cfg *targetiface.BatchingConfig, tmplContent []byte,
 	return overhead, nil
 }
 
-func parseRequestTemplate(templateContent string) (*template.Template, error) {
+// ParseRequestTemplate takes a string form template as an input, defines our custom templater functions, and parses it as a
+// go template for use in the http target.
+func ParseRequestTemplate(templateContent string) (*template.Template, error) {
 	customTemplateFunctions := template.FuncMap{
 		// If you use this in your template on struct-like fields, you get rendered nice JSON `{"field":"value"}` instead of stringified map `map[field:value]`
 		"prettyPrint": func(v any) (string, error) {
@@ -222,7 +225,7 @@ func (ht *HTTPTargetDriver) GetDefaultConfiguration() any {
 			MaxBatchBytes:        1048576,
 			MaxMessageBytes:      1048576,
 			MaxConcurrentBatches: 5,
-			FlushPeriodMillis:    500,
+			FlushPeriodMillis:    200,
 		},
 		RequestTimeoutInMillis: 5000,
 		EnableTLS:              false,
@@ -278,12 +281,25 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	client := createHTTPClient(c.OAuth2ClientID, c.OAuth2ClientSecret, c.OAuth2TokenURL, c.OAuth2RefreshToken, transport)
 	client.Timeout = time.Duration(c.RequestTimeoutInMillis) * time.Millisecond
 
-	// validating response rules from config
+	var responseRules2XX *ResponseRules
+	var rules []Rule
+	// validating and separating 2XX response rules from config
 	if c.ResponseRules != nil {
 		for _, rule := range c.ResponseRules.Rules {
 			if !isValidResponseRuleType(rule.Type) {
 				return fmt.Errorf("target error: Invalid response rule type '%s'. Valid types are: 'invalid', 'setup'", rule.Type)
 			}
+
+			if has2xxCode(rule.MatchingHTTPCodes) {
+				if rule.MatchingBodyPart == "" {
+					return fmt.Errorf("target error: 2XX response rule must have 'body' setting set")
+				}
+				rules = append(rules, rule)
+			}
+		}
+
+		if len(rules) > 0 {
+			responseRules2XX = &ResponseRules{Rules: rules}
 		}
 	}
 
@@ -297,6 +313,7 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	ht.dynamicHeaders = c.DynamicHeaders
 	ht.requestTemplate = requestTemplate
 	ht.responseRules = c.ResponseRules
+	ht.responseRules2XX = responseRules2XX
 	ht.metadataSafeMode = c.MetadataSafeMode
 	ht.includeTimingHeaders = c.IncludeTimingHeaders
 	ht.rejectionThreshold = c.RejectionThresholdInMillis
@@ -387,6 +404,27 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 	}()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		// Some HTTP targets return 2XX even for failed writes, so we need to apply response rules
+		// to avoid silently ignoring such writes.
+		if ht.responseRules2XX != nil {
+			responseBody, err := io.ReadAll(resp.Body)
+
+			if err != nil {
+				response := response{Body: err.Error(), Status: 0, StringStatus: "Error reading response body"}
+				newInvalid, failed, wrappedErr := handleResponseRules(response, ht.responseRules, goodMsgs, false) // Always metadata-safe
+				invalid = append(invalid, newInvalid...)
+
+				return models.NewTargetWriteResult(nil, failed, invalid), wrappedErr
+			}
+
+			res := response{Body: string(responseBody), Status: resp.StatusCode, StringStatus: resp.Status}
+			if rule := findMatchingRule(res, ht.responseRules2XX); rule != nil {
+				newInvalid, failed, wrappedError := applyMatchedRule(res, rule, goodMsgs, ht.metadataSafeMode)
+				invalid = append(invalid, newInvalid...)
+				return models.NewTargetWriteResult(nil, failed, invalid), wrappedError
+			}
+		}
+
 		for _, msg := range goodMsgs {
 			if msg.AckFunc != nil { // Ack successful messages
 				msg.AckFunc()
@@ -416,27 +454,32 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 	return models.NewTargetWriteResult(nil, failed, invalid), wrappedErr
 }
 
-func handleResponseRules(response response, rules *ResponseRules, messages []*models.Message, safeMode bool) (invalid, failed []*models.Message, wrappedError error) {
-
-	// Find first matching rule in order
-	var matchedRule *Rule
+func findMatchingRule(res response, rules *ResponseRules) *Rule {
 	for _, rule := range rules.Rules {
-		if ruleMatches(response, rule) {
-			matchedRule = &rule
-			break
+		if ruleMatches(res, rule) {
+			r := rule
+			return &r
 		}
 	}
+	return nil
+}
 
+// applyMatchedRule builds the ApiError for the given response and matched rule,
+// sets it on each message, and returns the categorized result.
+func applyMatchedRule(res response, matchedRule *Rule, messages []*models.Message, safeMode bool) (invalid, failed []*models.Message, wrappedError error) {
 	apiErr := &models.ApiError{
-		StatusCode:   response.StringStatus,
-		ResponseBody: response.Body,
-		SafeMessage:  pickSafeMessage(response, matchedRule, safeMode),
+		StatusCode:   res.StringStatus,
+		ResponseBody: res.Body,
+		SafeMessage:  pickSafeMessage(res, matchedRule, safeMode),
 	}
 	for _, msg := range messages {
 		msg.SetError(apiErr)
 	}
-
 	return categorizeByRuleType(matchedRule, messages, apiErr)
+}
+
+func handleResponseRules(response response, rules *ResponseRules, messages []*models.Message, safeMode bool) (invalid, failed []*models.Message, wrappedError error) {
+	return applyMatchedRule(response, findMatchingRule(response, rules), messages, safeMode)
 }
 
 // pickSafeMessage returns an error description that is safe to log and report as metadata.
@@ -499,6 +542,15 @@ func ruleMatches(res response, rule Rule) bool {
 
 func httpStatusMatches(actual int, expectedCodes []int) bool {
 	return slices.Contains(expectedCodes, actual)
+}
+
+func has2xxCode(codes []int) bool {
+	for _, code := range codes {
+		if code >= 200 && code < 300 {
+			return true
+		}
+	}
+	return false
 }
 
 func responseBodyMatches(actual string, bodyPattern string) bool {

@@ -68,9 +68,11 @@ func (m *mockTargetDriver) Write(messages []*models.Message) (*models.TargetWrit
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	requestStart := time.Now()
+
 	m.receivedBatches = append(m.receivedBatches, receivedBatch{
 		messages:  messages,
-		timestamp: time.Now(),
+		timestamp: requestStart,
 	})
 
 	// Check for fatal error first(tier-specific FatalWriteError triggers)
@@ -153,6 +155,13 @@ func (m *mockTargetDriver) Write(messages []*models.Message) (*models.TargetWrit
 	var err error
 	if len(failed) > 0 {
 		err = fmt.Errorf("mock target write had %d failed and %d invalid messages", len(failed), len(invalid))
+	}
+
+	// Stamp request timestamps on all processed messages, mirroring what real target drivers do
+	requestFinish := time.Now()
+	for _, msg := range append(append(sent, failed...), invalid...) {
+		msg.TimeRequestStarted = requestStart
+		msg.TimeRequestFinished = requestFinish
 	}
 
 	return models.NewTargetWriteResult(sent, failed, invalid), err
@@ -319,7 +328,11 @@ func waitWithTimeout(t interface {
 }
 
 // mockMetrics is a metrics implementation that tracks call counts using atomics
+// and accumulates full ObserverBuffer state via AppendWrite for richer assertions.
 type mockMetrics struct {
+	mu          sync.Mutex
+	writeBuffer models.ObserverBuffer
+
 	targetWriteCount        atomic.Int32
 	targetWriteInvalidCount atomic.Int32
 	filteredCount           atomic.Int32
@@ -327,6 +340,9 @@ type mockMetrics struct {
 
 func (m *mockMetrics) TargetWrite(r *models.TargetWriteResult) {
 	m.targetWriteCount.Add(int32(len(r.Sent)))
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.writeBuffer.AppendWrite(r)
 }
 
 func (m *mockMetrics) TargetWriteInvalid(r *models.TargetWriteResult) {
@@ -349,6 +365,18 @@ func (m *mockMetrics) GetFilteredCount() int {
 	return int(m.filteredCount.Load())
 }
 
+// GetWriteBuffer returns a snapshot of the accumulated ObserverBuffer from TargetWrite calls.
+func (m *mockMetrics) GetWriteBuffer() models.ObserverBuffer {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.writeBuffer
+}
+
 func createMockMetrics() *mockMetrics {
-	return &mockMetrics{}
+	return &mockMetrics{
+		writeBuffer: models.ObserverBuffer{
+			InvalidErrors: make(map[models.MetadataCodeDescription]int),
+			FailedErrors:  make(map[models.MetadataCodeDescription]int),
+		},
+	}
 }

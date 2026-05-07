@@ -76,7 +76,7 @@ func (kt *KafkaTargetDriver) GetDefaultConfiguration() any {
 			MaxBatchBytes:        1048576,
 			MaxMessageBytes:      1048576,
 			MaxConcurrentBatches: 5,
-			FlushPeriodMillis:    500,
+			FlushPeriodMillis:    200,
 		},
 		MaxRetries:    5,
 		SASLAlgorithm: "sha512",

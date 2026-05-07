@@ -65,7 +65,7 @@ func (eht *EventHubTargetDriver) GetDefaultConfiguration() any {
 			MaxBatchBytes:        1048576,
 			MaxMessageBytes:      1048576,
 			MaxConcurrentBatches: 5,
-			FlushPeriodMillis:    500,
+			FlushPeriodMillis:    200,
 		},
 		MaxAutoRetries:          1,
 		ContextTimeoutInSeconds: 20,

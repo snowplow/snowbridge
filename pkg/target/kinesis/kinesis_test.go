@@ -36,7 +36,7 @@ func newKinesisTargetWithInterfaces(client common.KinesisV2API, accountID, regio
 			MaxBatchBytes:        kinesisPutRecordsRequestByteLimit,
 			MaxMessageBytes:      kinesisPutRecordsMessageByteLimit,
 			MaxConcurrentBatches: 5,
-			FlushPeriodMillis:    500,
+			FlushPeriodMillis:    200,
 		},
 		client:     client,
 		streamName: streamName,

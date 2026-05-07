@@ -11,8 +11,8 @@ target {
       max_message_bytes      = 10000000
       # How many batches attempted concurrently (default: 5)
       max_concurrent_batches = 2
-      # Milliseconds between flushes of messages (default: 500)
-      flush_period_millis    = 200
+      # Milliseconds between flushes of messages (default: 200)
+      flush_period_millis    = 100
     }
     # URL endpoint
     url                        = "https://acme.com/x"

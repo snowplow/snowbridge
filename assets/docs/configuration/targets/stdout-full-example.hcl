@@ -11,7 +11,7 @@ target {
       max_message_bytes      = 1000000
       # How many batches attempted concurrently (default: 1)
       max_concurrent_batches = 1
-      # Milliseconds between flushes of messages (default: 500)
+      # Milliseconds between flushes of messages (default: 200)
       flush_period_millis    = 100
     }
 

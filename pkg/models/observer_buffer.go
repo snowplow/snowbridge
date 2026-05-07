@@ -132,6 +132,16 @@ func (b *ObserverBuffer) AppendWrite(res *TargetWriteResult) {
 				b.MinRequestLatency = requestLatency
 			}
 		}
+
+		if !msg.TimeTransformationStarted.IsZero() && !msg.TimeTransformed.IsZero() {
+			transformLatency := msg.TimeTransformed.Sub(msg.TimeTransformationStarted)
+			if b.MaxTransformLatency < transformLatency {
+				b.MaxTransformLatency = transformLatency
+			}
+			if b.MinTransformLatency > transformLatency || b.MinTransformLatency == time.Duration(0) {
+				b.MinTransformLatency = transformLatency
+			}
+		}
 	}
 }
 
@@ -166,25 +176,6 @@ func (b *ObserverBuffer) AppendFiltered(res *TargetWriteResult) {
 			}
 			if b.MinFilterLatency > filterLatency || b.MinFilterLatency == time.Duration(0) {
 				b.MinFilterLatency = filterLatency
-			}
-		}
-	}
-}
-
-func (b *ObserverBuffer) AppendTransformed(res *TransformationResult) {
-	if res == nil {
-		return
-	}
-
-	if res.Transformed != nil {
-		msg := res.Transformed
-		if !msg.TimeTransformationStarted.IsZero() && !msg.TimeTransformed.IsZero() {
-			transformLatency := msg.TimeTransformed.Sub(msg.TimeTransformationStarted)
-			if b.MaxTransformLatency < transformLatency {
-				b.MaxTransformLatency = transformLatency
-			}
-			if b.MinTransformLatency > transformLatency || b.MinTransformLatency == time.Duration(0) {
-				b.MinTransformLatency = transformLatency
 			}
 		}
 	}

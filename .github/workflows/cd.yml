@@ -3,39 +3,26 @@ name: cd
 on:
   push:
     tags:
-    - '*'
+      - '*'
 
 jobs:
-  release:
-    if: ${{ github.event.repository.private == true }}
-    name: Release
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  validate:
+    needs: [ci]
+    if: github.event.repository.private == true
+    name: Validate
     permissions:
-      contents: write 
-    strategy:
-      matrix:
-        # Quotes are required: https://github.com/actions/setup-go/issues/326#issuecomment-1415719692
-        go-version: ['1.25.8']
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    env:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      contents: read
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
-      
-    - name: Install Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: ${{ matrix.go-version }}
-        check-latest: true
-        cache: true
-
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v7
-      with:
-        version: v2.4
+      uses: actions/checkout@v4
 
     - name: Extract and validate version
       id: version
@@ -43,41 +30,99 @@ jobs:
           # Get the version from VERSION file
           VERSION_FILE=$(cat VERSION)
           echo "VERSION_FILE=$VERSION_FILE" >> $GITHUB_OUTPUT
-          
+
           # Ensure tag is v-prefixed, then strip v in one operation
-          if [[ ! "${{ github.ref_name }}" =~ ^v ]]; then
+          TAG="${{ github.ref_name }}"
+          if [[ ! "$TAG" =~ ^v ]]; then
             echo "ERROR: Git tag must be prefixed with 'v' (e.g., v3.5.0)"
-            echo "Got: ${{ github.ref_name }}"
+            echo "Got: $TAG"
             exit 1
           fi
-          
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
+
+          VERSION="${TAG#v}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Fail if version mismatch
       if: ${{ steps.version.outputs.VERSION_FILE != steps.version.outputs.VERSION }}
       run: |
         echo "VERSION file: '${{steps.version.outputs.VERSION_FILE}}'"
-        echo "Git ref: '${{ github.ref_name }}'"
+        echo "Git tag: '${{ github.ref_name }}'"
         echo "Normalized version: '${{ steps.version.outputs.VERSION }}'"
         echo "ERROR: Versions do not match!"
         exit 1
 
-    - name: Install ngrok
-      run: |
-          mkdir -p $GITHUB_WORKSPACE/bin
-          wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip && unzip ngrok-stable-linux-amd64.zip -d $GITHUB_WORKSPACE/bin/
-          $GITHUB_WORKSPACE/bin/ngrok authtoken ${{ secrets.NGROK_TOKEN }}
+  build:
+    name: Build
+    needs: [validate]
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        # Quotes are required: https://github.com/actions/setup-go/issues/326#issuecomment-1415719692
+        go-version: ['1.25.8']
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
 
-    - name: Setup integration resources
-      run: export NGROK_DIR=$GITHUB_WORKSPACE/bin/ && make integration-up
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    - name: Run integration & unit tests
-      run: make integration-test
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        check-latest: true
+        cache: true
 
     - name: Compile all targets
       run: make all
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: build/compiled/**
+
+    - name: Save Docker images
+      run: |
+        VERSION=$(cat VERSION)
+        docker save snowplow/snowbridge:${VERSION} snowplow/snowbridge:${VERSION}-aws-only -o docker-images.tar
+
+    - name: Upload Docker images
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-images
+        path: docker-images.tar
+
+  e2e:
+    name: E2E Tests
+    needs: [build]
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        go-version: ['1.25.8']
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        check-latest: true
+        cache: true
+
+    - name: Download Docker images
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-images
+
+    - name: Load Docker images
+      run: docker load -i docker-images.tar
 
     - name: Setup e2e resources
       run: make e2e-up
@@ -85,16 +130,38 @@ jobs:
     - name: Run e2e tests
       run: make e2e-test
 
+  security:
+    name: Security Scan
+    needs: [validate, build]
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download Docker images
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-images
+
+    - name: Load Docker images
+      run: docker load -i docker-images.tar
+
     - name: Snyk Setup
       uses: snyk/actions/setup@master
 
     - name: Run Snyk to check for vulnerabilities in main Docker image
-      run: snyk container test snowplow/snowbridge:${{ steps.version.outputs.VERSION }} --severity-threshold=high
+      run: snyk container test snowplow/snowbridge:${{ needs.validate.outputs.version }} --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     - name: Run Snyk to check for vulnerabilities in aws-only Docker image
-      run: snyk container test snowplow/snowbridge:${{ steps.version.outputs.VERSION }}-aws-only --severity-threshold=high
+      run: snyk container test snowplow/snowbridge:${{ needs.validate.outputs.version }}-aws-only --severity-threshold=high
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -102,7 +169,7 @@ jobs:
       uses: snyk/actions/docker@master
       if: ${{ !contains(github.ref, '-') }}
       with:
-        image: "snowplow/snowbridge:${{ steps.version.outputs.VERSION }}"
+        image: "snowplow/snowbridge:${{ needs.validate.outputs.version }}"
         args: "--app-vulns --org=data-processing-new --project-name=snowbridge-main"
         command: monitor
       env:
@@ -112,11 +179,39 @@ jobs:
       uses: snyk/actions/docker@master
       if: ${{ !contains(github.ref, '-') }}
       with:
-        image: "snowplow/snowbridge:${{ steps.version.outputs.VERSION }}-aws-only"
+        image: "snowplow/snowbridge:${{ needs.validate.outputs.version }}-aws-only"
         args: "--app-vulns --org=data-processing-new --project-name=snowbridge-aws-only"
         command: monitor
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  release:
+    name: Release
+    needs: [validate, e2e, security]
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        go-version: ['1.25.8']
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        check-latest: true
+        cache: true
+
+    - name: Build all targets
+      run: make all
 
     - name: Create GitHub release and attach artifacts
       uses: softprops/action-gh-release@v1
@@ -124,22 +219,21 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         draft: true
-        prerelease: ${{ contains(github.ref , '-') }}
-        name: Release ${{ steps.version.outputs.VERSION }}
-        tag_name: ${{ steps.version.outputs.VERSION }}
+        prerelease: ${{ contains(github.ref_name, '-') }}
+        name: Release ${{ needs.validate.outputs.version }}
+        tag_name: ${{ needs.validate.outputs.version }}
         files: |
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_darwin_amd64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_darwin_arm64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_linux_amd64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_linux_arm64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}-aws-only_windows_amd64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_darwin_amd64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_darwin_arm64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_linux_amd64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_linux_arm64.zip
-          build/compiled/snowbridge_${{ steps.version.outputs.VERSION }}_windows_amd64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}-aws-only_darwin_amd64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}-aws-only_darwin_arm64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}-aws-only_linux_amd64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}-aws-only_linux_arm64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}-aws-only_windows_amd64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}_darwin_amd64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}_darwin_arm64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}_linux_amd64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}_linux_arm64.zip
+          build/compiled/snowbridge_${{ needs.validate.outputs.version }}_windows_amd64.zip
 
     - name: Publish to DockerHub
       run: make container-release
       shell: bash
-

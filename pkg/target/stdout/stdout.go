@@ -76,7 +76,7 @@ func (st *StdoutTargetDriver) GetDefaultConfiguration() any {
 			MaxBatchBytes:        1048576,
 			MaxMessageBytes:      1048576,
 			MaxConcurrentBatches: 1,
-			FlushPeriodMillis:    500,
+			FlushPeriodMillis:    200,
 		},
 		DataOnlyOutput: false,
 	}

@@ -72,82 +72,6 @@ func TestTransformer_GracefulShutdown(t *testing.T) {
 	assert.False(t, ok, "Output channel should be closed after graceful shutdown")
 }
 
-// TestTransformer_ObserverTransformationMetrics tests that transformer calls observer.Transformed()
-// and observer correctly tracks transformation latency metrics
-func TestTransformer_ObserverTransformationMetrics(t *testing.T) {
-	input := make(chan *models.Message)
-	output := make(chan *models.TransformationResult, 5)
-
-	// Create observer with mock stats receiver to capture metrics
-	obs, mockStats := createObserverWithMockStats()
-	obs.Start() // Start observer to process metrics
-	defer obs.Stop()
-
-	transformFunc := func(msg *models.Message) *models.TransformationResult {
-		// Set transformation timing to enable latency tracking in observer
-		msg.TimeTransformationStarted = time.Now()
-		msg.Data = []byte("worker_processed_" + string(msg.Data))
-		msg.TimeTransformed = time.Now().Add(1 * time.Millisecond)
-		return models.NewTransformationResult(msg, nil, nil)
-	}
-
-	transformer := NewTransformer(transformFunc, input, output, obs, 1)
-
-	var wg sync.WaitGroup
-	wg.Go(transformer.Start)
-
-	// Send test messages
-	messageCount := 5
-	for i := range messageCount {
-		input <- &models.Message{
-			Data:         []byte("message" + string(rune('A'+i))),
-			PartitionKey: "test",
-			TimePulled:   time.Now(),
-			TimeCreated:  time.Now(),
-		}
-	}
-
-	close(input)
-
-	// Wait for transformer to finish
-	isSuccessful := waitWithTimeout(&wg)
-	assert.True(t, isSuccessful, "Transformer should complete successfully")
-
-	// Collect all transformation results from output
-	var outputResults []*models.TransformationResult
-	for result := range output {
-		outputResults = append(outputResults, result)
-	}
-
-	// Verify we processed all messages
-	assert.Equal(t, messageCount, len(outputResults), "Should process all messages")
-
-	// Wait for observer to flush metrics (give it time to process)
-	time.Sleep(100 * time.Millisecond)
-
-	// Verify each message was transformed (proving observer.Transformed was called for each)
-	for _, result := range outputResults {
-		assert.NotNil(t, result.Transformed, "Each result should have transformed data")
-		assert.Contains(t, string(result.Transformed.Data), "worker_processed_", "Each message should be processed by worker")
-	}
-
-	// Verify observer captured transformation latency metrics
-	buffers := mockStats.GetBuffers()
-	assert.True(t, len(buffers) >= 1, "Observer should have flushed at least one metrics buffer")
-
-	// Verify observer metrics show transformation activity
-	// Check that any buffer has transformation latency metrics
-	hasTransformMetrics := false
-	for _, buf := range buffers {
-		if buf.MaxTransformLatency > 0 || buf.MinTransformLatency > 0 {
-			hasTransformMetrics = true
-			break
-		}
-	}
-	assert.True(t, hasTransformMetrics,
-		"Observer should have transformation latency metrics indicating Transformed() was called")
-}
-
 // TestTransformer_MultipleWorkers verifies that multiple workers can process messages concurrently
 // and all call the observer correctly
 func TestTransformer_MultipleWorkers(t *testing.T) {
@@ -212,18 +136,6 @@ func TestTransformer_MultipleWorkers(t *testing.T) {
 	// Verify observer captured transformation latency metrics
 	buffers := mockStats.GetBuffers()
 	assert.True(t, len(buffers) >= 1, "Observer should have flushed at least one metrics buffer")
-
-	// Verify observer metrics show transformation activity
-	// Check that any buffer has transformation latency metrics
-	hasTransformMetrics := false
-	for _, buf := range buffers {
-		if buf.MaxTransformLatency > 0 || buf.MinTransformLatency > 0 {
-			hasTransformMetrics = true
-			break
-		}
-	}
-	assert.True(t, hasTransformMetrics,
-		"Observer should have transformation latency metrics indicating Transformed() was called")
 }
 
 func waitWithTimeout(wg *sync.WaitGroup) bool {

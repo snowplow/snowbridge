@@ -78,12 +78,21 @@ func TestRouter_MetricsTracking(t *testing.T) {
 
 	// Create messages
 	now := time.Now()
+	// Use timestamps in the past so latency values (TimeRequestFinished - TimePulled, etc.) are guaranteed > 0
+	past := now.Add(-50 * time.Millisecond)
+	collectorTstamp := now.Add(-100 * time.Millisecond)
 
 	// Good messages - should trigger TargetWrite metrics
+	// TimePulled/TimeCreated are set to past so proc/msg latencies are non-zero once TimeRequestFinished is stamped.
+	// TimeTransformationStarted/TimeTransformed give non-zero transform latency.
+	// CollectorTstamp gives non-zero E2E latency.
 	goodMessages := []*models.Message{
-		{Data: []byte("good1"), PartitionKey: "success", TimePulled: now, TimeCreated: now},
-		{Data: []byte("good2"), PartitionKey: "success", TimePulled: now, TimeCreated: now},
-		{Data: []byte("good3"), PartitionKey: "success", TimePulled: now, TimeCreated: now},
+		{Data: []byte("good1"), PartitionKey: "success", TimePulled: past, TimeCreated: past,
+			TimeTransformationStarted: past, TimeTransformed: now, CollectorTstamp: collectorTstamp},
+		{Data: []byte("good2"), PartitionKey: "success", TimePulled: past, TimeCreated: past,
+			TimeTransformationStarted: past.Add(-1 * time.Minute), TimeTransformed: now, CollectorTstamp: collectorTstamp},
+		{Data: []byte("good3"), PartitionKey: "success", TimePulled: past, TimeCreated: past,
+			TimeTransformationStarted: past, TimeTransformed: now, CollectorTstamp: collectorTstamp},
 	}
 
 	// Filtered messages - should trigger Filtered metrics
@@ -141,4 +150,25 @@ func TestRouter_MetricsTracking(t *testing.T) {
 	assert.Equal(t, 3, mockMetrics.GetTargetWriteCount())
 	assert.Equal(t, 2, mockMetrics.GetFilteredCount())
 	assert.Equal(t, 2, mockMetrics.GetTargetWriteInvalidCount())
+
+	buf := mockMetrics.GetWriteBuffer()
+	// Processing latency
+	assert.Greater(t, buf.MaxProcLatency, time.Duration(0))
+	assert.Greater(t, buf.MinProcLatency, time.Duration(0))
+
+	// Message latency
+	assert.Greater(t, buf.MaxMsgLatency, time.Duration(0))
+	assert.Greater(t, buf.MinMsgLatency, time.Duration(0))
+
+	// E2E latency
+	assert.Greater(t, buf.MaxE2ELatency, time.Duration(0))
+	assert.Greater(t, buf.MinE2ELatency, time.Duration(0))
+
+	// Request latency
+	assert.Greater(t, buf.MaxRequestLatency, time.Duration(0))
+	assert.Greater(t, buf.MinRequestLatency, time.Duration(0))
+
+	// Transform latency
+	assert.Greater(t, buf.MaxTransformLatency, time.Duration(0))
+	assert.Greater(t, buf.MinTransformLatency, time.Duration(0))
 }

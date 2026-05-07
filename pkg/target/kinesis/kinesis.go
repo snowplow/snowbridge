@@ -74,7 +74,7 @@ func (kt *KinesisTargetDriver) GetDefaultConfiguration() any {
 			MaxBatchBytes:        kinesisPutRecordsRequestByteLimit,
 			MaxMessageBytes:      kinesisPutRecordsMessageByteLimit,
 			MaxConcurrentBatches: 5,
-			FlushPeriodMillis:    500,
+			FlushPeriodMillis:    200,
 		},
 	}
 }

@@ -1,3 +1,14 @@
+Version 5.1.0 (2026-04-23)
+--------------------------
+feat: Add validation for 2XX response rules (#86)
+Decrease default batching flush period (#82)
+feat: HTTP target to handle 2XX responses via responseRules (#81)
+Add claude.md (#80)
+feat: Add JS helper to extract field values from unstruct events (#79)
+Export http target's request templater (#78)
+feat: split GH actions into parallel steps where possible (#77)
+feat: improve transformation stats handling (#76)
+
 Version 5.0.0 (2026-03-25)
 --------------------------
 Update dependencies
