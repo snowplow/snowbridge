@@ -14,11 +14,11 @@ package transform
 import (
 	"errors"
 
-	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
-	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
+	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v5/pkg/transform/utils"
 )
 
 // We could avoid all the config-related trimmings for this one, but providing them means that this

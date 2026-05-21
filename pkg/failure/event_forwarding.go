@@ -15,8 +15,8 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/third_party/snowplow/badrows"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/third_party/snowplow/badrows"
 )
 
 const EventForwardingFailureTarget = "event_forwarding"

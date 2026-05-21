@@ -23,11 +23,11 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/config"
-	httpTarget "github.com/snowplow/snowbridge/v3/pkg/target/http"
-	"github.com/snowplow/snowbridge/v3/pkg/target/kafka"
-	"github.com/snowplow/snowbridge/v3/pkg/target/stdout"
-	"github.com/snowplow/snowbridge/v3/pkg/testutil"
+	"github.com/snowplow/snowbridge/v5/config"
+	httpTarget "github.com/snowplow/snowbridge/v5/pkg/target/http"
+	"github.com/snowplow/snowbridge/v5/pkg/target/kafka"
+	"github.com/snowplow/snowbridge/v5/pkg/target/stdout"
+	"github.com/snowplow/snowbridge/v5/pkg/testutil"
 )
 
 func TestGetTarget_Stdout(t *testing.T) {
@@ -513,8 +513,8 @@ func TestGetTarget_EventHub(t *testing.T) {
 
 	// Verify the target has the correct default batching configuration
 	assert.Equal(500, batchingConfig.MaxBatchMessages)
-	assert.Equal(1048576, batchingConfig.MaxBatchBytes)
-	assert.Equal(1048576, batchingConfig.MaxMessageBytes)
+	assert.Equal(1000000, batchingConfig.MaxBatchBytes)
+	assert.Equal(1000000, batchingConfig.MaxMessageBytes)
 	assert.Equal(5, batchingConfig.MaxConcurrentBatches)
 	assert.Equal(200, batchingConfig.FlushPeriodMillis)
 }
@@ -546,11 +546,11 @@ func TestGetTarget_Silent(t *testing.T) {
 	batchingConfig := tar.GetBatchingConfig()
 
 	// Verify the target has the correct default batching configuration
-	assert.Equal(1, batchingConfig.MaxBatchMessages)
+	assert.Equal(500, batchingConfig.MaxBatchMessages)
 	assert.Equal(100000000000, batchingConfig.MaxBatchBytes)
 	assert.Equal(100000000000, batchingConfig.MaxMessageBytes)
-	assert.Equal(1, batchingConfig.MaxConcurrentBatches)
-	assert.Equal(1, batchingConfig.FlushPeriodMillis)
+	assert.Equal(5, batchingConfig.MaxConcurrentBatches)
+	assert.Equal(200, batchingConfig.FlushPeriodMillis)
 }
 
 func TestGetTarget_InvalidTarget(t *testing.T) {

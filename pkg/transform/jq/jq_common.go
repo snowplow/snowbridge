@@ -19,11 +19,11 @@ import (
 
 	"github.com/itchyny/gojq"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
-	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
+	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v5/pkg/transform/utils"
 )
 
 // JqCommandOutput is a type representing output after executing JQ command. For filters for example we expect it to be boolean.

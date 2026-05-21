@@ -20,10 +20,10 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/failure"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/failure"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
 )
 
 // invalidMessages holds invalid and oversized messages to pass through the invalid channel

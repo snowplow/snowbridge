@@ -20,9 +20,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v3/pkg/common"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/pkg/common"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
 )
 
 const SupportedTargetKafka = "kafka"
@@ -223,21 +223,23 @@ func (kt *KafkaTargetDriver) Write(messages []*models.Message) (*models.TargetWr
 
 	if kt.asyncProducer != nil {
 
-		requestStarted := time.Now().UTC()
-		for _, msg := range messages {
-			kt.asyncProducer.Input() <- &sarama.ProducerMessage{
-				Topic:    kt.topicName,
-				Key:      sarama.StringEncoder(msg.PartitionKey),
-				Value:    sarama.ByteEncoder(msg.Data),
-				Metadata: msg,
+		go func() {
+			for _, msg := range messages {
+				msg.TimeRequestStarted = time.Now().UTC()
+
+				kt.asyncProducer.Input() <- &sarama.ProducerMessage{
+					Topic:    kt.topicName,
+					Key:      sarama.StringEncoder(msg.PartitionKey),
+					Value:    sarama.ByteEncoder(msg.Data),
+					Metadata: msg,
+				}
 			}
-		}
+		}()
 
 		for i := 0; i < len(messages); i++ {
 			result := <-kt.asyncResults // Block until result is returned
 
 			originalMessage := result.Msg.Metadata.(*models.Message)
-			originalMessage.TimeRequestStarted = requestStarted
 			originalMessage.TimeRequestFinished = time.Now().UTC()
 
 			if result.Err != nil {

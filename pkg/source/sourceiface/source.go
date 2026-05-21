@@ -14,7 +14,7 @@ package sourceiface
 import (
 	"context"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 )
 
 // Source describes the interface for how to reading the data from a source and writing it to an output channel.

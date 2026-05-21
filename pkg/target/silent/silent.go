@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
 )
 
 const SupportedTargetSilent = "silent"
@@ -35,11 +35,11 @@ type SilentTargetDriver struct {
 func (st *SilentTargetDriver) GetDefaultConfiguration() any {
 	return &SilentTargetConfig{
 		BatchingConfig: &targetiface.BatchingConfig{
-			MaxBatchMessages:     1,
+			MaxBatchMessages:     500,
 			MaxBatchBytes:        100000000000,
 			MaxMessageBytes:      100000000000,
-			MaxConcurrentBatches: 1,
-			FlushPeriodMillis:    1,
+			MaxConcurrentBatches: 5,
+			FlushPeriodMillis:    200,
 		},
 	}
 }

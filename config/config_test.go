@@ -15,8 +15,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/snowplow/snowbridge/v3/assets"
-	"github.com/snowplow/snowbridge/v3/pkg/failure"
+	"github.com/snowplow/snowbridge/v5/assets"
+	"github.com/snowplow/snowbridge/v5/pkg/failure"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,26 +29,25 @@ func TestNewConfig_NoConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %q", err.Error())
 	}
 
-	assert.Equal(c.Data.Source.Use.Name, "stdin")
+	assert.Equal("stdin", c.Data.Source.Use.Name)
 	assert.Nil(c.Data.Source.Use.Body)
-	assert.Equal(c.Data.Target.Target.Name, "stdout")
+	assert.Equal("stdout", c.Data.Target.Target.Name)
 	assert.Nil(c.Data.Target.Target.Body)
-	assert.Equal(c.Data.FailureTarget.Target.Name, "stdout")
+	assert.Equal("stdout", c.Data.FailureTarget.Target.Name)
 	assert.Nil(c.Data.FailureTarget.Target.Body)
-	assert.Equal(c.Data.FailureParser.Format, "snowplow")
-	assert.Equal(c.Data.FilterTarget.Target.Name, "silent")
+	assert.Equal("snowplow", c.Data.FailureParser.Format)
+	assert.Equal("silent", c.Data.FilterTarget.Target.Name)
 	assert.Nil(c.Data.FilterTarget.Target.Body)
-	assert.Equal(c.Data.Sentry.Tags, "{}")
-	assert.Equal(c.Data.StatsReceiver.Receiver.Name, "")
+	assert.Equal("{}", c.Data.Sentry.Tags)
+	assert.Equal("", c.Data.StatsReceiver.Receiver.Name)
 	assert.Nil(c.Data.StatsReceiver.Receiver.Body)
-	assert.Equal(c.Data.StatsReceiver.TimeoutSec, 1)
-	assert.Equal(c.Data.StatsReceiver.BufferSec, 15)
+	assert.Equal(60, c.Data.StatsReceiver.BufferSec)
 	assert.NotNil(c.Data.Transform)
 	assert.Nil(c.Data.Transform.Transformations)
-	assert.Equal(c.Data.Transform.WorkerPool, 0)
-	assert.Equal(c.Data.LogLevel, "info")
-	assert.Equal(c.Data.DisableTelemetry, false)
-	assert.Equal(c.Data.License.Accept, false)
+	assert.Equal(0, c.Data.Transform.WorkerPool)
+	assert.Equal("info", c.Data.LogLevel)
+	assert.Equal(false, c.Data.DisableTelemetry)
+	assert.Equal(false, c.Data.License.Accept)
 	assert.Equal(1000, c.Data.Retry.Transient.Delay)
 	assert.Equal(5, c.Data.Retry.Transient.MaxAttempts)
 	assert.Equal(20000, c.Data.Retry.Setup.Delay)
@@ -187,8 +186,7 @@ func TestNewConfig_Hcl_defaults(t *testing.T) {
 	assert.Equal("snowplow", c.Data.FailureParser.Format)
 	assert.Equal("{}", c.Data.Sentry.Tags)
 	assert.Equal(false, c.Data.Sentry.Debug)
-	assert.Equal(1, c.Data.StatsReceiver.TimeoutSec)
-	assert.Equal(15, c.Data.StatsReceiver.BufferSec)
+	assert.Equal(60, c.Data.StatsReceiver.BufferSec)
 	assert.Equal("info", c.Data.LogLevel)
 	assert.Equal(1000, c.Data.Retry.Transient.Delay)
 	assert.Equal(5, c.Data.Retry.Transient.MaxAttempts)

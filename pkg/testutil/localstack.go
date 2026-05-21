@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/v3/pkg/common"
+	"github.com/snowplow/snowbridge/v5/pkg/common"
 )
 
 var (

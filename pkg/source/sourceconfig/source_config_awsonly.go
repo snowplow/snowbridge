@@ -16,11 +16,11 @@
 package sourceconfig
 
 import (
-	config "github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/observer"
-	kinesissource "github.com/snowplow/snowbridge/v3/pkg/source/kinesis"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
+	config "github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/observer"
+	kinesissource "github.com/snowplow/snowbridge/v5/pkg/source/kinesis"
+	"github.com/snowplow/snowbridge/v5/pkg/source/sourceiface"
 )
 
 // GetSource creates and returns the source that is configured, along with the message channel for the transformer to read from.

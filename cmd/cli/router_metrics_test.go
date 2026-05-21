@@ -19,10 +19,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/failure"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/failure"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
 )
 
 func TestRouter_MetricsTracking(t *testing.T) {

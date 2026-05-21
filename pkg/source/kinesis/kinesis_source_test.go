@@ -20,10 +20,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/pkg/common"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/observer"
-	"github.com/snowplow/snowbridge/v3/pkg/testutil"
+	"github.com/snowplow/snowbridge/v5/pkg/common"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/observer"
+	"github.com/snowplow/snowbridge/v5/pkg/testutil"
 )
 
 // --- Test StatsReceiver for testing kinsumer metrics
@@ -223,7 +223,7 @@ func TestKinesisSource_KinsumerMetrics(t *testing.T) {
 			capturedBuffers = append(capturedBuffers, b)
 		},
 	}
-	obs := observer.New(mockStatsReceiver, 1*time.Second, 500*time.Millisecond, nil)
+	obs := observer.New(mockStatsReceiver, 500*time.Millisecond, nil)
 
 	source, err := BuildFromConfig(&cfg, obs)
 	assert.Nil(err)

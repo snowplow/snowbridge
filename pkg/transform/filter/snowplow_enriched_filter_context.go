@@ -15,10 +15,10 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/snowplow/snowbridge/v3/config"
+	"github.com/snowplow/snowbridge/v5/config"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	"github.com/snowplow/snowbridge/v5/pkg/transform"
 )
 
 // ContextFilterConfig is a configuration object for the spEnrichedFilterContext transformation

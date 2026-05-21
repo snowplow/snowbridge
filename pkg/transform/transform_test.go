@@ -16,9 +16,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
-	sp_enriched "github.com/snowplow/snowbridge/v3/pkg/transform/sp_enriched"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	sp_enriched "github.com/snowplow/snowbridge/v5/pkg/transform/sp_enriched"
 )
 
 func TestNewTransformation_Passthrough(t *testing.T) {

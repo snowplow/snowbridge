@@ -13,11 +13,12 @@ package monitoring
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/google/go-cmp/cmp"
@@ -103,7 +104,7 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 			assert.Equal(expectedMetadataRequest.URL, b.URL.String())
 
 			counter++
-			return nil, nil
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
 		}
 
 		mr := &TestMetadataReporter{onDo: onDo}
@@ -132,5 +133,60 @@ func TestMetadataReporterTargetWrite(t *testing.T) {
 		}
 
 		webhook.Send(buffer, now, now)
+	})
+}
+
+func TestMetadataReporterRetries(t *testing.T) {
+	now := time.Now()
+	buffer := &models.ObserverBuffer{}
+
+	t.Run("retries on transport error then succeeds", func(t *testing.T) {
+		calls := 0
+		onDo := func(*http.Request) (*http.Response, error) {
+			calls++
+			if calls < 3 {
+				return nil, errors.New("connection refused")
+			}
+			return &http.Response{StatusCode: 200, Body: http.NoBody}, nil
+		}
+		mr := NewMetadataReporter("snowbridge", "3.4.0", &TestMetadataReporter{onDo: onDo}, "https://test.metadatareporter.com", nil)
+		mr.Send(buffer, now, now)
+		assert.Equal(t, 3, calls)
+	})
+
+	t.Run("retries on 5xx then succeeds", func(t *testing.T) {
+		calls := 0
+		onDo := func(*http.Request) (*http.Response, error) {
+			calls++
+			if calls < 3 {
+				return &http.Response{StatusCode: 500, Body: http.NoBody}, nil
+			}
+			return &http.Response{StatusCode: 200, Body: http.NoBody}, nil
+		}
+		mr := NewMetadataReporter("snowbridge", "3.4.0", &TestMetadataReporter{onDo: onDo}, "https://test.metadatareporter.com", nil)
+		mr.Send(buffer, now, now)
+		assert.Equal(t, 3, calls)
+	})
+
+	t.Run("stops after 6 attempts on persistent transport error", func(t *testing.T) {
+		calls := 0
+		onDo := func(*http.Request) (*http.Response, error) {
+			calls++
+			return nil, errors.New("connection refused")
+		}
+		mr := NewMetadataReporter("snowbridge", "3.4.0", &TestMetadataReporter{onDo: onDo}, "https://test.metadatareporter.com", nil)
+		mr.Send(buffer, now, now)
+		assert.Equal(t, 6, calls)
+	})
+
+	t.Run("stops after 6 attempts on persistent 5xx", func(t *testing.T) {
+		calls := 0
+		onDo := func(*http.Request) (*http.Response, error) {
+			calls++
+			return &http.Response{StatusCode: 500, Body: http.NoBody}, nil
+		}
+		mr := NewMetadataReporter("snowbridge", "3.4.0", &TestMetadataReporter{onDo: onDo}, "https://test.metadatareporter.com", nil)
+		mr.Send(buffer, now, now)
+		assert.Equal(t, 6, calls)
 	})
 }

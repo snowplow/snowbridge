@@ -1,3 +1,17 @@
+Version 5.1.1 (2026-05-20)
+--------------------------
+Update dependencies (#102)
+Change silent target batching defaults (#101)
+Add webhook monitoring improvements (#100)
+Add observer improvements (#99)
+Prevent deadlock in the kafka target write loop (#83)
+Add metadata reported improvements (#97)
+V5 module path (#98)
+Reduce default max_batch_bytes to 1,000,000 for eventhub target (#90)
+add more tests to confirm that retry mechanism behaves as expected (#85)
+Add pubsub user agent (#89)
+Add Claude Code GitHub Action workflow (#87)
+
 Version 5.1.0 (2026-04-23)
 --------------------------
 feat: Add validation for 2XX response rules (#86)

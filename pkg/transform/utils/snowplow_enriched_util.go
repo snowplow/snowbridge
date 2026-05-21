@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 )
 
 // referenceSnowplowTsv is a valid Snowplow enriched TSV event used to validate atomic field names at startup.

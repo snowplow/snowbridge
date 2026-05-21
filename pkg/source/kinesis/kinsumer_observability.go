@@ -2,7 +2,7 @@ package kinesissource
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v3/pkg/observer"
+	"github.com/snowplow/snowbridge/v5/pkg/observer"
 	"time"
 )
 

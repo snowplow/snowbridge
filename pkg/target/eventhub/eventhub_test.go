@@ -25,16 +25,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
-	"github.com/snowplow/snowbridge/v3/pkg/testutil"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/pkg/testutil"
 )
 
 var cfg = EventHubConfig{
 	BatchingConfig: &targetiface.BatchingConfig{
 		MaxBatchMessages:     500,
-		MaxBatchBytes:        1048576,
-		MaxMessageBytes:      1048576,
+		MaxBatchBytes:        1000000,
+		MaxMessageBytes:      1000000,
 		MaxConcurrentBatches: 5,
 		FlushPeriodMillis:    200,
 	},
@@ -537,6 +537,42 @@ func TestWriteAMQPFatalErrors(t *testing.T) {
 			assert.Nil(twres.Invalid)
 		})
 	}
+}
+
+// TestEventHubWrite_GenericErrorReturnsTransient confirms that a non-AMQP SendBatch error
+// is returned as a plain error (not FatalWriteError), allowing the router to apply transient retry.
+func TestEventHubWrite_GenericErrorReturnsTransient(t *testing.T) {
+	assert := assert.New(t)
+
+	m := mockHub{
+		results:     make(chan *eventhub.EventBatch),
+		failWithErr: errors.New("connection reset by peer"),
+	}
+	tgt := &EventHubTargetDriver{}
+	if err := tgt.newEventHubTargetDriverWithInterfaces(m, &cfg); err != nil {
+		t.Fatalf("failed to create eventhub target driver: %s", err)
+	}
+
+	var ackOps int64
+	ackFunc := func() { atomic.AddInt64(&ackOps, 1) }
+
+	messages := testutil.GetTestMessages(5, testutil.GenRandomString(100), ackFunc)
+
+	twres, err := tgt.Write(messages)
+
+	assert.NotNil(err)
+
+	// Must NOT be a FatalWriteError — generic errors must be transient so the router can retry
+	_, isFatal := err.(models.FatalWriteError)
+	assert.False(isFatal, "generic EventHub error must not be FatalWriteError; got: %T: %v", err, err)
+
+	// No acks — messages were not delivered
+	assert.Equal(int64(0), ackOps)
+
+	// All messages returned as Failed for router retry
+	assert.Nil(twres.Sent)
+	assert.Equal(5, len(twres.Failed))
+	assert.Nil(twres.Invalid)
 }
 
 // NewEventHubTarget should fail if we can't reach EventHub, commented out this test until we look into https://github.com/snowplow/snowbridge/issues/151

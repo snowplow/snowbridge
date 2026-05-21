@@ -22,8 +22,8 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
 )
 
 const SupportedTargetEventHub = "eventhub"
@@ -62,8 +62,8 @@ func (eht *EventHubTargetDriver) GetDefaultConfiguration() any {
 	return &EventHubConfig{
 		BatchingConfig: &targetiface.BatchingConfig{
 			MaxBatchMessages:     500,
-			MaxBatchBytes:        1048576,
-			MaxMessageBytes:      1048576,
+			MaxBatchBytes:        1000000,
+			MaxMessageBytes:      1000000,
 			MaxConcurrentBatches: 5,
 			FlushPeriodMillis:    200,
 		},

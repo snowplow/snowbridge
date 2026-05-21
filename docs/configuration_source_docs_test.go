@@ -17,14 +17,14 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/snowplow/snowbridge/v3/assets"
-	"github.com/snowplow/snowbridge/v3/config"
-	httpsource "github.com/snowplow/snowbridge/v3/pkg/source/http"
-	kafkasource "github.com/snowplow/snowbridge/v3/pkg/source/kafka"
-	kinesissource "github.com/snowplow/snowbridge/v3/pkg/source/kinesis"
-	pubsubsource "github.com/snowplow/snowbridge/v3/pkg/source/pubsub"
-	sqssource "github.com/snowplow/snowbridge/v3/pkg/source/sqs"
-	stdinsource "github.com/snowplow/snowbridge/v3/pkg/source/stdin"
+	"github.com/snowplow/snowbridge/v5/assets"
+	"github.com/snowplow/snowbridge/v5/config"
+	httpsource "github.com/snowplow/snowbridge/v5/pkg/source/http"
+	kafkasource "github.com/snowplow/snowbridge/v5/pkg/source/kafka"
+	kinesissource "github.com/snowplow/snowbridge/v5/pkg/source/kinesis"
+	pubsubsource "github.com/snowplow/snowbridge/v5/pkg/source/pubsub"
+	sqssource "github.com/snowplow/snowbridge/v5/pkg/source/sqs"
+	stdinsource "github.com/snowplow/snowbridge/v5/pkg/source/stdin"
 	"github.com/stretchr/testify/assert"
 )
 

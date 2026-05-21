@@ -20,8 +20,8 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/assets"
-	"github.com/snowplow/snowbridge/v3/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/v5/assets"
+	"github.com/snowplow/snowbridge/v5/pkg/statsreceiver"
 )
 
 func TestCreateObserverComponentHCL(t *testing.T) {

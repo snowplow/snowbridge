@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/pkg/testutil"
+	"github.com/snowplow/snowbridge/v5/pkg/testutil"
 )
 
 // --- Tests

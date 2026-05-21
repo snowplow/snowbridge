@@ -23,8 +23,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/pkg/common/gcp"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
 )
 
 const (
@@ -91,7 +92,7 @@ func (ps *PubSubTargetDriver) InitFromConfig(c any) error {
 	ctx := context.Background()
 
 	// Build client options based on provided credentials
-	var opts []option.ClientOption
+	opts := []option.ClientOption{option.WithUserAgent(gcp.UserAgent)}
 
 	if cfg.CredentialsPath != "" {
 		opts = append(opts, option.WithAuthCredentialsFile(option.ServiceAccount, cfg.CredentialsPath))

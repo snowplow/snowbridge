@@ -13,6 +13,7 @@ package monitoring
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -86,7 +87,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 			assert.Equal(expectedHeartbeatRequest.URL, b.URL.String())
 
 			counter++
-			return nil, nil
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
 		}
 
 		sr := TestWebhookSender{onDo: onDo}
@@ -130,7 +131,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 			} else {
 				assert.Fail("Unexpected schema: " + actualBody.Schema)
 			}
-			return nil, nil
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
 		}
 
 		sr := TestWebhookSender{onDo: onDo}
@@ -186,7 +187,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 				assert.Fail("Unexpected schema: " + actualBody.Schema)
 			}
 
-			return nil, nil
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
 		}
 
 		sr := TestWebhookSender{onDo: onDo}
@@ -235,7 +236,7 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 				heartbeatCount++
 			}
 
-			return nil, nil
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
 		}
 
 		sr := TestWebhookSender{onDo: onDo}
@@ -268,5 +269,57 @@ func TestWebhookMonitoringTargetWrite(t *testing.T) {
 		assert.Greater(heartbeatCount, 1) // Heartbeat resumed
 
 		webhook.Stop()
+	})
+}
+
+func TestWebhookMonitoringRetries(t *testing.T) {
+	t.Run("retries on transport error then succeeds", func(t *testing.T) {
+		calls := 0
+		onDo := func(*http.Request) (*http.Response, error) {
+			calls++
+			if calls < 3 {
+				return nil, errors.New("connection refused")
+			}
+			return &http.Response{StatusCode: 200, Body: http.NoBody}, nil
+		}
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &TestWebhookSender{onDo: onDo}, "https://test.webhook.com", nil, time.Second, nil)
+		assert.NoError(t, webhook.sendEvent(WebhookEvent{}))
+		assert.Equal(t, 3, calls)
+	})
+
+	t.Run("retries on 5xx then succeeds", func(t *testing.T) {
+		calls := 0
+		onDo := func(*http.Request) (*http.Response, error) {
+			calls++
+			if calls < 3 {
+				return &http.Response{StatusCode: 500, Body: http.NoBody}, nil
+			}
+			return &http.Response{StatusCode: 200, Body: http.NoBody}, nil
+		}
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &TestWebhookSender{onDo: onDo}, "https://test.webhook.com", nil, time.Second, nil)
+		assert.NoError(t, webhook.sendEvent(WebhookEvent{}))
+		assert.Equal(t, 3, calls)
+	})
+
+	t.Run("stops after 6 attempts on persistent transport error", func(t *testing.T) {
+		calls := 0
+		onDo := func(*http.Request) (*http.Response, error) {
+			calls++
+			return nil, errors.New("connection refused")
+		}
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &TestWebhookSender{onDo: onDo}, "https://test.webhook.com", nil, time.Second, nil)
+		assert.Error(t, webhook.sendEvent(WebhookEvent{}))
+		assert.Equal(t, 6, calls)
+	})
+
+	t.Run("stops after 6 attempts on persistent 5xx", func(t *testing.T) {
+		calls := 0
+		onDo := func(*http.Request) (*http.Response, error) {
+			calls++
+			return &http.Response{StatusCode: 500, Body: http.NoBody}, nil
+		}
+		webhook := NewWebhookMonitoring("snowbridge", "3.4.0", &TestWebhookSender{onDo: onDo}, "https://test.webhook.com", nil, time.Second, nil)
+		assert.Error(t, webhook.sendEvent(WebhookEvent{}))
+		assert.Equal(t, 6, calls)
 	})
 }

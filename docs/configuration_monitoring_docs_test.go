@@ -16,10 +16,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/snowplow/snowbridge/v3/assets"
-	"github.com/snowplow/snowbridge/v3/cmd"
-	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/v5/assets"
+	"github.com/snowplow/snowbridge/v5/cmd"
+	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/statsreceiver"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,7 +73,6 @@ func testStatsDConfig(t *testing.T, configpath string, fullExample bool) {
 
 		// Check the config values that are outside the statsreceiver part
 		assert.NotZero(confStatsRec.BufferSec)
-		assert.NotZero(confStatsRec.TimeoutSec)
 	}
 }
 

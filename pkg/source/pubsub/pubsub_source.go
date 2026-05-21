@@ -22,8 +22,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
+	"github.com/snowplow/snowbridge/v5/pkg/common/gcp"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/source/sourceiface"
 )
 
 const SupportedSourcePubsub = "pubsub"
@@ -75,7 +76,7 @@ func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
 	// We use a slice to provide the grpcConnectionPool option only if it is set.
 	// Otherwise we'll overwrite the client's clever under-the-hood default behaviour:
 	// https://github.com/googleapis/google-cloud-go/blob/380e7d23e69b22ab46cc6e3be58902accee2f26a/pubsub/pubsub.go#L165-L177
-	var opt []option.ClientOption
+	opt := []option.ClientOption{option.WithUserAgent(gcp.UserAgent)}
 	if cfg.GRPCConnectionPool != 0 {
 		opt = append(opt, option.WithGRPCConnectionPool(cfg.GRPCConnectionPool))
 	}

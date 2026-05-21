@@ -13,7 +13,7 @@ package engine
 
 import (
 	jsoniter "github.com/json-iterator/go"
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	"github.com/snowplow/snowbridge/v5/pkg/transform"
 )
 
 // make a jsoniter instance that won't escape html

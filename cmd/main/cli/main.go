@@ -19,9 +19,9 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/snowplow/snowbridge/v3/cmd"
-	snowbridge_cli "github.com/snowplow/snowbridge/v3/cmd/cli"
-	"github.com/snowplow/snowbridge/v3/pkg/transform/transformconfig"
+	"github.com/snowplow/snowbridge/v5/cmd"
+	snowbridge_cli "github.com/snowplow/snowbridge/v5/cmd/cli"
+	"github.com/snowplow/snowbridge/v5/pkg/transform/transformconfig"
 	"github.com/urfave/cli"
 )
 

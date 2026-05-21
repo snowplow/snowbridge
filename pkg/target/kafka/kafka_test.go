@@ -14,12 +14,14 @@ package kafka
 import (
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/IBM/sarama"
 	"github.com/IBM/sarama/mocks"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
-	"github.com/snowplow/snowbridge/v3/pkg/testutil"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -177,6 +179,102 @@ func TestKafkaTarget_SyncWriteSuccess(t *testing.T) {
 	// Check results
 	assert.Equal(501, len(writeRes.Sent))
 	assert.Equal(0, len(writeRes.Failed))
+}
+
+// TestKafkaWrite_FatalWriteError_MisconfiguredProducer confirms that calling Write()
+// when neither the async nor sync producer has been configured returns a FatalWriteError,
+// signalling the router to initiate immediate shutdown rather than retrying.
+func TestKafkaWrite_FatalWriteError_MisconfiguredProducer(t *testing.T) {
+	assert := assert.New(t)
+
+	target := &KafkaTargetDriver{
+		syncProducer:  nil,
+		asyncProducer: nil,
+		asyncResults:  nil,
+		log:           log.WithFields(log.Fields{"target": "kafka"}),
+	}
+
+	messages := testutil.GetTestMessages(3, "Hello Kafka!!", nil)
+	writeRes, writeErr := target.Write(messages)
+
+	assert.NotNil(writeErr)
+
+	// Must be a FatalWriteError to trigger immediate shutdown — not a transient/retryable error
+	_, isFatal := writeErr.(models.FatalWriteError)
+	assert.True(isFatal, "misconfigured producer must return FatalWriteError; got: %T: %v", writeErr, writeErr)
+
+	assert.NotNil(writeRes)
+	assert.Equal(0, len(writeRes.Sent))
+}
+
+func TestKafkaTarget_AsyncWriteDeadlock(t *testing.T) {
+	assert := assert.New(t)
+
+	// Use unbuffered channels (ChannelBufferSize = 0) to remove the buffering
+	// that masks the deadlock in production. With unbuffered channels, 3 messages
+	// are enough to trigger the circular dependency:
+	//   Write blocks on Input() -> mock blocks on Successes() -> forwarding goroutine blocks on asyncResults
+	config := mocks.NewTestConfig()
+	config.Producer.Return.Successes = true
+	config.Producer.Return.Errors = true
+	config.ChannelBufferSize = 0
+
+	mp := mocks.NewAsyncProducer(t, config)
+
+	asyncResults := make(chan *saramaResult)
+
+	go func() {
+		for err := range mp.Errors() {
+			asyncResults <- &saramaResult{Msg: err.Msg, Err: err.Err}
+		}
+	}()
+
+	go func() {
+		for success := range mp.Successes() {
+			asyncResults <- &saramaResult{Msg: success}
+		}
+	}()
+
+	target := &KafkaTargetDriver{
+		asyncProducer: mp,
+		asyncResults:  asyncResults,
+		log:           log.WithFields(log.Fields{"target": "kafka"}),
+	}
+
+	for i := 0; i < 3; i++ {
+		mp.ExpectInputAndSucceed()
+	}
+
+	defer target.Close()
+
+	var ackOps int64
+	ackFunc := func() {
+		atomic.AddInt64(&ackOps, 1)
+	}
+
+	messages := testutil.GetTestMessages(3, "Hello Kafka!!", ackFunc)
+
+	type writeResult struct {
+		res *models.TargetWriteResult
+		err error
+	}
+	done := make(chan writeResult, 1)
+
+	go func() {
+		res, err := target.Write(messages)
+		done <- writeResult{res, err}
+	}()
+
+	select {
+	case result := <-done:
+		assert.Nil(result.err)
+		assert.NotNil(result.res)
+		assert.Equal(3, len(result.res.Sent))
+		assert.Equal(0, len(result.res.Failed))
+		assert.Equal(int64(3), ackOps)
+	case <-time.After(1 * time.Second):
+		t.Fatal("Write deadlocked: timed out after 1 second")
+	}
 }
 
 func TestKafkaTargetDriver_Batcher(t *testing.T) {

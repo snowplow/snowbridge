@@ -3,11 +3,13 @@ package monitoring
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 )
 
 // AggregatedError holds aggregated error information
@@ -88,31 +90,53 @@ func (mr *MetadataReporter) Send(b *models.ObserverBuffer, periodStart, periodEn
 		},
 	}
 
-	header := http.Header{}
-	header.Add("Content-Type", "application/json")
-
 	var body bytes.Buffer
-	err := json.NewEncoder(&body).Encode(event)
-	if err != nil {
-		mr.log.Errorf("failed to marshall event: %s", err)
+	if err := json.NewEncoder(&body).Encode(event); err != nil {
+		mr.log.Warnf("failed to marshall event: %s", err)
 		return
 	}
 
-	req, err := http.NewRequest(
-		http.MethodPost,
-		mr.endpoint,
-		&body,
-	)
-	if err != nil {
-		mr.log.Errorf("failed to create POST request: %s", err)
-		return
-	}
-	req.Header = header
+	var lastErr error
+	for attempt := 0; attempt <= 5; attempt++ {
+		if attempt > 0 {
+			time.Sleep(100 * time.Millisecond)
+		}
 
-	if _, err := mr.client.Do(req); err != nil {
-		mr.log.Errorf("failed to send metadata event: %s", err)
+		if err := mr.sendRequest(body.Bytes()); err != nil {
+			lastErr = err
+			mr.log.Infof("attempt %d to send metadata event failed: %s", attempt+1, err)
+			continue
+		}
 		return
 	}
+
+	mr.log.Warnf("failed to send metadata event %s: %s", bytes.TrimRight(body.Bytes(), "\n"), lastErr)
+}
+
+func (mr *MetadataReporter) sendRequest(body []byte) error {
+	req, err := http.NewRequest(http.MethodPost, mr.endpoint, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := mr.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+			mr.log.Warn(err.Error())
+		}
+		if err := resp.Body.Close(); err != nil {
+			mr.log.Warn(err.Error())
+		}
+	}()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("server responded with status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func errorsMapToSlice(errsMap map[models.MetadataCodeDescription]int) []AggregatedError {

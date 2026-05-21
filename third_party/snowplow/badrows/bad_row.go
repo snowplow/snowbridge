@@ -18,7 +18,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/snowplow/snowbridge/v3/third_party/snowplow/iglu"
+	"github.com/snowplow/snowbridge/v5/third_party/snowplow/iglu"
 )
 
 const (

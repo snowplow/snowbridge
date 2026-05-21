@@ -9,20 +9,11 @@
  * OF THE SOFTWARE, YOU AGREE TO THE TERMS OF SUCH LICENSE AGREEMENT.
  */
 
-package telemetry
+package gcp
 
-import (
-	"time"
+const (
+	solutionURN = "isol_plb32_0014m00002tg62aqad_qufvepzajwfju6jxl5uwg2zn3l3nizte"
 
-	"github.com/snowplow/snowbridge/v5/cmd"
-)
-
-var (
-	interval           = time.Hour
-	method             = "POST"
-	protocol           = "https"
-	url                = "telemetry-g.snowplowanalytics.com"
-	port               = "443"
-	applicationName    = cmd.AppName
-	applicationVersion = cmd.AppVersion
+	// UserAgent is sent with every GCP API request from Snowbridge.
+	UserAgent = "Google/ISV Solution (GPN:" + solutionURN + ")"
 )

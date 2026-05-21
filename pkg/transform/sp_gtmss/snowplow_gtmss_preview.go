@@ -16,13 +16,13 @@ import (
 	"errors"
 	"time"
 
-	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
-	utils "github.com/snowplow/snowbridge/v3/pkg/transform/utils"
+	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	utils "github.com/snowplow/snowbridge/v5/pkg/transform/utils"
 )
 
 // GTMSSPreviewConfig is a configuration object for the spEnrichedToJson transformation

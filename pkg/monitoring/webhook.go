@@ -14,6 +14,8 @@ package monitoring
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -74,10 +76,7 @@ func (m *WebhookMonitoring) Start() {
 	ticker := time.NewTicker(m.heartbeatInterval)
 
 	// First, let the webhook know we've booted up
-	err := m.sendHeartbeat()
-	if err != nil {
-		m.log.Warnf("failed to send heartbeat event: %s", err)
-	}
+	m.sendHeartbeat()
 
 	// Then start webhook monitoring proper
 	go func() {
@@ -87,17 +86,14 @@ func (m *WebhookMonitoring) Start() {
 			select {
 			case <-ticker.C:
 				if m.isHealthy {
-					err := m.sendHeartbeat()
-					if err != nil {
-						m.log.Warnf("failed to send heartbeat event: %s", err)
-					}
+					m.sendHeartbeat()
 				} else if m.currentError != nil {
 					m.sendAlert(m.currentError)
 				}
 
 			case err := <-m.alertChan:
 				if err != nil {
-					// First alert gets sent immediatly
+					// First alert gets sent immediately
 					if m.isHealthy {
 						m.sendAlert(err)
 						m.isHealthy = false
@@ -137,19 +133,12 @@ func (m *WebhookMonitoring) sendAlert(err error) {
 		},
 	}
 
-	req, prepErr := m.prepareRequest(event)
-	if prepErr != nil {
-		m.log.Warnf("failed to prepare alert event request: %s", prepErr)
-		return
-	}
-
-	_, sendErr := m.client.Do(req)
-	if sendErr != nil {
+	if sendErr := m.sendEvent(event); sendErr != nil {
 		m.log.Warnf("failed to send alert event: %s", sendErr)
 	}
 }
 
-func (m *WebhookMonitoring) sendHeartbeat() error {
+func (m *WebhookMonitoring) sendHeartbeat() {
 	m.log.Info("Sending heartbeat")
 	event := WebhookEvent{
 		Schema: "iglu:com.snowplowanalytics.monitoring.loader/heartbeat/jsonschema/1-0-0",
@@ -159,38 +148,56 @@ func (m *WebhookMonitoring) sendHeartbeat() error {
 			Tags:       m.tags,
 		},
 	}
-	req, err := m.prepareRequest(event)
-	if err != nil {
-		return err
+	if err := m.sendEvent(event); err != nil {
+		m.log.Warnf("failed to send heartbeat event: %s", err)
 	}
-
-	_, err = m.client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
-func (m *WebhookMonitoring) prepareRequest(event WebhookEvent) (*http.Request, error) {
-	header := http.Header{}
-	header.Add("Content-Type", "application/json")
-
+func (m *WebhookMonitoring) sendEvent(event WebhookEvent) error {
 	var body bytes.Buffer
-	err := json.NewEncoder(&body).Encode(event)
-	if err != nil {
-		return nil, err
+	if err := json.NewEncoder(&body).Encode(event); err != nil {
+		return err
 	}
 
-	req, err := http.NewRequest(
-		http.MethodPost,
-		m.endpoint,
-		&body,
-	)
-	if err != nil {
-		return nil, err
+	var lastErr error
+	for attempt := 0; attempt <= 5; attempt++ {
+		if attempt > 0 {
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		if err := m.sendRequest(body.Bytes()); err != nil {
+			lastErr = err
+			m.log.Infof("attempt %d to send webhook event failed: %s", attempt+1, err)
+			continue
+		}
+		return nil
 	}
 
-	req.Header = header
-	return req, nil
+	return lastErr
+}
+
+func (m *WebhookMonitoring) sendRequest(body []byte) error {
+	req, err := http.NewRequest(http.MethodPost, m.endpoint, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := m.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+			m.log.Warn(err.Error())
+		}
+		if err := resp.Body.Close(); err != nil {
+			m.log.Warn(err.Error())
+		}
+	}()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("server responded with status %d", resp.StatusCode)
+	}
+	return nil
 }

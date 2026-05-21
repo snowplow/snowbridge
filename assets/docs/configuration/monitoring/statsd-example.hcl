@@ -10,9 +10,6 @@ stats_receiver {
     tags    = "{\"aKey\": \"aValue\"}"
   }
 
-  # Time (seconds) the observer waits for new results (default: 1)
-  timeout_sec = 2
-
-  # Aggregation time window (seconds) for metrics being collected (default: 15)
+  # Aggregation time window (seconds) for metrics being collected (default: 60)
   buffer_sec  = 20
 }

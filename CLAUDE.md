@@ -1,6 +1,6 @@
 # Snowbridge
 
-Snowbridge is a high-performance data forwarding tool that replicates streams from supported sources to external destinations, with optional filtering and transformation. Written in Go, module path `github.com/snowplow/snowbridge/v3`.
+Snowbridge is a high-performance data forwarding tool that replicates streams from supported sources to external destinations, with optional filtering and transformation. Written in Go, module path `github.com/snowplow/snowbridge/v5`.
 
 ## Architecture
 

@@ -13,14 +13,14 @@ package sourceconfig
 
 import (
 	"fmt"
-	httpsource "github.com/snowplow/snowbridge/v3/pkg/source/http"
+	httpsource "github.com/snowplow/snowbridge/v5/pkg/source/http"
 
-	config "github.com/snowplow/snowbridge/v3/config"
-	kafkasource "github.com/snowplow/snowbridge/v3/pkg/source/kafka"
-	pubsubsource "github.com/snowplow/snowbridge/v3/pkg/source/pubsub"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
-	sqssource "github.com/snowplow/snowbridge/v3/pkg/source/sqs"
-	stdinsource "github.com/snowplow/snowbridge/v3/pkg/source/stdin"
+	config "github.com/snowplow/snowbridge/v5/config"
+	kafkasource "github.com/snowplow/snowbridge/v5/pkg/source/kafka"
+	pubsubsource "github.com/snowplow/snowbridge/v5/pkg/source/pubsub"
+	"github.com/snowplow/snowbridge/v5/pkg/source/sourceiface"
+	sqssource "github.com/snowplow/snowbridge/v5/pkg/source/sqs"
+	stdinsource "github.com/snowplow/snowbridge/v5/pkg/source/stdin"
 )
 
 func sourceCommon(c *config.Config) (sourceiface.Source, error) {

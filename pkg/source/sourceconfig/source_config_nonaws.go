@@ -18,10 +18,10 @@ package sourceconfig
 import (
 	"fmt"
 
-	config "github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/observer"
-	"github.com/snowplow/snowbridge/v3/pkg/source/sourceiface"
+	config "github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/observer"
+	"github.com/snowplow/snowbridge/v5/pkg/source/sourceiface"
 )
 
 // GetSource takes a config and some shared resources, and creates a new source, along with the message channel for the transformer to read from.

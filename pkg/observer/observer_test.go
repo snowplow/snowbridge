@@ -13,12 +13,13 @@ package observer
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 )
 
 // --- Test StatsReceiver
@@ -110,7 +111,7 @@ func TestObserverTargetWrite(t *testing.T) {
 	sr := &TestStatsReceiver{onSend: onSend}
 	mr := &TestMetadataReporter{onSend: onSendMetadata}
 
-	observer := New(sr, 1*time.Second, 3*time.Second, mr)
+	observer := New(sr, 3*time.Second, mr)
 	assert.NotNil(observer)
 	observer.Start()
 
@@ -173,4 +174,52 @@ func TestObserverTargetWrite(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	observer.Stop()
+}
+
+func TestObserverContinuesWhenMetadataHangs(t *testing.T) {
+	a := assert.New(t)
+
+	metaBlock := make(chan struct{})
+
+	var statsCalls atomic.Int64
+	sr := &TestStatsReceiver{onSend: func(b *models.ObserverBuffer) {
+		statsCalls.Add(1)
+	}}
+	mr := &TestMetadataReporter{onSend: func(b *models.ObserverBuffer) {
+		<-metaBlock
+	}}
+
+	observer := New(sr, 50*time.Millisecond, mr)
+	observer.Start()
+
+	// Let several ticks fire so the metadata Send is wedged and
+	// the snapshot channel is filled.
+	time.Sleep(250 * time.Millisecond)
+
+	r := models.NewTargetWriteResult(nil, nil, nil)
+
+	// Producers must not block on a wedged metadata endpoint.
+	producerDone := make(chan struct{})
+	go func() {
+		for range 5000 {
+			observer.TargetWrite(r)
+			observer.TargetWriteInvalid(r)
+			observer.TargetWriteFiltered(r)
+		}
+		close(producerDone)
+	}()
+
+	select {
+	case <-producerDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("producer blocked while metadata reporter was hanging")
+	}
+
+	// Statsd Send fires on every tick regardless of metadata wedge.
+	a.GreaterOrEqual(statsCalls.Load(), int64(3), "statsd Send should fire on each tick regardless of metadata wedge")
+
+	// Unblock metadata so Stop() can drain cleanly.
+	close(metaBlock)
+	observer.Stop()
+	a.False(observer.isRunning, "observer should no longer be running after Stop")
 }

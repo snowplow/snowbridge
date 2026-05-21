@@ -15,9 +15,9 @@ import (
 	"encoding/base64"
 	"errors"
 
-	"github.com/snowplow/snowbridge/v3/config"
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/transform"
+	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/transform"
 )
 
 // We could avoid all the config-related trimmings for this one, but providing them means that this

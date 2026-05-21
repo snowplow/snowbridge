@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM alpine:3.23.3
+FROM --platform=$TARGETPLATFORM alpine:3.23.4
 LABEL org.opencontainers.image.authors="Snowplow Analytics <support@snowplow.io>"
 
 # https://security.snyk.io/vuln/SNYK-ALPINE323-ZLIB-15435528 

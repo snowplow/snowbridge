@@ -18,16 +18,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/snowplow/snowbridge/v3/pkg/failure"
+	"github.com/snowplow/snowbridge/v5/pkg/failure"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
-	"github.com/snowplow/snowbridge/v3/pkg/common"
-	"github.com/snowplow/snowbridge/v3/pkg/monitoring"
-	"github.com/snowplow/snowbridge/v3/pkg/observer"
-	"github.com/snowplow/snowbridge/v3/pkg/statsreceiver"
-	"github.com/snowplow/snowbridge/v3/pkg/statsreceiver/statsreceiveriface"
+	log "github.com/sirupsen/logrus"
+	"github.com/snowplow/snowbridge/v5/pkg/common"
+	"github.com/snowplow/snowbridge/v5/pkg/monitoring"
+	"github.com/snowplow/snowbridge/v5/pkg/observer"
+	"github.com/snowplow/snowbridge/v5/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/v5/pkg/statsreceiver/statsreceiveriface"
 )
 
 // ConfigurationPair allows modular packages to define their own configuration and function to interpret the configuration.
@@ -100,9 +101,11 @@ type sentryConfig struct {
 // statsConfig holds configuration for stats receivers.
 // It includes a receiver component to use.
 type statsConfig struct {
-	Receiver   *use `hcl:"use,block"`
-	TimeoutSec int  `hcl:"timeout_sec,optional"`
-	BufferSec  int  `hcl:"buffer_sec,optional"`
+	Receiver  *use `hcl:"use,block"`
+	BufferSec int  `hcl:"buffer_sec,optional"`
+	// TimeoutSec is deprecated and has no effect; kept so existing configs still parse.
+	// Remove in the next major version bump.
+	TimeoutSec int `hcl:"timeout_sec,optional"`
 }
 
 type licenseConfig struct {
@@ -168,9 +171,8 @@ func defaultConfigData() *ConfigurationData {
 			Tags: "{}",
 		},
 		StatsReceiver: &statsConfig{
-			Receiver:   &use{},
-			TimeoutSec: 1,
-			BufferSec:  15,
+			Receiver:  &use{},
+			BufferSec: 60,
 		},
 		Transform: &TransformConfig{
 			Transformations: nil,
@@ -316,7 +318,11 @@ func (c *Config) GetObserver(appName, appVersion string, tags map[string]string)
 		return nil, err
 	}
 
-	return observer.New(sr, time.Duration(c.Data.StatsReceiver.TimeoutSec)*time.Second, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second, metadataReporter), nil
+	if c.Data.StatsReceiver.TimeoutSec != 0 {
+		log.Warn("stats_receiver.timeout_sec is deprecated and has no effect; remove it from your config")
+	}
+
+	return observer.New(sr, time.Duration(c.Data.StatsReceiver.BufferSec)*time.Second, metadataReporter), nil
 }
 
 func (c *Config) GetWebhookMonitoring(appName, appVersion string) (*monitoring.WebhookMonitoring, chan error, error) {
@@ -330,7 +336,7 @@ func (c *Config) GetWebhookMonitoring(appName, appVersion string) (*monitoring.W
 
 	alertChan := make(chan error)
 
-	client := http.DefaultClient
+	client := &http.Client{Timeout: 1 * time.Second}
 	endpoint := c.Data.Monitoring.Webhook.Endpoint
 	tags := c.Data.Monitoring.Webhook.Tags
 	heartbeatInterval := time.Duration(c.Data.Monitoring.Webhook.HeartbeatInterval) * time.Second
@@ -376,7 +382,7 @@ func (c *Config) getMetadataReporter(appName, appVersion string) (monitoring.Met
 		return nil, err
 	}
 
-	client := http.DefaultClient
+	client := &http.Client{Timeout: 1 * time.Second}
 	endpoint := c.Data.Monitoring.MetadataReporter.Endpoint
 	tags := c.Data.Monitoring.MetadataReporter.Tags
 

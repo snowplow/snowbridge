@@ -16,7 +16,7 @@ package sourceconfig
 import (
 	"testing"
 
-	config "github.com/snowplow/snowbridge/v3/config"
+	config "github.com/snowplow/snowbridge/v5/config"
 	"github.com/stretchr/testify/assert"
 )
 

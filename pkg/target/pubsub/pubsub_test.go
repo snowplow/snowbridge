@@ -26,9 +26,9 @@ import (
 	pubsubV1 "cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"google.golang.org/grpc/codes"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/target/targetiface"
-	"github.com/snowplow/snowbridge/v3/pkg/testutil"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v5/pkg/testutil"
 )
 
 func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
@@ -109,6 +109,9 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 	_, err = pubsubTarget.Write(messages)
 
 	assert.Error(err)
+	// Must be a FatalWriteError to trigger immediate shutdown — not a transient/retryable error
+	var fatal models.FatalWriteError
+	assert.ErrorAs(err, &fatal, "uninitialized topic must return FatalWriteError")
 }
 
 func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {

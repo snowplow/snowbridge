@@ -14,7 +14,7 @@ package http
 import (
 	"testing"
 
-	"github.com/snowplow/snowbridge/v3/pkg/testutil"
+	"github.com/snowplow/snowbridge/v5/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -18,8 +18,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v3/pkg/models"
-	"github.com/snowplow/snowbridge/v3/pkg/observer"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/observer"
 )
 
 // TestTransformer_GracefulShutdown verifies that when the input channel is closed:
@@ -39,7 +39,7 @@ func TestTransformer_GracefulShutdown(t *testing.T) {
 		return models.NewTransformationResult(msg, nil, nil)
 	}
 
-	obs := observer.New(nil, 1*time.Second, 10*time.Second, nil)
+	obs := observer.New(nil, 10*time.Second, nil)
 
 	// Create transformer with 3 workers
 	transformer := NewTransformer(transformFunc, input, output, obs, 3)
@@ -173,6 +173,6 @@ func (m *mockStatsReceiver) GetBuffers() []models.ObserverBuffer {
 
 func createObserverWithMockStats() (*observer.Observer, *mockStatsReceiver) {
 	mockStats := &mockStatsReceiver{}
-	obs := observer.New(mockStats, 25*time.Millisecond, 50*time.Millisecond, nil)
+	obs := observer.New(mockStats, 50*time.Millisecond, nil)
 	return obs, mockStats
 }

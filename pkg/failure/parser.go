@@ -12,7 +12,7 @@
 package failure
 
 import (
-	"github.com/snowplow/snowbridge/v3/pkg/models"
+	"github.com/snowplow/snowbridge/v5/pkg/models"
 )
 
 // FailureParser creates failure payloads from invalid and oversized messages
