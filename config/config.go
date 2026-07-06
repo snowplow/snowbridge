@@ -47,21 +47,22 @@ type Config struct {
 
 // ConfigurationData for holding all configuration options
 type ConfigurationData struct {
-	Source           *component        `hcl:"source,block"`
-	Target           *TargetConfig     `hcl:"target,block"`
-	FailureTarget    *TargetConfig     `hcl:"failure_target,block"`
-	FilterTarget     *TargetConfig     `hcl:"filter_target,block"`
-	FailureParser    *failureParser    `hcl:"failure_parser,block"`
-	Sentry           *sentryConfig     `hcl:"sentry,block"`
-	StatsReceiver    *statsConfig      `hcl:"stats_receiver,block"`
-	Transform        *TransformConfig  `hcl:"transform,block"`
-	LogLevel         string            `hcl:"log_level,optional"`
-	UserProvidedID   string            `hcl:"user_provided_id,optional"`
-	DisableTelemetry bool              `hcl:"disable_telemetry,optional"`
-	License          *licenseConfig    `hcl:"license,block"`
-	Retry            *RetryConfig      `hcl:"retry,block"`
-	Metrics          *metricsConfig    `hcl:"metrics,block"`
-	Monitoring       *monitoringConfig `hcl:"monitoring,block"`
+	Source           *component           `hcl:"source,block"`
+	Target           *TargetConfig        `hcl:"target,block"`
+	FailureTarget    *TargetConfig        `hcl:"failure_target,block"`
+	FilterTarget     *TargetConfig        `hcl:"filter_target,block"`
+	FailureParser    *failureParser       `hcl:"failure_parser,block"`
+	Sentry           *sentryConfig        `hcl:"sentry,block"`
+	StatsReceiver    *statsConfig         `hcl:"stats_receiver,block"`
+	Transform        *TransformConfig     `hcl:"transform,block"`
+	Decompression    *DecompressionConfig `hcl:"decompression,block"`
+	LogLevel         string               `hcl:"log_level,optional"`
+	UserProvidedID   string               `hcl:"user_provided_id,optional"`
+	DisableTelemetry bool                 `hcl:"disable_telemetry,optional"`
+	License          *licenseConfig       `hcl:"license,block"`
+	Retry            *RetryConfig         `hcl:"retry,block"`
+	Metrics          *metricsConfig       `hcl:"metrics,block"`
+	Monitoring       *monitoringConfig    `hcl:"monitoring,block"`
 }
 
 // component is a type to abstract over configuration blocks.
@@ -73,6 +74,13 @@ type component struct {
 type TransformConfig struct {
 	Transformations []*use `hcl:"use,block"`
 	WorkerPool      int    `hcl:"worker_pool,optional"`
+}
+
+// DecompressionConfig configures the decompression stage.
+type DecompressionConfig struct {
+	// MaxBytesSinglePayload bounds per-record allocations — oversized records
+	// are routed to the failure target without being allocated.
+	MaxBytesSinglePayload int `hcl:"max_bytes_single_payload,optional"`
 }
 
 // use is a type to denote what a component will be configured to use.
@@ -177,6 +185,9 @@ func defaultConfigData() *ConfigurationData {
 		Transform: &TransformConfig{
 			Transformations: nil,
 			WorkerPool:      0, // 0 means use default (runtime.GOMAXPROCS(0) + 1)
+		},
+		Decompression: &DecompressionConfig{
+			MaxBytesSinglePayload: 10000000,
 		},
 		LogLevel:         "info",
 		DisableTelemetry: false,

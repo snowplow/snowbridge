@@ -36,9 +36,6 @@ func DefaultConfiguration() Configuration {
 
 // BuildFromConfig creates a stdin source from decoded configuration
 func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
-	// Ensures as even as possible distribution of UUIDs
-	uuid.EnableRandPool()
-
 	return &stdinSourceDriver{
 		log: log.WithFields(log.Fields{"source": SupportedSourceStdin}),
 	}, nil
@@ -53,9 +50,6 @@ type stdinSourceDriver struct {
 
 // NewStdinSourceDriver creates a new client for reading messages from stdin
 func NewStdinSourceDriver() (sourceiface.Source, error) {
-
-	// Ensures as even as possible distribution of UUIDs
-	uuid.EnableRandPool()
 	return &stdinSourceDriver{
 		log: log.WithFields(log.Fields{"source": SupportedSourceStdin}),
 	}, nil

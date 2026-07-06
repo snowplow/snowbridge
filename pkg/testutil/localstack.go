@@ -272,3 +272,11 @@ func PutProvidedDataIntoKinesis(kinesisClient common.KinesisV2API, streamName st
 	}
 	return nil
 }
+
+// PutRawRecordIntoKinesis puts a single record with arbitrary binary bytes
+// into a kinesis stream. Useful for compressed payloads where round-tripping
+// through string would be misleading.
+func PutRawRecordIntoKinesis(kinesisClient common.KinesisV2API, streamName string, data []byte) error {
+	_, err := kinesisClient.PutRecord(context.Background(), &kinesis.PutRecordInput{Data: data, PartitionKey: aws.String("abc123"), StreamName: aws.String(streamName)})
+	return err
+}

@@ -1,9 +1,12 @@
 package transform
 
 import (
+	"encoding/base64"
 	"runtime"
 	"sync"
 
+	"github.com/snowplow/snowbridge/v5/pkg/decompression"
+	"github.com/snowplow/snowbridge/v5/pkg/fanout"
 	"github.com/snowplow/snowbridge/v5/pkg/models"
 	"github.com/snowplow/snowbridge/v5/pkg/observer"
 
@@ -12,6 +15,7 @@ import (
 
 type Transformer struct {
 	transformFunction transform.TransformationApplyFunction
+	decompressionCfg  decompression.Config
 	input             <-chan *models.Message
 	output            chan<- *models.TransformationResult
 	observer          *observer.Observer
@@ -20,12 +24,14 @@ type Transformer struct {
 
 func NewTransformer(
 	transformFunction transform.TransformationApplyFunction,
+	decompressionCfg decompression.Config,
 	input <-chan *models.Message,
 	output chan<- *models.TransformationResult,
 	observer *observer.Observer,
 	workerPool int) *Transformer {
 	return &Transformer{
 		transformFunction: transformFunction,
+		decompressionCfg:  decompressionCfg,
 		input:             input,
 		output:            output,
 		observer:          observer,
@@ -34,7 +40,6 @@ func NewTransformer(
 }
 
 func (t *Transformer) Start() {
-	// Close output channel when all workers are done
 	defer close(t.output)
 
 	var numberOfWorkers int
@@ -50,22 +55,41 @@ func (t *Transformer) Start() {
 
 	var wg sync.WaitGroup
 	for range numberOfWorkers {
-		// Spawn goroutine per worker, not per task/message.
 		wg.Go(func() {
-			// Consume from input. This is populated by source independently!
-			// Input channel is a way for transformer worker to backpressure/throttle source.
-			for msg := range t.input {
-				// Do some work...
-				transformed := t.transformFunction(msg)
-
-				// Send to output channel. This output channel is then later consumed by targets
-				// Output channel is a way for targets to backpressure/throttle transformer workers
-				t.output <- transformed
+			for parent := range t.input {
+				t.processMessage(parent)
 			}
 		})
 	}
 
-	// Wait for all workers to finish processing
-	// Each worker finishes when input channel is closed by a source
 	wg.Wait()
+}
+
+// processMessage decompresses parent into N child records, applies the
+// transform function to each, and emits results. Bad records from
+// decompression are emitted as Invalid TransformationResults — the router
+// already handles routing those to the failure target.
+func (t *Transformer) processMessage(parent *models.Message) {
+	fanout.Run(parent, func(createChild fanout.CreateChild) {
+
+		// The range loop blocks until the input is fully processed. Channel
+		// sends inside the loop body naturally backpressure the reader.
+		for res := range decompression.Decompress(t.decompressionCfg, parent.Data) {
+			switch res.Kind {
+			case decompression.ResultRecord:
+				child := createChild(res.Record.Data)
+				t.output <- t.transformFunction(child)
+
+			case decompression.ResultBad:
+				encoded := []byte(base64.StdEncoding.EncodeToString(parent.Data))
+				msg := createChild(encoded)
+				msg.SetError(&models.DecompressionError{
+					ErrorCode:   res.Bad.Kind.String(),
+					SafeMessage: res.Bad.Message,
+					Err:         res.Bad.Err,
+				})
+				t.output <- models.NewTransformationResult(nil, nil, msg)
+			}
+		}
+	})
 }

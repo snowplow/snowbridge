@@ -62,9 +62,6 @@ func DefaultConfiguration() Configuration {
 
 // BuildFromConfig creates an HTTP source from decoded configuration
 func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
-	// Ensures as even as possible distribution of UUIDs
-	uuid.EnableRandPool()
-
 	return &httpSourceDriver{
 		requestBatchLimit: cfg.RequestBatchLimit,
 		url:               cfg.URL,

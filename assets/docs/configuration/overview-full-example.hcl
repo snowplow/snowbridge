@@ -19,6 +19,13 @@ source {
   }
 }
 
+decompression {
+  # Upper bound, in bytes, on the size of a single decompressed record. Records
+  # larger than this are routed to the failure target without being allocated,
+  # protecting against memory exhaustion from malformed or hostile input. (default: 10000000)
+  max_bytes_single_payload = 5000000
+}
+
 transform {
   use "spEnrichedFilter" {
     # keep only page views

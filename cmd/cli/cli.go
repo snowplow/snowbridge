@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	// pprof imported for the side effect of registering its HTTP handlers
@@ -34,6 +35,8 @@ import (
 
 // RunApp runs application
 func RunApp(cfg *config.Config, supportedTransformations []config.ConfigurationPair) error {
+	// Ensures as even as possible distribution of UUIDs
+	uuid.EnableRandPool()
 
 	// Create channels
 	invalidChannel := make(chan *invalidMessages)

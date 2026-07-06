@@ -18,6 +18,7 @@ import (
 
 	"github.com/snowplow/snowbridge/v5/pkg/models"
 	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	"github.com/snowplow/snowbridge/v5/pkg/transform/engine"
 	sp_enriched "github.com/snowplow/snowbridge/v5/pkg/transform/sp_enriched"
 )
 
@@ -134,6 +135,32 @@ func TestNewTransformation_Multiple(t *testing.T) {
 	assert.Equal([]byte("not\ta\tsnowplow\tevent"), result.Invalid.Data)
 	assert.Equal("some-key4", result.Invalid.PartitionKey)
 	assert.Equal([]byte("not\ta\tsnowplow\tevent"), result.Invalid.OriginalData)
+}
+
+func TestNewTransformation_JSBuiltinError_MarksMessageInvalid(t *testing.T) {
+	assert := assert.New(t)
+
+	src := `
+function main(x) {
+   x.Data = parseTimestamp("not-a-date").toISOString();
+   return x;
+}
+`
+	jsEngine, err := engine.NewJSEngine(&engine.JSEngineConfig{RunTimeout: 5}, src)
+	assert.NoError(err)
+	assert.NotNil(jsEngine)
+
+	transformation := transform.NewTransformation(jsEngine.MakeFunction("main"))
+
+	msg := &models.Message{Data: []byte(`{}`), PartitionKey: "some-key"}
+	result := transformation(msg)
+
+	assert.Nil(result.Transformed)
+	assert.Nil(result.Filtered)
+	assert.NotNil(result.Invalid)
+	assert.NotNil(result.Invalid.GetError())
+	assert.Contains(result.Invalid.GetError().Error(), `RangeError: parseTimestamp() could not parse 'not-a-date' with layout '2006-01-02 15:04:05.999'`)
+	assert.Equal([]byte(`{}`), result.Invalid.Data)
 }
 
 func testfunc(message *models.Message, intermediateState any) (*models.Message, *models.Message, *models.Message, any) {

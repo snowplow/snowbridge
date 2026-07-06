@@ -147,8 +147,6 @@ func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
 
 // BuildWithSaramaConsumerInterface creates a new source for reading messages from Apache Kafka, allowing the user to provide a mocked client.
 func BuildWithSaramaConsumerInterface(client sarama.ConsumerGroup, s *kafkaSourceDriver) (sourceiface.Source, error) {
-	// Ensures as even as possible distribution of UUIDs
-	uuid.EnableRandPool()
 	s.client = client
 	return s, nil
 }

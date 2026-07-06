@@ -209,6 +209,14 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 			return nil, nil, message, nil
 		}
 
+		if err := vm.Set("parseTimestamp", buildParseTimestampFunction(vm)); err != nil {
+			message.SetError(&models.TransformationError{
+				SafeMessage: "error setting JavaScript function [parseTimestamp]",
+				Err:         err,
+			})
+			return nil, nil, message, nil
+		}
+
 		// running
 		res, err := fun(goja.Undefined(), vm.ToValue(input))
 		if err != nil {
@@ -276,11 +284,33 @@ func (e *JSEngine) MakeFunction(funcName string) transform.TransformationFunctio
 	}
 }
 
+type JSError string
+
+var (
+	JSErrorGenericError JSError = "Error"
+	JSErrorTypeError    JSError = "TypeError"
+	JSErrorRangeError   JSError = "RangeError"
+)
+
+// makeJsError constructs a JavaScript error object of the given errorType.
+// Falls back to TypeError if the named constructor is unavailable.
+func makeJsError(vm *goja.Runtime, errorType JSError, msg string) goja.Value {
+	ctor, ok := goja.AssertConstructor(vm.Get(string(errorType)))
+	if !ok {
+		return vm.NewTypeError(msg)
+	}
+	obj, err := ctor(nil, vm.ToValue(msg))
+	if err != nil {
+		return vm.NewTypeError(msg)
+	}
+	return obj
+}
+
 // we must be capturing the Runtime instance here, so we can handle function returns
 func buildHashFunction(vm *goja.Runtime, hashSalt string) func(call goja.FunctionCall) goja.Value {
 	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 2 {
-			return vm.ToValue("hash() function expects 2 arguments: data and hash_func_name")
+			panic(makeJsError(vm, JSErrorTypeError, "hash() function expects 2 arguments: data and hash_func_name"))
 		}
 
 		input := call.Arguments[0].String()
@@ -288,7 +318,7 @@ func buildHashFunction(vm *goja.Runtime, hashSalt string) func(call goja.Functio
 
 		result, err := utils.DoHashing(input, hashFunctionName, hashSalt)
 		if err != nil {
-			vm.ToValue("")
+			panic(makeJsError(vm, JSErrorGenericError, err.Error()))
 		}
 		return vm.ToValue(result)
 	}
@@ -297,7 +327,7 @@ func buildHashFunction(vm *goja.Runtime, hashSalt string) func(call goja.Functio
 func buildAllContextsFunction(vm *goja.Runtime) func(call goja.FunctionCall) goja.Value {
 	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 2 {
-			return vm.ToValue("allContexts() expects 2 arguments: data and contextName")
+			panic(makeJsError(vm, JSErrorTypeError, "allContexts() expects 2 arguments: data and contextName"))
 		}
 
 		contextName := call.Arguments[1].String()
@@ -349,7 +379,7 @@ func buildAllContextsFunction(vm *goja.Runtime) func(call goja.FunctionCall) goj
 func buildAllUnstructFunction(vm *goja.Runtime) func(call goja.FunctionCall) goja.Value {
 	return func(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) != 2 {
-			return vm.ToValue("allUnstruct() expects 2 arguments: data and eventName")
+			panic(makeJsError(vm, JSErrorTypeError, "allUnstruct() expects 2 arguments: data and eventName"))
 		}
 
 		eventName := call.Arguments[1].String()
@@ -372,6 +402,31 @@ func buildAllUnstructFunction(vm *goja.Runtime) func(call goja.FunctionCall) goj
 		}
 
 		return goja.Undefined()
+	}
+}
+
+func buildParseTimestampFunction(vm *goja.Runtime) func(call goja.FunctionCall) goja.Value {
+	return func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) < 1 || len(call.Arguments) > 2 {
+			panic(makeJsError(vm, JSErrorTypeError, "parseTimestamp() expects 1 or 2 arguments: timestampStr[, layout]"))
+		}
+
+		layout := "2006-01-02 15:04:05.999"
+		if len(call.Arguments) == 2 {
+			layout = call.Arguments[1].String()
+		}
+
+		input := call.Arguments[0].String()
+		t, err := time.Parse(layout, input)
+		if err != nil {
+			panic(makeJsError(vm, JSErrorRangeError, fmt.Sprintf("parseTimestamp() could not parse '%s' with layout '%s'", input, layout)))
+		}
+
+		dateObj, err := vm.New(vm.Get("Date"), vm.ToValue(t.UnixMilli()))
+		if err != nil {
+			panic(makeJsError(vm, JSErrorGenericError, fmt.Sprintf("parseTimestamp() error creating Date: %v", err)))
+		}
+		return dateObj
 	}
 }
 

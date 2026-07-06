@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/snowplow/snowbridge/v5/assets"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConfigurationOverview(t *testing.T) {
@@ -50,4 +51,20 @@ func TestConfigurationOverview(t *testing.T) {
 
 	// Test that webhook monitoring (heartbeat & alert) compiles
 	testWebhookConfig(t, hclFilePath, false)
+
+	// Test that decompression compiles and covers all fields
+	testDecompressionConfig(t, hclFilePath)
+}
+
+func testDecompressionConfig(t *testing.T, configpath string) {
+	assert := assert.New(t)
+
+	c := getConfigFromFilepath(t, configpath)
+
+	decompressionConfig := c.Data.Decompression
+
+	assert.NotNil(decompressionConfig)
+	assert.Equal(5000000, decompressionConfig.MaxBytesSinglePayload)
+
+	checkComponentForZeros(t, decompressionConfig)
 }

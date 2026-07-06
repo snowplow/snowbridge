@@ -732,6 +732,29 @@ function main(x) {
 			Error:    nil,
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
 		},
+		{
+			Src: `
+function main(x) {
+   x.Data = hash(x.Data);
+   return x;
+}
+`,
+			Scenario: "hash - wrong argument count throws TypeError",
+			Input: &models.Message{
+				Data:         []byte("some-data"),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte("some-data"),
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf(`TypeError: hash() function expects 2 arguments: data and hash_func_name`),
+		},
 		// allContexts tests
 		{
 			Src: `
@@ -850,6 +873,29 @@ function main(x) {
 			},
 			Error: nil,
 		},
+		{
+			Src: `
+function main(x) {
+   x.Data = allContexts(x.Data);
+   return x;
+}
+`,
+			Scenario: "allContexts - wrong argument count throws TypeError",
+			Input: &models.Message{
+				Data:         []byte(`{}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{}`),
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf(`TypeError: allContexts() expects 2 arguments: data and contextName`),
+		},
 		// allUnstruct tests
 		{
 			Src: `
@@ -933,6 +979,158 @@ function main(x) {
 				FilterOut:    false,
 				PartitionKey: "",
 				Data:         "correct",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   x.Data = allUnstruct(x.Data);
+   return x;
+}
+`,
+			Scenario: "allUnstruct - wrong argument count throws TypeError",
+			Input: &models.Message{
+				Data:         []byte(`{}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{}`),
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf(`TypeError: allUnstruct() expects 2 arguments: data and eventName`),
+		},
+		// parseTimestamp tests
+		{
+			Src: `
+function main(x) {
+   x.Data = parseTimestamp("2019-05-10 14:40:35.972").toISOString();
+   return x;
+}
+`,
+			Scenario: "parseTimestamp - default Snowplow space-separated layout returns correct Date",
+			Input: &models.Message{
+				Data:         []byte(`{}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("2019-05-10T14:40:35.972Z"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "2019-05-10T14:40:35.972Z",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   x.Data = parseTimestamp("2019-05-10T14:40:35.972Z", "2006-01-02T15:04:05.999Z").toISOString();
+   return x;
+}
+`,
+			Scenario: "parseTimestamp - explicit ISO 8601 layout returns correct Date",
+			Input: &models.Message{
+				Data:         []byte(`{}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("2019-05-10T14:40:35.972Z"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "2019-05-10T14:40:35.972Z",
+			},
+			Error: nil,
+		},
+		{
+			Src: `
+function main(x) {
+   x.Data = parseTimestamp("not-a-date");
+   return x;
+}
+`,
+			Scenario: "parseTimestamp - unparseable string throws RangeError",
+			Input: &models.Message{
+				Data:         []byte(`{}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{}`),
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf(`RangeError: parseTimestamp() could not parse 'not-a-date' with layout '2006-01-02 15:04:05.999'`),
+		},
+		{
+			Src: `
+function main(x) {
+   x.Data = parseTimestamp();
+   return x;
+}
+`,
+			Scenario: "parseTimestamp - wrong argument count throws TypeError",
+			Input: &models.Message{
+				Data:         []byte(`{}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success":  nil,
+				"filtered": nil,
+				"failed": {
+					Data:         []byte(`{}`),
+					PartitionKey: "some-test-key",
+				},
+			},
+			ExpInterState: nil,
+			Error:         fmt.Errorf(`TypeError: parseTimestamp() expects 1 or 2 arguments: timestampStr[, layout]`),
+		},
+		{
+			Src: `
+function main(x) {
+   // +02:00 offset — same instant as 14:40:35.972Z; toISOString must return UTC
+   x.Data = parseTimestamp("2019-05-10T16:40:35.972+02:00", "2006-01-02T15:04:05.999Z07:00").toISOString();
+   return x;
+}
+`,
+			Scenario: "parseTimestamp - non-UTC timezone offset is normalised to UTC",
+			Input: &models.Message{
+				Data:         []byte(`{}`),
+				PartitionKey: "some-test-key",
+			},
+			Expected: map[string]*models.Message{
+				"success": {
+					Data:         []byte("2019-05-10T14:40:35.972Z"),
+					PartitionKey: "some-test-key",
+				},
+				"filtered": nil,
+				"failed":   nil,
+			},
+			ExpInterState: &engineProtocol{
+				FilterOut:    false,
+				PartitionKey: "",
+				Data:         "2019-05-10T14:40:35.972Z",
 			},
 			Error: nil,
 		},

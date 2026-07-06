@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v5/pkg/decompression"
 	"github.com/snowplow/snowbridge/v5/pkg/models"
 	"github.com/snowplow/snowbridge/v5/pkg/observer"
 	"github.com/snowplow/snowbridge/v5/pkg/transform/engine"
@@ -102,9 +103,15 @@ func GetTransformer(
 		workerPool = c.Data.Transform.WorkerPool
 	}
 
+	dc := c.Data.Decompression
+	if dc == nil || dc.MaxBytesSinglePayload <= 0 {
+		return nil, nil, fmt.Errorf("decompression.max_bytes_single_payload must be positive")
+	}
+	decompressionCfg := decompression.Config{MaxBytesSinglePayload: dc.MaxBytesSinglePayload}
+
 	// The transformer is the sole producer to the output channel, so ownership clearly lies here.
 	output := make(chan *models.TransformationResult)
 
 	// Create and return the transformer and its output channel
-	return transformer.NewTransformer(transformFunc, input, output, obs, workerPool), output, nil
+	return transformer.NewTransformer(transformFunc, decompressionCfg, input, output, obs, workerPool), output, nil
 }

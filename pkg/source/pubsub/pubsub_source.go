@@ -68,9 +68,6 @@ func DefaultConfiguration() Configuration {
 func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
 	ctx := context.Background()
 
-	// Ensures as even as possible distribution of UUIDs
-	uuid.EnableRandPool()
-
 	log := log.WithFields(log.Fields{"source": SupportedSourcePubsub, "cloud": "GCP", "project": cfg.ProjectID, "subscription": cfg.SubscriptionID})
 
 	// We use a slice to provide the grpcConnectionPool option only if it is set.

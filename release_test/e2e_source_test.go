@@ -32,6 +32,7 @@ func TestE2ESources(t *testing.T) {
 	t.Run("pubsub", testE2EPubsubSource)
 	t.Run("sqs", testE2ESQSSource)
 	t.Run("kinesis", testE2EKinesisSource)
+	t.Run("kinesis-compressed", testE2EKinesisSourceCompressed)
 	t.Run("kafka", testE2EKafkaSource)
 	t.Run("kafka-sasl", testE2EKafkaSourceSASL)
 }
@@ -191,6 +192,74 @@ func testE2EKinesisSource(t *testing.T) {
 
 			data := getDataFromStdoutResult(stdOut)
 			evaluateTestCaseString(t, data, inputFilePath, "Kinesis source "+testCase.binary)
+		})
+	}
+}
+
+func testE2EKinesisSourceCompressed(t *testing.T) {
+	testCases := []struct {
+		name       string
+		binary     string
+		appName    string
+		configFile string
+		compress   func(t testing.TB, formatVersion, payloadVersion byte, records [][]byte) []byte
+	}{
+		{name: "aws-only-zstd", binary: "-aws-only", appName: "e2eKinesisSourceCompressedZstd", configFile: "config_compressed_zstd.hcl", compress: testutil.ZstdCompressPayload},
+		{name: "aws-only-gzip", binary: "-aws-only", appName: "e2eKinesisSourceCompressedGzip", configFile: "config_compressed_gzip.hcl", compress: testutil.GzipCompressPayload},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert := assert.New(t)
+
+			ddbClient := testutil.GetAWSLocalstackDynamoDBClient()
+
+			ddbErr := testutil.CreateAWSLocalstackDynamoDBTables(ddbClient, testCase.appName)
+			if ddbErr != nil {
+				panic(ddbErr)
+			}
+			defer func() {
+				if err := testutil.DeleteAWSLocalstackDynamoDBTables(ddbClient, testCase.appName); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+
+			kinesisClient := testutil.GetAWSLocalstackKinesisClient()
+
+			kinErr := testutil.CreateAWSLocalstackKinesisStream(kinesisClient, testCase.appName, 1)
+			if kinErr != nil {
+				panic(kinErr)
+			}
+			defer func() {
+				if _, err := testutil.DeleteAWSLocalstackKinesisStream(kinesisClient, testCase.appName); err != nil {
+					logrus.Error(err.Error())
+				}
+			}()
+
+			records := make([][]byte, len(dataToSend))
+			for i, line := range dataToSend {
+				records[i] = []byte(line)
+			}
+			payload := testCase.compress(t, 1, 1, records)
+
+			if putErr := testutil.PutRawRecordIntoKinesis(kinesisClient, testCase.appName, payload); putErr != nil {
+				panic(putErr)
+			}
+
+			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "kinesis", testCase.configFile))
+			if err != nil {
+				panic(err)
+			}
+
+			// Since setup is slower for kinesis source, if this test is flaky we may need to add more time here
+			stdOut, cmdErr := runDockerCommand(5*time.Second, testCase.appName, configFilePath, testCase.binary, "--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
+			if cmdErr != nil {
+				assert.Fail(cmdErr.Error(), "Docker run returned error for Kinesis compressed source")
+			}
+
+			data := getDataFromStdoutResult(stdOut)
+
+			evaluateTestCaseString(t, data, inputFilePath, "Kinesis compressed source "+testCase.binary)
 		})
 	}
 }

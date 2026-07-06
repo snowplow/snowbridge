@@ -18,9 +18,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/snowplow/snowbridge/v5/pkg/decompression"
 	"github.com/snowplow/snowbridge/v5/pkg/models"
 	"github.com/snowplow/snowbridge/v5/pkg/observer"
 )
+
+var testDecompressionCfg = decompression.Config{MaxBytesSinglePayload: 10 * 1024 * 1024}
 
 // TestTransformer_GracefulShutdown verifies that when the input channel is closed:
 // 1. All workers finish processing their messages
@@ -42,7 +45,7 @@ func TestTransformer_GracefulShutdown(t *testing.T) {
 	obs := observer.New(nil, 10*time.Second, nil)
 
 	// Create transformer with 3 workers
-	transformer := NewTransformer(transformFunc, input, output, obs, 3)
+	transformer := NewTransformer(transformFunc, testDecompressionCfg, input, output, obs, 3)
 
 	var wg sync.WaitGroup
 	wg.Go(transformer.Start)
@@ -95,7 +98,7 @@ func TestTransformer_MultipleWorkers(t *testing.T) {
 	}
 
 	// Use multiple workers
-	transformer := NewTransformer(transformFunc, input, output, obs, 3)
+	transformer := NewTransformer(transformFunc, testDecompressionCfg, input, output, obs, 3)
 
 	var wg sync.WaitGroup
 	wg.Go(transformer.Start)

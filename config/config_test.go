@@ -45,6 +45,8 @@ func TestNewConfig_NoConfig(t *testing.T) {
 	assert.NotNil(c.Data.Transform)
 	assert.Nil(c.Data.Transform.Transformations)
 	assert.Equal(0, c.Data.Transform.WorkerPool)
+	assert.NotNil(c.Data.Decompression)
+	assert.Equal(10000000, c.Data.Decompression.MaxBytesSinglePayload)
 	assert.Equal("info", c.Data.LogLevel)
 	assert.Equal(false, c.Data.DisableTelemetry)
 	assert.Equal(false, c.Data.License.Accept)

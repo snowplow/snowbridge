@@ -172,4 +172,35 @@ func TestMessageString_EventForwardingErrors(t *testing.T) {
 		assert.Equal("safe error message", tErr.SanitisedError())
 		assert.Equal(ErrorTypeTemplating, tErr.Type())
 	}
+
+	// Assert DecompressionError works as expected
+	msg.SetError(&DecompressionError{
+		SafeMessage: "zstd: corrupt compressed payload",
+		ErrorCode:   "CorruptInput",
+	})
+
+	assert.NotNil(msg.GetError())
+	if msg.GetError() != nil {
+		assert.Equal("decompression CorruptInput: zstd: corrupt compressed payload", msg.GetError().Error())
+		tErr, _ := msg.GetError().(SanitisedErrorMetadata)
+		assert.Equal("zstd: corrupt compressed payload", tErr.SanitisedError())
+		assert.Equal(ErrorTypeDecompression, tErr.Type())
+		assert.Equal("CorruptInput", tErr.Code())
+	}
+
+	// Assert DecompressionError keeps the wrapped external error out of the sanitised message
+	msg.SetError(&DecompressionError{
+		SafeMessage: "zstd: failed to open reader",
+		Err:         errors.New("magic number mismatch"),
+		ErrorCode:   "CorruptInput",
+	})
+
+	assert.NotNil(msg.GetError())
+	if msg.GetError() != nil {
+		assert.Equal("decompression CorruptInput: zstd: failed to open reader: magic number mismatch", msg.GetError().Error())
+		tErr, _ := msg.GetError().(SanitisedErrorMetadata)
+		assert.Equal("zstd: failed to open reader", tErr.SanitisedError())
+		assert.Equal(ErrorTypeDecompression, tErr.Type())
+		assert.Equal("CorruptInput", tErr.Code())
+	}
 }

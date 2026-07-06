@@ -30,6 +30,7 @@ const (
 	ErrorTypeAPI            = "api"
 	ErrorTypeTransformation = "transformation"
 	ErrorTypeTemplating     = "template"
+	ErrorTypeDecompression  = "decompression"
 )
 
 type TransformationErrorCode string
@@ -96,6 +97,32 @@ func (e *ApiError) SanitisedError() string {
 
 func (e *ApiError) Type() string {
 	return ErrorTypeAPI
+}
+
+type DecompressionError struct {
+	SafeMessage string
+	Err         error
+	ErrorCode   string
+}
+
+func (e *DecompressionError) Error() string {
+	prefix := fmt.Sprintf("decompression %s: %s", e.ErrorCode, e.SafeMessage)
+	if e.Err != nil {
+		return errors.Wrap(e.Err, prefix).Error()
+	}
+	return prefix
+}
+
+func (e *DecompressionError) Code() string {
+	return e.ErrorCode
+}
+
+func (e *DecompressionError) SanitisedError() string {
+	return e.SafeMessage
+}
+
+func (e *DecompressionError) Type() string {
+	return ErrorTypeDecompression
 }
 
 type TemplatingError struct {

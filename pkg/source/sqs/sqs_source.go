@@ -70,9 +70,6 @@ func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
 		return nil, errors.Wrap(err, "Failed to get SQS queue URL")
 	}
 
-	// Ensures as even as possible distribution of UUIDs
-	uuid.EnableRandPool()
-
 	driver := &sqsSourceDriver{
 		client:   sqsClient,
 		queueURL: *urlResult.QueueUrl,
