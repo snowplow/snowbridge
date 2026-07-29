@@ -450,6 +450,78 @@ func TestRoute_TransformedMessageWithNilData(t *testing.T) {
 	})
 }
 
+func TestRoute_FilterTargetTickerFlush(t *testing.T) {
+	// Regression test for a low-volume filter customer: filtered messages must be
+	// flushed (and therefore acked) on a time basis via the filter target's OWN
+	// ticker, without the filter batch ever reaching its size limit.
+	batchingConfig := targetiface.BatchingConfig{
+		MaxBatchMessages:  100, // Large, so the filter batch never fills by size in this test
+		MaxBatchBytes:     1000000,
+		MaxMessageBytes:   1000000,
+		FlushPeriodMillis: 100, // 100ms flush period
+	}
+
+	// Deliberately leave the GOOD target's ticker stopped so that any flush of the
+	// filter buffer can only be attributed to the filter target's own ticker firing,
+	// not to the good target's ticker.
+	target, targetDriver := createMockTargetWithConfig(10, batchingConfig)
+	defer target.Ticker.Stop()
+
+	filterTarget, filterDriver := createMockTargetWithConfig(10, batchingConfig)
+	defer filterTarget.Ticker.Stop()
+	// Mock tickers start stopped with a 1h first tick; enable the filter ticker with
+	// its real flush period. Not needed in live code, which starts the ticker already.
+	filterTarget.Ticker.Reset(filterTarget.TickerPeriod)
+
+	transformationOutput := make(chan *models.TransformationResult, 10)
+	invalidChannel := make(chan *invalidMessages, 10)
+	mockCancel, _ := createMockCancel()
+
+	router := &Router{
+		transformationOutput: transformationOutput,
+		invalidChannel:       invalidChannel,
+		cancel:               mockCancel,
+		Target:               target,
+		FilterTarget:         filterTarget,
+		retryConfig: &config.RetryConfig{
+			Setup:     &config.SetupRetryConfig{Delay: 100, MaxAttempts: 1},
+			Transient: &config.TransientRetryConfig{Delay: 100, MaxAttempts: 1},
+			Throttle:  &config.ThrottleRetryConfig{Delay: 100, MaxAttempts: 1},
+		},
+		metrics: createMockMetrics(),
+	}
+
+	go router.Route()
+
+	// Send a small number of filtered messages, fewer than MaxBatchMessages, so the
+	// batch can only ever be flushed by the ticker.
+	filtered1 := &models.Message{Data: []byte("filtered1"), PartitionKey: "success"}
+	filtered2 := &models.Message{Data: []byte("filtered2"), PartitionKey: "success"}
+	acked, _, _ := addAckNackTracking([]*models.Message{filtered1, filtered2})
+
+	transformationOutput <- models.NewTransformationResult(nil, filtered1, nil)
+	transformationOutput <- models.NewTransformationResult(nil, filtered2, nil)
+
+	// Wait longer than the flush period for the filter ticker to fire and drain the
+	// partial batch.
+	time.Sleep(150 * time.Millisecond)
+	router.FilterTarget.WaitGroup.Wait()
+
+	// The filter buffer should have been flushed by its own ticker even though the
+	// batch never reached MaxBatchMessages.
+	filterBatches := filterDriver.GetReceivedBatches()
+	if !assert.Equal(t, 1, len(filterBatches), "Filter target should receive 1 batch flushed by its own ticker") {
+		t.FailNow()
+	}
+	assert.Equal(t, 2, len(filterBatches[0]), "Flushed filter batch should contain both filtered messages")
+	assert.True(t, acked["filtered1"], "filtered1 should be acked once its batch is flushed")
+	assert.True(t, acked["filtered2"], "filtered2 should be acked once its batch is flushed")
+
+	// The good target's ticker was never started and no good messages were sent, so it
+	// must not have received anything - proving the flush came from the filter ticker.
+	assert.Equal(t, 0, len(targetDriver.GetReceivedBatches()), "Good target should have received no batches")
+}
+
 func TestRoute_TickerFlush(t *testing.T) {
 	// Create mock targets with small batch size and short flush period
 	batchingConfig := targetiface.BatchingConfig{

@@ -98,11 +98,13 @@ func (r *Router) Route() {
 
 	for {
 		select {
-		// Flush on ticker
-		// For simplicity, we only care about the good target's ticker
-		// Filtered gets flushed whenever that happens
 		case <-r.Target.Ticker.C:
 			r.flushGoodBuffer(r.Target, r.metrics.TargetWrite)
+
+		// The filter target needs its own ticker consumed: it cannot rely on the good
+		// target's ticker, which resets on every send and so rarely fires under steady
+		// good traffic, leaving low-volume filtered messages un-flushed (and un-acked).
+		case <-r.FilterTarget.Ticker.C:
 			r.flushGoodBuffer(r.FilterTarget, r.metrics.TargetWriteFiltered)
 
 		case messages, ok := <-r.transformationOutput:
