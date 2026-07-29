@@ -16,17 +16,17 @@ import (
 	"sync"
 	"time"
 
-	config "github.com/snowplow/snowbridge/v5/config"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/target/eventhub"
-	"github.com/snowplow/snowbridge/v5/pkg/target/http"
-	"github.com/snowplow/snowbridge/v5/pkg/target/kafka"
-	"github.com/snowplow/snowbridge/v5/pkg/target/kinesis"
-	"github.com/snowplow/snowbridge/v5/pkg/target/pubsub"
-	"github.com/snowplow/snowbridge/v5/pkg/target/silent"
-	"github.com/snowplow/snowbridge/v5/pkg/target/sqs"
-	"github.com/snowplow/snowbridge/v5/pkg/target/stdout"
-	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
+	config "github.com/snowplow/snowbridge/v6/config"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/target/eventhub"
+	"github.com/snowplow/snowbridge/v6/pkg/target/http"
+	"github.com/snowplow/snowbridge/v6/pkg/target/kafka"
+	"github.com/snowplow/snowbridge/v6/pkg/target/kinesis"
+	"github.com/snowplow/snowbridge/v6/pkg/target/pubsub"
+	"github.com/snowplow/snowbridge/v6/pkg/target/silent"
+	"github.com/snowplow/snowbridge/v6/pkg/target/sqs"
+	"github.com/snowplow/snowbridge/v6/pkg/target/stdout"
+	"github.com/snowplow/snowbridge/v6/pkg/target/targetiface"
 )
 
 // GetTarget creates and returns the target that is configured.

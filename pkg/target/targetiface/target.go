@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
 )
 
 type CurrentBatch struct {

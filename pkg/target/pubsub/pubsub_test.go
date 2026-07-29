@@ -26,9 +26,9 @@ import (
 	pubsubV1 "cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"google.golang.org/grpc/codes"
 
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 )
 
 func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {

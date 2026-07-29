@@ -28,11 +28,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/v5/pkg/common"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v6/pkg/common"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/target/targetiface"
 
 	"golang.org/x/oauth2"
+	oAuthJwt "golang.org/x/oauth2/jwt"
 )
 
 const SupportedTargetHTTP = "http"
@@ -41,12 +42,23 @@ const SupportedTargetHTTP = "http"
 type HTTPTargetConfig struct {
 	BatchingConfig *targetiface.BatchingConfig `hcl:"batching,block"`
 
-	URL                    string            `hcl:"url"`
-	RequestTimeoutInMillis int               `hcl:"request_timeout_in_millis,optional"`
-	ContentType            string            `hcl:"content_type,optional"`
-	Headers                map[string]string `hcl:"headers,optional"`
-	BasicAuthUsername      string            `hcl:"basic_auth_username,optional"`
-	BasicAuthPassword      string            `hcl:"basic_auth_password,optional"`
+	URL                    string `hcl:"url"`
+	RequestTimeoutInMillis int    `hcl:"request_timeout_in_millis,optional"`
+
+	// HTTP/2 idle health-check. When the target negotiates HTTP/2, SendPingTimeout
+	// is the idle time after which a PING is sent, and PingTimeout is how long to
+	// wait for the PING response before closing the connection. This evicts a
+	// silently-dropped connection within seconds instead of reusing it until the
+	// kernel TCP timeout (~15 min). Set http2_send_ping_timeout_in_millis to 0 to
+	// disable the health-check; a 0 http2_ping_timeout_in_millis does not disable it
+	// (Go falls back to a 15s response timeout).
+	HTTP2SendPingTimeoutInMillis int `hcl:"http2_send_ping_timeout_in_millis,optional"`
+	HTTP2PingTimeoutInMillis     int `hcl:"http2_ping_timeout_in_millis,optional"`
+
+	ContentType       string            `hcl:"content_type,optional"`
+	Headers           map[string]string `hcl:"headers,optional"`
+	BasicAuthUsername string            `hcl:"basic_auth_username,optional"`
+	BasicAuthPassword string            `hcl:"basic_auth_password,optional"`
 
 	EnableTLS      bool   `hcl:"enable_tls,optional"`
 	CertFile       string `hcl:"cert_file,optional"`
@@ -55,10 +67,8 @@ type HTTPTargetConfig struct {
 	SkipVerifyTLS  bool   `hcl:"skip_verify_tls,optional"` // false
 	DynamicHeaders bool   `hcl:"dynamic_headers,optional"`
 
-	OAuth2ClientID     string `hcl:"oauth2_client_id,optional"`
-	OAuth2ClientSecret string `hcl:"oauth2_client_secret,optional"`
-	OAuth2RefreshToken string `hcl:"oauth2_refresh_token,optional"`
-	OAuth2TokenURL     string `hcl:"oauth2_token_url,optional"`
+	OAuthClient *OAuthClientConfig `hcl:"oauth_client,block"`
+	OAuthJWT    *OAuthJWTConfig    `hcl:"oauth_jwt,block"`
 
 	TemplateFile     string         `hcl:"template_file,optional"`
 	ResponseRules    *ResponseRules `hcl:"response_rules,block"`
@@ -66,6 +76,25 @@ type HTTPTargetConfig struct {
 
 	IncludeTimingHeaders       bool `hcl:"include_timing_headers,optional"`
 	RejectionThresholdInMillis int  `hcl:"rejection_threshold_in_millis,optional"`
+}
+
+// OAuthClientConfig holds OAuth2 client credentials flow configuration.
+type OAuthClientConfig struct {
+	ClientID     string `hcl:"client_id"`
+	ClientSecret string `hcl:"client_secret,optional"`
+	RefreshToken string `hcl:"refresh_token,optional"`
+	TokenURL     string `hcl:"token_url"`
+}
+
+// OAuthJWTConfig holds JWT bearer auth (RFC 7523) configuration.
+type OAuthJWTConfig struct {
+	Key      string   `hcl:"key,optional"`
+	KeyFile  string   `hcl:"key_file,optional"`
+	Issuer   string   `hcl:"issuer"`
+	Subject  string   `hcl:"subject,optional"`
+	Audience string   `hcl:"audience,optional"`
+	Scopes   []string `hcl:"scopes,optional"`
+	TokenURL string   `hcl:"token_url"`
 }
 
 // ResponseRules is part of HTTP target configuration. It provides rules how HTTP responses should be handled. Response can be categorized as 'invalid' (bad data), as setup error or (if none of the rules matches) as a transient error.
@@ -198,23 +227,62 @@ func ParseRequestTemplate(templateContent string) (*template.Template, error) {
 	return parsedTemplate, nil
 }
 
-func createHTTPClient(oAuth2ClientID string, oAuth2ClientSecret string, oAuth2TokenURL string, oAuth2RefreshToken string, transport *http.Transport) *http.Client {
-	if oAuth2ClientID != "" {
+func createHTTPClient(cfg *HTTPTargetConfig, transport *http.Transport) (*http.Client, error) {
+	if cfg.OAuthClient != nil && cfg.OAuthJWT != nil {
+		return nil, errors.New("target error: oauth_client and oauth_jwt are mutually exclusive; use only one auth method")
+	}
+
+	// Inject our transport into the context so OAuth2 uses it as the base for HTTP client
+	baseClient := &http.Client{Transport: transport}
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, baseClient)
+
+	if cfg.OAuthClient != nil {
 		oauth2Config := oauth2.Config{
-			ClientID:     oAuth2ClientID,
-			ClientSecret: oAuth2ClientSecret,
+			ClientID:     cfg.OAuthClient.ClientID,
+			ClientSecret: cfg.OAuthClient.ClientSecret,
 			Endpoint: oauth2.Endpoint{
-				TokenURL: oAuth2TokenURL,
+				TokenURL: cfg.OAuthClient.TokenURL,
 			},
 		}
-
-		token := &oauth2.Token{RefreshToken: oAuth2RefreshToken}
-		return oauth2Config.Client(context.Background(), token)
+		token := &oauth2.Token{RefreshToken: cfg.OAuthClient.RefreshToken}
+		return oauth2Config.Client(ctx, token), nil
 	}
 
-	return &http.Client{
-		Transport: transport,
+	if cfg.OAuthJWT != nil {
+		if cfg.OAuthJWT.Key != "" && cfg.OAuthJWT.KeyFile != "" {
+			return nil, errors.New("target error: key and key_file are mutually exclusive; provide only one")
+		}
+
+		var keyData []byte
+		if cfg.OAuthJWT.Key != "" {
+			keyData = []byte(cfg.OAuthJWT.Key)
+		} else {
+			var err error
+			keyData, err = os.ReadFile(cfg.OAuthJWT.KeyFile)
+			if err != nil {
+				return nil, fmt.Errorf("target error: failed to read key_file: %w", err)
+			}
+		}
+
+		jwtCfg := &oAuthJwt.Config{
+			Email:      cfg.OAuthJWT.Issuer,
+			PrivateKey: keyData,
+			Scopes:     cfg.OAuthJWT.Scopes,
+			TokenURL:   cfg.OAuthJWT.TokenURL,
+		}
+
+		if cfg.OAuthJWT.Audience != "" {
+			jwtCfg.Audience = cfg.OAuthJWT.Audience
+		}
+
+		if cfg.OAuthJWT.Subject != "" {
+			jwtCfg.Subject = cfg.OAuthJWT.Subject
+		}
+
+		return oauth2.NewClient(ctx, jwtCfg.TokenSource(ctx)), nil
 	}
+
+	return baseClient, nil
 }
 
 // GetDefaultConfiguration returns the default configuration for the HTTP target
@@ -227,8 +295,10 @@ func (ht *HTTPTargetDriver) GetDefaultConfiguration() any {
 			MaxConcurrentBatches: 5,
 			FlushPeriodMillis:    200,
 		},
-		RequestTimeoutInMillis: 5000,
-		EnableTLS:              false,
+		RequestTimeoutInMillis:       5000,
+		HTTP2SendPingTimeoutInMillis: 5000,
+		HTTP2PingTimeoutInMillis:     3000,
+		EnableTLS:                    false,
 
 		ContentType: "application/json",
 		ResponseRules: &ResponseRules{
@@ -269,6 +339,15 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = transport.MaxIdleConns
 
+	// Enable the HTTP/2 idle PING health-check (off by default in Go's transport)
+	// so a silently-dropped connection is evicted within seconds rather than reused
+	// until the kernel TCP timeout (~15 min). Only takes effect when HTTP/2 is
+	// negotiated; ignored for HTTP/1.1.
+	transport.HTTP2 = &http.HTTP2Config{
+		SendPingTimeout: time.Duration(c.HTTP2SendPingTimeoutInMillis) * time.Millisecond,
+		PingTimeout:     time.Duration(c.HTTP2PingTimeoutInMillis) * time.Millisecond,
+	}
+
 	tlsConfig, err2 := common.CreateTLSConfiguration(c.CertFile, c.KeyFile, c.CaFile, c.SkipVerifyTLS)
 	if err2 != nil {
 		return err2
@@ -278,7 +357,10 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 		transport.TLSClientConfig = tlsConfig
 	}
 
-	client := createHTTPClient(c.OAuth2ClientID, c.OAuth2ClientSecret, c.OAuth2TokenURL, c.OAuth2RefreshToken, transport)
+	client, err := createHTTPClient(c, transport)
+	if err != nil {
+		return err
+	}
 	client.Timeout = time.Duration(c.RequestTimeoutInMillis) * time.Millisecond
 
 	var responseRules2XX *ResponseRules

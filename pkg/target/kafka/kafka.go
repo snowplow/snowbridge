@@ -20,34 +20,36 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v5/pkg/common"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v6/pkg/common"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/target/targetiface"
 )
 
 const SupportedTargetKafka = "kafka"
 
 // KafkaConfig contains configurable options for the kafka target
 type KafkaConfig struct {
-	BatchingConfig *targetiface.BatchingConfig `hcl:"batching,block"`
-	Brokers        string                      `hcl:"brokers"`
-	TopicName      string                      `hcl:"topic_name"`
-	TargetVersion  string                      `hcl:"target_version,optional"`
-	MaxRetries     int                         `hcl:"max_retries,optional"`
-	Compress       bool                        `hcl:"compress,optional"`
-	WaitForAll     bool                        `hcl:"wait_for_all,optional"`
-	Idempotent     bool                        `hcl:"idempotent,optional"`
-	EnableSASL     bool                        `hcl:"enable_sasl,optional"`
-	SASLUsername   string                      `hcl:"sasl_username,optional"`
-	SASLPassword   string                      `hcl:"sasl_password,optional"`
-	SASLAlgorithm  string                      `hcl:"sasl_algorithm,optional"`
-	SASLVersion    int16                       `hcl:"sasl_version,optional"`
-	EnableTLS      bool                        `hcl:"enable_tls,optional"`
-	CertFile       string                      `hcl:"cert_file,optional"`
-	KeyFile        string                      `hcl:"key_file,optional"`
-	CaFile         string                      `hcl:"ca_file,optional"`
-	SkipVerifyTLS  bool                        `hcl:"skip_verify_tls,optional"`
-	ForceSync      bool                        `hcl:"force_sync_producer,optional"`
+	BatchingConfig                 *targetiface.BatchingConfig `hcl:"batching,block"`
+	Brokers                        string                      `hcl:"brokers"`
+	TopicName                      string                      `hcl:"topic_name"`
+	TargetVersion                  string                      `hcl:"target_version,optional"`
+	MaxRetries                     int                         `hcl:"max_retries,optional"`
+	Compress                       bool                        `hcl:"compress,optional"`
+	WaitForAll                     bool                        `hcl:"wait_for_all,optional"`
+	Idempotent                     bool                        `hcl:"idempotent,optional"`
+	EnableSASL                     bool                        `hcl:"enable_sasl,optional"`
+	SASLUsername                   string                      `hcl:"sasl_username,optional"`
+	SASLPassword                   string                      `hcl:"sasl_password,optional"`
+	SASLAlgorithm                  string                      `hcl:"sasl_algorithm,optional"`
+	SASLVersion                    int16                       `hcl:"sasl_version,optional"`
+	EnableTLS                      bool                        `hcl:"enable_tls,optional"`
+	CertFile                       string                      `hcl:"cert_file,optional"`
+	KeyFile                        string                      `hcl:"key_file,optional"`
+	CaFile                         string                      `hcl:"ca_file,optional"`
+	SkipVerifyTLS                  bool                        `hcl:"skip_verify_tls,optional"`
+	ForceSync                      bool                        `hcl:"force_sync_producer,optional"`
+	MetadataRefreshFrequencyMillis int                         `hcl:"metadata_refresh_frequency_millis,optional"`
+	ProducerRetryBackoffMillis     int                         `hcl:"producer_retry_backoff_millis,optional"`
 }
 
 // KafkaTargetDriver holds a new client for writing messages to Apache Kafka
@@ -78,9 +80,11 @@ func (kt *KafkaTargetDriver) GetDefaultConfiguration() any {
 			MaxConcurrentBatches: 5,
 			FlushPeriodMillis:    200,
 		},
-		MaxRetries:    5,
-		SASLAlgorithm: "sha512",
-		EnableTLS:     false,
+		MaxRetries:                     5,
+		SASLAlgorithm:                  "sha512",
+		EnableTLS:                      false,
+		MetadataRefreshFrequencyMillis: 600000,
+		ProducerRetryBackoffMillis:     100,
 	}
 }
 
@@ -114,6 +118,8 @@ func (kt *KafkaTargetDriver) InitFromConfig(c any) error {
 	saramaConfig.ClientID = "Snowbridge"
 	saramaConfig.Version = kafkaVersion
 	saramaConfig.Producer.Retry.Max = cfg.MaxRetries
+	saramaConfig.Producer.Retry.Backoff = time.Duration(cfg.ProducerRetryBackoffMillis) * time.Millisecond
+	saramaConfig.Metadata.RefreshFrequency = time.Duration(cfg.MetadataRefreshFrequencyMillis) * time.Millisecond
 	saramaConfig.Producer.MaxMessageBytes = kt.BatchingConfig.MaxMessageBytes
 
 	// Must be enabled for the SyncProducer

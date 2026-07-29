@@ -17,9 +17,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v5/config"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v6/config"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/target/targetiface"
 )
 
 func TestRoute_MixedMessages(t *testing.T) {

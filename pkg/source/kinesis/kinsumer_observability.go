@@ -1,9 +1,10 @@
 package kinesissource
 
 import (
-	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v5/pkg/observer"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/snowplow/snowbridge/v6/pkg/observer"
 )
 
 type kinsumerLogrus struct{}

@@ -14,20 +14,20 @@ package transformconfig
 import (
 	"fmt"
 
-	"github.com/snowplow/snowbridge/v5/config"
-	"github.com/snowplow/snowbridge/v5/pkg/decompression"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/observer"
-	"github.com/snowplow/snowbridge/v5/pkg/transform/engine"
-	"github.com/snowplow/snowbridge/v5/pkg/transform/filter"
+	"github.com/snowplow/snowbridge/v6/config"
+	"github.com/snowplow/snowbridge/v6/pkg/decompression"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/observer"
+	"github.com/snowplow/snowbridge/v6/pkg/transform/engine"
+	"github.com/snowplow/snowbridge/v6/pkg/transform/filter"
 
-	"github.com/snowplow/snowbridge/v5/pkg/transform"
-	base64 "github.com/snowplow/snowbridge/v5/pkg/transform/base64"
-	jq "github.com/snowplow/snowbridge/v5/pkg/transform/jq"
-	spcollector "github.com/snowplow/snowbridge/v5/pkg/transform/sp_collector"
-	spenriched "github.com/snowplow/snowbridge/v5/pkg/transform/sp_enriched"
-	spgmtss "github.com/snowplow/snowbridge/v5/pkg/transform/sp_gtmss"
-	transformer "github.com/snowplow/snowbridge/v5/pkg/transform/transformer"
+	"github.com/snowplow/snowbridge/v6/pkg/transform"
+	base64 "github.com/snowplow/snowbridge/v6/pkg/transform/base64"
+	jq "github.com/snowplow/snowbridge/v6/pkg/transform/jq"
+	spcollector "github.com/snowplow/snowbridge/v6/pkg/transform/sp_collector"
+	spenriched "github.com/snowplow/snowbridge/v6/pkg/transform/sp_enriched"
+	spgmtss "github.com/snowplow/snowbridge/v6/pkg/transform/sp_gtmss"
+	transformer "github.com/snowplow/snowbridge/v6/pkg/transform/transformer"
 )
 
 // SupportedTransformations is a ConfigurationPair slice containing all the officially supported transformations.

@@ -23,9 +23,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v5/pkg/common"
-	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/common"
+	"github.com/snowplow/snowbridge/v6/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 )
 
 // newKinesisTargetWithInterfaces creates a Kinesis target with mocked interfaces for testing

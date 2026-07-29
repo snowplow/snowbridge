@@ -1,3 +1,15 @@
+Version 6.0.0 (2026-07-15)
+--------------------------
+feat: Expose new config items for Kafka target (#123)
+Add HTTP/2 idle health-check to the HTTP target (#124)
+Fix monitoring client timeouts by forcing HTTP/1.1 fresh connections (#121)
+Make monitoring HTTP client request timeout configurable (#120)
+fix: flaky PubSub target test (#119)
+Add Snowman tests and rollout to CD pipeline (#117)
+feat: JWT OAuth support (#116)
+fix: hash to return digest instead of PBKDF2 hash (#115)
+feat: move away from alpine base image onto distroless (#114)
+
 Version 5.2.0 (2026-06-16)
 --------------------------
 Update dependencies

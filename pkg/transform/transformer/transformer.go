@@ -5,12 +5,12 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/snowplow/snowbridge/v5/pkg/decompression"
-	"github.com/snowplow/snowbridge/v5/pkg/fanout"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/observer"
+	"github.com/snowplow/snowbridge/v6/pkg/decompression"
+	"github.com/snowplow/snowbridge/v6/pkg/fanout"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/observer"
 
-	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	"github.com/snowplow/snowbridge/v6/pkg/transform"
 )
 
 type Transformer struct {

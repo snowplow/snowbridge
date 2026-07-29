@@ -1,4 +1,4 @@
-module github.com/snowplow/snowbridge/v5
+module github.com/snowplow/snowbridge/v6
 
 go 1.25.11
 
@@ -13,7 +13,7 @@ require (
 	github.com/IBM/sarama v1.50.2
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/getsentry/sentry-go v0.45.1
-	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1

@@ -17,10 +17,10 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v6/config"
 	"github.com/snowplow/snowplow-golang-analytics-sdk/analytics"
 
-	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	"github.com/snowplow/snowbridge/v6/pkg/transform"
 )
 
 // UnstructFilterConfig is a configuration object for the spEnrichedFilterUnstructEvent transformation

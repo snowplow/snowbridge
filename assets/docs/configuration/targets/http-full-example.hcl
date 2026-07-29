@@ -20,6 +20,14 @@ target {
     # Request timeout in milliseconds (default: 5000)
     request_timeout_in_millis  = 2000
 
+    # HTTP/2 idle health-check (only applies when HTTP/2 is negotiated).
+    # Send a PING after this many milliseconds with no frames received (default: 5000).
+    # Set to 0 to disable the health-check entirely.
+    http2_send_ping_timeout_in_millis = 5000
+    # Close the connection if a PING goes unanswered for this many milliseconds (default: 3000).
+    # A value of 0 does not disable it — Go falls back to a 15000ms wait.
+    http2_ping_timeout_in_millis      = 3000
+
     # Content type for POST request (default: "application/json")
     content_type               = "text/html"
 
@@ -56,17 +64,45 @@ target {
     # Events with dynamic headers will be sent individually, rather than batched.
     dynamic_headers            = true
 
-    # Optional. One of client credentials required when authorizing using OAuth2.
-    oauth2_client_id           = env.CLIENT_ID
+    # Optional. OAuth2 client credentials flow. Mutually exclusive with oauth_jwt block.
+    oauth_client {
+      # Client ID for OAuth2.
+      client_id     = env.CLIENT_ID
 
-    # Optional. One of client credentials required when authorizing using OAuth2.
-    oauth2_client_secret       = env.CLIENT_SECRET
+      # Client secret for OAuth2.
+      client_secret = env.CLIENT_SECRET
 
-    # Optional. Required when using OAuth2. Long-lived token used to generate new short-lived access token when previous one experies.
-    oauth2_refresh_token       = env.REFRESH_TOKEN
+      # Long-lived token used to obtain new short-lived access tokens.
+      refresh_token = env.REFRESH_TOKEN
 
-    # Optional. Required when using OAuth2. URL to authorization server providing access token. E.g. for Goggle API "https://oauth2.googleapis.com/token"  
-    oauth2_token_url           = "https://my.auth.server/token"
+      # URL to the authorization server providing access tokens.
+      token_url     = "https://my.auth.server/token"
+    }
+
+    # Optional. OAuth2 flow with JWT bearer. Mutually exclusive with oauth_client block.
+    # Supports RSA (PKCS#1, PKCS#8) and EC private keys in PEM format.
+    oauth_jwt {
+      # PEM-encoded private key supplied as a string. Mutually exclusive with key_file.
+      key      = "-----BEGIN RSA PRIVATE KEY-----\nmyBase64EncodedKey\n-----END RSA PRIVATE KEY-----"
+
+      # Path to PEM-encoded private key file. Mutually exclusive with key.
+      key_file = "myServiceAccount.pem"
+
+      # Issuer claim (iss) — typically a service account email or client identifier.
+      issuer   = "myservice@my-project.iam.gserviceaccount.com"
+
+      # Optional. Subject claim (sub) — used for impersonation flows.
+      subject  = "mysubject@example.com"
+
+      # Optional. Audience claim (aud). Defaults to token_url if not set.
+      audience = "https://my.auth.server/token"
+
+      # Optional. Scopes to request in the token exchange.
+      scopes   = ["https://www.googleapis.com/auth/dataportability"]
+
+      # URL to the authorization server providing access tokens.
+      token_url = "https://my.auth.server/token"
+    }
 
     # Optional path to the file containing template which is used to build HTTP request based on a batch of input data
     template_file              = "myTemplate.file"

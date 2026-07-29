@@ -18,8 +18,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/snowplow/snowbridge/v5/assets"
-	"github.com/snowplow/snowbridge/v5/config"
+	"github.com/snowplow/snowbridge/v6/assets"
+	"github.com/snowplow/snowbridge/v6/config"
 	"github.com/stretchr/testify/assert"
 )
 

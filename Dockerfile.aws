@@ -1,18 +1,15 @@
-FROM --platform=$TARGETPLATFORM alpine:3.23.4
+# syntax=docker/dockerfile:1
+FROM --platform=$TARGETPLATFORM gcr.io/distroless/static-debian12:nonroot
 LABEL org.opencontainers.image.authors="Snowplow Analytics <support@snowplow.io>"
-
-RUN apk update && \
-    apk upgrade && \
-    rm -rf /var/cache/apk/*
 
 ARG TARGETARCH
 
-ADD build/output/linux/aws/cli/$TARGETARCH/snowbridge /opt/snowplow/
+USER 65532:65532
 
-RUN adduser -D snowplow
-USER snowplow
+COPY <<EOF /tmp/config.hcl
+EOF
+COPY build/output/linux/aws/cli/$TARGETARCH/snowbridge /opt/snowplow/snowbridge
 
-RUN touch /tmp/config.hcl
 ENV SNOWBRIDGE_CONFIG_FILE=/tmp/config.hcl
 
 ENTRYPOINT ["/opt/snowplow/snowbridge"]

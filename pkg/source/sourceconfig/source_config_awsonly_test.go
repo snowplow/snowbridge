@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"testing"
 
-	config "github.com/snowplow/snowbridge/v5/config"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	config "github.com/snowplow/snowbridge/v6/config"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -12,23 +12,24 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/snowplow/snowbridge/v5/pkg/failure"
+	"github.com/snowplow/snowbridge/v6/pkg/failure"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v5/pkg/common"
-	"github.com/snowplow/snowbridge/v5/pkg/monitoring"
-	"github.com/snowplow/snowbridge/v5/pkg/observer"
-	"github.com/snowplow/snowbridge/v5/pkg/statsreceiver"
-	"github.com/snowplow/snowbridge/v5/pkg/statsreceiver/statsreceiveriface"
+	"github.com/snowplow/snowbridge/v6/pkg/common"
+	"github.com/snowplow/snowbridge/v6/pkg/monitoring"
+	"github.com/snowplow/snowbridge/v6/pkg/observer"
+	"github.com/snowplow/snowbridge/v6/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/v6/pkg/statsreceiver/statsreceiveriface"
 )
 
 // ConfigurationPair allows modular packages to define their own configuration and function to interpret the configuration.
@@ -137,14 +138,16 @@ type monitoringConfig struct {
 }
 
 type webhookConfig struct {
-	Endpoint          string            `hcl:"endpoint"`
-	Tags              map[string]string `hcl:"tags,optional"`
-	HeartbeatInterval int               `hcl:"heartbeat_interval_seconds,optional"`
+	Endpoint               string            `hcl:"endpoint"`
+	Tags                   map[string]string `hcl:"tags,optional"`
+	HeartbeatInterval      int               `hcl:"heartbeat_interval_seconds,optional"`
+	RequestTimeoutInMillis int               `hcl:"request_timeout_in_millis,optional"`
 }
 
 type metadataReporterConfig struct {
-	Endpoint string            `hcl:"endpoint"`
-	Tags     map[string]string `hcl:"tags,optional"`
+	Endpoint               string            `hcl:"endpoint"`
+	Tags                   map[string]string `hcl:"tags,optional"`
+	RequestTimeoutInMillis int               `hcl:"request_timeout_in_millis,optional"`
 }
 
 type TransientRetryConfig struct {
@@ -214,11 +217,13 @@ func defaultConfigData() *ConfigurationData {
 		},
 		Monitoring: &monitoringConfig{
 			Webhook: &webhookConfig{
-				Tags:              map[string]string{},
-				HeartbeatInterval: 300,
+				Tags:                   map[string]string{},
+				HeartbeatInterval:      300,
+				RequestTimeoutInMillis: 5000,
 			},
 			MetadataReporter: &metadataReporterConfig{
-				Tags: map[string]string{},
+				Tags:                   map[string]string{},
+				RequestTimeoutInMillis: 5000,
 			},
 		},
 	}
@@ -347,7 +352,7 @@ func (c *Config) GetWebhookMonitoring(appName, appVersion string) (*monitoring.W
 
 	alertChan := make(chan error)
 
-	client := &http.Client{Timeout: 1 * time.Second}
+	client := newMonitoringHTTPClient(time.Duration(c.Data.Monitoring.Webhook.RequestTimeoutInMillis) * time.Millisecond)
 	endpoint := c.Data.Monitoring.Webhook.Endpoint
 	tags := c.Data.Monitoring.Webhook.Tags
 	heartbeatInterval := time.Duration(c.Data.Monitoring.Webhook.HeartbeatInterval) * time.Second
@@ -384,6 +389,34 @@ func (c *Config) getStatsReceiver(tags map[string]string) (statsreceiveriface.St
 	}
 }
 
+// newMonitoringHTTPClient builds the HTTP client for the low-frequency
+// monitoring endpoints. It forces HTTP/1.1 with keep-alives disabled so every
+// request uses a fresh connection: reuse buys nothing at ~1 request per
+// interval, and it avoids reusing a silently-dropped connection, which an
+// HTTP/2 client would otherwise hold until the kernel TCP timeout (~15 min).
+func newMonitoringHTTPClient(timeout time.Duration) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DisableKeepAlives = true
+
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	transport.Protocols = protocols
+
+	// Advertise only HTTP/1.1 in the TLS handshake. Setting Protocols is not
+	// enough: the cloned default transport still lists "h2" in its ALPN protocols,
+	// so a server that prefers HTTP/2 negotiates it and this HTTP/1-only transport
+	// then fails to read the response. Pinning NextProtos forces HTTP/1.1 end to end.
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{}
+	}
+	transport.TLSClientConfig.NextProtos = []string{"http/1.1"}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
+}
+
 func (c *Config) getMetadataReporter(appName, appVersion string) (monitoring.MetadataReporterer, error) {
 	if c.Data.Monitoring.MetadataReporter.Endpoint == "" {
 		return nil, nil
@@ -393,7 +426,7 @@ func (c *Config) getMetadataReporter(appName, appVersion string) (monitoring.Met
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: 1 * time.Second}
+	client := newMonitoringHTTPClient(time.Duration(c.Data.Monitoring.MetadataReporter.RequestTimeoutInMillis) * time.Millisecond)
 	endpoint := c.Data.Monitoring.MetadataReporter.Endpoint
 	tags := c.Data.Monitoring.MetadataReporter.Tags
 

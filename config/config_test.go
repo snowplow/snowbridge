@@ -12,11 +12,13 @@
 package config
 
 import (
+	"net/http"
 	"path/filepath"
 	"testing"
+	"time"
 
-	"github.com/snowplow/snowbridge/v5/assets"
-	"github.com/snowplow/snowbridge/v5/pkg/failure"
+	"github.com/snowplow/snowbridge/v6/assets"
+	"github.com/snowplow/snowbridge/v6/pkg/failure"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,6 +55,8 @@ func TestNewConfig_NoConfig(t *testing.T) {
 	assert.Equal(1000, c.Data.Retry.Transient.Delay)
 	assert.Equal(5, c.Data.Retry.Transient.MaxAttempts)
 	assert.Equal(20000, c.Data.Retry.Setup.Delay)
+	assert.Equal(5000, c.Data.Monitoring.MetadataReporter.RequestTimeoutInMillis)
+	assert.Equal(5000, c.Data.Monitoring.Webhook.RequestTimeoutInMillis)
 }
 
 func TestNewConfig_GetFailureParser(t *testing.T) {
@@ -275,4 +279,19 @@ func TestNewConfig_GetMonitoring(t *testing.T) {
 	observer, err = c.GetObserver("", "", map[string]string{})
 	assert.Nil(observer)
 	assert.NotNil(err)
+}
+
+func TestNewMonitoringHTTPClient(t *testing.T) {
+	assert := assert.New(t)
+
+	client := newMonitoringHTTPClient(7 * time.Second)
+
+	assert.Equal(7*time.Second, client.Timeout)
+
+	transport, ok := client.Transport.(*http.Transport)
+	assert.True(ok)
+	assert.True(transport.DisableKeepAlives)
+	assert.True(transport.Protocols.HTTP1())
+	assert.False(transport.Protocols.HTTP2())
+	assert.Equal([]string{"http/1.1"}, transport.TLSClientConfig.NextProtos)
 }

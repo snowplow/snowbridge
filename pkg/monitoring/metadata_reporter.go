@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
 )
 
 // AggregatedError holds aggregated error information

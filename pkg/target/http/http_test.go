@@ -26,8 +26,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -208,6 +208,67 @@ func TestHTTP_RequestTimeoutsConfig(t *testing.T) {
 			assert.Equal(tt.ExpectedClientTimeout, driver.client.Timeout)
 		})
 	}
+}
+
+func TestHTTP_HTTP2HealthCheckConfig(t *testing.T) {
+	testCases := []struct {
+		Name             string
+		Config           *HTTPTargetConfig
+		ExpectedSendPing time.Duration
+		ExpectedPing     time.Duration
+	}{
+		{
+			Name:             "Default",
+			Config:           &HTTPTargetConfig{},
+			ExpectedSendPing: 5 * time.Second,
+			ExpectedPing:     3 * time.Second,
+		},
+		{
+			Name:             "Custom millis",
+			Config:           &HTTPTargetConfig{HTTP2SendPingTimeoutInMillis: 2000, HTTP2PingTimeoutInMillis: 1000},
+			ExpectedSendPing: 2 * time.Second,
+			ExpectedPing:     1 * time.Second,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			assert := assert.New(t)
+			driver := &HTTPTargetDriver{}
+			config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+			config.URL = "http://test"
+			if tt.Config.HTTP2SendPingTimeoutInMillis != 0 {
+				config.HTTP2SendPingTimeoutInMillis = tt.Config.HTTP2SendPingTimeoutInMillis
+			}
+			if tt.Config.HTTP2PingTimeoutInMillis != 0 {
+				config.HTTP2PingTimeoutInMillis = tt.Config.HTTP2PingTimeoutInMillis
+			}
+			config.BatchingConfig.MaxBatchBytes = 1048576
+			config.BatchingConfig.MaxMessageBytes = 1048576
+			err := driver.InitFromConfig(config)
+			assert.Nil(err)
+
+			transport := driver.client.Transport.(*http.Transport)
+			assert.NotNil(transport.HTTP2)
+			assert.Equal(tt.ExpectedSendPing, transport.HTTP2.SendPingTimeout)
+			assert.Equal(tt.ExpectedPing, transport.HTTP2.PingTimeout)
+		})
+	}
+}
+
+func TestHTTP_HTTP2HealthCheckDisabled(t *testing.T) {
+	assert := assert.New(t)
+	driver := &HTTPTargetDriver{}
+	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
+	config.URL = "http://test"
+	config.HTTP2SendPingTimeoutInMillis = 0 // 0 send-ping timeout disables the health-check
+	config.BatchingConfig.MaxBatchBytes = 1048576
+	config.BatchingConfig.MaxMessageBytes = 1048576
+	err := driver.InitFromConfig(config)
+	assert.Nil(err)
+
+	transport := driver.client.Transport.(*http.Transport)
+	assert.NotNil(transport.HTTP2)
+	assert.Equal(time.Duration(0), transport.HTTP2.SendPingTimeout)
 }
 
 func TestHTTP_AddHeadersToRequest(t *testing.T) {

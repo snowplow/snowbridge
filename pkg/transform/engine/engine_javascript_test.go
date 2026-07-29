@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
 )
 
 type JSTestCase struct {
@@ -576,7 +576,7 @@ function main(x) {
 			},
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte("3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"),
+					Data:         []byte("44ca88e97fbd2cfb45a41b12097f94ce84c6b42b"),
 					PartitionKey: "some-test-key",
 				},
 				"filtered": nil,
@@ -585,7 +585,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3",
+				Data:         "44ca88e97fbd2cfb45a41b12097f94ce84c6b42b",
 			},
 			Error: nil,
 		},
@@ -604,7 +604,7 @@ function main(x) {
 			},
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte("5841e55de6c4486fa092f044a5189570dec421cb06652829"),
+					Data:         []byte("d3ecd24491bde05dc266de928447f84828a68bdd"),
 					PartitionKey: "some-test-key",
 				},
 				"filtered": nil,
@@ -613,7 +613,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "5841e55de6c4486fa092f044a5189570dec421cb06652829",
+				Data:         "d3ecd24491bde05dc266de928447f84828a68bdd",
 			},
 			Error:    nil,
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
@@ -633,7 +633,7 @@ function main(x) {
 			},
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte("262ca08d9db38199ac487454bd4accb795a33297516b3cec"),
+					Data:         []byte("07692c38ae442e6077029c2476ec4ffd3db8722bb4106f335564745426eb43ab"),
 					PartitionKey: "some-test-key",
 				},
 				"filtered": nil,
@@ -642,7 +642,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "262ca08d9db38199ac487454bd4accb795a33297516b3cec",
+				Data:         "07692c38ae442e6077029c2476ec4ffd3db8722bb4106f335564745426eb43ab",
 			},
 			Error: nil,
 		},
@@ -661,7 +661,7 @@ function main(x) {
 			},
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte("23e37c9c9aaed4e592b306b291deb43fd197551048704d57"),
+					Data:         []byte("b353d781523980895a701a98fee6bce12abb37575c5485090adae73b5afde95b"),
 					PartitionKey: "some-test-key",
 				},
 				"filtered": nil,
@@ -670,7 +670,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "23e37c9c9aaed4e592b306b291deb43fd197551048704d57",
+				Data:         "b353d781523980895a701a98fee6bce12abb37575c5485090adae73b5afde95b",
 			},
 			Error:    nil,
 			HashSalt: "09a2d6b3ecd943aa8512df1f",
@@ -690,7 +690,7 @@ function main(x) {
 			},
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte("30368c83ff2751652f501b62d6b965794d3512177f301db1"),
+					Data:         []byte("847deb845d951227797d69cd341ea630"),
 					PartitionKey: "some-test-key",
 				},
 				"filtered": nil,
@@ -699,7 +699,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "30368c83ff2751652f501b62d6b965794d3512177f301db1",
+				Data:         "847deb845d951227797d69cd341ea630",
 			},
 			Error: nil,
 		},
@@ -718,7 +718,7 @@ function main(x) {
 			},
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte("8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508"),
+					Data:         []byte("a3ccd9ac811dd5a2b8c47e08d98c947e"),
 					PartitionKey: "some-test-key",
 				},
 				"filtered": nil,
@@ -727,7 +727,7 @@ function main(x) {
 			ExpInterState: &engineProtocol{
 				FilterOut:    false,
 				PartitionKey: "",
-				Data:         "8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508",
+				Data:         "a3ccd9ac811dd5a2b8c47e08d98c947e",
 			},
 			Error:    nil,
 			HashSalt: "09a2d6b3ecd943aa8512df1f",

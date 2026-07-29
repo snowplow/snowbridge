@@ -69,5 +69,13 @@ target {
     # Forces the use of the Sync Producer (default: false).
     # Emits as fast as possible but may limit performance.
     force_sync_producer = true
+
+    # How frequently to refresh Kafka metadata in milliseconds (default: 600000).
+    # Lower values allow faster recovery after partition leader changes.
+    metadata_refresh_frequency_millis = 30000
+
+    # Backoff between producer retries in milliseconds (default: 100).
+    # Higher values give more time for metadata to refresh between retries.
+    producer_retry_backoff_millis = 500
   }
 }

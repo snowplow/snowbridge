@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
 )
 
 // --- Test StatsReceiver

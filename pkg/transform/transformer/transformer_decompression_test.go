@@ -22,10 +22,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/snowplow/snowbridge/v5/pkg/decompression"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
-	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	"github.com/snowplow/snowbridge/v6/pkg/decompression"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/transform"
 )
 
 // TestTransformer_Decompression_Zstd_MultiRecord_HappyPath verifies that a zstd-compressed

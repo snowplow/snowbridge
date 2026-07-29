@@ -14,8 +14,8 @@ package decompression
 import (
 	"testing"
 
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
-	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/transform"
 )
 
 var benchDecompressCfg = Config{MaxBytesSinglePayload: 10 * 1024 * 1024}

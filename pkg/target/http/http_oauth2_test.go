@@ -18,8 +18,8 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -126,10 +126,16 @@ func runTest(t *testing.T, inputClientID string, inputClientSecret string, input
 	driver := &HTTPTargetDriver{}
 	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
 	config.URL = server.URL
-	config.OAuth2ClientID = inputClientID
-	config.OAuth2ClientSecret = inputClientSecret
-	config.OAuth2RefreshToken = inputRefreshToken
-	config.OAuth2TokenURL = tokenServer.URL
+
+	if inputClientID != "" || inputClientSecret != "" || inputRefreshToken != "" {
+		config.OAuthClient = &OAuthClientConfig{
+			ClientID:     inputClientID,
+			ClientSecret: inputClientSecret,
+			RefreshToken: inputRefreshToken,
+			TokenURL:     tokenServer.URL,
+		}
+	}
+
 	err := driver.InitFromConfig(config)
 
 	if err != nil {

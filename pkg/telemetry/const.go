@@ -14,7 +14,7 @@ package telemetry
 import (
 	"time"
 
-	"github.com/snowplow/snowbridge/v5/cmd"
+	"github.com/snowplow/snowbridge/v6/cmd"
 )
 
 var (

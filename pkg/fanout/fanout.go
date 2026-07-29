@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
 )
 
 // CreateChild builds a child *models.Message carrying data, pre-wired so

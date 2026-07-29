@@ -12,17 +12,12 @@
 package transform
 
 import (
+	"crypto/hmac"
 	"crypto/md5"
-	"crypto/pbkdf2"
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
 	"hash"
-)
-
-const (
-	hashByteSize     = 24
-	pbkdf2Iterations = 1000
 )
 
 var (
@@ -91,17 +86,22 @@ func isEmpty(value any) bool {
 // DoHashing applies selected hash function (with or without salt provided) on the input string of data
 // and returns hashed string or an error if operation failed
 func DoHashing(input, hashFunctionName, hashSalt string) (string, error) {
-	salt := []byte(hashSalt)
 
 	hashFunction, ok := supportedHashFunctions[hashFunctionName]
 	if !ok {
 		return "", fmt.Errorf("unsupported hash function: [%s]", hashFunctionName)
 	}
 
-	hbts, err := pbkdf2.Key(hashFunction, input, salt, pbkdf2Iterations, hashByteSize)
-	if err != nil {
+	var hashRes hash.Hash
+	if hashSalt == "" {
+		hashRes = hashFunction()
+	} else {
+		hashRes = hmac.New(hashFunction, []byte(hashSalt))
+	}
+
+	if _, err := hashRes.Write([]byte(input)); err != nil {
 		return "", fmt.Errorf("failed to hash the data: %w", err)
 	}
 
-	return fmt.Sprintf("%x", hbts), nil
+	return fmt.Sprintf("%x", hashRes.Sum(nil)), nil
 }

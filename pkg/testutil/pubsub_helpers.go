@@ -156,10 +156,13 @@ func ReceiveMessagesFromSubscription(t *testing.T, subscription *pubsub.Subscrip
 	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(10)*time.Second)
 	defer cancel()
 
+	var mu sync.Mutex
 	receivedMessages := make([]string, 0)
 
 	receiveErr := subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+		mu.Lock()
 		receivedMessages = append(receivedMessages, string(msg.Data))
+		mu.Unlock()
 		msg.Ack()
 	})
 

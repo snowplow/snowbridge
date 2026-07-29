@@ -23,11 +23,11 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v5/config"
-	httpTarget "github.com/snowplow/snowbridge/v5/pkg/target/http"
-	"github.com/snowplow/snowbridge/v5/pkg/target/kafka"
-	"github.com/snowplow/snowbridge/v5/pkg/target/stdout"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/config"
+	httpTarget "github.com/snowplow/snowbridge/v6/pkg/target/http"
+	"github.com/snowplow/snowbridge/v6/pkg/target/kafka"
+	"github.com/snowplow/snowbridge/v6/pkg/target/stdout"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 )
 
 func TestGetTarget_Stdout(t *testing.T) {

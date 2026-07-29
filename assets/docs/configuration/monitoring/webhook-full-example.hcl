@@ -10,5 +10,8 @@ monitoring {
 
    # How often to send the heartbeat event
    heartbeat_interval_seconds = 3600
+
+   # Request timeout, in milliseconds, for sending a monitoring event (default: 5000)
+   request_timeout_in_millis = 5000
  }
 }

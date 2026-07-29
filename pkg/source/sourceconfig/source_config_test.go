@@ -16,9 +16,9 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 
-	config "github.com/snowplow/snowbridge/v5/config"
+	config "github.com/snowplow/snowbridge/v6/config"
 	"github.com/stretchr/testify/assert"
 )
 

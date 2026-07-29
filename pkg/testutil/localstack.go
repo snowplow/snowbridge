@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/sirupsen/logrus"
 
-	"github.com/snowplow/snowbridge/v5/pkg/common"
+	"github.com/snowplow/snowbridge/v6/pkg/common"
 )
 
 var (
@@ -206,7 +206,7 @@ func SetupAWSLocalstackSQSQueueWithMessages(client common.SqsV2API, queueName st
 				DelaySeconds: 0,
 				MessageBody:  aws.String(messageBody),
 				QueueUrl:     res.QueueUrl,
-		}); err != nil {
+			}); err != nil {
 			logrus.Error(err.Error())
 		}
 	}
@@ -223,7 +223,7 @@ func PutProvidedDataIntoSQS(client common.SqsV2API, queueURL string, data []stri
 				DelaySeconds: 0,
 				MessageBody:  aws.String(msg),
 				QueueUrl:     aws.String(queueURL),
-		}); err != nil {
+			}); err != nil {
 			logrus.Error(err.Error())
 		}
 	}

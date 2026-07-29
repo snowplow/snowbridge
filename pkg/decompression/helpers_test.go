@@ -14,7 +14,7 @@ package decompression
 import (
 	"testing"
 
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 )
 
 // decompress runs Decompress to completion and returns goods and bads in

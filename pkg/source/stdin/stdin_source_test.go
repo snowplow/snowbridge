@@ -13,17 +13,18 @@ package stdinsource
 
 import (
 	"context"
-	"github.com/snowplow/snowbridge/v5/pkg/common"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/snowplow/snowbridge/v6/pkg/common"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 )
 
 func TestStdinSource(t *testing.T) {

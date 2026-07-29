@@ -25,12 +25,12 @@ import (
 	// pprof imported for the side effect of registering its HTTP handlers
 	_ "net/http/pprof"
 
-	"github.com/snowplow/snowbridge/v5/cmd"
-	"github.com/snowplow/snowbridge/v5/config"
-	"github.com/snowplow/snowbridge/v5/pkg/source/sourceconfig"
-	"github.com/snowplow/snowbridge/v5/pkg/target/targetconfig"
-	"github.com/snowplow/snowbridge/v5/pkg/telemetry"
-	"github.com/snowplow/snowbridge/v5/pkg/transform/transformconfig"
+	"github.com/snowplow/snowbridge/v6/cmd"
+	"github.com/snowplow/snowbridge/v6/config"
+	"github.com/snowplow/snowbridge/v6/pkg/source/sourceconfig"
+	"github.com/snowplow/snowbridge/v6/pkg/target/targetconfig"
+	"github.com/snowplow/snowbridge/v6/pkg/telemetry"
+	"github.com/snowplow/snowbridge/v6/pkg/transform/transformconfig"
 )
 
 // RunApp runs application

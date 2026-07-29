@@ -18,9 +18,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/snowplow/snowbridge/v5/pkg/decompression"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/observer"
+	"github.com/snowplow/snowbridge/v6/pkg/decompression"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/observer"
 )
 
 // passthroughTransform is a no-op transform: returns the message unchanged as a Transformed result.

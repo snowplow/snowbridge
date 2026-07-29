@@ -16,10 +16,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/snowplow/snowbridge/v5/assets"
-	"github.com/snowplow/snowbridge/v5/cmd"
-	"github.com/snowplow/snowbridge/v5/config"
-	"github.com/snowplow/snowbridge/v5/pkg/statsreceiver"
+	"github.com/snowplow/snowbridge/v6/assets"
+	"github.com/snowplow/snowbridge/v6/cmd"
+	"github.com/snowplow/snowbridge/v6/config"
+	"github.com/snowplow/snowbridge/v6/pkg/statsreceiver"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -53,6 +53,14 @@ func TestMonitoringDocumentation(t *testing.T) {
 	webhookMinimalFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "monitoring", "webhook-minimal-example.hcl")
 
 	testWebhookConfig(t, webhookMinimalFilePath, false)
+
+	metadataFullFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "monitoring", "metadata-full-example.hcl")
+
+	testMetadataConfig(t, metadataFullFilePath, true)
+
+	metadataMinimalFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "monitoring", "metadata-minimal-example.hcl")
+
+	testMetadataConfig(t, metadataMinimalFilePath, false)
 }
 
 func testStatsDConfig(t *testing.T, configpath string, fullExample bool) {
@@ -107,5 +115,21 @@ func testWebhookConfig(t *testing.T, configpath string, fullExample bool) {
 	if fullExample {
 		assert.NotZero(cfgMonitoring.Webhook.Tags)
 		assert.NotZero(cfgMonitoring.Webhook.HeartbeatInterval)
+		assert.NotZero(cfgMonitoring.Webhook.RequestTimeoutInMillis)
+	}
+}
+
+func testMetadataConfig(t *testing.T, configpath string, fullExample bool) {
+	assert := assert.New(t)
+
+	c := getConfigFromFilepath(t, configpath)
+
+	cfgMonitoring := c.Data.Monitoring
+
+	assert.NotNil(cfgMonitoring)
+	assert.NotZero(cfgMonitoring.MetadataReporter.Endpoint)
+
+	if fullExample {
+		checkComponentForZeros(t, cfgMonitoring.MetadataReporter)
 	}
 }

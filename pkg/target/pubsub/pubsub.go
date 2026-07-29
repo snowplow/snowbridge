@@ -23,9 +23,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/api/option"
 
-	"github.com/snowplow/snowbridge/v5/pkg/common/gcp"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/target/targetiface"
+	"github.com/snowplow/snowbridge/v6/pkg/common/gcp"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/target/targetiface"
 )
 
 const (

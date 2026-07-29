@@ -13,7 +13,7 @@ package cmd
 
 const (
 	// AppVersion is the current version of the app
-	AppVersion = "5.2.0"
+	AppVersion = "6.0.0"
 
 	// AppName is the name of the application to use in logging / places that require the artifact
 	AppName = "snowbridge"

@@ -24,8 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/snowplow/snowbridge/v5/pkg/common"
-	"github.com/snowplow/snowbridge/v5/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/common"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
 )
 
 func TestHttpSource_BuildFromConfig(t *testing.T) {

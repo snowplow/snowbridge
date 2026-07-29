@@ -20,8 +20,8 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/snowplow/snowbridge/v5/pkg/models"
-	"github.com/snowplow/snowbridge/v5/pkg/transform"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
+	"github.com/snowplow/snowbridge/v6/pkg/transform"
 )
 
 func TestJQRunFunction_SpMode_true(t *testing.T) {
@@ -120,7 +120,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"agentName":"3767ff5f27dff1fc1a8a8bbf3aa53a7170adbcbea0ab43b3"}`),
+					Data:         []byte(`{"agentName":"44ca88e97fbd2cfb45a41b12097f94ce84c6b42b"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -139,7 +139,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"agentName":"5841e55de6c4486fa092f044a5189570dec421cb06652829"}`),
+					Data:         []byte(`{"agentName":"d3ecd24491bde05dc266de928447f84828a68bdd"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -158,7 +158,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"agentName":"262ca08d9db38199ac487454bd4accb795a33297516b3cec"}`),
+					Data:         []byte(`{"agentName":"07692c38ae442e6077029c2476ec4ffd3db8722bb4106f335564745426eb43ab"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -177,7 +177,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"agentName":"23e37c9c9aaed4e592b306b291deb43fd197551048704d57"}`),
+					Data:         []byte(`{"agentName":"b353d781523980895a701a98fee6bce12abb37575c5485090adae73b5afde95b"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -196,7 +196,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"agentName":"30368c83ff2751652f501b62d6b965794d3512177f301db1"}`),
+					Data:         []byte(`{"agentName":"847deb845d951227797d69cd341ea630"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -215,7 +215,7 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 			InputInterState: nil,
 			Expected: map[string]*models.Message{
 				"success": {
-					Data:         []byte(`{"agentName":"8ac2e6ae6f31687f8f52ec3ae553d1dc78a591d31bfae508"}`),
+					Data:         []byte(`{"agentName":"a3ccd9ac811dd5a2b8c47e08d98c947e"}`),
 					PartitionKey: "some-key",
 				},
 				"filtered": nil,
@@ -325,9 +325,9 @@ func TestJQRunFunction_SpMode_true(t *testing.T) {
 				}
 			}
 
-			assertMessagesCompareJQ(t, s, tt.Expected["success"], "success")
-			assertMessagesCompareJQ(t, f, tt.Expected["filtered"], "filtered")
-			assertMessagesCompareJQ(t, e, tt.Expected["failed"], "failed")
+			assertMessagesCompareJQ(t, s, tt.Expected["success"])
+			assertMessagesCompareJQ(t, f, tt.Expected["filtered"])
+			assertMessagesCompareJQ(t, e, tt.Expected["failed"])
 		})
 	}
 }
@@ -584,9 +584,9 @@ func TestJQRunFunction_SpMode_false(t *testing.T) {
 				}
 			}
 
-			assertMessagesCompareJQ(t, s, tt.Expected["success"], "success")
-			assertMessagesCompareJQ(t, f, tt.Expected["filtered"], "filtered")
-			assertMessagesCompareJQ(t, e, tt.Expected["failed"], "failed")
+			assertMessagesCompareJQ(t, s, tt.Expected["success"])
+			assertMessagesCompareJQ(t, f, tt.Expected["filtered"])
+			assertMessagesCompareJQ(t, e, tt.Expected["failed"])
 		})
 	}
 }
@@ -823,9 +823,9 @@ func TestJQRunFunction_errors(t *testing.T) {
 				}
 			}
 
-			assertMessagesCompareJQ(t, s, tt.Expected["success"], "success")
-			assertMessagesCompareJQ(t, f, tt.Expected["filtered"], "filtered")
-			assertMessagesCompareJQ(t, e, tt.Expected["failed"], "failed")
+			assertMessagesCompareJQ(t, s, tt.Expected["success"])
+			assertMessagesCompareJQ(t, f, tt.Expected["filtered"])
+			assertMessagesCompareJQ(t, e, tt.Expected["failed"])
 		})
 	}
 }
@@ -887,7 +887,7 @@ func TestJQMapperConfigFunction(t *testing.T) {
 }
 
 // Helper
-func assertMessagesCompareJQ(t *testing.T, act, exp *models.Message, hint string) {
+func assertMessagesCompareJQ(t *testing.T, act, exp *models.Message) {
 	t.Helper()
 	ok := false
 	headersOk := false

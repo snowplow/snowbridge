@@ -7,5 +7,8 @@ monitoring {
    tags = {
      pipeline = "production"
    }
+
+   # Request timeout, in milliseconds, for sending a metadata event (default: 5000)
+   request_timeout_in_millis = 5000
  }
 }
