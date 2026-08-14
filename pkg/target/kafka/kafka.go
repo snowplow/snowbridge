@@ -35,6 +35,7 @@ type KafkaConfig struct {
 	TargetVersion                  string                      `hcl:"target_version,optional"`
 	MaxRetries                     int                         `hcl:"max_retries,optional"`
 	Compress                       bool                        `hcl:"compress,optional"`
+	CompressionCodec               string                      `hcl:"compression_codec,optional"`
 	WaitForAll                     bool                        `hcl:"wait_for_all,optional"`
 	Idempotent                     bool                        `hcl:"idempotent,optional"`
 	EnableSASL                     bool                        `hcl:"enable_sasl,optional"`
@@ -70,6 +71,48 @@ type saramaResult struct {
 	Err error
 }
 
+// resolveCompressionCodec picks the Sarama compression codec from the config.
+//
+// Preference order:
+//   1. compression_codec ("none" | "snappy" | "gzip" | "lz4" | "zstd") — new, explicit
+//   2. compress (deprecated boolean): true → snappy, false → none
+//
+// If both are set, compression_codec wins and a warning is logged. This keeps
+// existing `compress = true` configs working (they map to snappy, preserving
+// prior behavior) while allowing zstd / gzip / lz4 selection going forward.
+func resolveCompressionCodec(codec string, compressFlag bool) (sarama.CompressionCodec, error) {
+	codec = strings.ToLower(strings.TrimSpace(codec))
+
+	if codec != "" && compressFlag {
+		log.Warn("kafka target: both `compression_codec` and deprecated `compress` are set; using `compression_codec`")
+	}
+
+	if codec == "" {
+		if compressFlag {
+			return sarama.CompressionSnappy, nil
+		}
+		return sarama.CompressionNone, nil
+	}
+
+	switch codec {
+	case "none":
+		return sarama.CompressionNone, nil
+	case "snappy":
+		return sarama.CompressionSnappy, nil
+	case "gzip":
+		return sarama.CompressionGZIP, nil
+	case "lz4":
+		return sarama.CompressionLZ4, nil
+	case "zstd":
+		return sarama.CompressionZSTD, nil
+	default:
+		return sarama.CompressionNone, fmt.Errorf(
+			"invalid kafka `compression_codec` %q: must be one of none, snappy, gzip, lz4, zstd",
+			codec,
+		)
+	}
+}
+
 // GetDefaultConfiguration returns the default configuration for Kafka target
 func (kt *KafkaTargetDriver) GetDefaultConfiguration() any {
 	return &KafkaConfig{
@@ -81,6 +124,7 @@ func (kt *KafkaTargetDriver) GetDefaultConfiguration() any {
 			FlushPeriodMillis:    200,
 		},
 		MaxRetries:                     5,
+		CompressionCodec:               "none",
 		SASLAlgorithm:                  "sha512",
 		EnableTLS:                      false,
 		MetadataRefreshFrequencyMillis: 600000,
@@ -136,9 +180,11 @@ func (kt *KafkaTargetDriver) InitFromConfig(c any) error {
 		saramaConfig.Net.MaxOpenRequests = 1
 	}
 
-	if cfg.Compress {
-		saramaConfig.Producer.Compression = sarama.CompressionSnappy // Compress messages
+	compressionCodec, err := resolveCompressionCodec(cfg.CompressionCodec, cfg.Compress)
+	if err != nil {
+		return err
 	}
+	saramaConfig.Producer.Compression = compressionCodec
 
 	if cfg.EnableSASL {
 		saramaConfig.Net.SASL, err = common.ConfigureSASL(

@@ -28,7 +28,21 @@ target {
 
     # Whether to compress data (default: false).
     # Reduces network usage and increases latency.
+    #
+    # DEPRECATED: prefer `compression_codec`. When true, this is equivalent to
+    # `compression_codec = "snappy"`. If both are set, `compression_codec` wins.
     compress            = true
+
+    # Producer-side compression codec applied to every batch sent to Kafka.
+    # One of: "none", "snappy", "gzip", "lz4", "zstd" (default: "none").
+    # Preferred over the deprecated `compress` boolean above.
+    #
+    # Notes:
+    # - Broker must support the chosen codec. zstd requires Kafka 2.1+.
+    # - Compression is applied at batch granularity, so effectiveness scales
+    #   with batch size (see `batching.max_batch_bytes`).
+    # - Consumers decompress transparently; no coordination needed.
+    compression_codec   = "zstd"
 
     # Sets RequireAck s= WaitForAll, which waits for min.insync.replicas
     # to Ack (default: false)
