@@ -1,3 +1,7 @@
+Unreleased
+----------
+feat: Kafka target — add `compression_codec` (none/snappy/gzip/lz4/zstd); deprecate `compress` boolean
+
 Version 6.0.1 (2026-07-22)
 --------------------------
 Flush filter target on its own ticker (#127)

@@ -277,6 +277,52 @@ func TestKafkaTarget_AsyncWriteDeadlock(t *testing.T) {
 	}
 }
 
+func TestResolveCompressionCodec(t *testing.T) {
+	tests := []struct {
+		name         string
+		codec        string
+		compressFlag bool
+		want         sarama.CompressionCodec
+		wantErr      bool
+	}{
+		// Explicit compression_codec values
+		{"explicit none", "none", false, sarama.CompressionNone, false},
+		{"explicit snappy", "snappy", false, sarama.CompressionSnappy, false},
+		{"explicit gzip", "gzip", false, sarama.CompressionGZIP, false},
+		{"explicit lz4", "lz4", false, sarama.CompressionLZ4, false},
+		{"explicit zstd", "zstd", false, sarama.CompressionZSTD, false},
+
+		// Case- and whitespace-insensitive
+		{"uppercase ZSTD", "ZSTD", false, sarama.CompressionZSTD, false},
+		{"mixed case Snappy", "Snappy", false, sarama.CompressionSnappy, false},
+		{"with whitespace", "  gzip  ", false, sarama.CompressionGZIP, false},
+
+		// Deprecated `compress` boolean fallback
+		{"legacy compress=true → snappy", "", true, sarama.CompressionSnappy, false},
+		{"legacy compress=false → none", "", false, sarama.CompressionNone, false},
+
+		// Precedence: compression_codec wins when both are set
+		{"codec wins over compress flag: zstd + compress=true", "zstd", true, sarama.CompressionZSTD, false},
+		{"codec wins over compress flag: none + compress=true", "none", true, sarama.CompressionNone, false},
+
+		// Invalid codec
+		{"invalid codec rejects", "bogus", false, sarama.CompressionNone, true},
+		{"invalid codec rejects even if compress=true", "bogus", true, sarama.CompressionNone, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveCompressionCodec(tt.codec, tt.compressFlag)
+			if tt.wantErr {
+				assert.NotNil(t, err, "expected error for codec=%q compress=%v", tt.codec, tt.compressFlag)
+				return
+			}
+			assert.Nil(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestKafkaTargetDriver_Batcher(t *testing.T) {
 	driver := &KafkaTargetDriver{}
 	defaultConfig := driver.GetDefaultConfiguration().(*KafkaConfig)
