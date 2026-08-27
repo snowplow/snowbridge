@@ -26,9 +26,20 @@ target {
     # Max retries (default: 5)
     max_retries         = 11
 
-    # Whether to compress data (default: false).
-    # Reduces network usage and increases latency.
+    # DEPRECATED: use compression_type instead. Whether to compress data with
+    # snappy (default: false). Ignored when compression_type is set.
+    # Shown here only for completeness - do not set alongside compression_type.
     compress            = true
+
+    # Compression codec to use: "none", "gzip", "snappy", "lz4" or "zstd"
+    # (default: unset - falls back to the deprecated compress setting).
+    # Takes precedence over compress. Reduces network usage, may add latency.
+    # Note: "zstd" requires Kafka version >= 2.1.0 and "lz4" >= 0.10.0.
+    compression_type    = "zstd"
+
+    # Compression level, applies to "gzip" and "zstd" only (default: the
+    # codec's own default level). Ignored by other codecs.
+    compression_level   = 3
 
     # Sets RequireAck s= WaitForAll, which waits for min.insync.replicas
     # to Ack (default: false)

@@ -910,8 +910,7 @@ func testE2EKafkaTargetSASL(t *testing.T) {
 	saslConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 	saslConfig.Net.SASL.User = "testuser"
 	saslConfig.Net.SASL.Password = "testuser-password"
-	saslConfig.Net.SASL.Version = 0
-	saslConfig.ApiVersionsRequest = false
+	saslConfig.Net.SASL.Version = 1
 
 	adminClient, err := sarama.NewClusterAdmin([]string{"localhost:9093"}, saslConfig)
 	if err != nil {
@@ -941,8 +940,7 @@ func testE2EKafkaTargetSASL(t *testing.T) {
 	consumerConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 	consumerConfig.Net.SASL.User = "testuser"
 	consumerConfig.Net.SASL.Password = "testuser-password"
-	consumerConfig.Net.SASL.Version = 0
-	consumerConfig.ApiVersionsRequest = false
+	consumerConfig.Net.SASL.Version = 1
 
 	consumer, err := sarama.NewConsumer([]string{"localhost:9093"}, consumerConfig)
 	if err != nil {

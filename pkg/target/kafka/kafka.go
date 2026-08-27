@@ -29,27 +29,30 @@ const SupportedTargetKafka = "kafka"
 
 // KafkaConfig contains configurable options for the kafka target
 type KafkaConfig struct {
-	BatchingConfig                 *targetiface.BatchingConfig `hcl:"batching,block"`
-	Brokers                        string                      `hcl:"brokers"`
-	TopicName                      string                      `hcl:"topic_name"`
-	TargetVersion                  string                      `hcl:"target_version,optional"`
-	MaxRetries                     int                         `hcl:"max_retries,optional"`
-	Compress                       bool                        `hcl:"compress,optional"`
-	WaitForAll                     bool                        `hcl:"wait_for_all,optional"`
-	Idempotent                     bool                        `hcl:"idempotent,optional"`
-	EnableSASL                     bool                        `hcl:"enable_sasl,optional"`
-	SASLUsername                   string                      `hcl:"sasl_username,optional"`
-	SASLPassword                   string                      `hcl:"sasl_password,optional"`
-	SASLAlgorithm                  string                      `hcl:"sasl_algorithm,optional"`
-	SASLVersion                    int16                       `hcl:"sasl_version,optional"`
-	EnableTLS                      bool                        `hcl:"enable_tls,optional"`
-	CertFile                       string                      `hcl:"cert_file,optional"`
-	KeyFile                        string                      `hcl:"key_file,optional"`
-	CaFile                         string                      `hcl:"ca_file,optional"`
-	SkipVerifyTLS                  bool                        `hcl:"skip_verify_tls,optional"`
-	ForceSync                      bool                        `hcl:"force_sync_producer,optional"`
-	MetadataRefreshFrequencyMillis int                         `hcl:"metadata_refresh_frequency_millis,optional"`
-	ProducerRetryBackoffMillis     int                         `hcl:"producer_retry_backoff_millis,optional"`
+	BatchingConfig *targetiface.BatchingConfig `hcl:"batching,block"`
+	Brokers        string                      `hcl:"brokers"`
+	TopicName      string                      `hcl:"topic_name"`
+	TargetVersion  string                      `hcl:"target_version,optional"`
+	MaxRetries     int                         `hcl:"max_retries,optional"`
+	// Deprecated: use CompressionType instead. When true, compresses with snappy.
+	Compress                       bool   `hcl:"compress,optional"`
+	CompressionType                string `hcl:"compression_type,optional"`
+	CompressionLevel               int    `hcl:"compression_level,optional"`
+	WaitForAll                     bool   `hcl:"wait_for_all,optional"`
+	Idempotent                     bool   `hcl:"idempotent,optional"`
+	EnableSASL                     bool   `hcl:"enable_sasl,optional"`
+	SASLUsername                   string `hcl:"sasl_username,optional"`
+	SASLPassword                   string `hcl:"sasl_password,optional"`
+	SASLAlgorithm                  string `hcl:"sasl_algorithm,optional"`
+	SASLVersion                    int16  `hcl:"sasl_version,optional"`
+	EnableTLS                      bool   `hcl:"enable_tls,optional"`
+	CertFile                       string `hcl:"cert_file,optional"`
+	KeyFile                        string `hcl:"key_file,optional"`
+	CaFile                         string `hcl:"ca_file,optional"`
+	SkipVerifyTLS                  bool   `hcl:"skip_verify_tls,optional"`
+	ForceSync                      bool   `hcl:"force_sync_producer,optional"`
+	MetadataRefreshFrequencyMillis int    `hcl:"metadata_refresh_frequency_millis,optional"`
+	ProducerRetryBackoffMillis     int    `hcl:"producer_retry_backoff_millis,optional"`
 }
 
 // KafkaTargetDriver holds a new client for writing messages to Apache Kafka
@@ -81,6 +84,7 @@ func (kt *KafkaTargetDriver) GetDefaultConfiguration() any {
 			FlushPeriodMillis:    200,
 		},
 		MaxRetries:                     5,
+		CompressionLevel:               sarama.CompressionLevelDefault,
 		SASLAlgorithm:                  "sha512",
 		EnableTLS:                      false,
 		MetadataRefreshFrequencyMillis: 600000,
@@ -94,6 +98,41 @@ func (kt *KafkaTargetDriver) SetBatchingConfig(batchingConfig targetiface.Batchi
 
 func (kt *KafkaTargetDriver) GetBatchingConfig() targetiface.BatchingConfig {
 	return kt.BatchingConfig
+}
+
+// configureCompression applies the compression settings to the sarama producer
+// config. The newer compression_type/compression_level options take precedence
+// over the deprecated compress bool. Only gzip and zstd honour a level; a level
+// set for any other codec is warned about so it isn't silently ignored.
+func configureCompression(saramaConfig *sarama.Config, cfg *KafkaConfig, logger *log.Entry) error {
+	levelSet := cfg.CompressionLevel != sarama.CompressionLevelDefault
+
+	if cfg.CompressionType != "" {
+		var codec sarama.CompressionCodec
+		if err := codec.UnmarshalText([]byte(cfg.CompressionType)); err != nil {
+			return fmt.Errorf("invalid compression_type %q (must be one of none, gzip, snappy, lz4, zstd): %w", cfg.CompressionType, err)
+		}
+		saramaConfig.Producer.Compression = codec
+		saramaConfig.Producer.CompressionLevel = cfg.CompressionLevel
+
+		if levelSet && codec != sarama.CompressionGZIP && codec != sarama.CompressionZSTD {
+			logger.Warnf("compression_level is set but compression_type %q ignores it; only gzip and zstd honour a level", cfg.CompressionType)
+		}
+		if cfg.Compress {
+			logger.Warn("`compress` is deprecated and ignored because `compression_type` is set; remove `compress` from your configuration")
+		}
+		return nil
+	}
+
+	if cfg.Compress {
+		logger.Warn("`compress` is deprecated; use `compression_type` instead. Defaulting to snappy compression")
+		saramaConfig.Producer.Compression = sarama.CompressionSnappy
+		if levelSet {
+			logger.Warn("compression_level is ignored when using the deprecated `compress` option; set compression_type to gzip or zstd to control the level")
+		}
+	}
+
+	return nil
 }
 
 // BuildKafkaFromConfig creates a Kafka target from decoded configuration
@@ -136,8 +175,8 @@ func (kt *KafkaTargetDriver) InitFromConfig(c any) error {
 		saramaConfig.Net.MaxOpenRequests = 1
 	}
 
-	if cfg.Compress {
-		saramaConfig.Producer.Compression = sarama.CompressionSnappy // Compress messages
+	if err := configureCompression(saramaConfig, cfg, logger); err != nil {
+		return err
 	}
 
 	if cfg.EnableSASL {

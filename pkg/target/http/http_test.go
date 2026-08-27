@@ -1269,8 +1269,6 @@ func TestHTTP_Write_TLS(t *testing.T) {
 
 func TestHTTP_ProvideRequestBody(t *testing.T) {
 	assert := assert.New(t)
-	target := HTTPTargetDriver{}
-
 	inputMessages := []*models.Message{
 		{Data: []byte(`{"key": "value1"}`)},
 		{Data: []byte(`{"key": "value2"}`)},
@@ -1278,7 +1276,7 @@ func TestHTTP_ProvideRequestBody(t *testing.T) {
 		{Data: []byte(`justastring`)},
 	}
 
-	templated, success, invalid := target.renderJSONArray(inputMessages)
+	templated, success, invalid := RenderRequest(nil, inputMessages)
 
 	assert.Equal(`[{"key":"value1"},{"key":"value2"},{"key":"value3"}]`, string(templated))
 	assert.Equal(3, len(success))

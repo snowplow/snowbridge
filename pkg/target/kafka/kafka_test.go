@@ -12,6 +12,7 @@
 package kafka
 
 import (
+	"io"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -315,4 +316,111 @@ func TestKafkaTargetDriver_Batcher(t *testing.T) {
 		assert.NotNil(t, oversized, "Should return oversized message")
 		assert.Equal(t, oversizedMessage, oversized, "Should return the exact oversized message")
 	})
+}
+
+func TestConfigureCompression(t *testing.T) {
+	// Discard log output so the deprecation/ignored-level warnings don't spam the test run.
+	discardLogger := log.New()
+	discardLogger.SetOutput(io.Discard)
+	logger := log.NewEntry(discardLogger)
+
+	testCases := []struct {
+		name          string
+		compress      bool
+		compType      string
+		compLevel     int
+		expectedCodec sarama.CompressionCodec
+		expectedLevel int
+		expectError   bool
+	}{
+		{
+			name:          "compression_type gzip applies level",
+			compType:      "gzip",
+			compLevel:     5,
+			expectedCodec: sarama.CompressionGZIP,
+			expectedLevel: 5,
+		},
+		{
+			name:          "compression_type zstd applies level",
+			compType:      "zstd",
+			compLevel:     3,
+			expectedCodec: sarama.CompressionZSTD,
+			expectedLevel: 3,
+		},
+		{
+			name:          "compression_type snappy",
+			compType:      "snappy",
+			compLevel:     sarama.CompressionLevelDefault,
+			expectedCodec: sarama.CompressionSnappy,
+			expectedLevel: sarama.CompressionLevelDefault,
+		},
+		{
+			name:          "compression_type lz4",
+			compType:      "lz4",
+			compLevel:     sarama.CompressionLevelDefault,
+			expectedCodec: sarama.CompressionLZ4,
+			expectedLevel: sarama.CompressionLevelDefault,
+		},
+		{
+			name:          "compression_type none",
+			compType:      "none",
+			compLevel:     sarama.CompressionLevelDefault,
+			expectedCodec: sarama.CompressionNone,
+			expectedLevel: sarama.CompressionLevelDefault,
+		},
+		{
+			name:          "compression_type takes precedence over deprecated compress",
+			compress:      true,
+			compType:      "zstd",
+			compLevel:     sarama.CompressionLevelDefault,
+			expectedCodec: sarama.CompressionZSTD,
+			expectedLevel: sarama.CompressionLevelDefault,
+		},
+		{
+			name:          "deprecated compress alone maps to snappy",
+			compress:      true,
+			compLevel:     sarama.CompressionLevelDefault,
+			expectedCodec: sarama.CompressionSnappy,
+			expectedLevel: sarama.CompressionLevelDefault,
+		},
+		{
+			name:          "neither set defaults to no compression",
+			compLevel:     sarama.CompressionLevelDefault,
+			expectedCodec: sarama.CompressionNone,
+			expectedLevel: sarama.CompressionLevelDefault,
+		},
+		{
+			name:        "invalid compression_type returns error",
+			compType:    "bogus",
+			compLevel:   sarama.CompressionLevelDefault,
+			expectError: true,
+		},
+		{
+			name:        "uppercase compression_type is rejected",
+			compType:    "GZIP",
+			compLevel:   sarama.CompressionLevelDefault,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			saramaConfig := sarama.NewConfig()
+			cfg := &KafkaConfig{
+				Compress:         tt.compress,
+				CompressionType:  tt.compType,
+				CompressionLevel: tt.compLevel,
+			}
+
+			err := configureCompression(saramaConfig, cfg, logger)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedCodec, saramaConfig.Producer.Compression)
+			assert.Equal(t, tt.expectedLevel, saramaConfig.Producer.CompressionLevel)
+		})
+	}
 }

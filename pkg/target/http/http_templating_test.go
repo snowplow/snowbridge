@@ -29,7 +29,6 @@ func TestHTTP_Templating_WithPrettyPrint(t *testing.T) {
 
 	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
-	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
 	inputMessages := []*models.Message{
 		{Data: []byte(`{ "event_data": { "nested": "value1"}, "attribute_data": 1}`)},
@@ -38,7 +37,7 @@ func TestHTTP_Templating_WithPrettyPrint(t *testing.T) {
 		{Data: []byte(`{ "event_data": "text", "attribute_data": 4}`)},
 	}
 
-	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
+	templated, goodMessages, invalidMessages := RenderRequest(parsedTemplate, inputMessages)
 
 	expectedOutput := `
   { 
@@ -61,7 +60,6 @@ func TestHTTP_Templating_NoPrettyPrinting(t *testing.T) {
 
 	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
-	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
 	inputMessages := []*models.Message{
 		{Data: []byte(`{ "event_data": { "nested": "value1"}, "attribute_data": 1}`)},
@@ -69,7 +67,7 @@ func TestHTTP_Templating_NoPrettyPrinting(t *testing.T) {
 		{Data: []byte(`{ "event_data": { "nested": "value3"}, "attribute_data": 3}`)},
 	}
 
-	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
+	templated, goodMessages, invalidMessages := RenderRequest(parsedTemplate, inputMessages)
 
 	//we get a stringified map for JSON
 	expectedOutput := `
@@ -95,14 +93,13 @@ func TestHTTP_Templating_WithEnvVariable(t *testing.T) {
 
 	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
-	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
 	inputMessages := []*models.Message{
 		{Data: []byte(`{ "data": 1}`)},
 		{Data: []byte(`{ "data": 2}`)},
 	}
 
-	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
+	templated, goodMessages, invalidMessages := RenderRequest(parsedTemplate, inputMessages)
 
 	expectedOutput := `
   {
@@ -124,13 +121,12 @@ func TestHTTP_Templating_ArrayProvided(t *testing.T) {
 
 	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
-	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
 	inputMessages := []*models.Message{
 		{Data: []byte(`["value1", "value2", "value3"]`)},
 	}
 
-	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
+	templated, goodMessages, invalidMessages := RenderRequest(parsedTemplate, inputMessages)
 
 	expectedOutput := `
   {
@@ -164,11 +160,10 @@ func TestHTTP_Templating_AccessNonExistingField(t *testing.T) {
 			assert := assert.New(t)
 			parsedTemplate, err := ParseRequestTemplate(tt.Template)
 			assert.Nil(err)
-			target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
 			inputMessages := []*models.Message{{Data: []byte(tt.Input)}}
 
-			templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
+			templated, goodMessages, invalidMessages := RenderRequest(parsedTemplate, inputMessages)
 
 			assert.Equal(tt.Output, string(templated))
 			assert.Equal(inputMessages, goodMessages)
@@ -193,14 +188,13 @@ func TestHTTP_Templating_JSONParseFailure(t *testing.T) {
 
 	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
-	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
 	inputMessages := []*models.Message{
 		{Data: []byte(`{ "event_data": { "nested": "value1"}}`)},
 		{Data: []byte(`plain string, can't unmarshall`)},
 	}
 
-	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
+	templated, goodMessages, invalidMessages := RenderRequest(parsedTemplate, inputMessages)
 
 	assert.JSONEq(`{"nested":"value1"}`, string(templated))
 
@@ -220,13 +214,12 @@ func TestHTTP_Templating_RenderFailure(t *testing.T) {
 	rawTemplate := "{{ index . 1 }}"
 	parsedTemplate, err := ParseRequestTemplate(rawTemplate)
 	assert.Nil(err)
-	target := HTTPTargetDriver{requestTemplate: parsedTemplate}
 
 	inputMessages := []*models.Message{
 		{Data: []byte(`{ "event_data": { "nested": "value1"}, "attribute_data": 1}`)},
 	}
 
-	templated, goodMessages, invalidMessages := target.renderBatchUsingTemplate(inputMessages)
+	templated, goodMessages, invalidMessages := RenderRequest(parsedTemplate, inputMessages)
 
 	expectedError := `Could not create request JSON: template: HTTP:1:3: executing "HTTP" at <index . 1>: error calling index: reflect: slice index out of range`
 	assert.Equal(expectedError, invalidMessages[0].GetError().Error())

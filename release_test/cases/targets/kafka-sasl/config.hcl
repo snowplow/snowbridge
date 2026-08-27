@@ -7,6 +7,7 @@ target {
     sasl_username   = "testuser"
     sasl_password   = "testuser-password"
     sasl_algorithm  = "plaintext"
+    sasl_version    = 1
   }
 }
 

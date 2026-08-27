@@ -327,7 +327,7 @@ func testE2EKafkaSource(t *testing.T) {
 				}
 			}
 
-			stdOut, cmdErr := runDockerCommand(5*time.Second, "kafkaSource", configFilePath,
+			stdOut, cmdErr := runDockerCommand(15*time.Second, "kafkaSource", configFilePath,
 				testCase.binary,
 				"--env AWS_ACCESS_KEY_ID=foo --env AWS_SECRET_ACCESS_KEY=bar")
 			if cmdErr != nil {
@@ -356,8 +356,7 @@ func testE2EKafkaSourceSASL(t *testing.T) {
 	saslConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 	saslConfig.Net.SASL.User = "testuser"
 	saslConfig.Net.SASL.Password = "testuser-password"
-	saslConfig.Net.SASL.Version = 0
-	saslConfig.ApiVersionsRequest = false
+	saslConfig.Net.SASL.Version = 1
 
 	adminClient, err := sarama.NewClusterAdmin([]string{"localhost:9093"}, saslConfig)
 	if err != nil {
@@ -394,8 +393,7 @@ func testE2EKafkaSourceSASL(t *testing.T) {
 			producerConfig.Net.SASL.Mechanism = sarama.SASLTypePlaintext
 			producerConfig.Net.SASL.User = "testuser"
 			producerConfig.Net.SASL.Password = "testuser-password"
-			producerConfig.Net.SASL.Version = 0
-			producerConfig.ApiVersionsRequest = false
+			producerConfig.Net.SASL.Version = 1
 			producerConfig.Producer.Return.Successes = true
 			producerConfig.Producer.Return.Errors = true
 

@@ -1,3 +1,11 @@
+Version 6.1.0 (2026-08-26)
+--------------------------
+Bump Go to 1.26.7 and update dependencies (#137)
+remove snyk from CD stage as we no longer use snyk org wide (#126)
+Export RenderRequest from the http target (#136)
+Add configurable compression codec and level to Kafka target (#133)
+Enable SASL v1 in e2e kafka tests (#132)
+
 Version 6.0.1 (2026-07-22)
 --------------------------
 Flush filter target on its own ticker (#127)

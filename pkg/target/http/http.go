@@ -423,15 +423,7 @@ func (ht *HTTPTargetDriver) Batcher(currentBatch targetiface.CurrentBatch, messa
 func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWriteResult, error) {
 	ht.log.Debugf("Writing %d messages to endpoint ...", len(messages))
 
-	var reqBody []byte
-	var goodMsgs []*models.Message
-	var invalid []*models.Message
-
-	if ht.requestTemplate != nil {
-		reqBody, goodMsgs, invalid = ht.renderBatchUsingTemplate(messages)
-	} else {
-		reqBody, goodMsgs, invalid = ht.renderJSONArray(messages)
-	}
+	reqBody, goodMsgs, invalid := RenderRequest(ht.requestTemplate, messages)
 
 	if len(goodMsgs) == 0 {
 		// All messages failed validation - return them as invalid without error
@@ -655,8 +647,18 @@ func (ht *HTTPTargetDriver) retrieveHeaders(msg *models.Message) map[string]stri
 	return msg.HTTPHeaders
 }
 
+// RenderRequest creates a request from a batch of messages, using the configured template if
+// there is one, and a JSON array otherwise.
+func RenderRequest(requestTemplate *template.Template, messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+	if requestTemplate != nil {
+		return renderBatchUsingTemplate(requestTemplate, messages)
+	}
+
+	return renderJSONArray(messages)
+}
+
 // renderBatchUsingTemplate creates a request from a batch of messages based on configured template
-func (ht *HTTPTargetDriver) renderBatchUsingTemplate(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+func renderBatchUsingTemplate(requestTemplate *template.Template, messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
 	validJsons := []any{}
 
 	for _, msg := range messages {
@@ -676,7 +678,7 @@ func (ht *HTTPTargetDriver) renderBatchUsingTemplate(messages []*models.Message)
 	}
 
 	var buf bytes.Buffer
-	tmplErr := ht.requestTemplate.Execute(&buf, validJsons)
+	tmplErr := requestTemplate.Execute(&buf, validJsons)
 	if tmplErr != nil {
 		for _, msg := range success {
 			msg.SetError(&models.TemplatingError{
@@ -693,7 +695,7 @@ func (ht *HTTPTargetDriver) renderBatchUsingTemplate(messages []*models.Message)
 
 // Where no transformation function provides a request body, we must provide one - this necessarily must happen last.
 // This is a http specific function so we define it here to avoid scope for misconfiguration
-func (ht *HTTPTargetDriver) renderJSONArray(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
+func renderJSONArray(messages []*models.Message) (templated []byte, success []*models.Message, invalid []*models.Message) {
 
 	// This assumes the data is a valid JSON. Plain strings are no longer supported, but can be handled via a combination of transformation and templater
 	requestData := make([]json.RawMessage, 0)
