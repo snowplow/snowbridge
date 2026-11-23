@@ -1,3 +1,10 @@
+Version 6.2.0 (2026-10-19)
+--------------------------
+Bump Go to 1.26.9 and update dependencies
+Don't include response body in HTTP connection check result (#143)
+Feat/identify forwarders badrows (#141)
+Feat/cli connection check (#140)
+
 Version 6.1.0 (2026-08-26)
 --------------------------
 Bump Go to 1.26.7 and update dependencies (#137)

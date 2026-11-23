@@ -45,7 +45,7 @@ func TestEventForwardingFailure_MakeOversizedPayloads(t *testing.T) {
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0")
+	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	assert.Nil(err)
 	assert.NotNil(sf)
 
@@ -70,6 +70,8 @@ func TestEventForwardingFailure_MakeInvalidPayloadsTransformationError(t *testin
 			"processor": map[string]string{
 				"artifact": "test",
 				"version":  "0.1.0",
+				"id":       "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c",
+				"name":     "Test Forwarder",
 			},
 			"payload": "EventForwarding",
 			"failure": map[string]string{
@@ -80,13 +82,13 @@ func TestEventForwardingFailure_MakeInvalidPayloadsTransformationError(t *testin
 				"errorCode":    "TransformationError",
 			},
 		},
-		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1",
 	}
 
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0")
+	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	assert.Nil(err)
 	assert.NotNil(sf)
 
@@ -118,6 +120,8 @@ func TestEventForwardingFailure_MakeInvalidPayloadsTemplatingError(t *testing.T)
 			"processor": map[string]string{
 				"artifact": "test",
 				"version":  "0.1.0",
+				"id":       "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c",
+				"name":     "Test Forwarder",
 			},
 			"payload": "EventForwarding",
 			"failure": map[string]string{
@@ -128,13 +132,13 @@ func TestEventForwardingFailure_MakeInvalidPayloadsTemplatingError(t *testing.T)
 				"errorCode":    "",
 			},
 		},
-		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1",
 	}
 
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0")
+	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	assert.Nil(err)
 	assert.NotNil(sf)
 
@@ -166,6 +170,8 @@ func TestEventForwardingFailure_MakeInvalidPayloadsApiError(t *testing.T) {
 			"processor": map[string]string{
 				"artifact": "test",
 				"version":  "0.1.0",
+				"id":       "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c",
+				"name":     "Test Forwarder",
 			},
 			"payload": "EventForwarding",
 			"failure": map[string]string{
@@ -176,13 +182,13 @@ func TestEventForwardingFailure_MakeInvalidPayloadsApiError(t *testing.T) {
 				"errorCode":    "401",
 			},
 		},
-		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1",
 	}
 
 	expectedJSONString, err := json.Marshal(expectedJSON)
 	assert.Nil(err)
 
-	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0")
+	sf, err := NewEventForwardingFailure(5000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	assert.Nil(err)
 	assert.NotNil(sf)
 

@@ -36,7 +36,7 @@ func TestRouteInvalid_BasicBatching(t *testing.T) {
 	defer failureTarget.Ticker.Stop()
 
 	// Create event forwarding failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}
@@ -127,6 +127,14 @@ func TestRouteInvalid_BasicBatching(t *testing.T) {
 		// Verify the original data is preserved in latestState
 		expectedData := []string{"invalid1", "invalid2", "invalid3"}
 		assert.Equal(t, expectedData[i], latestState, "Original data should be preserved in transformed message")
+
+		// Verify the forwarder identifiers are included
+		processor, ok := data["processor"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Bad row data missing processor field")
+		}
+		assert.Equal(t, "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", processor["id"])
+		assert.Equal(t, "Test Forwarder", processor["name"])
 	}
 }
 
@@ -142,7 +150,7 @@ func TestRouteInvalid_OversizedMessages(t *testing.T) {
 	defer failureTarget.Ticker.Stop()
 
 	// Create event forwarding failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}
@@ -241,7 +249,7 @@ func TestRouteInvalid_BatchByteLimit(t *testing.T) {
 	defer failureTarget.Ticker.Stop()
 
 	// Create event forwarding failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}
@@ -339,7 +347,7 @@ func TestRouteInvalid_TickerFlush(t *testing.T) {
 	defer failureTarget.Ticker.Stop()
 
 	// Create event forwarding failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}
@@ -475,7 +483,7 @@ func TestRouteInvalid_FatalError(t *testing.T) {
 	defer failureTarget.Ticker.Stop()
 
 	// Create event forwarding failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}
@@ -531,7 +539,7 @@ func TestRouteInvalid_InvalidResult(t *testing.T) {
 	defer failureTarget.Ticker.Stop()
 
 	// Create event forwarding failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}

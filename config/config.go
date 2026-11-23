@@ -64,6 +64,7 @@ type ConfigurationData struct {
 	Retry            *RetryConfig         `hcl:"retry,block"`
 	Metrics          *metricsConfig       `hcl:"metrics,block"`
 	Monitoring       *monitoringConfig    `hcl:"monitoring,block"`
+	Forwarder        *forwarderConfig     `hcl:"forwarder,block"`
 }
 
 // component is a type to abstract over configuration blocks.
@@ -98,6 +99,13 @@ type TargetConfig struct {
 // failureParser holds configuration for failure handling.
 type failureParser struct {
 	Format string `hcl:"format,optional"`
+}
+
+// forwarderConfig identifies the forwarder this instance runs as.
+// Only used by the event_forwarding failure format.
+type forwarderConfig struct {
+	ID   string `hcl:"id,optional"`
+	Name string `hcl:"name,optional"`
 }
 
 // sentryConfig configures the Sentry error tracker.
@@ -226,6 +234,7 @@ func defaultConfigData() *ConfigurationData {
 				RequestTimeoutInMillis: 5000,
 			},
 		},
+		Forwarder: &forwarderConfig{},
 	}
 }
 
@@ -315,7 +324,7 @@ func (c *Config) GetFailureParser(failureTargetMaxMessageSize int, appName, appV
 	case failure.SnowplowFailureTarget:
 		return failure.NewSnowplowFailure(failureTargetMaxMessageSize, appName, appVersion)
 	case failure.EventForwardingFailureTarget:
-		return failure.NewEventForwardingFailure(failureTargetMaxMessageSize, appName, appVersion)
+		return failure.NewEventForwardingFailure(failureTargetMaxMessageSize, appName, appVersion, c.Data.Forwarder.ID, c.Data.Forwarder.Name)
 	default:
 		return nil, fmt.Errorf("invalid failure format found; expected one of 'snowplow', 'event_forwarding' and got '%s'", c.Data.FailureParser.Format)
 	}

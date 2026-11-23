@@ -76,6 +76,8 @@ type HTTPTargetConfig struct {
 
 	IncludeTimingHeaders       bool `hcl:"include_timing_headers,optional"`
 	RejectionThresholdInMillis int  `hcl:"rejection_threshold_in_millis,optional"`
+
+	ConnectionTest *ConnectionTestConfig `hcl:"connection_test,block"`
 }
 
 // OAuthClientConfig holds OAuth2 client credentials flow configuration.
@@ -154,6 +156,8 @@ type HTTPTargetDriver struct {
 
 	includeTimingHeaders bool
 	rejectionThreshold   int
+
+	connectionTest *ConnectionTestConfig
 }
 
 func addHeadersToRequest(request *http.Request, headers map[string]string, dynamicHeaders map[string]string) {
@@ -164,6 +168,30 @@ func addHeadersToRequest(request *http.Request, headers map[string]string, dynam
 	for key, value := range dynamicHeaders {
 		request.Header.Add(key, value)
 	}
+}
+
+// newRequest builds a POST request to the configured URL with the configured content type, headers,
+// authentication and timing headers. It is shared by Write and CheckConnection so that the connection
+// test sends exactly the same kind of request as production writes.
+func (ht *HTTPTargetDriver) newRequest(body []byte, dynamicHeaders map[string]string) (*http.Request, time.Time, error) {
+	request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+
+	request.Header.Add("Content-Type", ht.contentType)            // Add content type
+	addHeadersToRequest(request, ht.headers, dynamicHeaders)      // Add headers if there are any
+	if ht.basicAuthUsername != "" || ht.basicAuthPassword != "" { // Add basic auth if either username or password is set
+		request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
+	}
+
+	requestStarted := time.Now().UTC()
+	if ht.includeTimingHeaders {
+		rejectionTimestamp := requestStarted.UnixMilli() + (ht.client.Timeout.Milliseconds() - int64(ht.rejectionThreshold))
+		request.Header.Add("Rejection-Timestamp", strconv.FormatInt(rejectionTimestamp, 10))
+	}
+
+	return request, requestStarted, nil
 }
 
 func loadRequestTemplate(templateFile string) ([]byte, *template.Template, error) {
@@ -399,6 +427,7 @@ func (ht *HTTPTargetDriver) InitFromConfig(cfg any) error {
 	ht.metadataSafeMode = c.MetadataSafeMode
 	ht.includeTimingHeaders = c.IncludeTimingHeaders
 	ht.rejectionThreshold = c.RejectionThresholdInMillis
+	ht.connectionTest = c.ConnectionTest
 
 	return nil
 }
@@ -430,22 +459,10 @@ func (ht *HTTPTargetDriver) Write(messages []*models.Message) (*models.TargetWri
 		return models.NewTargetWriteResult(nil, nil, invalid), nil
 	}
 
-	request, err := http.NewRequest("POST", ht.httpURL, bytes.NewBuffer(reqBody))
-
+	// Headers are grouped by batch, so we just need to pick the dynamic headers from one message
+	request, requestStarted, err := ht.newRequest(reqBody, ht.retrieveHeaders(goodMsgs[0]))
 	if err != nil {
 		return models.NewTargetWriteResult(nil, nil, nil), models.FatalWriteError{Err: err}
-	}
-
-	request.Header.Add("Content-Type", ht.contentType)                        // Add content type
-	addHeadersToRequest(request, ht.headers, ht.retrieveHeaders(goodMsgs[0])) // Add headers if there are any - because they're grouped by header, we just need to pick the header from one message
-	if ht.basicAuthUsername != "" || ht.basicAuthPassword != "" {             // Add basic auth if either username or password is set
-		request.SetBasicAuth(ht.basicAuthUsername, ht.basicAuthPassword)
-	}
-
-	requestStarted := time.Now().UTC()
-	if ht.includeTimingHeaders {
-		rejectionTimestamp := requestStarted.UnixMilli() + (ht.client.Timeout.Milliseconds() - int64(ht.rejectionThreshold))
-		request.Header.Add("Rejection-Timestamp", strconv.FormatInt(rejectionTimestamp, 10))
 	}
 
 	resp, err := ht.client.Do(request) // Make request

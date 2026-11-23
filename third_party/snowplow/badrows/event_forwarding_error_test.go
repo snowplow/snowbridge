@@ -30,6 +30,116 @@ func TestNewEventForwardingError(t *testing.T) {
 		&EventForwardingErrorInput{
 			ProcessorArtifact: "snowbridge",
 			ProcessorVersion:  "0.1.0",
+			ForwarderID:       "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c",
+			ForwarderName:     "Test Forwarder",
+			OriginalTSV:       []byte("\u0001"),
+			ErrorType:         "transformation",
+			LatestState:       []byte("\u0001"),
+			ErrorMessage:      "",
+			ErrorCode:         "",
+			FailureTimestamp:  timeNow,
+		},
+		262144,
+	)
+	assert.Nil(err)
+	assert.NotNil(sv)
+
+	compact, err := sv.Compact()
+	assert.Nil(err)
+	assert.NotNil(compact)
+
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"processor": map[string]string{
+				"artifact": "snowbridge",
+				"version":  "0.1.0",
+				"id":       "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c",
+				"name":     "Test Forwarder",
+			},
+			"payload": "\u0001",
+			"failure": map[string]string{
+				"latestState":  "\u0001",
+				"timestamp":    timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
+				"errorType":    "transformation",
+				"errorMessage": "",
+				"errorCode":    "",
+			},
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
+	diff, err := testutil.GetJsonDiff(string(expectedJSONString), compact)
+	assert.Nil(err)
+	assert.Zero(diff)
+}
+
+func TestNewEventForwardingError_WithErrors(t *testing.T) {
+	assert := assert.New(t)
+
+	timeNow := time.Now()
+
+	sv, err := NewEventForwardingError(
+		&EventForwardingErrorInput{
+			ProcessorArtifact: "snowbridge",
+			ProcessorVersion:  "0.1.0",
+			ForwarderID:       "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c",
+			ForwarderName:     "Test Forwarder",
+			OriginalTSV:       []byte("\u0001"),
+			ErrorType:         "api",
+			LatestState:       []byte("\u0001"),
+			ErrorMessage:      "Unauthorised",
+			ErrorCode:         "401",
+			FailureTimestamp:  timeNow,
+		},
+		262144,
+	)
+	assert.Nil(err)
+	assert.NotNil(sv)
+
+	compact, err := sv.Compact()
+	assert.Nil(err)
+	assert.NotNil(compact)
+
+	expectedJSON := map[string]any{
+		"data": map[string]any{
+			"processor": map[string]string{
+				"artifact": "snowbridge",
+				"version":  "0.1.0",
+				"id":       "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c",
+				"name":     "Test Forwarder",
+			},
+			"payload": "\u0001",
+			"failure": map[string]string{
+				"latestState":  "\u0001",
+				"timestamp":    timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
+				"errorType":    "api",
+				"errorMessage": "Unauthorised",
+				"errorCode":    "401",
+			},
+		},
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1",
+	}
+
+	expectedJSONString, err := json.Marshal(expectedJSON)
+	assert.Nil(err)
+
+	diff, err := testutil.GetJsonDiff(string(expectedJSONString), compact)
+	assert.Nil(err)
+	assert.Zero(diff)
+}
+
+func TestNewEventForwardingError_WithoutForwarder(t *testing.T) {
+	assert := assert.New(t)
+
+	timeNow := time.Now()
+
+	sv, err := NewEventForwardingError(
+		&EventForwardingErrorInput{
+			ProcessorArtifact: "snowbridge",
+			ProcessorVersion:  "0.1.0",
 			OriginalTSV:       []byte("\u0001"),
 			ErrorType:         "transformation",
 			LatestState:       []byte("\u0001"),
@@ -61,58 +171,7 @@ func TestNewEventForwardingError(t *testing.T) {
 				"errorCode":    "",
 			},
 		},
-		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
-	}
-
-	expectedJSONString, err := json.Marshal(expectedJSON)
-	assert.Nil(err)
-
-	diff, err := testutil.GetJsonDiff(string(expectedJSONString), compact)
-	assert.Nil(err)
-	assert.Zero(diff)
-}
-
-func TestNewEventForwardingError_WithErrors(t *testing.T) {
-	assert := assert.New(t)
-
-	timeNow := time.Now()
-
-	sv, err := NewEventForwardingError(
-		&EventForwardingErrorInput{
-			ProcessorArtifact: "snowbridge",
-			ProcessorVersion:  "0.1.0",
-			OriginalTSV:       []byte("\u0001"),
-			ErrorType:         "api",
-			LatestState:       []byte("\u0001"),
-			ErrorMessage:      "Unauthorised",
-			ErrorCode:         "401",
-			FailureTimestamp:  timeNow,
-		},
-		262144,
-	)
-	assert.Nil(err)
-	assert.NotNil(sv)
-
-	compact, err := sv.Compact()
-	assert.Nil(err)
-	assert.NotNil(compact)
-
-	expectedJSON := map[string]any{
-		"data": map[string]any{
-			"processor": map[string]string{
-				"artifact": "snowbridge",
-				"version":  "0.1.0",
-			},
-			"payload": "\u0001",
-			"failure": map[string]string{
-				"latestState":  "\u0001",
-				"timestamp":    timeNow.UTC().Format("2006-01-02T15:04:05Z07:00"),
-				"errorType":    "api",
-				"errorMessage": "Unauthorised",
-				"errorCode":    "401",
-			},
-		},
-		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0",
+		"schema": "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1",
 	}
 
 	expectedJSONString, err := json.Marshal(expectedJSON)

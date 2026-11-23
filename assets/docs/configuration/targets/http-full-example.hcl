@@ -110,7 +110,7 @@ target {
     # Optional. When enabled, precalculated rejection timestamp is attached as HTTP header. This option is part of a feature of the Snowplow Event Forwarding product.
     include_timing_headers     = true
 
-    # Optional. Used in combination with `include_timing_headers` to precalculate rejection timestamp. 
+    # Optional. Used in combination with `include_timing_headers` to precalculate rejection timestamp.
     rejection_threshold_in_millis = 100
 
     # Optional HTTP response rules which are used to match HTTP response code/body and categorize it as either invalid data or target setup error.
@@ -118,25 +118,25 @@ target {
     response_rules {
       # Invalid rule for purchase field validation error
       rule {
-          type = "invalid"
-          http_codes = [400]
-          body =  "Invalid value for 'purchase' field"
-        }
+        type = "invalid"
+        http_codes = [400]
+        body =  "Invalid value for 'purchase' field"
+      }
       # Throttle rule for 429 throttle response
       rule {
-          type = "throttle"
-          http_codes = [429]
-        }
+        type = "throttle"
+        http_codes = [429]
+      }
       # Setup rule for authentication errors
       rule {
-          type = "setup"
-          http_codes =  [401, 403]
-        }
+        type = "setup"
+        http_codes =  [401, 403]
+      }
       # Fatal rule to signal graceful shutdown when code is received
       rule {
-          type = "fatal"
-          http_codes =  [413]
-        }
+        type = "fatal"
+        http_codes =  [413]
+      }
       # Example rule to treat client timeouts as throttling
       rule {
         type = "throttle"
@@ -144,9 +144,26 @@ target {
         body = "context deadline exceeded"
       }
     }
-    
-  # Optional. When enabled, safe strings are used for metadata error reporting. If disabled, response bodies are used. (default: true)
-  # Used where API responses may contain sensitive data, which shouldn't pass through the metadata reporter.
-  metadata_safe_mode = true
+
+    # Optional. When enabled, safe strings are used for metadata error reporting. If disabled, response bodies are used. (default: true)
+    # Used where API responses may contain sensitive data, which shouldn't pass through the metadata reporter.
+    metadata_safe_mode = true
+
+    # Optional. Connection test, run by starting Snowbridge with the `--connection-test` flag.
+    # Sends the request body below once to the configured url, using the configured headers and
+    # authentication, prints the result as JSON, and exits. The check passes if the response code
+    # matches the expected code.
+    connection_test {
+      # Request body to send. Typically constructed so that it passes
+      # authentication and is then rejected by the API on its own merits,
+      # so that no test data is written to your account.
+      request_body = <<EOT
+{"events": []}
+EOT
+
+      # The response code this request is expected to produce when the
+      # configured credentials are correct.
+      expected_status_code = 400
+    }
   }
 }

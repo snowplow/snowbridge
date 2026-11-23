@@ -25,16 +25,20 @@ const EventForwardingFailureTarget = "event_forwarding"
 type EventForwardingFailure struct {
 	processorArtifact           string
 	processorVersion            string
+	forwarderID                 string
+	forwarderName               string
 	failureTargetMessageMaxSize int
 	log                         *log.Entry
 }
 
 // NewEventForwardingFailure will create a new client for handling failed events
 // by converting them into EventForwarding compatible bad events
-func NewEventForwardingFailure(failureTargetMessageMaxSize int, processorArtifact string, processorVersion string) (*EventForwardingFailure, error) {
+func NewEventForwardingFailure(failureTargetMessageMaxSize int, processorArtifact string, processorVersion string, forwarderID string, forwarderName string) (*EventForwardingFailure, error) {
 	return &EventForwardingFailure{
 		processorArtifact:           processorArtifact,
 		processorVersion:            processorVersion,
+		forwarderID:                 forwarderID,
+		forwarderName:               forwarderName,
 		failureTargetMessageMaxSize: failureTargetMessageMaxSize,
 		log:                         log.WithFields(log.Fields{"failed": EventForwardingFailureTarget}),
 	}, nil
@@ -54,6 +58,8 @@ func (ef *EventForwardingFailure) MakeInvalidPayloads(messages []*models.Message
 				&badrows.EventForwardingErrorInput{
 					ProcessorArtifact: ef.processorArtifact,
 					ProcessorVersion:  ef.processorVersion,
+					ForwarderID:       ef.forwarderID,
+					ForwarderName:     ef.forwarderName,
 					OriginalTSV:       msg.OriginalData,
 					ErrorType:         reportableError.Type(),
 					LatestState:       msg.Data,
@@ -68,6 +74,8 @@ func (ef *EventForwardingFailure) MakeInvalidPayloads(messages []*models.Message
 				&badrows.EventForwardingErrorInput{
 					ProcessorArtifact: ef.processorArtifact,
 					ProcessorVersion:  ef.processorVersion,
+					ForwarderID:       ef.forwarderID,
+					ForwarderName:     ef.forwarderName,
 					OriginalTSV:       msg.OriginalData,
 					LatestState:       msg.Data,
 					ErrorMessage:      err.Error(),

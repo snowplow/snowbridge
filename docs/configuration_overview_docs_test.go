@@ -54,6 +54,9 @@ func TestConfigurationOverview(t *testing.T) {
 
 	// Test that decompression compiles and covers all fields
 	testDecompressionConfig(t, hclFilePath)
+
+	// Test that forwarder compiles and covers all fields
+	testForwarderConfig(t, hclFilePath)
 }
 
 func testDecompressionConfig(t *testing.T, configpath string) {
@@ -67,4 +70,18 @@ func testDecompressionConfig(t *testing.T, configpath string) {
 	assert.Equal(5000000, decompressionConfig.MaxBytesSinglePayload)
 
 	checkComponentForZeros(t, decompressionConfig)
+}
+
+func testForwarderConfig(t *testing.T, configpath string) {
+	assert := assert.New(t)
+
+	c := getConfigFromFilepath(t, configpath)
+
+	forwarderConfig := c.Data.Forwarder
+
+	assert.NotNil(forwarderConfig)
+	assert.Equal("7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", forwarderConfig.ID)
+	assert.Equal("My forwarder", forwarderConfig.Name)
+
+	checkComponentForZeros(t, forwarderConfig)
 }

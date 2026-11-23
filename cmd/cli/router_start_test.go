@@ -47,7 +47,7 @@ func TestRouter_Start_GracefulShutdownWithPartialBatches(t *testing.T) {
 	assert.False(t, failureDriver.IsOpened(), "FailureTarget should not be opened before Start()")
 
 	// Create failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestRouter_Start_GracefulShutdownWithInFlightWrites(t *testing.T) {
 	assert.False(t, failureDriver.IsOpened(), "FailureTarget should not be opened before Start()")
 
 	// Create failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}

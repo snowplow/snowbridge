@@ -52,9 +52,18 @@ func main() {
 			Name:  "profile, p",
 			Usage: "Enable application profiling endpoint on port 8080",
 		},
+		cli.BoolFlag{
+			Name:  "connection-test",
+			Usage: "Run the target connection test once, print the result as JSON to stdout, and exit",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
+		if c.Bool("connection-test") {
+			// Exits 0 whenever the check ran, pass or fail - the result is reported in the JSON output
+			return snowbridge_cli.RunConnectionTest(config)
+		}
+
 		profile := c.Bool("profile")
 		if profile {
 			go func() {

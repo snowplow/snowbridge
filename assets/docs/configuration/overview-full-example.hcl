@@ -73,6 +73,17 @@ failure_parser {
   format = "event_forwarding"
 }
 
+# Optional identifiers for this forwarder, included in event_forwarding failure messages.
+# Empty values are omitted from the failure message.
+# Ignored by the "snowplow" failure format.
+forwarder {
+  # Unique identifier of the forwarder (default: "")
+  id   = "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c"
+
+  # Human readable name of the forwarder (default: "")
+  name = "My forwarder"
+}
+
 sentry {
   # The DSN to send Sentry alerts to
   dsn   = "https://1234d@sentry.acme.net/28"

@@ -43,7 +43,7 @@ func TestRouter_MetricsTracking(t *testing.T) {
 	defer failureTarget.Ticker.Stop()
 
 	// Create failure parser
-	failureParser, err := failure.NewEventForwardingFailure(1000, "test", "0.1.0")
+	failureParser, err := failure.NewEventForwardingFailure(1000, "test", "0.1.0", "7f3c9a2e-1b4d-4e8f-9c6a-2d5e8b1f0a3c", "Test Forwarder")
 	if err != nil {
 		t.Fatalf("Failed to create failure parser: %v", err)
 	}

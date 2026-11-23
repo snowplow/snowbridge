@@ -16,16 +16,19 @@ import (
 )
 
 const (
-	// Definition: https://github.com/snowplow/iglu-central/blob/1a5e65b89ec40a3365fc9d99160955ed87c998be/schemas/com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0
-	eventForwardingViolationSchema = "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-0"
+	// Definition: https://github.com/snowplow/iglu-central/blob/master/schemas/com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1
+	eventForwardingViolationSchema = "iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1"
 )
 
 // EventForwardingErrorInput provides the inputs for generating a new event forwarding error
 type EventForwardingErrorInput struct {
 	ProcessorArtifact string
 	ProcessorVersion  string
-	OriginalTSV       []byte
-	ErrorType         string
+	// Optional identifiers for the forwarder that produced this error
+	ForwarderID   string
+	ForwarderName string
+	OriginalTSV   []byte
+	ErrorType     string
 	// The latest transformed version of the original TSV message
 	LatestState      []byte
 	ErrorMessage     string
@@ -35,12 +38,20 @@ type EventForwardingErrorInput struct {
 
 // NewEventForwardingError will build a new event forwarding error JSON that can be emitted to a Snowplow badrows stream
 func NewEventForwardingError(input *EventForwardingErrorInput, targetByteLimit int) (*BadRow, error) {
+	// Processor information, including the forwarder identifiers when configured
+	processor := map[string]string{
+		"artifact": input.ProcessorArtifact,
+		"version":  input.ProcessorVersion,
+	}
+	if input.ForwarderID != "" {
+		processor["id"] = input.ForwarderID
+	}
+	if input.ForwarderName != "" {
+		processor["name"] = input.ForwarderName
+	}
+
 	data := map[string]any{
-		// Processor information
-		dataKeyProcessor: map[string]string{
-			"artifact": input.ProcessorArtifact,
-			"version":  input.ProcessorVersion,
-		},
+		dataKeyProcessor: processor,
 
 		// Failure information
 		dataKeyFailure: map[string]string{
