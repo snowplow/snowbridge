@@ -5,7 +5,9 @@
 # -----------------------------------------------------------------------------
 
 SHELL = /bin/bash
-version = `cat VERSION`
+version = dev
+module := $(shell go list -m)
+ldflags = -ldflags="-X $(module)/cmd.AppVersion=$(version)"
 aws_only_version = $(version)-aws-only
 
 go_dirs = `go list ./... | grep -v /build/ | grep -v /vendor/`
@@ -94,22 +96,22 @@ cli: gox cli-linux cli-darwin cli-windows
 
 # Build CLI binaries for each distro
 cli-linux: gox
-	CGO_ENABLED=0 gox -tags awsonly -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
-	CGO_ENABLED=0 gox -osarch=linux/amd64 -output=$(linux_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -tags awsonly -osarch=linux/amd64 -output=$(linux_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -osarch=linux/amd64 -output=$(linux_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
-	CGO_ENABLED=0 gox -tags awsonly -osarch=linux/arm64 -output=$(linux_out_dir)/aws/cli/arm64/snowbridge ./cmd/main/cli/
-	CGO_ENABLED=0 gox -osarch=linux/arm64 -output=$(linux_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -tags awsonly -osarch=linux/arm64 -output=$(linux_out_dir)/aws/cli/arm64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -osarch=linux/arm64 -output=$(linux_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/
 
 cli-darwin: gox
-	CGO_ENABLED=0 gox -tags awsonly -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
-	CGO_ENABLED=0 gox -osarch=darwin/amd64 -output=$(darwin_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -tags awsonly -osarch=darwin/amd64 -output=$(darwin_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -osarch=darwin/amd64 -output=$(darwin_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
-	CGO_ENABLED=0 gox -tags awsonly -osarch=darwin/arm64 -output=$(darwin_out_dir)/aws/cli/arm64/snowbridge ./cmd/main/cli/
-	CGO_ENABLED=0 gox -osarch=darwin/arm64 -output=$(darwin_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -tags awsonly -osarch=darwin/arm64 -output=$(darwin_out_dir)/aws/cli/arm64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -osarch=darwin/arm64 -output=$(darwin_out_dir)/main/cli/arm64/snowbridge ./cmd/main/cli/
 
 cli-windows: gox
-	CGO_ENABLED=0 gox -tags awsonly -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
-	CGO_ENABLED=0 gox -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -tags awsonly -osarch=windows/amd64 -output=$(windows_out_dir)/aws/cli/amd64/snowbridge ./cmd/main/cli/
+	CGO_ENABLED=0 gox $(ldflags) -osarch=windows/amd64 -output=$(windows_out_dir)/main/cli/amd64/snowbridge ./cmd/main/cli/
 
 container: cli-linux
 	docker build -t $(container_name):$(aws_only_version) -f Dockerfile.aws .
@@ -192,6 +194,7 @@ http-down:
 
 # Make & push docker assets, don't tag as latest if there's a `-` in the version (eg. 0.1.0-rc1)
 container-release:
+	@if [ "$(version)" = dev ]; then echo "ERROR: run with version=X.Y.Z"; exit 1; fi
 	@-docker login --username $(DOCKER_USERNAME) --password $(DOCKER_PASSWORD)
 	docker buildx create --name multi-arch-builder --driver=docker-container --platform linux/amd64,linux/arm64 --use
 	docker buildx build -t $(container_name):$(aws_only_version) -f Dockerfile.aws --platform=linux/amd64,linux/arm64 --push .

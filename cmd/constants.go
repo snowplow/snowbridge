@@ -11,10 +11,10 @@
 
 package cmd
 
-const (
-	// AppVersion is the current version of the app
-	AppVersion = "6.2.1"
+// AppVersion is set at build time with -ldflags -X (see Makefile).
+var AppVersion = "dev"
 
+const (
 	// AppName is the name of the application to use in logging / places that require the artifact
 	AppName = "snowbridge"
 

@@ -19,9 +19,8 @@ services:
       - KINESIS_ERROR_PROBABILITY=0.0
 
   pubsub:
-    image: bigtruedata/gcloud-pubsub-emulator
-    platform: "linux/amd64" # Only one platform exists for this image
-    command: start --host-port 0.0.0.0:8432
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:591.0.0-emulators
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8432 --project=project-test
     ports:
       - "0.0.0.0:8432:8432"
 

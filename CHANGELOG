@@ -1,3 +1,13 @@
+Version 6.2.2 (2026-11-16)
+--------------------------
+Persist checkout credentials so Claude mentions can fetch
+Gate final releases on the release environment
+Take the version from the git tag and remove VERSION (#154)
+Read the Go version from go.mod in CI and CD (#152)
+Bump Go to 1.26.10 and golang.org/x/net to 0.62.0 (#149)
+Replace removed Pub/Sub emulator image in integration tests (#148)
+Harden claude.yml workflow against prompt injection
+
 Version 6.2.1 (2026-10-26)
 --------------------------
 patch: CVE-2026-91403 (#144)

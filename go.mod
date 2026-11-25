@@ -1,6 +1,6 @@
 module github.com/snowplow/snowbridge/v6
 
-go 1.26.9
+go 1.26.10
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
@@ -30,7 +30,7 @@ require (
 	github.com/urfave/cli v1.22.17
 	github.com/xdg/scram v1.0.5
 	golang.org/x/crypto v0.58.0 // indirect
-	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
