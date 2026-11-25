@@ -18,12 +18,11 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"cloud.google.com/go/pubsub/pstest"
+	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	// nolint: govet,staticcheck
-	pubsubV1 "cloud.google.com/go/pubsub/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/grpc/codes"
 
 	"github.com/snowplow/snowbridge/v6/pkg/models"
@@ -38,17 +37,7 @@ func TestPubSubTarget_WriteSuccessIntegration(t *testing.T) {
 	assert := assert.New(t)
 
 	// Create topic and subscription
-	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer func() {
-		if err := topic.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-	defer func() {
-		if err := subscription.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
+	_, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 
 	pubsubTarget, err := newTestPubSubTargetDriver(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
@@ -88,17 +77,7 @@ func TestPubSubTarget_WriteTopicUnopenedIntegration(t *testing.T) {
 	assert := assert.New(t)
 
 	// Create topic and subscription
-	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer func() {
-		if err := topic.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-	defer func() {
-		if err := subscription.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
+	testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 
 	pubsubTarget, err := newTestPubSubTargetDriver(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
@@ -121,17 +100,7 @@ func TestPubSubTarget_WithInvalidMessageIntegration(t *testing.T) {
 	assert := assert.New(t)
 
 	// Create topic and subscription
-	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
-	defer func() {
-		if err := topic.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-	defer func() {
-		if err := subscription.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
+	_, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic", "test-sub")
 
 	pubsubTarget, err := newTestPubSubTargetDriver(`project-test`, `test-topic`, "")
 	assert.NotNil(pubsubTarget)
@@ -195,8 +164,7 @@ func TestPubSubTarget_WriteSuccessWithMocks(t *testing.T) {
 	assert.Nil(twres.Failed)
 	assert.Nil(twres.Invalid)
 
-	// nolint: staticcheck
-	res, pullErr := srv.GServer.Pull(t.Context(), &pubsubV1.PullRequest{
+	res, pullErr := srv.GServer.Pull(t.Context(), &pubsubpb.PullRequest{
 		Subscription: "projects/project-test/subscriptions/test-sub",
 		MaxMessages:  15, // 15 max messages to ensure we don't miss dupes
 	})

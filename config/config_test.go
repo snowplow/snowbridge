@@ -12,14 +12,20 @@
 package config
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/snowplow/snowbridge/v6/assets"
 	"github.com/snowplow/snowbridge/v6/pkg/failure"
+	"github.com/snowplow/snowbridge/v6/pkg/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewConfig_NoConfig(t *testing.T) {
@@ -55,7 +61,7 @@ func TestNewConfig_NoConfig(t *testing.T) {
 	assert.Equal(1000, c.Data.Retry.Transient.Delay)
 	assert.Equal(5, c.Data.Retry.Transient.MaxAttempts)
 	assert.Equal(20000, c.Data.Retry.Setup.Delay)
-	assert.Equal(5000, c.Data.Monitoring.MetadataReporter.RequestTimeoutInMillis)
+	assert.Empty(c.Data.Monitoring.MetadataReporters)
 	assert.Equal(5000, c.Data.Monitoring.Webhook.RequestTimeoutInMillis)
 }
 
@@ -269,13 +275,13 @@ func TestNewConfig_GetMonitoring(t *testing.T) {
 	assert.Nil(err)
 
 	// Should be able to build observer with metadata reporter
-	c.Data.Monitoring.MetadataReporter.Endpoint = "http://example.com"
+	c.Data.Monitoring.MetadataReporters = []*metadataReporterConfig{{Endpoint: "http://example.com"}}
 	observer, err := c.GetObserver("", "", map[string]string{})
 	assert.NotNil(observer)
 	assert.Nil(err)
 
 	// Should fail to build observer with metadata reporter
-	c.Data.Monitoring.MetadataReporter.Endpoint = "http:/example.com"
+	c.Data.Monitoring.MetadataReporters = []*metadataReporterConfig{{Endpoint: "http:/example.com"}}
 	observer, err = c.GetObserver("", "", map[string]string{})
 	assert.Nil(observer)
 	assert.NotNil(err)
@@ -294,4 +300,45 @@ func TestNewMonitoringHTTPClient(t *testing.T) {
 	assert.True(transport.Protocols.HTTP1())
 	assert.False(transport.Protocols.HTTP2())
 	assert.Equal([]string{"http/1.1"}, transport.TLSClientConfig.NextProtos)
+}
+
+func metadataReporterConfigFrom(t *testing.T, block string) *Config {
+	path := filepath.Join(t.TempDir(), "config.hcl")
+	require.NoError(t, os.WriteFile(path, []byte("monitoring {\n metadata_reporter {\n"+block+"\n }\n}\n"), 0o600))
+	t.Setenv("SNOWBRIDGE_CONFIG_FILE", path)
+	c, err := NewConfig()
+	require.NoError(t, err)
+	return c
+}
+
+func TestNewConfig_MetadataReporterSendsEmptyTagsByDefault(t *testing.T) {
+	bodies := make(chan []byte, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		bodies <- body
+	}))
+	defer server.Close()
+
+	c := metadataReporterConfigFrom(t, `endpoint = "`+server.URL+`"`)
+	reporter, err := c.getMetadataReporter("app", "1.0.0")
+	require.NoError(t, err)
+
+	reporter.Send(&models.ObserverBuffer{}, time.Now(), time.Now())
+
+	var event struct {
+		Data struct {
+			Tags json.RawMessage `json:"tags"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(<-bodies, &event))
+	assert.JSONEq(t, `{}`, string(event.Data.Tags))
+}
+
+func TestNewConfig_MetadataReporterTimeout(t *testing.T) {
+	unset := metadataReporterConfigFrom(t, `endpoint = "http://example.com"`)
+	assert.Nil(t, unset.Data.Monitoring.MetadataReporters[0].RequestTimeoutInMillis)
+
+	zero := metadataReporterConfigFrom(t, "endpoint = \"http://example.com\"\nrequest_timeout_in_millis = 0")
+	require.NotNil(t, zero.Data.Monitoring.MetadataReporters[0].RequestTimeoutInMillis)
+	assert.Equal(t, 0, *zero.Data.Monitoring.MetadataReporters[0].RequestTimeoutInMillis)
 }

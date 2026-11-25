@@ -86,7 +86,7 @@ func TestObserverTargetWrite(t *testing.T) {
 			assert.Equal(1, len(b.InvalidErrors))
 			for kErr, v := range b.InvalidErrors {
 				assert.Equal(invalidTempError.SafeMessage, kErr.Description)
-				assert.Equal(5, v)
+				assert.Equal(5, v.Count)
 			}
 
 			metaCounter++
@@ -103,7 +103,7 @@ func TestObserverTargetWrite(t *testing.T) {
 			assert.Equal(1, len(b.InvalidErrors))
 			for kErr, v := range b.InvalidErrors {
 				assert.Equal(invalidTempError.SafeMessage, kErr.Description)
-				assert.Equal(1, v)
+				assert.Equal(1, v.Count)
 			}
 		}
 	}

@@ -141,8 +141,8 @@ type metricsConfig struct {
 }
 
 type monitoringConfig struct {
-	Webhook          *webhookConfig          `hcl:"webhook,block"`
-	MetadataReporter *metadataReporterConfig `hcl:"metadata_reporter,block"`
+	Webhook           *webhookConfig            `hcl:"webhook,block"`
+	MetadataReporters []*metadataReporterConfig `hcl:"metadata_reporter,block"`
 }
 
 type webhookConfig struct {
@@ -155,8 +155,12 @@ type webhookConfig struct {
 type metadataReporterConfig struct {
 	Endpoint               string            `hcl:"endpoint"`
 	Tags                   map[string]string `hcl:"tags,optional"`
-	RequestTimeoutInMillis int               `hcl:"request_timeout_in_millis,optional"`
+	RequestTimeoutInMillis *int              `hcl:"request_timeout_in_millis,optional"`
+	IncludeErrorSamples    bool              `hcl:"include_error_samples,optional"`
 }
+
+// Repeated blocks can't carry defaults, so these apply when a metadata_reporter block leaves them out
+const defaultMetadataReporterTimeoutInMillis = 5000
 
 type TransientRetryConfig struct {
 	Delay           int  `hcl:"delay_ms,optional"`
@@ -227,10 +231,6 @@ func defaultConfigData() *ConfigurationData {
 			Webhook: &webhookConfig{
 				Tags:                   map[string]string{},
 				HeartbeatInterval:      300,
-				RequestTimeoutInMillis: 5000,
-			},
-			MetadataReporter: &metadataReporterConfig{
-				Tags:                   map[string]string{},
 				RequestTimeoutInMillis: 5000,
 			},
 		},
@@ -427,17 +427,32 @@ func newMonitoringHTTPClient(timeout time.Duration) *http.Client {
 }
 
 func (c *Config) getMetadataReporter(appName, appVersion string) (monitoring.MetadataReporterer, error) {
-	if c.Data.Monitoring.MetadataReporter.Endpoint == "" {
+	var reporters []monitoring.MetadataReporterer
+	for _, r := range c.Data.Monitoring.MetadataReporters {
+		if r.Endpoint == "" {
+			continue
+		}
+		if err := common.CheckURL(r.Endpoint); err != nil {
+			return nil, err
+		}
+		timeout := defaultMetadataReporterTimeoutInMillis
+		if r.RequestTimeoutInMillis != nil {
+			timeout = *r.RequestTimeoutInMillis
+		}
+		tags := r.Tags
+		if tags == nil {
+			tags = map[string]string{}
+		}
+		client := newMonitoringHTTPClient(time.Duration(timeout) * time.Millisecond)
+		reporters = append(reporters, monitoring.NewMetadataReporter(appName, appVersion, client, r.Endpoint, tags, r.IncludeErrorSamples))
+	}
+
+	switch len(reporters) {
+	case 0:
 		return nil, nil
+	case 1:
+		return reporters[0], nil
+	default:
+		return monitoring.FanOut(reporters), nil
 	}
-
-	if err := common.CheckURL(c.Data.Monitoring.MetadataReporter.Endpoint); err != nil {
-		return nil, err
-	}
-
-	client := newMonitoringHTTPClient(time.Duration(c.Data.Monitoring.MetadataReporter.RequestTimeoutInMillis) * time.Millisecond)
-	endpoint := c.Data.Monitoring.MetadataReporter.Endpoint
-	tags := c.Data.Monitoring.MetadataReporter.Tags
-
-	return monitoring.NewMetadataReporter(appName, appVersion, client, endpoint, tags), nil
 }

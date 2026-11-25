@@ -12,6 +12,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -20,6 +21,13 @@ import (
 type MetadataCodeDescription struct {
 	Code        string
 	Description string
+}
+
+// ErrorAggregate accumulates the occurrences of one distinct invalid error over a
+// reporting period. Sample holds the bad row produced for the first occurrence.
+type ErrorAggregate struct {
+	Count  int
+	Sample []byte
 }
 
 // ObserverBuffer contains all the metrics we are processing
@@ -46,8 +54,12 @@ type ObserverBuffer struct {
 	MaxE2ELatency       time.Duration
 	MinE2ELatency       time.Duration
 
-	InvalidErrors map[MetadataCodeDescription]int
+	InvalidErrors map[MetadataCodeDescription]*ErrorAggregate
 	FailedErrors  map[MetadataCodeDescription]int
+
+	// MaxErrorSamples caps how many distinct invalid errors keep a sample in this period;
+	// 0 keeps none. Samples go to the first errors seen, as entries are never removed.
+	MaxErrorSamples int
 
 	// Kinsumer metrics
 	KinsumerRecordsInMemory      int64 // Current count of records in memory
@@ -61,7 +73,20 @@ func (b *ObserverBuffer) appendInvalidError(msgs []*Message) {
 				Code:        sem.Code(),
 				Description: sem.SanitisedError(),
 			}
-			b.InvalidErrors[e] = b.InvalidErrors[e] + 1
+
+			aggregate, alreadySeen := b.InvalidErrors[e]
+			if !alreadySeen {
+				aggregate = &ErrorAggregate{}
+				// Invalid messages reach the observer after the failure parser has replaced
+				// Data with the bad row. With the event_forwarding format it carries the
+				// original input, the latest transformed state and the full error. A sample
+				// that isn't JSON would break encoding of the metadata event, so it is skipped.
+				if len(b.InvalidErrors) < b.MaxErrorSamples && json.Valid(msg.Data) {
+					aggregate.Sample = msg.Data
+				}
+				b.InvalidErrors[e] = aggregate
+			}
+			aggregate.Count++
 		}
 	}
 }

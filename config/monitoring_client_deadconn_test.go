@@ -148,7 +148,7 @@ func TestMonitoringClientRecoversFromDeadConnection(t *testing.T) {
 	// Keep the client's pinned ALPN (http/1.1); only trust the test server's cert.
 	transport.TLSClientConfig.InsecureSkipVerify = true
 
-	reporter := monitoring.NewMetadataReporter("snowbridge", "test", client, server.URL, nil)
+	reporter := monitoring.NewMetadataReporter("snowbridge", "test", client, server.URL, nil, false)
 
 	// Warm up: establish a working connection and confirm the negotiated protocol.
 	reporter.Send(&models.ObserverBuffer{}, time.Now(), time.Now())

@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/pubsub/pstest"
+	"cloud.google.com/go/pubsub/v2/pstest"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -104,17 +104,7 @@ func TestPubSubSource_WaitForDelayedAcks(t *testing.T) {
 	assert := assert.New(t)
 
 	// Create topic and subscription
-	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "test-topic-ack", "test-sub-ack")
-	defer func() {
-		if err := topic.Delete(context.Background()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
-	defer func() {
-		if err := subscription.Delete(context.Background()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
+	topic, _ := testutil.CreatePubSubTopicAndSubscription(t, "test-topic-ack", "test-sub-ack")
 
 	testutil.WriteToPubSubTopic(t, topic, 10)
 
@@ -246,10 +236,12 @@ func TestPubSubSource_SourceRestart(t *testing.T) {
 	// Eventually we should have 5 nacked from the first batch + 10 from the second batch, so 15 total
 	successfulReads = make([]*models.Message, 0)
 	for i := 0; i < 5; i++ {
-		successfulReads = append(successfulReads, testutil.ReadSourceOutput(outputChannel)...)
-		for _, msg := range successfulReads {
+		// Ack only the messages read in this pass, so each message is acked exactly once
+		batch := testutil.ReadSourceOutput(outputChannel)
+		for _, msg := range batch {
 			msg.AckFunc()
 		}
+		successfulReads = append(successfulReads, batch...)
 		if len(successfulReads) > 14 {
 			break
 		}

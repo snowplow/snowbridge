@@ -15,8 +15,7 @@ import (
 	"context"
 	"time"
 
-	// nolint: staticcheck
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -72,7 +71,7 @@ func BuildFromConfig(cfg *Configuration) (sourceiface.Source, error) {
 
 	// We use a slice to provide the grpcConnectionPool option only if it is set.
 	// Otherwise we'll overwrite the client's clever under-the-hood default behaviour:
-	// https://github.com/googleapis/google-cloud-go/blob/380e7d23e69b22ab46cc6e3be58902accee2f26a/pubsub/pubsub.go#L165-L177
+	// https://github.com/googleapis/google-cloud-go/blob/pubsub/v2.9.0/pubsub/v2/pubsub.go#L169-L181
 	opt := []option.ClientOption{option.WithUserAgent(gcp.UserAgent)}
 	if cfg.GRPCConnectionPool != 0 {
 		opt = append(opt, option.WithGRPCConnectionPool(cfg.GRPCConnectionPool))
@@ -100,15 +99,15 @@ func (ps *pubSubSourceDriver) Start(ctx context.Context) {
 	defer close(ps.MessageChannel)
 	ps.log.Info("Reading messages from subscription ...")
 
-	sub := ps.client.Subscription(ps.subscriptionID)
+	sub := ps.client.Subscriber(ps.subscriptionID)
 	sub.ReceiveSettings.NumGoroutines = ps.streamingPullGoRoutines         // This sets the number of goroutines that can open a streaming pull at once
 	sub.ReceiveSettings.MaxOutstandingMessages = ps.maxOutstandingMessages // maxOutstandingMessages limits the number of messages processed at once (each spawns a goroutine)
 	sub.ReceiveSettings.MaxOutstandingBytes = ps.maxOutstandingBytes
-	sub.ReceiveSettings.MinExtensionPeriod = time.Duration(ps.minExtensionPeriodSeconds) * time.Second
+	sub.ReceiveSettings.MinDurationPerAckExtension = time.Duration(ps.minExtensionPeriodSeconds) * time.Second
 
-	// Quote from receive docs: https://pkg.go.dev/cloud.google.com/go/pubsub#hdr-Receiving
+	// Quote from receive docs: https://pkg.go.dev/cloud.google.com/go/pubsub/v2#hdr-Receiving
 	//
-	// "Ack/Nack MUST be called within the Subscription.Receive handler function, and not from
+	// "Ack/Nack MUST be called within the Subscriber.Receive handler function, and not from
 	// a goroutine. Otherwise, flow control (e.g. ReceiveSettings.MaxOutstandingMessages) will
 	// not be respected, and messages can get orphaned when cancelling Receive."
 

@@ -20,13 +20,10 @@ import (
 	"testing"
 	"time"
 
-	// nolint: staticcheck
-	"cloud.google.com/go/pubsub"
-	"cloud.google.com/go/pubsub/pstest"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/pkg/errors"
-
-	// nolint: staticcheck
-	pubsubV1 "cloud.google.com/go/pubsub/apiv1/pubsubpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -43,14 +40,12 @@ func InitMockPubsubServer(port int, opts []pstest.ServerReactorOption, t *testin
 		t.Fatal(err)
 	}
 
-	// nolint: staticcheck
-	_, err = srv.GServer.CreateTopic(ctx, &pubsubV1.Topic{Name: `projects/project-test/topics/test-topic`})
+	_, err = srv.GServer.CreateTopic(ctx, &pubsubpb.Topic{Name: `projects/project-test/topics/test-topic`})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// nolint: staticcheck
-	_, err = srv.GServer.CreateSubscription(ctx, &pubsubV1.Subscription{
+	_, err = srv.GServer.CreateSubscription(ctx, &pubsubpb.Subscription{
 		Name:               "projects/project-test/subscriptions/test-sub",
 		Topic:              "projects/project-test/topics/test-topic",
 		AckDeadlineSeconds: 10,
@@ -62,8 +57,10 @@ func InitMockPubsubServer(port int, opts []pstest.ServerReactorOption, t *testin
 	return srv, conn
 }
 
-// CreatePubSubTopicAndSubscription creates and returns a pubsub topic & supscription, using the pubsub emulator.
-func CreatePubSubTopicAndSubscription(t *testing.T, topicName string, subscriptionName string) (*pubsub.Topic, *pubsub.Subscription) {
+// CreatePubSubTopicAndSubscription creates a pubsub topic & subscription using the pubsub emulator,
+// and returns a publisher and subscriber for them. The topic and subscription are deleted, and the
+// client closed, when the test finishes.
+func CreatePubSubTopicAndSubscription(t *testing.T, topicName string, subscriptionName string) (*pubsub.Publisher, *pubsub.Subscriber) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 	t.Setenv("PUBSUB_PROJECT_ID", `project-test`)
@@ -74,24 +71,39 @@ func CreatePubSubTopicAndSubscription(t *testing.T, topicName string, subscripti
 		t.Fatal(errors.Wrap(err, "Failed to create PubSub client"))
 	}
 
-	topic, err := client.CreateTopic(ctx, topicName)
-	if err != nil {
+	topicPath := fmt.Sprintf("projects/%s/topics/%s", client.Project(), topicName)
+	subscriptionPath := fmt.Sprintf("projects/%s/subscriptions/%s", client.Project(), subscriptionName)
+
+	if _, err := client.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{Name: topicPath}); err != nil {
 		t.Fatal(errors.Wrap(err, "Failed to create pubsub topic"))
 	}
 
-	subscription, err := client.CreateSubscription(ctx, subscriptionName, pubsub.SubscriptionConfig{
-		Topic:       topic,
-		AckDeadline: 10 * time.Second,
-	})
-	if err != nil {
+	if _, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pubsubpb.Subscription{
+		Name:               subscriptionPath,
+		Topic:              topicPath,
+		AckDeadlineSeconds: 10,
+	}); err != nil {
 		t.Fatal(fmt.Errorf("error creating subscription: %v", err))
 	}
 
-	return topic, subscription
+	t.Cleanup(func() {
+		cleanupCtx := context.Background()
+		if err := client.SubscriptionAdminClient.DeleteSubscription(cleanupCtx, &pubsubpb.DeleteSubscriptionRequest{Subscription: subscriptionPath}); err != nil {
+			t.Logf("error deleting subscription: %v", err)
+		}
+		if err := client.TopicAdminClient.DeleteTopic(cleanupCtx, &pubsubpb.DeleteTopicRequest{Topic: topicPath}); err != nil {
+			t.Logf("error deleting topic: %v", err)
+		}
+		if err := client.Close(); err != nil {
+			t.Logf("error closing PubSub client: %v", err)
+		}
+	})
+
+	return client.Publisher(topicName), client.Subscriber(subscriptionName)
 }
 
 // WriteToPubSubTopic simply writes data to a provided PubSub topic, blocking until all msgs are sent
-func WriteToPubSubTopic(t *testing.T, topic *pubsub.Topic, numMsgs int) {
+func WriteToPubSubTopic(t *testing.T, topic *pubsub.Publisher, numMsgs int) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 
@@ -118,7 +130,7 @@ func WriteToPubSubTopic(t *testing.T, topic *pubsub.Topic, numMsgs int) {
 }
 
 // WriteProvidedDataToPubSubTopic writes the provided data to a provided PubSub topic, blocking until all msgs are sent
-func WriteProvidedDataToPubSubTopic(t *testing.T, topic *pubsub.Topic, data []string) {
+func WriteProvidedDataToPubSubTopic(t *testing.T, topic *pubsub.Publisher, data []string) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 
@@ -152,7 +164,7 @@ func CreatePubsubResourcesAndWrite(numMsgs int, topicName string, t *testing.T) 
 }
 
 // ReceiveMessagesFromSubscription receives messages from a PubSub subscription and returns their data
-func ReceiveMessagesFromSubscription(t *testing.T, subscription *pubsub.Subscription) []string {
+func ReceiveMessagesFromSubscription(t *testing.T, subscription *pubsub.Subscriber) []string {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Duration(10)*time.Second)
 	defer cancel()
 

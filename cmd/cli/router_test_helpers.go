@@ -375,7 +375,7 @@ func (m *mockMetrics) GetWriteBuffer() models.ObserverBuffer {
 func createMockMetrics() *mockMetrics {
 	return &mockMetrics{
 		writeBuffer: models.ObserverBuffer{
-			InvalidErrors: make(map[models.MetadataCodeDescription]int),
+			InvalidErrors: make(map[models.MetadataCodeDescription]*models.ErrorAggregate),
 			FailedErrors:  make(map[models.MetadataCodeDescription]int),
 		},
 	}

@@ -56,9 +56,17 @@ func main() {
 			Name:  "connection-test",
 			Usage: "Run the target connection test once, print the result as JSON to stdout, and exit",
 		},
+		cli.BoolFlag{
+			Name:  "outcomes-server",
+			Usage: "Serve forwarder outcomes from the outcomes Postgres instead of forwarding events (configured with OUTCOMES_* environment variables)",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
+		if c.Bool("outcomes-server") {
+			return snowbridge_cli.RunOutcomesServer()
+		}
+
 		if c.Bool("connection-test") {
 			// Exits 0 whenever the check ran, pass or fail - the result is reported in the JSON output
 			return snowbridge_cli.RunConnectionTest(config)

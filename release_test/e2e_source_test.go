@@ -65,17 +65,7 @@ func testE2EPubsubSource(t *testing.T) {
 			assert := assert.New(t)
 
 			// Create topic and subscription
-			topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, testCase.topic, testCase.subscription)
-			defer func() {
-				if err := topic.Delete(t.Context()); err != nil {
-					logrus.Error(err.Error())
-				}
-			}()
-			defer func() {
-				if err := subscription.Delete(t.Context()); err != nil {
-					logrus.Error(err.Error())
-				}
-			}()
+			topic, _ := testutil.CreatePubSubTopicAndSubscription(t, testCase.topic, testCase.subscription)
 
 			configFilePath, err := filepath.Abs(filepath.Join("cases", "sources", "pubsub", testCase.configFile))
 			if err != nil {

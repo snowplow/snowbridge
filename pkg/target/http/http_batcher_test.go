@@ -159,7 +159,7 @@ func TestHTTPBatcher_BatchOverhead_WithTemplate(t *testing.T) {
 	config.BatchingConfig.MaxBatchMessages = 4
 	config.BatchingConfig.MaxBatchBytes = 1048576
 	config.BatchingConfig.MaxMessageBytes = 1048576
-	config.TemplateFile = "../../../integration/http/template"
+	config.TemplateFile = "testdata/template"
 
 	err := driver.InitFromConfig(config)
 	assert.NoError(err)

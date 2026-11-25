@@ -10,13 +10,15 @@ module := $(shell go list -m)
 ldflags = -ldflags="-X $(module)/cmd.AppVersion=$(version)"
 aws_only_version = $(version)-aws-only
 
+# Seconds `docker compose up --wait` waits for the integration services' healthchecks before failing
+compose_wait_timeout = 180
+
 go_dirs = `go list ./... | grep -v /build/ | grep -v /vendor/`
 integration_test_dirs = `go list ./... | grep -v /build/ | grep -v /vendor/ | grep -v release_test`
 
 build_dir       = build
 vendor_dir      = vendor
 integration_dir = integration
-ngrok_path		= ${NGROK_DIR}ngrok # Set NGROK_DIR to `/path/to/directory/` for local setup
 
 coverage_dir  = $(build_dir)/coverage
 coverage_out  = $(coverage_dir)/coverage.out
@@ -158,8 +160,7 @@ e2e-test: test-setup
 e2e-reset: e2e-down e2e-up
 
 e2e-up:
-	(cd $(integration_dir) && docker compose up -d)
-	sleep 5
+	(cd $(integration_dir) && docker compose up -d --wait --wait-timeout $(compose_wait_timeout))
 
 e2e-down: 
 	(cd $(integration_dir) && docker compose down)
@@ -167,26 +168,15 @@ e2e-down:
 
 integration-reset: integration-down integration-up
 
-# For integration tests we need localstack, pubsub kafka and http server
+# For integration tests we need localstack, pubsub and kafka
 # To run on mac M1, for example, set the default docker platform: export DOCKER_DEFAULT_PLATFORM=linux/arm64
-integration-up: http-up
-	(cd $(integration_dir) && docker compose up -d)
-	sleep 5
+integration-up:
+	(cd $(integration_dir) && docker compose up -d --wait --wait-timeout $(compose_wait_timeout))
 
 # We can just shut everything down here
-integration-down: http-down
+integration-down:
 	(cd $(integration_dir) && docker compose down)
 	rm -rf $(integration_dir)/.localstack
-
-# ngrok needs to be installed and auth token must be configured for this if running locally
-http-up:
-	(cd "$(integration_dir)/http/server" && go run server.go &)
-	sleep 5
-	($(ngrok_path) http https://localhost:8999 &>/dev/null &)
-
-http-down:
-	(cd "$(integration_dir)/http/shutdown" && go run shutdownRequest.go)
-	killall ngrok || true 
 
 # -----------------------------------------------------------------------------
 #  RELEASE

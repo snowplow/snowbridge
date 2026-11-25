@@ -17,12 +17,24 @@ services:
       - SERVICES=sqs,kinesis,dynamodb,sts
       # Kinesis target handles throttling, but it breaks source tests. Configuration added here so we can manually configure testing with throttling for the target.
       - KINESIS_ERROR_PROBABILITY=0.0
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
   pubsub:
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:591.0.0-emulators
     command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8432 --project=project-test
     ports:
       - "0.0.0.0:8432:8432"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8432"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.0.12
@@ -60,6 +72,13 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    healthcheck:
+      # Ready once the broker answers an API request on the listener the tests use
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 5s
+      timeout: 20s
+      retries: 30
+      start_period: 15s
 
   broker-sasl:
     image: confluentinc/cp-kafka:7.0.12
@@ -84,3 +103,16 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    healthcheck:
+      # Ready once the broker answers an authenticated API request on the listener the tests use
+      test:
+        - CMD-SHELL
+        - >-
+          printf '%s\n' 'security.protocol=SASL_PLAINTEXT' 'sasl.mechanism=PLAIN'
+          'sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret";'
+          > /tmp/healthcheck.properties &&
+          kafka-broker-api-versions --bootstrap-server localhost:9093 --command-config /tmp/healthcheck.properties
+      interval: 5s
+      timeout: 20s
+      retries: 30
+      start_period: 15s

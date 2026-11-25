@@ -61,6 +61,11 @@ func TestMonitoringDocumentation(t *testing.T) {
 	metadataMinimalFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "monitoring", "metadata-minimal-example.hcl")
 
 	testMetadataConfig(t, metadataMinimalFilePath, false)
+
+	metadataMultipleFilePath := filepath.Join(assets.AssetsRootDir, "docs", "configuration", "monitoring", "metadata-multiple-example.hcl")
+
+	testMetadataConfig(t, metadataMultipleFilePath, false)
+	assert.Len(getConfigFromFilepath(t, metadataMultipleFilePath).Data.Monitoring.MetadataReporters, 2)
 }
 
 func testStatsDConfig(t *testing.T, configpath string, fullExample bool) {
@@ -127,9 +132,10 @@ func testMetadataConfig(t *testing.T, configpath string, fullExample bool) {
 	cfgMonitoring := c.Data.Monitoring
 
 	assert.NotNil(cfgMonitoring)
-	assert.NotZero(cfgMonitoring.MetadataReporter.Endpoint)
+	assert.NotEmpty(cfgMonitoring.MetadataReporters)
+	assert.NotZero(cfgMonitoring.MetadataReporters[0].Endpoint)
 
 	if fullExample {
-		checkComponentForZeros(t, cfgMonitoring.MetadataReporter)
+		checkComponentForZeros(t, cfgMonitoring.MetadataReporters[0])
 	}
 }

@@ -34,8 +34,7 @@ import (
 	"github.com/snowplow/snowbridge/v6/pkg/monitoring"
 	"github.com/snowplow/snowbridge/v6/pkg/testutil"
 
-	// nolint: staticcheck
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -82,17 +81,7 @@ func TestE2ETargets(t *testing.T) {
 func testE2EPubsubTarget(t *testing.T) {
 	assert := assert.New(t)
 
-	topic, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
-	defer func() {
-		if err := topic.Delete(t.Context()); err != nil {
-			logrus.Error(err)
-		}
-	}()
-	defer func() {
-		if err := subscription.Delete(t.Context()); err != nil {
-			logrus.Error(err.Error())
-		}
-	}()
+	_, subscription := testutil.CreatePubSubTopicAndSubscription(t, "e2e-target-topic", "e2e-target-subscription")
 
 	configFilePath, err := filepath.Abs(filepath.Join("cases", "targets", "pubsub", "config.hcl"))
 	if err != nil {

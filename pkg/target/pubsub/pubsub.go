@@ -16,8 +16,7 @@ import (
 	"fmt"
 	"time"
 
-	// nolint: staticcheck
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -50,7 +49,7 @@ type PubSubTargetDriver struct {
 	BatchingConfig targetiface.BatchingConfig
 	projectID      string
 	client         *pubsub.Client
-	topic          *pubsub.Topic
+	topic          *pubsub.Publisher
 	topicName      string
 
 	log *log.Entry
@@ -199,7 +198,7 @@ func (ps *PubSubTargetDriver) Write(messages []*models.Message) (*models.TargetW
 // Open opens a pipe to the topic
 func (ps *PubSubTargetDriver) Open() error {
 	ps.log.Warnf("Opening target for topic '%s' in project %s", ps.topicName, ps.projectID)
-	ps.topic = ps.client.Topic(ps.topicName)
+	ps.topic = ps.client.Publisher(ps.topicName)
 
 	ps.topic.PublishSettings.CountThreshold = ps.BatchingConfig.MaxBatchMessages
 	ps.topic.PublishSettings.ByteThreshold = ps.BatchingConfig.MaxBatchBytes

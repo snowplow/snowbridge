@@ -27,6 +27,7 @@ import (
 type Observer struct {
 	statsClient            statsreceiveriface.StatsReceiver
 	errorsMetadataClient   monitoring.MetadataReporterer
+	maxErrorSamples        int
 	exitSignal             chan struct{}
 	wg                     sync.WaitGroup
 	filteredChan           chan *models.TargetWriteResult
@@ -57,6 +58,7 @@ func New(statsClient statsreceiveriface.StatsReceiver, reportInterval time.Durat
 	return &Observer{
 		statsClient:              statsClient,
 		errorsMetadataClient:     metadataClient,
+		maxErrorSamples:          monitoring.MaxErrorSamples(metadataClient),
 		exitSignal:               make(chan struct{}),
 		filteredChan:             make(chan *models.TargetWriteResult, 1000),
 		targetWriteChan:          make(chan *models.TargetWriteResult, 1000),
@@ -87,7 +89,7 @@ func (o *Observer) Start() {
 
 func (o *Observer) ingestionLoop() {
 	periodStart := time.Now().UTC()
-	current := newBuffer(0, 0)
+	current := newBuffer(0, 0, o.maxErrorSamples)
 
 	ticker := time.NewTicker(o.reportInterval)
 	defer ticker.Stop()
@@ -115,7 +117,7 @@ func (o *Observer) ingestionLoop() {
 			end := time.Now().UTC()
 			snapshot := &bufferSnapshot{buffer: current, start: periodStart, end: end}
 			// Gauges represent current state, not period counts — carry them over.
-			current = newBuffer(current.KinsumerRecordsInMemory, current.KinsumerRecordsInMemoryBytes)
+			current = newBuffer(current.KinsumerRecordsInMemory, current.KinsumerRecordsInMemoryBytes, o.maxErrorSamples)
 			periodStart = end
 			o.publishStats(snapshot.buffer)
 			o.forwardToMetadata(snapshot)
@@ -151,9 +153,10 @@ func (o *Observer) forwardToMetadata(snapshot *bufferSnapshot) {
 	}
 }
 
-func newBuffer(recordsInMemory, recordsInMemoryBytes int64) *models.ObserverBuffer {
+func newBuffer(recordsInMemory, recordsInMemoryBytes int64, maxErrorSamples int) *models.ObserverBuffer {
 	return &models.ObserverBuffer{
-		InvalidErrors:                make(map[models.MetadataCodeDescription]int),
+		MaxErrorSamples:              maxErrorSamples,
+		InvalidErrors:                make(map[models.MetadataCodeDescription]*models.ErrorAggregate),
 		FailedErrors:                 make(map[models.MetadataCodeDescription]int),
 		KinsumerRecordsInMemory:      recordsInMemory,
 		KinsumerRecordsInMemoryBytes: recordsInMemoryBytes,

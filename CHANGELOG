@@ -1,3 +1,14 @@
+Version 6.3.0 (2026-11-24)
+--------------------------
+Bump Go to 1.26.11
+Remove ngrok and turnstyle from CI (#169)
+Add outcomes server mode (#151)
+Replace the ngrok-based TLS test with an in-process mTLS test server (#168)
+Wait for integration services to be healthy instead of a fixed sleep (#166)
+Fix hang in TestPubSubSource_SourceRestart (#165)
+Add invalid error samples and multiple reporters to metadata reporting (#150)
+Migrate Pub/Sub source and target to cloud.google.com/go/pubsub/v2 (#153)
+
 Version 6.2.2 (2026-11-16)
 --------------------------
 Persist checkout credentials so Claude mentions can fetch

@@ -22,7 +22,7 @@ func TestObserverBuffer(t *testing.T) {
 	assert := assert.New(t)
 
 	b := ObserverBuffer{
-		InvalidErrors: make(map[MetadataCodeDescription]int),
+		InvalidErrors: make(map[MetadataCodeDescription]*ErrorAggregate),
 		FailedErrors:  make(map[MetadataCodeDescription]int),
 	}
 	assert.NotNil(b)
@@ -126,7 +126,7 @@ func TestObserverBuffer_Basic(t *testing.T) {
 	assert := assert.New(t)
 
 	b := ObserverBuffer{
-		InvalidErrors: make(map[MetadataCodeDescription]int),
+		InvalidErrors: make(map[MetadataCodeDescription]*ErrorAggregate),
 		FailedErrors:  make(map[MetadataCodeDescription]int),
 	}
 	assert.NotNil(b)
@@ -188,7 +188,7 @@ func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 	assert := assert.New(t)
 
 	b := ObserverBuffer{
-		InvalidErrors: make(map[MetadataCodeDescription]int),
+		InvalidErrors: make(map[MetadataCodeDescription]*ErrorAggregate),
 		FailedErrors:  make(map[MetadataCodeDescription]int),
 	}
 	assert.NotNil(b)
@@ -240,4 +240,114 @@ func TestObserverBuffer_BasicNoTransform(t *testing.T) {
 	assert.Equal(time.Duration(1)*time.Minute, b.MinRequestLatency)
 
 	assert.Equal("TargetResults:1,MsgFiltered:0,MsgSent:1,MsgFailed:0,InvalidTargetResults:0,InvalidMsgSent:0,InvalidMsgFailed:0,MinProcLatency:240000,MaxProcLatency:240000,MinMsgLatency:3000000,MaxMsgLatency:3000000,MinFilterLatency:0,MaxFilterLatency:0,MinTransformLatency:0,MaxTransformLatency:0,MinReqLatency:60000,MaxReqLatency:60000,MinE2ELatency:0,MaxE2ELatency:0", b.String())
+}
+
+// TestObserverBuffer_InvalidErrorSamples checks that each distinct invalid error keeps the
+// bad row of the first occurrence in the period as its sample.
+func TestObserverBuffer_InvalidErrorSamples(t *testing.T) {
+	assert := assert.New(t)
+
+	b := ObserverBuffer{
+		InvalidErrors:   make(map[MetadataCodeDescription]*ErrorAggregate),
+		FailedErrors:    make(map[MetadataCodeDescription]int),
+		MaxErrorSamples: 10,
+	}
+
+	parseError := &TransformationError{SafeMessage: "could not parse"}
+	fieldError := &TransformationError{SafeMessage: "unexpected field"}
+
+	firstBadRow := []byte(`{"schema":"iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1","data":{"payload":"web\tfirst-original-tsv"}}`)
+	secondBadRow := []byte(`{"schema":"iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1","data":{"payload":"web\tsecond-original-tsv"}}`)
+	otherBadRow := []byte(`{"schema":"iglu:com.snowplowanalytics.snowplow.badrows/event_forwarding_error/jsonschema/1-0-1","data":{"payload":"web\tother-original-tsv"}}`)
+
+	first := &Message{Data: firstBadRow, OriginalData: []byte("web\tfirst-original-tsv")}
+	first.SetError(parseError)
+
+	second := &Message{Data: secondBadRow, OriginalData: []byte("web\tsecond-original-tsv")}
+	second.SetError(parseError)
+
+	other := &Message{Data: otherBadRow, OriginalData: []byte("web\tother-original-tsv")}
+	other.SetError(fieldError)
+
+	b.AppendWriteInvalid(NewTargetWriteResult([]*Message{first, second, other}, nil, nil))
+
+	assert.Equal(2, len(b.InvalidErrors))
+
+	parseKey := MetadataCodeDescription{Code: parseError.Code(), Description: parseError.SanitisedError()}
+	parseAggregate := b.InvalidErrors[parseKey]
+	assert.NotNil(parseAggregate)
+	assert.Equal(2, parseAggregate.Count)
+	// The first occurrence wins the sample - a repeat of the same error does not replace it
+	assert.Equal(firstBadRow, parseAggregate.Sample)
+
+	fieldKey := MetadataCodeDescription{Code: fieldError.Code(), Description: fieldError.SanitisedError()}
+	fieldAggregate := b.InvalidErrors[fieldKey]
+	assert.NotNil(fieldAggregate)
+	assert.Equal(1, fieldAggregate.Count)
+	assert.Equal(otherBadRow, fieldAggregate.Sample)
+}
+
+func invalidMessage(safeMessage string) *Message {
+	msg := &Message{Data: []byte(`{"data":{"payload":"` + safeMessage + `"}}`)}
+	msg.SetError(&TransformationError{SafeMessage: safeMessage})
+	return msg
+}
+
+func TestObserverBuffer_InvalidErrorSamplesDisabled(t *testing.T) {
+	assert := assert.New(t)
+
+	b := ObserverBuffer{
+		InvalidErrors: make(map[MetadataCodeDescription]*ErrorAggregate),
+		FailedErrors:  make(map[MetadataCodeDescription]int),
+	}
+
+	b.AppendWriteInvalid(NewTargetWriteResult([]*Message{invalidMessage("a"), invalidMessage("a")}, nil, nil))
+
+	assert.Equal(1, len(b.InvalidErrors))
+	for _, aggregate := range b.InvalidErrors {
+		assert.Equal(2, aggregate.Count)
+		assert.Nil(aggregate.Sample)
+	}
+}
+
+func TestObserverBuffer_InvalidErrorSamplesCapped(t *testing.T) {
+	assert := assert.New(t)
+
+	b := ObserverBuffer{
+		InvalidErrors:   make(map[MetadataCodeDescription]*ErrorAggregate),
+		FailedErrors:    make(map[MetadataCodeDescription]int),
+		MaxErrorSamples: 2,
+	}
+
+	b.AppendWriteInvalid(NewTargetWriteResult([]*Message{invalidMessage("a"), invalidMessage("b"), invalidMessage("c"), invalidMessage("a")}, nil, nil))
+
+	assert.Equal(3, len(b.InvalidErrors))
+	withSample := 0
+	for _, aggregate := range b.InvalidErrors {
+		if aggregate.Sample != nil {
+			withSample++
+		}
+	}
+	assert.Equal(2, withSample)
+}
+
+func TestObserverBuffer_InvalidErrorSampleNotJSON(t *testing.T) {
+	assert := assert.New(t)
+
+	b := ObserverBuffer{
+		InvalidErrors:   make(map[MetadataCodeDescription]*ErrorAggregate),
+		FailedErrors:    make(map[MetadataCodeDescription]int),
+		MaxErrorSamples: 10,
+	}
+
+	msg := &Message{Data: []byte("web\tnot-a-bad-row")}
+	msg.SetError(&TransformationError{SafeMessage: "a"})
+
+	b.AppendWriteInvalid(NewTargetWriteResult([]*Message{msg}, nil, nil))
+
+	assert.Equal(1, len(b.InvalidErrors))
+	for _, aggregate := range b.InvalidErrors {
+		assert.Equal(1, aggregate.Count)
+		assert.Nil(aggregate.Sample)
+	}
 }

@@ -13,10 +13,13 @@ package http
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -28,6 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/snowplow/snowbridge/v6/pkg/models"
 	"github.com/snowplow/snowbridge/v6/pkg/testutil"
+	"github.com/snowplow/snowbridge/v6/pkg/testutil/tlstest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -712,7 +716,7 @@ func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 	driver := &HTTPTargetDriver{}
 	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
 	config.URL = server.URL
-	config.TemplateFile = string(`../../../integration/http/template`)
+	config.TemplateFile = string(`testdata/template`)
 	err := driver.InitFromConfig(config)
 
 	if err != nil {
@@ -750,15 +754,6 @@ func TestHTTP_Write_EnabledTemplating(t *testing.T) {
 	assert.Equal(int64(3), ackOps)
 }
 
-// Steps to create certs manually:
-
-// openssl genrsa -out rootCA.key 4096
-// openssl req -x509 -new -key rootCA.key -days 3650 -out rootCA.crt -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost"
-
-// openssl genrsa -out localhost.key 2048
-// openssl req -new -key localhost.key -out localhost.csr -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost"
-// openssl x509 -req -in localhost.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -days 365 -out localhost.crt
-
 func TestHTTP_Write_Invalid(t *testing.T) {
 	assert := assert.New(t)
 
@@ -777,7 +772,7 @@ func TestHTTP_Write_Invalid(t *testing.T) {
 	driver := &HTTPTargetDriver{}
 	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
 	config.URL = server.URL
-	config.TemplateFile = string(`../../../integration/http/template`)
+	config.TemplateFile = string(`testdata/template`)
 	config.ResponseRules = &responseRules
 	err := driver.InitFromConfig(config)
 
@@ -1025,7 +1020,7 @@ func TestHTTP_Write_Setup(t *testing.T) {
 	driver := &HTTPTargetDriver{}
 	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
 	config.URL = server.URL
-	config.TemplateFile = string(`../../../integration/http/template`)
+	config.TemplateFile = string(`testdata/template`)
 	config.ResponseRules = &responseRules
 	err := driver.InitFromConfig(config)
 	if err != nil {
@@ -1063,7 +1058,7 @@ func TestHTTP_Write_Throttle(t *testing.T) {
 	driver := &HTTPTargetDriver{}
 	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
 	config.URL = server.URL
-	config.TemplateFile = string(`../../../integration/http/template`)
+	config.TemplateFile = string(`testdata/template`)
 	config.ResponseRules = &responseRules
 
 	err := driver.InitFromConfig(config)
@@ -1101,7 +1096,7 @@ func TestHTTP_Write_ClientTimeoutResponseRule(t *testing.T) {
 	driver := &HTTPTargetDriver{}
 	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
 	config.URL = server.URL
-	config.TemplateFile = string(`../../../integration/http/template`)
+	config.TemplateFile = string(`testdata/template`)
 	config.ResponseRules = &responseRules
 	config.RequestTimeoutInMillis = 1
 	err := driver.InitFromConfig(config)
@@ -1135,7 +1130,7 @@ func TestHTTP_Write_ClientTimeoutTransient(t *testing.T) {
 	driver := &HTTPTargetDriver{}
 	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
 	config.URL = server.URL
-	config.TemplateFile = string(`../../../integration/http/template`)
+	config.TemplateFile = string(`testdata/template`)
 	config.RequestTimeoutInMillis = 1
 	err := driver.InitFromConfig(config)
 
@@ -1192,24 +1187,53 @@ func TestHTTP_TimeOrientedHeadersEnabled(t *testing.T) {
 	assert.LessOrEqual(rejectionTimestamp, afterRequest+900) // based on configured timeout and threshold
 }
 
-func TestHTTP_Write_TLS(t *testing.T) {
-
-	if testing.Short() {
-		t.Skip("skipping integration test")
+func createMTLSTestServer(t *testing.T, files tlstest.Files, results *[][]byte) *httptest.Server {
+	t.Helper()
+	serverCert, err := tls.LoadX509KeyPair(files.ServerCert, files.ServerKey)
+	if err != nil {
+		t.Fatal(err)
 	}
-	assert := assert.New(t)
+	caPEM, err := os.ReadFile(files.CACert)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientCAs := x509.NewCertPool()
+	if !clientCAs.AppendCertsFromPEM(caPEM) {
+		t.Fatal("failed to parse generated CA certificate")
+	}
 
-	// Test that https requests work with manually provided certs
+	mutex := &sync.Mutex{}
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		data, err := io.ReadAll(req.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		mutex.Lock()
+		defer mutex.Unlock()
+		*results = append(*results, data)
+	}))
+	server.TLS = &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    clientCAs,
+		MinVersion:   tls.VersionTLS12,
+	}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+	return server
+}
+
+func writeToMTLSTestServer(t *testing.T, files tlstest.Files, configure func(*HTTPTargetConfig)) (*models.TargetWriteResult, int64, [][]byte, error) {
+	t.Helper()
+	var results [][]byte
+	server := createMTLSTestServer(t, files, &results)
+
 	driver := &HTTPTargetDriver{}
 	config := driver.GetDefaultConfiguration().(*HTTPTargetConfig)
-	config.URL = "https://localhost:8999/hello"
-	config.EnableTLS = true
-	config.CertFile = string(`../../../integration/http/localhost.crt`)
-	config.KeyFile = string(`../../../integration/http/localhost.key`)
-	config.CaFile = string(`../../../integration/http/rootCA.crt`)
-	err := driver.InitFromConfig(config)
-
-	if err != nil {
+	config.URL = server.URL + "/hello"
+	configure(config)
+	if err := driver.InitFromConfig(config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1217,54 +1241,61 @@ func TestHTTP_Write_TLS(t *testing.T) {
 	ackFunc := func() {
 		atomic.AddInt64(&ackOps, 1)
 	}
-
 	messages := testutil.GetTestMessages(10, `{"message": "Hello Server!!"}`, ackFunc)
 
-	writeResult, err1 := driver.Write(messages)
+	writeResult, err := driver.Write(messages)
+	return writeResult, atomic.LoadInt64(&ackOps), results, err
+}
 
-	assert.Nil(err1)
+func TestHTTP_Write_TLS_ClientCertSignedByServerCA(t *testing.T) {
+	assert := assert.New(t)
+	files := tlstest.GenerateFiles(t)
+
+	writeResult, acks, results, err := writeToMTLSTestServer(t, files, func(c *HTTPTargetConfig) {
+		c.EnableTLS = true
+		c.CertFile = files.ClientCert
+		c.KeyFile = files.ClientKey
+		c.CaFile = files.CACert
+	})
+
+	assert.Nil(err)
 	assert.Equal(10, len(writeResult.Sent))
+	assert.Empty(writeResult.Failed)
+	assert.Equal(int64(10), acks)
+	assert.Equal(1, len(results))
+	assert.Equal(`[{"message":"Hello Server!!"},{"message":"Hello Server!!"},{"message":"Hello Server!!"},{"message":"Hello Server!!"},{"message":"Hello Server!!"},{"message":"Hello Server!!"},{"message":"Hello Server!!"},{"message":"Hello Server!!"},{"message":"Hello Server!!"},{"message":"Hello Server!!"}]`, string(results[0]))
+}
 
-	assert.Equal(int64(10), ackOps)
+func TestHTTP_Write_TLS_ClientCertSignedByDifferentCA(t *testing.T) {
+	assert := assert.New(t)
+	files := tlstest.GenerateFiles(t)
+	otherCA := tlstest.GenerateFiles(t)
 
-	ngrokAddress := getNgrokAddress() + "/hello"
+	writeResult, acks, results, err := writeToMTLSTestServer(t, files, func(c *HTTPTargetConfig) {
+		c.EnableTLS = true
+		c.CertFile = otherCA.ClientCert
+		c.KeyFile = otherCA.ClientKey
+		c.CaFile = files.CACert // trusts the server, but the server doesn't trust the client
+	})
 
-	// Test that https requests work for different endpoints when different certs are provided manually
-	driver2 := &HTTPTargetDriver{}
-	config2 := driver2.GetDefaultConfiguration().(*HTTPTargetConfig)
-	config2.URL = ngrokAddress
-	config2.EnableTLS = true
-	config2.CertFile = string(`../../../integration/http/localhost.crt`)
-	config2.KeyFile = string(`../../../integration/http/localhost.key`)
-	config2.CaFile = string(`../../../integration/http/rootCA.crt`)
-	err2 := driver2.InitFromConfig(config2)
+	assert.NotNil(err)
+	assert.Empty(writeResult.Sent)
+	assert.Equal(10, len(writeResult.Failed))
+	assert.Equal(int64(0), acks)
+	assert.Empty(results)
+}
 
-	if err2 != nil {
-		t.Fatal(err2)
-	}
+func TestHTTP_Write_TLS_ServerCertNotTrustedWithoutTLSConfig(t *testing.T) {
+	assert := assert.New(t)
+	files := tlstest.GenerateFiles(t)
 
-	writeResult2, err3 := driver2.Write(messages)
+	writeResult, acks, results, err := writeToMTLSTestServer(t, files, func(c *HTTPTargetConfig) {})
 
-	assert.Nil(err3)
-	assert.Equal(10, len(writeResult2.Sent))
-
-	assert.Equal(int64(20), ackOps)
-
-	// Test that https works when certs aren't manually provided
-	driver3 := &HTTPTargetDriver{}
-	config3 := driver3.GetDefaultConfiguration().(*HTTPTargetConfig)
-	config3.URL = ngrokAddress
-	err4 := driver3.InitFromConfig(config3)
-	if err4 != nil {
-		t.Fatal(err4)
-	}
-
-	writeResult3, err5 := driver3.Write(messages)
-
-	assert.Nil(err5)
-	assert.Equal(10, len(writeResult3.Sent))
-
-	assert.Equal(int64(30), ackOps)
+	assert.NotNil(err)
+	assert.Empty(writeResult.Sent)
+	assert.Equal(10, len(writeResult.Failed))
+	assert.Equal(int64(0), acks)
+	assert.Empty(results)
 }
 
 func TestHTTP_ProvideRequestBody(t *testing.T) {
@@ -1331,49 +1362,6 @@ func TestHTTP_Write_DynamicHeadersAttached(t *testing.T) {
 	// Check that the header was attached.
 	assert.Equal("v1", headers.Get("h1"))
 
-}
-
-type ngrokAPIObject struct {
-	PublicURL string `json:"public_url"`
-	Proto     string `json:"proto"`
-}
-
-type ngrokAPIResponse struct {
-	Tunnels []ngrokAPIObject `json:"tunnels"`
-}
-
-// Query ngrok api for endpoint to hit
-func getNgrokAddress() string {
-	var resp *http.Response
-	var err error
-	for range 10 { // retry 10 times as this part is flaky
-		resp, err = http.DefaultClient.Get("http://localhost:4040/api/tunnels")
-		if resp != nil {
-			err = nil
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
-	if err != nil {
-		panic(err)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	var ngrokResponse ngrokAPIResponse
-	if err := json.Unmarshal(body, &ngrokResponse); err != nil {
-		logrus.Error(err.Error())
-	}
-
-	for _, obj := range ngrokResponse.Tunnels {
-		if obj.Proto == "https" {
-			return obj.PublicURL
-		}
-	}
-	panic("no ngrok https endpoint found")
 }
 
 func WaitForAcksWithTimeout(timeout time.Duration, wg *sync.WaitGroup) bool {

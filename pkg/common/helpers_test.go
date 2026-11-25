@@ -13,10 +13,15 @@ package common
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/snowplow/snowbridge/v6/pkg/testutil/tlstest"
 )
 
 func TestGetAWSConfig(t *testing.T) {
@@ -49,9 +54,25 @@ func TestGetAverageFromDuration(t *testing.T) {
 
 func TestCreateTLSConfiguration(t *testing.T) {
 	assert := assert.New(t)
+	files := tlstest.GenerateFiles(t)
 
-	conf, err := CreateTLSConfiguration(`../../integration/http/localhost.crt`, `../../integration/http/localhost.key`, `../../integration/http/rootCA.crt`, false)
+	conf, err := CreateTLSConfiguration(files.ClientCert, files.ClientKey, files.CACert, false)
+	require.NoError(t, err)
+	require.NotNil(t, conf)
 
-	assert.Nil(err)
-	assert.IsType(tls.Config{}, *conf.Clone())
+	clientCert, err := tls.LoadX509KeyPair(files.ClientCert, files.ClientKey)
+	require.NoError(t, err)
+	assert.Equal([]tls.Certificate{clientCert}, conf.Certificates)
+	assert.False(conf.InsecureSkipVerify)
+
+	caPEM, err := os.ReadFile(files.CACert)
+	require.NoError(t, err)
+	expectedRoots, err := x509.SystemCertPool()
+	require.NoError(t, err)
+	require.True(t, expectedRoots.AppendCertsFromPEM(caPEM))
+	assert.True(expectedRoots.Equal(conf.RootCAs), "RootCAs should be the system pool plus the CA from ca_file")
+
+	caOnly := x509.NewCertPool()
+	caOnly.AppendCertsFromPEM(caPEM)
+	assert.False(caOnly.Equal(conf.RootCAs), "RootCAs should not be built from an empty pool")
 }
